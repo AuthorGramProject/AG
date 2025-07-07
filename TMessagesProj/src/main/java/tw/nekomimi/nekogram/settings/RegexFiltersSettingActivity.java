@@ -24,9 +24,10 @@ import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextCheckCell;
-
+import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import java.util.ArrayList;
 
+import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.AyuFilter;
 import tw.nekomimi.nekogram.ui.RegexFilterEditActivity;
 import tw.nekomimi.nekogram.ui.RegexFilterPopup;
@@ -37,7 +38,10 @@ public class RegexFiltersSettingActivity extends BaseNekoSettingsActivity {
 
     private final long dialogId;
     private int filtersOptionHeaderRow;
+    private int regexFiltersEnabledRow;
     private int regexFiltersEnableInChatsRow;
+    private int ignoreBlockedRow;
+    private int ignoreBlockedNoticeRow;
     private int filtersOptionDividerRow;
     private int filtersHeaderRow;
     private int filtersDividerRow;
@@ -56,7 +60,10 @@ public class RegexFiltersSettingActivity extends BaseNekoSettingsActivity {
         super.updateRows();
 
         filtersOptionHeaderRow = rowCount++;
+        regexFiltersEnabledRow = rowCount++;
         regexFiltersEnableInChatsRow = rowCount++;
+        ignoreBlockedRow = rowCount++;
+        ignoreBlockedNoticeRow = rowCount++;
         filtersOptionDividerRow = rowCount++;
 
         filtersHeaderRow = rowCount++;
@@ -85,11 +92,21 @@ public class RegexFiltersSettingActivity extends BaseNekoSettingsActivity {
 
     @Override
     protected void onItemClick(View view, int position, float x, float y) {
-        if (position == regexFiltersEnableInChatsRow) {
+        if (position == regexFiltersEnabledRow) {
+            TextCheckCell cell = (TextCheckCell) view;
+            boolean enabled = !cell.isChecked();
+            cell.setChecked(enabled);
+            NaConfig.INSTANCE.getRegexFiltersEnabled().setConfigBool(enabled);
+        } else if (position == regexFiltersEnableInChatsRow) {
             TextCheckCell cell = (TextCheckCell) view;
             boolean enabled = !cell.isChecked();
             cell.setChecked(enabled);
             NaConfig.INSTANCE.getRegexFiltersEnableInChats().setConfigBool(enabled);
+        } else if (position == ignoreBlockedRow) {
+            TextCheckCell cell = (TextCheckCell) view;
+            boolean enabled = !cell.isChecked();
+            cell.setChecked(enabled);
+            NekoConfig.ignoreBlocked.setConfigBool(enabled);
         } else if (position > filtersHeaderRow && position < filtersDividerRow) {
             ArrayList<AyuFilter.FilterModel> filterModels = AyuFilter.getRegexFilters();
             int filterIndex = position - filtersHeaderRow - 1;
@@ -150,9 +167,14 @@ public class RegexFiltersSettingActivity extends BaseNekoSettingsActivity {
                     break;
                 case TYPE_CHECK:
                     TextCheckCell textCheckCell = (TextCheckCell) holder.itemView;
-                    if (position == regexFiltersEnableInChatsRow) {
+                    if (position == regexFiltersEnabledRow) {
+                        textCheckCell.setTextAndCheck(getString(R.string.RegexFiltersEnable),
+                                NaConfig.INSTANCE.getRegexFiltersEnabled().Bool(), true);
+                    } else if (position == regexFiltersEnableInChatsRow) {
                         textCheckCell.setTextAndCheck(getString(R.string.RegexFiltersEnableInChats),
                                 NaConfig.INSTANCE.getRegexFiltersEnableInChats().Bool(), true);
+                    } else if (position == ignoreBlockedRow) {
+                        textCheckCell.setTextAndCheck(getString(R.string.IgnoreBlocked), NekoConfig.ignoreBlocked.Bool(), true);
                     } else if (position > filtersHeaderRow && position < filtersDividerRow) {
                         ArrayList<AyuFilter.FilterModel> filterModels = AyuFilter.getRegexFilters();
                         int filterIndex = position - filtersHeaderRow - 1;
@@ -160,6 +182,13 @@ public class RegexFiltersSettingActivity extends BaseNekoSettingsActivity {
                             AyuFilter.FilterModel filterModel = filterModels.get(filterIndex);
                             textCheckCell.setTextAndCheck(filterModel.regex, filterModel.isEnabled(dialogId), true);
                         }
+                    }
+                    break;
+                case TYPE_INFO_PRIVACY:
+                    TextInfoPrivacyCell infoPrivacyCell = (TextInfoPrivacyCell) holder.itemView;
+                    if (position == ignoreBlockedNoticeRow) {
+                        infoPrivacyCell.setText(getString(R.string.IgnoreBlockedAbout));
+                        infoPrivacyCell.setBackground(Theme.getThemedDrawable(mContext, R.drawable.greydivider, Theme.key_windowBackgroundGrayShadow));
                     }
                     break;
                 case TYPE_TEXT:
@@ -187,6 +216,8 @@ public class RegexFiltersSettingActivity extends BaseNekoSettingsActivity {
                 return TYPE_HEADER;
             } else if (position == addFilterBtnRow) {
                 return TYPE_TEXT;
+            } else if (position == ignoreBlockedNoticeRow) {
+                return TYPE_INFO_PRIVACY;
             }
             return TYPE_CHECK;
         }

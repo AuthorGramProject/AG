@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="N_Config">N-Config</string>
+    <string name="Nagram" translatable="false">Nagram</string>
     <string name="ForceCopy">Force Copy</string>
     <string name="CombineMessage">Combine Messages</string>
     <string name="TextStyle">Text Style</string>
@@ -46,7 +47,6 @@
     <string name="IconDecoration">Icon Decoration</string>
     <string name="NotificationIcon">Notification Icon</string>
     <string name="Official">Official</string>
-    <string name="Nagram" translatable="false">Nagram</string>
     <string name="HalloWeen">HalloWeen</string>
     <string name="ShowOnlineStatus">Show Online Status</string>
     <string name="ShowOnlineStatusNotice">Show the online status of other people next to their profile photo in groups.</string>
@@ -106,6 +106,7 @@
     <string name="UnblockDeleted">Unblock Deleted Users</string>
     <string name="UnblockDeletedWarn">Are you sure you want to unblock **all deleted users**?</string>
     <string name="RegexFilters">Regex Message Filters</string>
+    <string name="RegexFiltersEnable">Enable Filters</string>
     <string name="RegexFiltersHeader">Filters</string>
     <string name="RegexFiltersEnableInChats">Enable Filters in Private Chats</string>
     <string name="RegexFiltersCaseInsensitive">Case insensitive expressions</string>

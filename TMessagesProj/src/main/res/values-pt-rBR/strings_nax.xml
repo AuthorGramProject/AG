@@ -50,7 +50,6 @@
     <string name="ClearDeleted">Limpar Excluídos</string>
     <string name="ClearDeletedAlertMessage">Você tem certeza que deseja limpar todas as mensagens excluídas neste chat?</string>
     <string name="ForwardsRestrictedInfoAyuDeleted">Não é permitido encaminhamento.</string>
-    <string name="RegexFiltersNotice">Toque para editar.</string>
     <string name="botCommandConfirmTitle">Enviar Comando</string>
     <string name="botCommandConfirmText">Você quer enviar este comando?\n\n%s</string>
     <string name="DisableScreenshotDetection">Desativar Detecção de Captura de Tela</string>

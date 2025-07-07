@@ -50,7 +50,6 @@
     <string name="ClearDeleted">Очистить удалённые</string>
     <string name="ClearDeletedAlertMessage">Вы уверены, что хотите очистить все удалённые сообщения в этом чате?</string>
     <string name="ForwardsRestrictedInfoAyuDeleted">Пересылка запрещена.</string>
-    <string name="RegexFiltersNotice">Нажмите, чтобы изменить.</string>
     <string name="botCommandConfirmTitle">Отправить команду</string>
     <string name="botCommandConfirmText">Вы хотите отправить эту команду?\n\n%s</string>
     <string name="DisableScreenshotDetection">Отключить обнаружение скриншотов</string>

@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="XChannel">Nagram X 频道</string>
+    <string name="NagranX_About">关于 NagramX</string>
+    <string name="NagranX_About_Desc">更新、源代码及更多</string>
+    <string name="NagramX_Links">链接</string>
+    <string name="Updates">更新</string>
+    <string name="NagramX_Info">信息</string> 
     <string name="EnableSaveDeletedMessages">保存已删除消息</string>
     <string name="DeletedMessage">已删除</string>
     <string name="EnableSaveEditsHistory">保存编辑历史</string>
@@ -50,7 +55,6 @@
     <string name="ClearDeleted">清除已删除消息</string>
     <string name="ClearDeletedAlertMessage">您确定要清除此聊天中的所有已删除消息吗？</string>
     <string name="ForwardsRestrictedInfoAyuDeleted">不允许转发。</string>
-    <string name="RegexFiltersNotice">点击以编辑。</string>
     <string name="botCommandConfirmTitle">确认指令</string>
     <string name="botCommandConfirmText">您确定要发送此指令吗？\n\n%s</string>
     <string name="DisableScreenshotDetection">禁用截屏检测</string>

@@ -52,6 +52,9 @@
     <string name="ForwardsRestrictedInfoAyuDeleted">İletmeye izin verilmiyor.</string>
     <string name="RegexFiltersNotice">Düzenlemek için dokunun.</string>
     <string name="botCommandConfirmTitle">Komutu Gönder</string>
+    <string name="ClearDeletedAlertMessage">Bu sohbetteki tüm silinen mesajları temizlemek istediğinizden emin misiniz?</string>
+    <string name="ForwardsRestrictedInfoAyuDeleted">Yönlendirme izni yok.</string>
+    <string name="botCommandConfirmTitle">Komut Gönder</string>
     <string name="botCommandConfirmText">Bu komutu göndermek istiyor musunuz?\n\n%s</string>
     <string name="DisableScreenshotDetection">Ekran Görüntüsü Algılamayı Devre Dışı Bırak</string>
     <string name="MessageSavingSaveMedia">Medyayı Kaydet</string>

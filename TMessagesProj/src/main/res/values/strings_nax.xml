@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="NagramX" translatable="false">Nagram X</string>
+    <string name="NagranX_About">About NagramX</string>
+    <string name="NagranX_About_Desc">Updates, source code and more</string>
+    <string name="NagramX_Links">Link</string>
+    <string name="NagramX_Info">lnfo</string>   
+    <string name="Updates">Updates</string>
     <string name="XChannel">Nagram X Channel</string>
     <string name="EnableSaveDeletedMessages">Save Deleted Messages</string>
     <string name="DeletedMessage">deleted</string>
@@ -63,7 +68,6 @@
     <string name="ClearDeleted">Clear Deleted</string>
     <string name="ClearDeletedAlertMessage">Are you sure you want to clear all deleted messages in this chat?</string>
     <string name="ForwardsRestrictedInfoAyuDeleted">Forwarding is not allowed.</string>
-    <string name="RegexFiltersNotice">Tap to edit.</string>
     <string name="botCommandConfirmTitle">Send Command</string>
     <string name="botCommandConfirmText">Do you want to send this command?\n\n%s</string>
     <string name="DisableScreenshotDetection">Disable Screenshot Detection</string>

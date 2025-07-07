@@ -50,7 +50,6 @@
     <string name="ClearDeleted">Очистити видалені</string>
     <string name="ClearDeletedAlertMessage">Ви дійсно хочете очистити всі видалені повідомлення в цьому чаті?</string>
     <string name="ForwardsRestrictedInfoAyuDeleted">Пересилка заборона.</string>
-    <string name="RegexFiltersNotice">Натисніть для Редагування.</string>
     <string name="botCommandConfirmTitle">Надіслати команду</string>
     <string name="botCommandConfirmText">Ви хочете відправити цю команду? \n\n%s</string>
     <string name="DisableScreenshotDetection">Вимкнути виявлення скріншотів</string>
