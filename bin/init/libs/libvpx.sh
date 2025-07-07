@@ -12,4 +12,4 @@ git reset --hard
 git clean -fdx
 cd ..
 
-./build_libvpx_clang.sh || exit 1
+./build_libvpx_clang.sh arm arm64 || exit 1

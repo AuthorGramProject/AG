@@ -54,20 +54,10 @@ android {
 
     defaultConfig.applicationId = "nu.gpu.nagram"
 
-    splits {
-        abi {
-            enable true
-            reset()
-            universalApk false
-            if (!nativeTarget.isBlank()) {
-                include nativeTarget
-            } else {
-                include 'arm64-v8a'
-            }
-        }
-    }
-
     defaultConfig {
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
         minSdkVersion 21
         //noinspection ExpiredTargetSdkVersion,OldTargetApi
         targetSdkVersion 34
@@ -311,6 +301,7 @@ android {
 
         def lib = "libtmessages.*.so"
         pickFirst "lib/arm64-v8a/$lib"
+        pickFirst "lib/armeabi-v7a/$lib"
     }
     namespace "org.telegram.messenger"
     lint {
