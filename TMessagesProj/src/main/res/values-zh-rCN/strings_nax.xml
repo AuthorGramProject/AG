@@ -6,6 +6,7 @@
     <string name="NagramX_Links">链接</string>
     <string name="Updates">更新</string>
     <string name="NagramX_Info">信息</string> 
+    <string name="OneUISwitchStyle">OneUI 开关风格</string>
     <string name="EnableSaveDeletedMessages">保存已删除消息</string>
     <string name="DeletedMessage">已删除</string>
     <string name="EnableSaveEditsHistory">保存编辑历史</string>

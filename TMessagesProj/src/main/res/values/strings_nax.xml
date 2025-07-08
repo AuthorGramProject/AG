@@ -4,8 +4,9 @@
     <string name="NagranX_About">About NagramX</string>
     <string name="NagranX_About_Desc">Updates, source code and more</string>
     <string name="NagramX_Links">Link</string>
-    <string name="NagramX_Info">lnfo</string>   
+    <string name="NagramX_Info">lnfo</string> 
     <string name="Updates">Updates</string>
+    <string name="OneUISwitchStyle">OneUI Switch Style</string>  
     <string name="XChannel">Nagram X Channel</string>
     <string name="EnableSaveDeletedMessages">Save Deleted Messages</string>
     <string name="DeletedMessage">deleted</string>
