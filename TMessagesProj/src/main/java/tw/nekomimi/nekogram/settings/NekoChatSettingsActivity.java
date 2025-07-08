@@ -335,8 +335,11 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
         if (NaConfig.INSTANCE.getUseEditedIcon().Bool()) {
             cellGroup.rows.remove(customEditedMessageRow);
         }
-        if (NaConfig.INSTANCE.getTranscribeProvider().Int() != TranscribeHelper.TRANSCRIBE_OPENAI) {
-            cellGroup.rows.remove(transcribeProviderOpenAiRow);
+        if (NaConfig.INSTANCE.getConfirmAllLinks().Bool()) {
+            cellGroup.rows.remove(skipOpenLinkConfirmRow);
+        }
+        if (!NekoConfig.labelChannelUser.Bool()) {
+            cellGroup.rows.remove(channelAliasRow);
         }
         if (!BuildVars.LOGS_ENABLED) {
             cellGroup.rows.remove(markdownParserRow);
@@ -515,11 +518,33 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
             } else if (key.equals(NekoConfig.showSeconds.getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getConfirmAllLinks().getKey())) {
-                setCanNotChange();
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(skipOpenLinkConfirmRow));
+                if ((boolean) newValue) {
+                    if (cellGroup.rows.contains(skipOpenLinkConfirmRow)) {
+                        final int index = cellGroup.rows.indexOf(skipOpenLinkConfirmRow);
+                        cellGroup.rows.remove(skipOpenLinkConfirmRow);
+                        listAdapter.notifyItemRemoved(index);
+                    }
+                } else {
+                    if (!cellGroup.rows.contains(skipOpenLinkConfirmRow)) {
+                        final int index = cellGroup.rows.indexOf(confirmAllLinksRow) - 1;
+                        cellGroup.rows.add(index, skipOpenLinkConfirmRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                }
             } else if (key.equals(NekoConfig.labelChannelUser.getKey())) {
-                setCanNotChange();
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(channelAliasRow));
+                if (!(boolean) newValue) {
+                    if (cellGroup.rows.contains(channelAliasRow)) {
+                        final int index = cellGroup.rows.indexOf(channelAliasRow);
+                        cellGroup.rows.remove(channelAliasRow);
+                        listAdapter.notifyItemRemoved(index);
+                    }
+                } else {
+                    if (!cellGroup.rows.contains(channelAliasRow)) {
+                        final int index = cellGroup.rows.indexOf(labelChannelUserRow) + 1;
+                        cellGroup.rows.add(index, channelAliasRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                }
             } else if (key.equals(NaConfig.INSTANCE.getUseEditedIcon().getKey())) {
                 if ((boolean) newValue) {
                     if (cellGroup.rows.contains(customEditedMessageRow)) {
@@ -544,20 +569,6 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
                 stickerSizeCell.invalidate();
             } else if (key.equals(NaConfig.INSTANCE.getPremiumItemCustomColorInReplies().getKey())) {
                 stickerSizeCell.invalidate();
-            } else if (key.equals(NaConfig.INSTANCE.getTranscribeProvider().getKey())) {
-                if ((int) newValue == TranscribeHelper.TRANSCRIBE_OPENAI) {
-                    if (!cellGroup.rows.contains(transcribeProviderOpenAiRow)) {
-                        final int index = cellGroup.rows.indexOf(transcribeProviderGeminiApiKeyRow) + 1;
-                        cellGroup.rows.add(index, transcribeProviderOpenAiRow);
-                        listAdapter.notifyItemInserted(index);
-                    }
-                } else {
-                    if (cellGroup.rows.contains(transcribeProviderOpenAiRow)) {
-                        final int index = cellGroup.rows.indexOf(transcribeProviderOpenAiRow);
-                        cellGroup.rows.remove(transcribeProviderOpenAiRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                }
             } else if (key.equals("PremiumElements")) {
                 addRowsToMap(cellGroup);
             }
@@ -848,12 +859,5 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     }
 
     private void setCanNotChange() {
-        boolean enabled;
-
-        enabled = NaConfig.INSTANCE.getConfirmAllLinks().Bool();
-        ((ConfigCellTextCheck) skipOpenLinkConfirmRow).setEnabled(!enabled);
-
-        enabled = NekoConfig.labelChannelUser.Bool();
-        ((ConfigCellTextCheck) channelAliasRow).setEnabled(enabled);
     }
 }

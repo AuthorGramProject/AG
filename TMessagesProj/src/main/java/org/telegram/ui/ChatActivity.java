@@ -321,6 +321,7 @@ import kotlin.Unit;
 import tw.nekomimi.nekogram.BackButtonMenuRecent;
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.AyuFilter;
+import tw.nekomimi.nekogram.settings.RegexFiltersSettingActivity;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
 import tw.nekomimi.nekogram.helpers.remote.EmojiHelper;
 import tw.nekomimi.nekogram.helpers.remote.PagePreviewRulesHelper;
@@ -396,6 +397,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private final static int nkbtn_forward_nocaption = 2035;
     private final static int nkbtn_channelDirectMessage = 2036;
     private final static int nkbtn_clearDeleted = 2100;
+    private final static int message_filter = 2200;
 
     public int shareAlertDebugMode = DEBUG_SHARE_ALERT_MODE_NORMAL;
     public boolean shareAlertDebugTopicsSlowMotion;
@@ -3838,6 +3840,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                         getMessagesController().getTopicsController().toggleViewForumAsMessages(-dialog_id, false);
                         TopicsFragment.prepareToSwitchAnimation(ChatActivity.this);
                     }
+                } else if (id == message_filter) { 
+                    presentFragment(new RegexFiltersSettingActivity(dialog_id));
                 } else if (id == copy) {
                     SpannableStringBuilder str = new SpannableStringBuilder();
                     long previousUid = 0;
@@ -4545,6 +4549,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     }
                 });
                 muteItemGap = headerItem.lazilyAddColoredGap();
+                headerItem.lazilyAddSubItem(message_filter, R.drawable.hide_title, LocaleController.getString("RegexFilters", R.string.RegexFilters));
             }
 
             if (ChatObject.hasAdminRights(currentChat)) {

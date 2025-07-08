@@ -202,6 +202,7 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         );
         if (NaConfig.INSTANCE.getExternalStickerCache().String().isBlank()) {
             cellGroup.rows.removeAll(externalStickerRows);
+            cellGroup.rows.remove(externalStickerCacheAutoSyncRow);
         }
         if (NaConfig.INSTANCE.getUseDeletedIcon().Bool()) {
             cellGroup.rows.remove(customDeletedMarkRow);
@@ -212,18 +213,19 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
         if (!NaConfig.INSTANCE.getSpringAnimation().Bool()) {
             cellGroup.rows.remove(springAnimationCrossfadeRow);
         }
+        if (!NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+            cellGroup.rows.remove(messageSavingSaveMediaRow);
+            cellGroup.rows.remove(saveDeletedMessageForBotsUserRow);
+            cellGroup.rows.remove(saveDeletedMessageInBotChatRow);
+            cellGroup.rows.remove(translucentDeletedMessagesRow);
+            cellGroup.rows.remove(useDeletedIconRow);
+            cellGroup.rows.remove(customDeletedMarkRow);
+        }
         addRowsToMap(cellGroup);
-    }
-
-    private void setExternalStickerCacheCellsEnabled(boolean enabled) {
-        ((ConfigCellTextCheck) externalStickerCacheAutoSyncRow).setEnabled(enabled);
-        ((ConfigCellText) externalStickerCacheSyncAllRow).setEnabled(enabled);
-        ((ConfigCellText) externalStickerCacheDeleteAllRow).setEnabled(enabled);
     }
 
     private void refreshExternalStickerStorageState() {
         ConfigCellAutoTextCheck cell = (ConfigCellAutoTextCheck) externalStickerCacheRow;
-        setExternalStickerCacheCellsEnabled(!cell.getBindConfig().String().isEmpty());
         Context context = ApplicationLoader.applicationContext;
         ExternalStickerCacheHelper.checkUri(cell, context);
     }
@@ -231,7 +233,6 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
     private void onExternalStickerCacheButtonClick(boolean isChecked) {
         if (isChecked) {
             // clear config
-            setExternalStickerCacheCellsEnabled(false);
             ConfigCellAutoTextCheck cell = (ConfigCellAutoTextCheck) externalStickerCacheRow;
             cell.setSubtitle(null);
             NaConfig.INSTANCE.getExternalStickerCache().setConfigString("");
@@ -239,6 +240,11 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
                 cellGroup.rows.removeAll(externalStickerRows);
                 int externalStickerCacheIndex = cellGroup.rows.indexOf(externalStickerCacheRow);
                 listAdapter.notifyItemRangeRemoved(externalStickerCacheIndex + 2, externalStickerRows.size());
+            }
+            if (cellGroup.rows.contains(externalStickerCacheAutoSyncRow)) {
+                int index = cellGroup.rows.indexOf(externalStickerCacheAutoSyncRow);
+                cellGroup.rows.remove(externalStickerCacheAutoSyncRow);
+                listAdapter.notifyItemRemoved(index);
             }
             tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
         } else {
@@ -248,6 +254,11 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
                 int externalStickerCacheIndex = cellGroup.rows.indexOf(externalStickerCacheRow);
                 cellGroup.rows.addAll(externalStickerCacheIndex + 2, externalStickerRows);
                 listAdapter.notifyItemRangeInserted(externalStickerCacheIndex + 2, externalStickerRows.size());
+            }
+            if (!cellGroup.rows.contains(externalStickerCacheAutoSyncRow)) {
+                int index = cellGroup.rows.indexOf(externalStickerCacheRow) + 1;
+                cellGroup.rows.add(index, externalStickerCacheAutoSyncRow);
+                listAdapter.notifyItemInserted(index);
             }
         }
     }
@@ -422,12 +433,69 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
             } else if (key.equals(NaConfig.INSTANCE.getDisableFlagSecure().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getEnableSaveDeletedMessages().getKey())) {
-                setCanNotChange();
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(messageSavingSaveMediaRow));
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(saveDeletedMessageForBotsUserRow));
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(saveDeletedMessageInBotChatRow));
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(translucentDeletedMessagesRow));
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(useDeletedIconRow));
+                if (!(boolean) newValue) {
+                    if (cellGroup.rows.contains(messageSavingSaveMediaRow)) {
+                        final int index = cellGroup.rows.indexOf(messageSavingSaveMediaRow);
+                        cellGroup.rows.remove(messageSavingSaveMediaRow);
+                        listAdapter.notifyItemRemoved(index);
+                    }
+                    if (cellGroup.rows.contains(saveDeletedMessageForBotsUserRow)) {
+                        final int index = cellGroup.rows.indexOf(saveDeletedMessageForBotsUserRow);
+                        cellGroup.rows.remove(saveDeletedMessageForBotsUserRow);
+                        listAdapter.notifyItemRemoved(index);
+                    }
+                    if (cellGroup.rows.contains(saveDeletedMessageInBotChatRow)) {
+                        final int index = cellGroup.rows.indexOf(saveDeletedMessageInBotChatRow);
+                        cellGroup.rows.remove(saveDeletedMessageInBotChatRow);
+                        listAdapter.notifyItemRemoved(index);
+                    }
+                    if (cellGroup.rows.contains(translucentDeletedMessagesRow)) {
+                        final int index = cellGroup.rows.indexOf(translucentDeletedMessagesRow);
+                        cellGroup.rows.remove(translucentDeletedMessagesRow);
+                        listAdapter.notifyItemRemoved(index);
+                    }
+                    if (cellGroup.rows.contains(useDeletedIconRow)) {
+                        final int index = cellGroup.rows.indexOf(useDeletedIconRow);
+                        cellGroup.rows.remove(useDeletedIconRow);
+                        listAdapter.notifyItemRemoved(index);
+                    }
+                    if (cellGroup.rows.contains(customDeletedMarkRow)) {
+                        final int index = cellGroup.rows.indexOf(customDeletedMarkRow);
+                        cellGroup.rows.remove(customDeletedMarkRow);
+                        listAdapter.notifyItemRemoved(index);
+                    }
+                } else {
+                    if (!cellGroup.rows.contains(messageSavingSaveMediaRow)) {
+                        final int index = cellGroup.rows.indexOf(enableSaveEditsHistoryRow) + 1;
+                        cellGroup.rows.add(index, messageSavingSaveMediaRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                    if (!cellGroup.rows.contains(saveDeletedMessageForBotsUserRow)) {
+                        final int index = cellGroup.rows.indexOf(messageSavingSaveMediaRow) + 1;
+                        cellGroup.rows.add(index, saveDeletedMessageForBotsUserRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                    if (!cellGroup.rows.contains(saveDeletedMessageInBotChatRow)) {
+                        final int index = cellGroup.rows.indexOf(saveDeletedMessageForBotsUserRow) + 1;
+                        cellGroup.rows.add(index, saveDeletedMessageInBotChatRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                    if (!cellGroup.rows.contains(translucentDeletedMessagesRow)) {
+                        final int index = cellGroup.rows.indexOf(saveDeletedMessageInBotChatRow) + 1;
+                        cellGroup.rows.add(index, translucentDeletedMessagesRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                    if (!cellGroup.rows.contains(useDeletedIconRow)) {
+                        final int index = cellGroup.rows.indexOf(translucentDeletedMessagesRow) + 1;
+                        cellGroup.rows.add(index, useDeletedIconRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                    if (!cellGroup.rows.contains(customDeletedMarkRow)) {
+                        final int index = cellGroup.rows.indexOf(useDeletedIconRow) + 1;
+                        cellGroup.rows.add(index, customDeletedMarkRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                }
             } else if (key.equals(NaConfig.INSTANCE.getDisableStories().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.localPremium.getKey())) {
@@ -774,14 +842,6 @@ public class NekoExperimentalSettingsActivity extends BaseNekoXSettingsActivity 
     }
 
     private void setCanNotChange() {
-        boolean enabled;
-
-        enabled = NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool();
-        ((ConfigCellTextCheck) messageSavingSaveMediaRow).setEnabled(enabled);
-        ((ConfigCellTextCheck) saveDeletedMessageForBotsUserRow).setEnabled(enabled);
-        ((ConfigCellTextCheck) saveDeletedMessageInBotChatRow).setEnabled(enabled);
-        ((ConfigCellTextCheck) translucentDeletedMessagesRow).setEnabled(enabled);
-        ((ConfigCellTextCheck) useDeletedIconRow).setEnabled(enabled);
     }
 
     private void showBottomSheet() {

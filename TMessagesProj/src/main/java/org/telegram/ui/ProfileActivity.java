@@ -598,7 +598,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     private final static int aliasChannelName = 100;
     private final static int event_log = 102;
-    private final static int message_filter = 103;
     private final static int clear_cache = 104;
     private final static int add_to_folder = 105;
 
@@ -2457,8 +2456,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     leaveChatPressed();
                 } else if (id == event_log) {
                     presentFragment(new ChannelAdminLogActivity(currentChat));
-                } else if (id == message_filter){
-                    presentFragment(new RegexFiltersSettingActivity(chatId != 0 ? -chatId : userId));
                 } else if (id == aliasChannelName) {
                     setChannelAlias();
                 } else if (id == delete_topic) {
@@ -11065,7 +11062,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 if (isBot || getContactsController().contactsDict.get(userId) == null) {
                     if (MessagesController.isSupportUser(user)) {
-                        createMessageFilterItem();
                         if (userBlocked) {
                             otherItem.addSubItem(block_contact, R.drawable.msg_block, LocaleController.getString(R.string.Unblock));
                         }
@@ -11390,13 +11386,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     public Drawable getThemedDrawable(String drawableKey) {
         Drawable drawable = resourcesProvider != null ? resourcesProvider.getDrawable(drawableKey) : null;
         return drawable != null ? drawable : super.getThemedDrawable(drawableKey);
-    }
-
-    private void createMessageFilterItem() {
-        if (!NaConfig.INSTANCE.getRegexFiltersEnabled().Bool()) {
-            return;
-        }
-        otherItem.addSubItem(message_filter, R.drawable.hide_title, LocaleController.getString("RegexFilters", R.string.RegexFilters));
     }
 
     private void setAutoDeleteHistory(int time, int action) {
