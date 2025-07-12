@@ -52,7 +52,7 @@ android {
     compileSdkVersion 36
     ndkVersion rootProject.ext.ndkVersion
 
-    defaultConfig.applicationId = "nu.gpu.nagram"
+    defaultConfig.applicationId = "fork.risin42.nagramx"
 
     defaultConfig {
         ndk {
@@ -213,12 +213,20 @@ android {
 
     applicationVariants.configureEach { variant ->
         variant.outputs.configureEach { output ->
+            def abiFilter = output.filters.find { it.filterType == 'ABI' }
+            def abiSuffix = ""
+            if (abiFilter != null) {
+                abiSuffix = "-" + abiFilter.identifier
+            } else {
+                abiSuffix = "-universal"
+            }
+
             String gramName = "NagramX"
-            String first = String.format("%s-v%s(%s)", gramName, versionName, versionCode)
-            String name = outputFileName.replace("TMessagesProj", first)
+            String first = String.format("%s-v%s(%s)%s", gramName, variant.versionName, variant.versionCode, abiSuffix)
+            String name = output.outputFileName.replace("TMessagesProj", first)
             name = name.replace("-release", "")
             name = name.replace("-staging", "")
-            outputFileName = name
+            output.outputFileName = name
         }
     }
 }
