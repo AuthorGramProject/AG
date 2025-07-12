@@ -22,7 +22,7 @@ def find_apk(abi: str) -> Path:
                     return apk
 
 def get_thumb() -> str:
-    return "TMessagesProj/src/main/" + "ic_launcher_nagram_block_round-playstore.png"
+    return "TMessagesProj/src/main/" + "ic_launcher_nagram_round_blue-playstore.png"
 
 def get_commit_info():
     commit_id = os.environ.get("COMMIT_ID", "")[:7]
