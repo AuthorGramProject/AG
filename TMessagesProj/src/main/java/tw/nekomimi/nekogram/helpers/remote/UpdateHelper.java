@@ -53,7 +53,7 @@ public class UpdateHelper extends BaseRemoteHelper {
     protected void onError(String text, Delegate delegate) {
         delegate.onTLResponse(null, text);
     }
-
+    
     @Override
     protected String getTag() {
         return NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UPDATE_CHANNEL_RELEASE ? "updateRelease" : "updateBeta";
@@ -66,13 +66,13 @@ public class UpdateHelper extends BaseRemoteHelper {
                 return files.get(abi);
             }
         }
-        return files.get("arm64-v8a");
+        return files.get("universal");
     }
 
     private Map<String, Integer> jsonToMap(JSONObject obj) {
         Map<String, Integer> map = new HashMap<>();
         List<String> abis = new ArrayList<>();
-        abis.add("arm64-v8a");
+        abis.add("universal");
         try {
             for (var abi : abis) {
                 map.put(abi, obj.getInt(abi));
