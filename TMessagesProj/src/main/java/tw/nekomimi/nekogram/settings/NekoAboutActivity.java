@@ -60,9 +60,6 @@ import xyz.nextalone.nagram.NaConfig;
 
 public class NekoAboutActivity extends BaseNekoSettingsActivity {
 
-    // Row types
-    private static final int TYPE_TEXT_LINK = 100;
-
     // Row positions
     private int infoHeaderRow;
     private int updatesRow;
@@ -345,10 +342,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                     view = new TextInfoPrivacyCell(mContext);
                     view.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
                     break;
-                case TYPE_TEXT_LINK:
-                    view = new TextSettingsCell(mContext);
-                    view.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
-                    break;
                 default:
                     return super.onCreateViewHolder(parent, viewType);
             }
@@ -380,23 +373,18 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                         textCell.setTextAndIcon(getString(R.string.DebugSendLogs), R.drawable.ic_upward_solar, true);
                     } else if (position == clearLogsRow) {
                         textCell.setTextAndIcon(getString(R.string.DebugClearLogs), R.drawable.msg_clear_solar, true);
-                    }
-                    break;
-                }
-                case TYPE_TEXT_LINK: {
-                    TextSettingsCell textCell = (TextSettingsCell) holder.itemView;
-                    if (position == xChannelRow) {
-                        textCell.setTextAndValue(getString(R.string.XChannel), "@NagramX", true);
+                    } else if (position == xChannelRow) {
+                        textCell.setTextAndValue(getString(R.string.XChannel), "@NagramX", true, true);
                     } else if (position == channelRow) {
-                        textCell.setTextAndValue(getString(R.string.OfficialChannel), "@nagram_channel", true);
+                        textCell.setTextAndValue(getString(R.string.OfficialChannel), "@nagram_channel", true, true);
                     } else if (position == channelTipsRow) {
-                        textCell.setTextAndValue(getString(R.string.TipsChannel), "@" + "NagramTips", true);
+                        textCell.setTextAndValue(getString(R.string.TipsChannel), "@" + "NagramTips", true, true);
                     } else if (position == sourceCodeRow) {
-                        textCell.setTextAndValue(getString(R.string.SourceCode), "Github", true);
+                        textCell.setTextAndValue(getString(R.string.SourceCode), "Github", true, true);
                     } else if (position == translationRow) {
-                        textCell.setTextAndValue(getString(R.string.TransSite), "Crowdin", true);
+                        textCell.setTextAndValue(getString(R.string.TransSite), "Crowdin", true, true);
                     } else if (position == datacenterStatusRow) {
-                        textCell.setText(getString(R.string.DatacenterStatus), false);
+                        textCell.setText(getString(R.string.DatacenterStatus), true);
                     }
                     break;
                 }
@@ -411,12 +399,10 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         public int getItemViewType(int position) {
             if (position == infoHeaderRow || position == linksHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == updatesRow || position == toggleLogsRow || position == sendLogsRow || position == clearLogsRow) {
-                return TYPE_TEXT;
             } else if (position == bottomDividerRow || position == infoLinksDividerRow) {
                 return TYPE_SHADOW;
             }
-            return TYPE_TEXT_LINK;
+            return TYPE_TEXT;
         }
     }
 }
