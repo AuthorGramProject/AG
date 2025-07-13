@@ -628,13 +628,13 @@ object NaConfig {
         addConfig(
             "HidePremiumSection",
             ConfigItem.configTypeBool,
-            true
+            false
         )
     val hideHelpSection =
         addConfig(
             "HideHelpSection",
             ConfigItem.configTypeBool,
-            true
+            false
         )
     val llmApiUrl =
         addConfig(
@@ -1091,7 +1091,7 @@ object NaConfig {
         addConfig(
             "HideDividers",
             ConfigItem.configTypeBool,
-            false
+            true
         )
     var iconReplacements =
         addConfig(

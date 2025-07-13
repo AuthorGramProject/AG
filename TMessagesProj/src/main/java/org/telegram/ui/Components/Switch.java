@@ -385,10 +385,10 @@ public class Switch extends View {
         invalidate();
     }
 
-    @Override
+/*    @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         setMeasuredDimension(AndroidUtilities.dp(45), AndroidUtilities.dp(28));
-    }
+    }*/
 
     @Override
     protected void onDraw(Canvas canvas) {

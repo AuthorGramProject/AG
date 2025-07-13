@@ -259,29 +259,18 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
 
         int count = configItems.size();
         for (int a = 0; a < count; a++) {
-        ConfigCellTextCheckIcon configItem = configItems.get(a);
-        // 1. 将 TextCell 替换为 TextCheckCell
-        TextCheckCell textCell = new TextCheckCell(context);
-        // 2. 使用 setTextAndCheck 设置文本和开关状态
-        textCell.setTextAndCheck(configItem.getTitle(), configItem.getBindConfig().Bool(), configItem.getDivider());
-        // 3. 使用 setColorfullIcon 设置图标和颜色
-        // 虽然使用Cherrygram那种透明图标看上去更美观，但是懒得写了，就这样吧
-        int iconBackgroundColor = Theme.getColor(Theme.key_chats_actionBackground, bf.getResourceProvider());
-        textCell.setColorfullIcon(iconBackgroundColor, configItem.getResId());
-
-        textCell.setTag(a);
-        textCell.setBackground(Theme.getSelectorDrawable(false));
-        // 4. 修改布局高度为固定的50dp，以获得更好的视觉一致性
-        linearLayoutInviteContainer.addView(textCell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50));
-        int finalA = a;
-        textCell.setOnClickListener(v2 -> {
-            Integer tag = (Integer) v2.getTag();
-            if (tag == finalA) {
-                // 5. 调用 isChecked() 来获取状态并更新
-                boolean newChecked = !textCell.isChecked();
-                textCell.setChecked(newChecked);
-                configItem.getBindConfig().setConfigBool(newChecked);
-                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+            ConfigCellTextCheckIcon configItem = configItems.get(a);
+            TextCell textCell = new TextCell(context, 23, false, true, bf.getResourceProvider());
+            textCell.setTextAndCheckAndIcon(configItem.getTitle(), configItem.getBindConfig().Bool(), configItem.getResId(), configItem.getDivider());
+            textCell.setTag(a);
+            textCell.setBackground(Theme.getSelectorDrawable(false));
+            linearLayoutInviteContainer.addView(textCell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+            int finalA = a;
+            textCell.setOnClickListener(v2 -> {
+                Integer tag = (Integer) v2.getTag();
+                if (tag == finalA) {
+                    textCell.setChecked(configItem.getBindConfig().toggleConfigBool());
+                    NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
                 }
             });
         }

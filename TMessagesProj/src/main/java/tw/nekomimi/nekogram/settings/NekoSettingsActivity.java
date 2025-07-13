@@ -203,6 +203,7 @@ public class NekoSettingsActivity extends BaseFragment {
             super(context);
 
             listView = new RecyclerListView(context);
+            listView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
             listView.setVerticalScrollBarEnabled(false);
             listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
             addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
@@ -281,7 +282,7 @@ public class NekoSettingsActivity extends BaseFragment {
                             } else if (position == resetSettingsRow) {
                                 textCell.setTextAndIcon(getString(R.string.ResetSettings), R.drawable.msg_reset_solar, true);
                             } else if (position == appRestartRow) {
-                                textCell.setTextAndIcon(getString(R.string.RestartApp), R.drawable.msg_retry_solar, false);
+                                textCell.setTextAndIcon(getString(R.string.RestartApp), R.drawable.msg_retry_solar, true);
                             } else if (position == aboutRow) {
                                 textCell.setTextAndIcon(getString(R.string.NagranX_About_Desc), R.drawable.msg_info_solar, false);
                             }

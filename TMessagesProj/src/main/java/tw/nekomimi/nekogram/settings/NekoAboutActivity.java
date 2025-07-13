@@ -76,6 +76,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
     private int sourceCodeRow;
     private int translationRow;
     private int datacenterStatusRow;
+    private int infoLinksDividerRow;
     private int bottomDividerRow;
 
     @Override
@@ -96,6 +97,8 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
             sendLogsRow = -1;
             clearLogsRow = -1;
         }
+
+        infoLinksDividerRow = rowCount++;
 
         // Links Section
         linksHeaderRow = rowCount++;
@@ -332,15 +335,19 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
             switch (viewType) {
                 case TYPE_HEADER:
                     view = new HeaderCell(mContext);
+                    view.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
                     break;
                 case TYPE_TEXT:
                     view = new TextCell(mContext);
+                    view.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
                     break;
                 case TYPE_INFO_PRIVACY:
                     view = new TextInfoPrivacyCell(mContext);
+                    view.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
                     break;
                 case TYPE_TEXT_LINK:
                     view = new TextSettingsCell(mContext);
+                    view.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
                     break;
                 default:
                     return super.onCreateViewHolder(parent, viewType);
@@ -351,7 +358,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             int viewType = holder.getItemViewType();
-            holder.itemView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
 
             switch (viewType) {
                 case TYPE_HEADER: {
@@ -369,12 +375,11 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                         textCell.setTextAndIcon(getString(R.string.Updates), R.drawable.round_update_white_28, true);
                     } else if (position == toggleLogsRow) {
                         String text = BuildVars.LOGS_ENABLED ? getString(R.string.DebugMenuDisableLogs) : getString(R.string.DebugMenuEnableLogs); //
-                        boolean needsDivider = !BuildVars.LOGS_ENABLED;
-                        textCell.setTextAndIcon(text, R.drawable.bug_solar, needsDivider);
+                        textCell.setTextAndIcon(text, R.drawable.bug_solar, true);
                     } else if (position == sendLogsRow) {
                         textCell.setTextAndIcon(getString(R.string.DebugSendLogs), R.drawable.ic_upward_solar, true);
                     } else if (position == clearLogsRow) {
-                        textCell.setTextAndIcon(getString(R.string.DebugClearLogs), R.drawable.msg_clear_solar, false);
+                        textCell.setTextAndIcon(getString(R.string.DebugClearLogs), R.drawable.msg_clear_solar, true);
                     }
                     break;
                 }
@@ -408,7 +413,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                 return TYPE_HEADER;
             } else if (position == updatesRow || position == toggleLogsRow || position == sendLogsRow || position == clearLogsRow) {
                 return TYPE_TEXT;
-            } else if (position == bottomDividerRow) {
+            } else if (position == bottomDividerRow || position == infoLinksDividerRow) {
                 return TYPE_SHADOW;
             }
             return TYPE_TEXT_LINK;
