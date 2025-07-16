@@ -67,6 +67,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
     private int sendLogsRow;
     private int clearLogsRow;
     private int linksHeaderRow;
+    private int forkRow;
     private int xChannelRow;
     private int channelRow;
     private int channelTipsRow;
@@ -99,6 +100,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
 
         // Links Section
         linksHeaderRow = rowCount++;
+        forkRow = rowCount++;
         xChannelRow = rowCount++;
         channelRow = rowCount++;
         channelTipsRow = rowCount++;
@@ -129,7 +131,9 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
             clearLogs();
         }
         // Link Rows
-        else if (position == xChannelRow) {
+        else if (position == forkRow) {
+            MessagesController.getInstance(currentAccount).openByUserName("NagramX_Fork", this, 1);
+        } else if (position == xChannelRow) {
             MessagesController.getInstance(currentAccount).openByUserName("NagramX", this, 1);
         } else if (position == channelRow) {
             MessagesController.getInstance(currentAccount).openByUserName("nagram_channel", this, 1);
@@ -373,6 +377,8 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                         textCell.setTextAndIcon(getString(R.string.DebugSendLogs), R.drawable.ic_upward_solar, true);
                     } else if (position == clearLogsRow) {
                         textCell.setTextAndIcon(getString(R.string.DebugClearLogs), R.drawable.msg_clear_solar, true);
+                    } else if (position == forkRow) {
+                        textCell.setTextAndValue(getString(R.string.Fork), "@NagramX_Fork", true, true);
                     } else if (position == xChannelRow) {
                         textCell.setTextAndValue(getString(R.string.XChannel), "@NagramX", true, true);
                     } else if (position == channelRow) {
