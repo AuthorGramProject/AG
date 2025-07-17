@@ -175,9 +175,9 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell headerChatBlur = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.ChatBlurAlphaValue)));
     private final AbstractConfigCell chatBlurAlphaValueRow = cellGroup.appendCell(new ConfigCellCustom("ChatBlurAlphaValue", ConfigCellCustom.CUSTOM_ITEM_CharBlurAlpha, NekoConfig.forceBlurInChat.Bool()));
     private final AbstractConfigCell iconReplacements = cellGroup.appendCell(new ConfigCellSelectBox("IconReplacements", NaConfig.INSTANCE.getIconReplacements(), new String[]{
-        getString(R.string.Default),
-        getString(R.string.IconReplacementSolar),
-}, null));
+            getString(R.string.Default),
+            getString(R.string.IconReplacementSolar),
+    }, null));
     private final AbstractConfigCell actionBarDecorationRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NekoConfig.actionBarDecoration, new String[]{
             getString(R.string.DependsOnDate),
             getString(R.string.Snowflakes),
@@ -208,10 +208,10 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             getString(R.string.Disable)
     }, null));
     private final AbstractConfigCell centerActionBarTitleRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getCenterActionBarTitleType(), new String[]{
-        getString(R.string.Disable),
-        getString(R.string.Enable),
-        getString(R.string.SettingsOnly),
-        getString(R.string.ChatsOnly)
+            getString(R.string.Disable),
+            getString(R.string.Enable),
+            getString(R.string.SettingsOnly),
+            getString(R.string.ChatsOnly)
     }, null));
     private final AbstractConfigCell drawerElementsRow = cellGroup.appendCell(new ConfigCellTextCheckIcon(null, "DrawerElements", null, R.drawable.menu_newfilter, false, () ->
         showDialog(showConfigMenuWithIconAlert(this, R.string.DrawerElements, new ArrayList<>() {{
@@ -285,24 +285,18 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             NaConfig.INSTANCE.getCenterActionBarTitleType().setConfigInt(0);
         }
 
-        if (NekoConfig.largeAvatarInDrawer.Int() == 0) {
-            cellGroup.rows.remove(avatarBackgroundBlurRow);
-            cellGroup.rows.remove(avatarBackgroundDarkenRow);
-        }
         if (NekoConfig.useOSMDroidMap.Bool()) {
             cellGroup.rows.remove(mapDriftingFixForGoogleMapsRow);
         }
         if (NaConfig.INSTANCE.getCustomTitleUserName().Bool()) {
             cellGroup.rows.remove(customTitleRow);
         }
+        if (NekoConfig.largeAvatarInDrawer.Int() == 0) {
+            cellGroup.rows.remove(avatarBackgroundBlurRow);
+            cellGroup.rows.remove(avatarBackgroundDarkenRow);
+        }
         if (NaConfig.INSTANCE.getPushServiceType().Int() != 0) {
             cellGroup.rows.remove(pushServiceTypeInAppDialogRow);
-        }
-        if (NaConfig.INSTANCE.getIgnoreFolderCount().Bool()) {
-            cellGroup.rows.remove(ignoreMutedCountRow);
-        }
-        if (NekoConfig.hideProxyByDefault.Bool()) {
-            cellGroup.rows.remove(useProxyItemRow);
         }
         if (NaConfig.INSTANCE.getHideArchive().Bool()) {
             cellGroup.rows.remove(openArchiveOnPullRow);
@@ -410,17 +404,15 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 parentLayout.rebuildFragments(0);
                 getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
                 listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
-            } else if (key.equals(NekoConfig.transparentStatusBar.getKey()) ||
-                    key.equals(NekoConfig.actionBarDecoration.getKey()) ||
-                    key.equals(NaConfig.INSTANCE.getNotificationIcon().getKey()) ||
-                    key.equals(NekoConfig.tabletMode.getKey()) ||
-                    key.equals(NekoConfig.newYear.getKey()) ||
-                    key.equals(NaConfig.INSTANCE.getPushServiceTypeUnifiedGateway().getKey()) ||
-                    key.equals(NaConfig.INSTANCE.getDisableCrashlyticsCollection().getKey()) ||
-                    key.equals(NekoConfig.ignoreMutedCount.getKey()) ||
-                    key.equals(NekoConfig.hideAllTab.getKey()) ||
-                    key.equals(NaConfig.INSTANCE.getDisableBotOpenButton().getKey()) ||
-                    key.equals(NaConfig.INSTANCE.getHideDividers().getKey())) {
+            } else if (key.equals(NekoConfig.transparentStatusBar.getKey())) {
+                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NekoConfig.actionBarDecoration.getKey())) {
+                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NaConfig.INSTANCE.getNotificationIcon().getKey())) {
+                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NekoConfig.tabletMode.getKey())) {
+                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NekoConfig.newYear.getKey())) {
                 restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.disableSystemAccount.getKey())) {
                 if ((boolean) newValue) {
@@ -433,120 +425,124 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             } else if (key.equals(NekoConfig.largeAvatarInDrawer.getKey())) {
                 getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
                 TransitionManager.beginDelayedTransition(profilePreviewCell);
-                if ((int) newValue == 0) {
+                boolean enabled = (int) newValue > 0;
+                if (enabled) {
+                    if (!cellGroup.rows.contains(avatarBackgroundBlurRow)) {
+                        final int index = cellGroup.rows.indexOf(largeAvatarInDrawerRow) + 1;
+                        cellGroup.rows.add(index, avatarBackgroundBlurRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                    if (!cellGroup.rows.contains(avatarBackgroundDarkenRow)) {
+                        final int index = cellGroup.rows.indexOf(avatarBackgroundBlurRow) + 1;
+                        cellGroup.rows.add(index, avatarBackgroundDarkenRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                } else {
                     if (cellGroup.rows.contains(avatarBackgroundBlurRow)) {
-                        int index = cellGroup.rows.indexOf(avatarBackgroundBlurRow);
+                        final int index = cellGroup.rows.indexOf(avatarBackgroundBlurRow);
                         cellGroup.rows.remove(avatarBackgroundBlurRow);
                         listAdapter.notifyItemRemoved(index);
                     }
                     if (cellGroup.rows.contains(avatarBackgroundDarkenRow)) {
-                        int index = cellGroup.rows.indexOf(avatarBackgroundDarkenRow);
+                        final int index = cellGroup.rows.indexOf(avatarBackgroundDarkenRow);
                         cellGroup.rows.remove(avatarBackgroundDarkenRow);
                         listAdapter.notifyItemRemoved(index);
                     }
-                } else {
-                    int index = cellGroup.rows.indexOf(largeAvatarInDrawerRow);
-                    if (!cellGroup.rows.contains(avatarBackgroundBlurRow)) {
-                        cellGroup.rows.add(index + 1, avatarBackgroundBlurRow);
-                        listAdapter.notifyItemInserted(index + 1);
-                    }
-                    if (!cellGroup.rows.contains(avatarBackgroundDarkenRow)) {
-                        cellGroup.rows.add(cellGroup.rows.indexOf(avatarBackgroundBlurRow) + 1, avatarBackgroundDarkenRow);
-                        listAdapter.notifyItemInserted(cellGroup.rows.indexOf(avatarBackgroundBlurRow) + 1);
-                    }
                 }
-            } else if (key.equals(NekoConfig.avatarBackgroundBlur.getKey()) || key.equals(NekoConfig.avatarBackgroundDarken.getKey())) {
+                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
+            } else if (key.equals(NekoConfig.avatarBackgroundBlur.getKey())) {
+                getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
+                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
+            } else if (key.equals(NekoConfig.avatarBackgroundDarken.getKey())) {
                 getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
                 listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
             } else if (key.equals(NekoConfig.disableAppBarShadow.getKey())) {
                 ActionBarLayout.headerShadowDrawable = (boolean) newValue ? null : parentLayout.getParentActivity().getResources().getDrawable(R.drawable.header_shadow).mutate();
                 parentLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST | INavigationLayout.REBUILD_FLAG_REBUILD_ONLY_LAST);
             } else if (key.equals(NekoConfig.forceBlurInChat.getKey())) {
-                ((ConfigCellCustom) chatBlurAlphaValueRow).enabled = (boolean) newValue;
-                if (!(boolean) newValue) {
-                    if (cellGroup.rows.contains(headerChatBlur)) {
-                        int index = cellGroup.rows.indexOf(headerChatBlur);
-                        cellGroup.rows.remove(headerChatBlur);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                    if (cellGroup.rows.contains(chatBlurAlphaValueRow)) {
-                        int index = cellGroup.rows.indexOf(chatBlurAlphaValueRow);
-                        cellGroup.rows.remove(chatBlurAlphaValueRow);
-                        listAdapter.notifyItemRemoved(index);
+                boolean enabled = (Boolean) newValue;
+                if (enabled) {
+                    if (!cellGroup.rows.contains(headerChatBlur)) {
+                        final int index = cellGroup.rows.indexOf(forceBlurInChatRow) + 1;
+                        cellGroup.rows.add(index, headerChatBlur);
+                        cellGroup.rows.add(index + 1, chatBlurAlphaValueRow);
+                        listAdapter.notifyItemRangeInserted(index, 2);
                     }
                 } else {
-                    int index = cellGroup.rows.indexOf(forceBlurInChatRow);
-                    if (!cellGroup.rows.contains(headerChatBlur)) {
-                        cellGroup.rows.add(index + 1, headerChatBlur);
-                        listAdapter.notifyItemInserted(index + 1);
-                    }
-                    if (!cellGroup.rows.contains(chatBlurAlphaValueRow)) {
-                        cellGroup.rows.add(index + 2, chatBlurAlphaValueRow);
-                        listAdapter.notifyItemInserted(index + 2);
+                    if (cellGroup.rows.contains(headerChatBlur)) {
+                        final int index = cellGroup.rows.indexOf(headerChatBlur);
+                        cellGroup.rows.remove(headerChatBlur);
+                        cellGroup.rows.remove(chatBlurAlphaValueRow);
+                        listAdapter.notifyItemRangeRemoved(index, 2);
                     }
                 }
             } else if (key.equals(NekoConfig.useOSMDroidMap.getKey())) {
-                if ((boolean) newValue) {
+                boolean enabled = (Boolean) newValue;
+                if (enabled) {
                     if (cellGroup.rows.contains(mapDriftingFixForGoogleMapsRow)) {
-                        int index = cellGroup.rows.indexOf(mapDriftingFixForGoogleMapsRow);
+                        final int index = cellGroup.rows.indexOf(mapDriftingFixForGoogleMapsRow);
                         cellGroup.rows.remove(mapDriftingFixForGoogleMapsRow);
                         listAdapter.notifyItemRemoved(index);
                     }
                 } else {
                     if (!cellGroup.rows.contains(mapDriftingFixForGoogleMapsRow)) {
-                        int index = cellGroup.rows.indexOf(useOSMDroidMapRow);
-                        cellGroup.rows.add(index + 1, mapDriftingFixForGoogleMapsRow);
-                        listAdapter.notifyItemInserted(index + 1);
+                        final int index = cellGroup.rows.indexOf(useOSMDroidMapRow) + 1;
+                        cellGroup.rows.add(index, mapDriftingFixForGoogleMapsRow);
+                        listAdapter.notifyItemInserted(index);
                     }
                 }
             } else if (key.equals(NaConfig.INSTANCE.getPushServiceType().getKey())) {
-                if ((int) newValue != 0) {
-                    if (cellGroup.rows.contains(pushServiceTypeInAppDialogRow)) {
-                        int index = cellGroup.rows.indexOf(pushServiceTypeInAppDialogRow);
-                        cellGroup.rows.remove(pushServiceTypeInAppDialogRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                } else {
-                    if (!cellGroup.rows.contains(pushServiceTypeInAppDialogRow)) {
-                        int index = cellGroup.rows.indexOf(pushServiceTypeRow);
-                        cellGroup.rows.add(index + 1, pushServiceTypeInAppDialogRow);
-                        listAdapter.notifyItemInserted(index + 1);
-                    }
-                }
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(UserConfig.selectedAccount);
                 SharedPreferences.Editor editor = preferences.edit();
-                boolean enabled;
+                boolean pushServiceEnabled;
                 if (preferences.contains("pushService")) {
-                    enabled = preferences.getBoolean("pushService", true);
+                    pushServiceEnabled = preferences.getBoolean("pushService", true);
                 } else {
-                    enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
+                    pushServiceEnabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
                 }
                 if ((int) newValue == 0) {
-                    if (!enabled) {
+                    NaConfig.INSTANCE.getPushServiceTypeInAppDialog().setConfigBool(true);
+                    if (!cellGroup.rows.contains(pushServiceTypeInAppDialogRow)) {
+                        final int index = cellGroup.rows.indexOf(pushServiceTypeRow) + 1;
+                        cellGroup.rows.add(index, pushServiceTypeInAppDialogRow);
+                        listAdapter.notifyItemInserted(index);
+                    }
+                    if (!pushServiceEnabled) {
                         editor.putBoolean("pushService", true);
                         editor.putBoolean("pushConnection", true);
                         editor.apply();
                     }
                     ApplicationLoader.startPushService();
                 } else {
+                    NaConfig.INSTANCE.getPushServiceTypeInAppDialog().setConfigBool(false);
+                    if (cellGroup.rows.contains(pushServiceTypeInAppDialogRow)) {
+                        final int index = cellGroup.rows.indexOf(pushServiceTypeInAppDialogRow);
+                        cellGroup.rows.remove(pushServiceTypeInAppDialogRow);
+                        listAdapter.notifyItemRemoved(index);
+                    }
                     AndroidUtilities.runOnUIThread(() -> context.stopService(new Intent(context, NotificationsService.class)));
                 }
                 restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getPushServiceTypeInAppDialog().getKey())) {
                 ApplicationLoader.applicationContext.stopService(new Intent(ApplicationLoader.applicationContext, NotificationsService.class));
                 ApplicationLoader.startPushService();
+            } else if (key.equals(NaConfig.INSTANCE.getPushServiceTypeUnifiedGateway().getKey())) {
+                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NaConfig.INSTANCE.getDisableCrashlyticsCollection().getKey())) {
+                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getCustomTitleUserName().getKey())) {
-                if ((boolean) newValue) {
+                boolean enabled = (Boolean) newValue;
+                if (enabled) {
                     if (cellGroup.rows.contains(customTitleRow)) {
-                        int index = cellGroup.rows.indexOf(customTitleRow);
+                        final int index = cellGroup.rows.indexOf(customTitleRow);
                         cellGroup.rows.remove(customTitleRow);
                         listAdapter.notifyItemRemoved(index);
                     }
                 } else {
                     if (!cellGroup.rows.contains(customTitleRow)) {
-                        int index = cellGroup.rows.indexOf(customSavePathRow);
-                        cellGroup.rows.add(index + 1, customTitleRow);
-                        listAdapter.notifyItemInserted(index + 1);
+                        final int index = cellGroup.rows.indexOf(headerGeneral) + 1;
+                        cellGroup.rows.add(index, customTitleRow);
+                        listAdapter.notifyItemInserted(index);
                     }
                 }
                 restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
@@ -562,25 +558,29 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 int value = (int) newValue;
                 NaConfig.INSTANCE.getCenterActionBarTitle().setConfigBool(value != 0);
             } else if (key.equals(NaConfig.INSTANCE.getHideArchive().getKey())) {
-                if ((boolean) newValue) {
+                boolean enabled = (boolean) newValue;
+                if (enabled) {
                     if (cellGroup.rows.contains(openArchiveOnPullRow)) {
-                        int index = cellGroup.rows.indexOf(openArchiveOnPullRow);
+                        final int index = cellGroup.rows.indexOf(openArchiveOnPullRow);
                         cellGroup.rows.remove(openArchiveOnPullRow);
                         listAdapter.notifyItemRemoved(index);
                     }
                 } else {
                     if (!cellGroup.rows.contains(openArchiveOnPullRow)) {
-                        int index = cellGroup.rows.indexOf(doNotUnarchiveBySwipeRow);
-                        cellGroup.rows.add(index + 1, openArchiveOnPullRow);
-                        listAdapter.notifyItemInserted(index + 1);
+                        final int index = cellGroup.rows.indexOf(doNotUnarchiveBySwipeRow) + 1;
+                        cellGroup.rows.add(index, openArchiveOnPullRow);
+                        listAdapter.notifyItemInserted(index);
                     }
                 }
+                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NaConfig.INSTANCE.getDisableBotOpenButton().getKey())) {
+                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NaConfig.INSTANCE.getHideDividers().getKey())) {
                 restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getIconReplacements().getKey())) {
                 restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             }
         };
-
 
         //Cells: Set ListAdapter
         cellGroup.setListAdapter(listView, listAdapter);
