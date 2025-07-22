@@ -621,6 +621,28 @@ public class BackButtonMenu {
         return ret;
     }
 
+    public static LinkedList<PulledDialog> getPublicRecentDialogs(int currentAccount) {
+        return getRecentDialogs(currentAccount);
+    }
+
+    public static void clearRecentDialogs(int currentAccount) {
+        LinkedList<PulledDialog> recents = getRecentDialogs(currentAccount);
+        recents.clear();
+    }
+
+    // Helper methods for accessing PulledDialog fields from other packages
+    public static long getDialogId(PulledDialog dialog) {
+        return dialog.dialogId;
+    }
+
+    public static TLRPC.Chat getChat(PulledDialog dialog) {
+        return dialog.chat;
+    }
+
+    public static TLRPC.User getUser(PulledDialog dialog) {
+        return dialog.user;
+    }
+
     private static final int maxLastAccessedDialogs = 20;
     private static final SparseArray<LinkedList<PulledDialog>> recentDialogs = new SparseArray<>();
 

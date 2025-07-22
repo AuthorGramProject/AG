@@ -814,6 +814,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     BulletinFactory.of(getLastFragment()).createSuccessBulletin(msg).show();
                     drawerLayoutContainer.closeDrawer(false);
                     NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
+                } else if (id == DrawerLayoutAdapter.nkbtnChatHistory) {
+                    presentFragment(new tw.nekomimi.nekogram.settings.ChatHistoryActivity());
+                    drawerLayoutContainer.closeDrawer(false);
                 }
             }
         });

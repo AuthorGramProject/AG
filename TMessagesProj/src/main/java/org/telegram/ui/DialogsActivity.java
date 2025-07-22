@@ -5283,14 +5283,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         } else {
             showSearch(false, false, false);
         }
-        if (!onlySelect && folderId == 0) {
-            View backButton = actionBar.getBackButton();
-            backButton.setOnLongClickListener(e -> {
-                if (searching || filterTabsView != null && filterTabsView.isEditing() || actionBar.isActionModeShowed()) return false;
-                BackButtonMenuRecent.show(currentAccount, this, backButton);
-                return true;
-            });
-        }
+        // Long press back button functionality has been moved to sidebar menu
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             FilesMigrationService.checkBottomSheet(this);

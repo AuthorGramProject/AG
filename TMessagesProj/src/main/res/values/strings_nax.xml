@@ -6,8 +6,12 @@
     <string name="NagramX_Links">Link</string>
     <string name="NagramX_Info">lnfo</string> 
     <string name="Updates">Updates</string>
-    <string name="OneUISwitchStyle">OneUI Switch Style</string>  
-    <string name="Fork">Fork Channel</string>     
+    <string name="OneUISwitchStyle">OneUI Switch Style</string>
+    <string name="EnableBackButtonMenu">Back Button Quick Navigation</string>
+    <string name="ShowRecentChatsInSidebar">Show Recent Chats in Sidebar</string>
+    <string name="RecentChatsEmpty">No recent chats</string>
+    <string name="RecentChatsEmptyDesc">Your recent conversations will appear here</string>
+    <string name="Fork">Fork Channel</string>
     <string name="XChannel">Nagram X Channel</string>
     <string name="EnableSaveDeletedMessages">Save Deleted Messages</string>
     <string name="DeletedMessage">deleted</string>

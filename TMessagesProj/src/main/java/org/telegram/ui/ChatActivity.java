@@ -4259,25 +4259,27 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
             }
         });
+
         View backButton = actionBar.getBackButton();
-        backButton.setOnTouchListener(new LongPressListenerWithMovingGesture() {
-            @Override
-            public void onLongPress() {
-                scrimPopupWindow = BackButtonMenu.show(ChatActivity.this, backButton, dialog_id, getTopicId(), themeDelegate);
-                if (scrimPopupWindow != null) {
-                    setSubmenu(scrimPopupWindow);
-                    scrimPopupWindow.setOnDismissListener(() -> {
-                        setSubmenu(null);
-                        scrimPopupWindow = null;
-                        menuDeleteItem = null;
-                        scrimPopupWindowItems = null;
-                        chatLayoutManager.setCanScrollVertically(true);
-                        if (scrimPopupWindowHideDimOnDismiss) {
-                            dimBehindView(false);
-                        } else {
-                            scrimPopupWindowHideDimOnDismiss = true;
-                        }
-                        if (chatActivityEnterView != null && chatActivityEnterView.getEditField() != null) {
+        if (NaConfig.INSTANCE.getEnableBackButtonMenu().Bool()) {
+            backButton.setOnTouchListener(new LongPressListenerWithMovingGesture() {
+                @Override
+                public void onLongPress() {
+                    scrimPopupWindow = BackButtonMenu.show(ChatActivity.this, backButton, dialog_id, getTopicId(), themeDelegate);
+                    if (scrimPopupWindow != null) {
+                        setSubmenu(scrimPopupWindow);
+                        scrimPopupWindow.setOnDismissListener(() -> {
+                            setSubmenu(null);
+                            scrimPopupWindow = null;
+                            menuDeleteItem = null;
+                            scrimPopupWindowItems = null;
+                            chatLayoutManager.setCanScrollVertically(true);
+                            if (scrimPopupWindowHideDimOnDismiss) {
+                                dimBehindView(false);
+                            } else {
+                                scrimPopupWindowHideDimOnDismiss = true;
+                            }
+                            if (chatActivityEnterView != null && chatActivityEnterView.getEditField() != null) {
                             chatActivityEnterView.getEditField().setAllowDrawCursor(true);
                         }
                     });
@@ -4296,7 +4298,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     }
                 }
             }
-        });
+            });
+        }
+
         actionBar.setInterceptTouchEventListener((view, motionEvent) -> {
             if (chatThemeBottomSheet != null) {
                 chatThemeBottomSheet.close();

@@ -1273,6 +1273,18 @@ object NaConfig {
             ConfigItem.configTypeInt,
             getIgnoreMutedCountLegacy()
         )
+    var enableBackButtonMenu =
+        addConfig(
+            "EnableBackButtonMenu",
+            ConfigItem.configTypeBool,
+            true
+        )
+    var showRecentChatsInSidebar =
+        addConfig(
+            "ShowRecentChatsInSidebar",
+            ConfigItem.configTypeBool,
+            true
+        )
     var markdownParser =
         addConfig(
             "MarkdownParser",

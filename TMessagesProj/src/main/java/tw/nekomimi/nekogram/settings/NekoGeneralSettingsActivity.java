@@ -162,6 +162,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     // Appearance
     private final AbstractConfigCell headerAppearance = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.Appearance)));
     private final AbstractConfigCell oneUISwitchStyleRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getOneUISwitchStyle()));
+    private final AbstractConfigCell showRecentChatsInSidebarRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowRecentChatsInSidebar()));
     private final AbstractConfigCell typefaceRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.typeface));
     private final AbstractConfigCell transparentStatusBarRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.transparentStatusBar));
     private final AbstractConfigCell appBarShadowRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableAppBarShadow));
@@ -461,6 +462,9 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 parentLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST | INavigationLayout.REBUILD_FLAG_REBUILD_ONLY_LAST);
             } else if (key.equals(NekoConfig.forceBlurInChat.getKey())) {
                 boolean enabled = (Boolean) newValue;
+                // Update the cell's own enabled state. This is the main fix.
+                ((ConfigCellCustom) chatBlurAlphaValueRow).enabled = enabled;
+
                 if (enabled) {
                     if (!cellGroup.rows.contains(headerChatBlur)) {
                         final int index = cellGroup.rows.indexOf(forceBlurInChatRow) + 1;
@@ -475,6 +479,10 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                         cellGroup.rows.remove(chatBlurAlphaValueRow);
                         listAdapter.notifyItemRangeRemoved(index, 2);
                     }
+                }
+                // Also update the seekbar view directly if it already exists.
+                if (chatBlurAlphaSeekbar != null) {
+                    chatBlurAlphaSeekbar.setEnabled(enabled);
                 }
             } else if (key.equals(NekoConfig.useOSMDroidMap.getKey())) {
                 boolean enabled = (Boolean) newValue;
@@ -696,6 +704,9 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int position = holder.getAdapterPosition();
+            if (position < 0 || position >= cellGroup.rows.size()) {
+                return true;
+            }
             AbstractConfigCell a = cellGroup.rows.get(position);
             if (a != null) {
                 return a.isEnabled();
