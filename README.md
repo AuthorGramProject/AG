@@ -1,13 +1,10 @@
-# Nagram X
+# Fork Info
 
-A variant of [Nagram](https://github.com/NextAlone/Nagram) with additional features.
+A Fork with minor modifications to [NagramX](https://github.com/risin42/NagramX).
 
 ## Download
 
-Latest versions are available through:
-* [Telegram Channel](https://t.me/NagramX) (Latest Beta)
-* [GitHub Actions](https://github.com/risin42/NagramX/actions/workflows/staging.yml) (CI Artifacts)
-* [GitHub Releases](https://github.com/risin42/NagramX/releases) (Latest Stable)
+* [Telegram Channel](https://t.me/NagramX_Fork)
 
 ## Compilation Guide
 
@@ -56,10 +53,5 @@ Latest versions are available through:
 
 ## Acknowledgments
 
-- [AyuGram](https://github.com/AyuGram/AyuGram4A)
 - [Cherrygram](https://github.com/arsLan4k1390/Cherrygram)
-- [Dr4iv3rNope](https://github.com/Dr4iv3rNope/NotSoAndroidAyuGram)
-- [exteraGram](https://github.com/exteraSquad/exteraGram)
-- [Nagram](https://github.com/NextAlone/Nagram)
-- [Nekogram](https://github.com/Nekogram/Nekogram)
-- [OctoGram](https://github.com/OctoGramApp/OctoGram)
+- [NagramX](https://github.com/risin42/NagramX)
