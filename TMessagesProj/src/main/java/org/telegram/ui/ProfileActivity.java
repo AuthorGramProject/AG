@@ -12190,7 +12190,68 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     cell.getTextView().setMovementMethod(null);
                     cell.setBackground(Theme.getThemedDrawable(mContext, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
 
-                    cell.setText("Nagram X v" + BuildConfig.VERSION_NAME + "(" + BuildConfig.VERSION_CODE + ") " + (Build.SUPPORTED_ABIS.length > 1 ? "universal" : Build.SUPPORTED_ABIS[0].toLowerCase(Locale.ROOT)) + " " + BuildConfig.BUILD_TYPE);
+                    // Detect actual APK architecture
+                    String arch;
+                    try {
+                        // Check if this is a universal APK by examining the APK file structure
+                        boolean isUniversal = false;
+                        try {
+                            // Try to detect if multiple architectures are present in the APK
+                            String sourceDir = getContext().getApplicationInfo().sourceDir;
+                            if (sourceDir != null) {
+                                // Check if the APK contains multiple architecture libraries
+                                // This is a heuristic - universal APKs typically have larger file sizes
+                                // and contain libraries for multiple architectures
+                                java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(sourceDir);
+                                boolean hasArm64 = false;
+                                boolean hasArm32 = false;
+
+                                java.util.Enumeration<? extends java.util.zip.ZipEntry> entries = zipFile.entries();
+                                while (entries.hasMoreElements()) {
+                                    java.util.zip.ZipEntry entry = entries.nextElement();
+                                    String name = entry.getName();
+                                    if (name.startsWith("lib/arm64-v8a/")) {
+                                        hasArm64 = true;
+                                    } else if (name.startsWith("lib/armeabi-v7a/")) {
+                                        hasArm32 = true;
+                                    }
+                                }
+                                zipFile.close();
+
+                                // If both architectures are present, it's universal
+                                isUniversal = hasArm64 && hasArm32;
+                            }
+                        } catch (Exception e) {
+                            // Ignore and continue with fallback detection
+                        }
+
+                        if (isUniversal) {
+                            arch = "universal";
+                        } else {
+                            // Check native library directory to determine actual APK architecture
+                            String nativeLibraryDir = getContext().getApplicationInfo().nativeLibraryDir;
+                            if (nativeLibraryDir != null) {
+                                if (nativeLibraryDir.contains("arm64")) {
+                                    arch = "arm64-v8a";
+                                } else if (nativeLibraryDir.contains("arm")) {
+                                    arch = "armeabi-v7a";
+                                } else if (nativeLibraryDir.contains("x86_64")) {
+                                    arch = "x86_64";
+                                } else if (nativeLibraryDir.contains("x86")) {
+                                    arch = "x86";
+                                } else {
+                                    // Fallback to primary ABI
+                                    arch = Build.SUPPORTED_ABIS[0].toLowerCase(Locale.ROOT);
+                                }
+                            } else {
+                                arch = Build.SUPPORTED_ABIS[0].toLowerCase(Locale.ROOT);
+                            }
+                        }
+                    } catch (Exception e) {
+                        arch = Build.SUPPORTED_ABIS[0].toLowerCase(Locale.ROOT);
+                    }
+
+                    cell.setText("Nagram X v" + BuildConfig.VERSION_NAME + "(" + BuildConfig.VERSION_CODE + ") " + arch + " " + BuildConfig.BUILD_TYPE);
 
                     cell.getTextView().setPadding(0, AndroidUtilities.dp(14), 0, AndroidUtilities.dp(14));
                     view = cell;

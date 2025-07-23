@@ -1261,18 +1261,6 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
-    val switchStyle =
-        addConfig(
-            "SwitchStyle",
-            ConfigItem.configTypeInt,
-            0 // 0: default; 1: Modern; 2: MD3
-        )
-    val sliderStyle =
-        addConfig(
-            "SliderStyle",
-            ConfigItem.configTypeInt,
-            0 // 0: default; 1: Modern; 2: MD3
-        )
     val ignoreUnreadCount =
         addConfig(
             "IgnoreUnreadCount",

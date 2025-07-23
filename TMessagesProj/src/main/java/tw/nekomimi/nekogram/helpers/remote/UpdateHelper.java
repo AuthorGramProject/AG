@@ -4,6 +4,7 @@ import android.os.Build;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.NotificationCenter;
@@ -66,19 +67,36 @@ public class UpdateHelper extends BaseRemoteHelper {
                 return files.get(abi);
             }
         }
-        return files.get("universal");
+        // Fallback to universal if available
+        if (files.containsKey("universal")) {
+            return files.get("universal");
+        }
+        // Last fallback: prefer arm64-v8a, then armeabi-v7a
+        if (files.containsKey("arm64-v8a")) {
+            return files.get("arm64-v8a");
+        }
+        if (files.containsKey("armeabi-v7a")) {
+            return files.get("armeabi-v7a");
+        }
+        // If nothing else is available, return any available file
+        return files.values().iterator().next();
     }
+
 
     private Map<String, Integer> jsonToMap(JSONObject obj) {
         Map<String, Integer> map = new HashMap<>();
         List<String> abis = new ArrayList<>();
+        abis.add("armeabi-v7a");
+        abis.add("arm64-v8a");
         abis.add("universal");
+
         try {
-            for (var abi : abis) {
-                map.put(abi, obj.getInt(abi));
+            for(var abi: abis) {
+                if (obj.has(abi)) {
+                    map.put(abi, obj.getInt(abi));
+                }
             }
-        } catch (JSONException ignored) {
-        }
+        } catch (JSONException ignored) {}
         return map;
     }
 

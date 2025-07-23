@@ -44,7 +44,7 @@ def nativeTarget = System.getenv("NATIVE_TARGET") ?: ""
 
 android {
     compileSdkVersion 36
-    ndkVersion rootProject.ext.ndkVersion
+    ndkVersion "21.4.7075529"
 
     defaultConfig.applicationId = "fork.risin42.nagramx"
 
@@ -58,22 +58,23 @@ android {
         abi {
             enable true
             reset()
-            universalApk false
+            universalApk true  // Enable universal APK that includes specified architectures
             if (!nativeTarget.isBlank()) {
                 include nativeTarget
             } else {
-                include 'arm64-v8a'
+                include 'arm64-v8a', 'armeabi-v7a'
             }
         }
     }
 
     defaultConfig {
-        ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a'
-        }
         minSdkVersion 21
         //noinspection ExpiredTargetSdkVersion,OldTargetApi
         targetSdkVersion 34
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
         versionName verName
         versionCode verCode
 
@@ -181,11 +182,12 @@ android {
             }
 
             String gramName = "NagramX"
-            String first = String.format("%s-v%s(%s)%s", gramName, variant.versionName, variant.versionCode, abiSuffix)
-            String name = output.outputFileName.replace("TMessagesProj", first)
-            name = name.replace("-release", "")
-            name = name.replace("-staging", "")
-            output.outputFileName = name
+            String buildType = variant.buildType.name
+            String versionInfo = String.format("v%s(%s)", variant.versionName, variant.versionCode)
+
+            // Create clean filename without duplication
+            String fileName = String.format("%s-%s%s-%s.apk", gramName, versionInfo, abiSuffix, buildType)
+            output.outputFileName = fileName
         }
     }
 
