@@ -39,6 +39,8 @@ import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
 import org.telegram.ui.Components.ViewPagerFixed;
 import org.telegram.ui.LaunchActivity;
+import org.telegram.ui.ChatActivity;
+import org.telegram.messenger.browser.Browser;
 
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 
@@ -52,10 +54,10 @@ public class ChatHistoryActivity extends BaseFragment {
     // Chat categories
     public enum ChatCategory {
         ALL(0, "All"),
-        USERS(1, "Users"),
-        BOTS(2, "Bots"),
-        GROUPS(3, "Groups"),
-        CHANNELS(4, "Channels");
+        CHANNELS(1, "Channels"),
+        GROUPS(2, "Groups"),
+        USERS(3, "Users"),
+        BOTS(4, "Bots");
 
         public final int id;
         public final String title;
@@ -594,28 +596,28 @@ public class ChatHistoryActivity extends BaseFragment {
         if (item == null || (item.user == null && item.chat == null)) {
             return;
         }
-        if (item.user != null) {
-            MessagesController.getInstance(currentAccount).putUser(item.user, true);
+        String username = null;
+
+        if (item.user != null && !TextUtils.isEmpty(item.user.username)) {
+            username = item.user.username;
+        } else if (item.chat != null && !TextUtils.isEmpty(item.chat.username)) {
+            username = item.chat.username;
+        }
+
+        if (username != null) {
+            org.telegram.messenger.browser.Browser.openUrl(getContext(), "https://t.me/" + username);
         } else {
-            MessagesController.getInstance(currentAccount).putChat(item.chat, true);
-        }
-
-        Bundle args = new Bundle();
-        args.putInt("currentAccount", currentAccount);
-
-        if (item.user != null) {
-            args.putLong("user_id", item.dialogId);
-            if (!TextUtils.isEmpty(item.user.username)) {
-                args.putString("username", item.user.username);
-            }
-        } else if (item.chat != null) {
-            args.putLong("chat_id", -item.dialogId);
-            if (!TextUtils.isEmpty(item.chat.username)) {
-                args.putString("username", item.chat.username);
+            Bundle args = new Bundle();
+            if (item.dialogId < 0) {
+                args.putLong("chat_id", -item.dialogId);
+                presentFragment(new ChatActivity(args));
+            } else {
+                args.putLong("user_id", item.dialogId);
+                presentFragment(new ChatActivity(args));
             }
         }
-        presentFragment(new org.telegram.ui.ChatActivity(args));
     }
+
 
     // Data classes
     private static class HistoryItem {
