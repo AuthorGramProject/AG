@@ -233,4 +233,6 @@
     <string name="UseCamera2Api">使用 Camera 2 API</string>
     <string name="ShowTranslateMessageLLM">显示 AI 翻译选项</string>
     <string name="ShowTranslateMessageLLMNotice">控制消息菜单和文本选择菜单中是否显示 AI 翻译选项。关闭后，仅显示常规翻译选项。</string>
+    <string name="EnableBetaVersion">安装测试版本</string>
+    <string name="CheckUpdateOnStartup">启动时检查更新</string>
 </resources>

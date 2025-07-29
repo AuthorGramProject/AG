@@ -243,6 +243,8 @@
     <string name="UseCamera2Api">Use Camera 2 API</string>
     <string name="ShowTranslateMessageLLM">Show AI Translation Option</string>
     <string name="ShowTranslateMessageLLMNotice">Controls whether AI translation options appear in message menus and text selection menus. When disabled, only regular translation will be available.</string>
+    <string name="EnableBetaVersion">Install Beta Versions</string>
+    <string name="CheckUpdateOnStartup">Check Updates on Startup</string>
         <!-- Chat History Activity -->
     <string name="SwitchAccountNax">Switch Account</string>
     <string name="CurrentNax">Current</string>

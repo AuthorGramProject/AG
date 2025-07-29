@@ -155,62 +155,83 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         BottomBuilder builder = new BottomBuilder(getParentActivity());
         builder.addTitle(getString(R.string.Updates));
 
-        // Check Update
-        builder.addItem(getString(R.string.CheckUpdate), R.drawable.msg_search_solar,
-                (it) -> {
-                    Browser.openUrl(getParentActivity(), "tg://update"); //
-                    return Unit.INSTANCE;
-                });
-
-        // Auto-check for updates channel switch
-        String currentChannel = " - "; //
-        switch (NaConfig.INSTANCE.getAutoUpdateChannel().Int()) { //
-            case UpdateHelper.UPDATE_OFF:
-                currentChannel += getString(R.string.AutoCheckUpdateOFF); //
-                break;
-            case UpdateHelper.UPDATE_CHANNEL_RELEASE:
-                currentChannel += getString(R.string.AutoCheckUpdateRelease); //
-                break;
-            case UpdateHelper.UPDATE_CHANNEL_BETA:
-                currentChannel += getString( R.string.AutoCheckUpdateBeta); //
-                break;
-        }
-        builder.addItem(getString(R.string.AutoCheckUpdateSwitch) + currentChannel, R.drawable.sync_outline_28, (it) -> { //
-            BottomBuilder switchBuilder = new BottomBuilder(getParentActivity());
-            switchBuilder.addTitle(getString(R.string.AutoCheckUpdateSwitch));
-            switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateOFF), NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UpdateHelper.UPDATE_OFF, (radioButtonCell) -> { //
-                NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_OFF); //
-                switchBuilder.doRadioCheck(radioButtonCell);
-                AndroidUtilities.runOnUIThread(switchBuilder::dismiss, 500);
-                return Unit.INSTANCE;
-            });
-            switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateRelease), NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UpdateHelper.UPDATE_CHANNEL_RELEASE, (radioButtonCell) -> { //
-                NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_CHANNEL_RELEASE); //
-                switchBuilder.doRadioCheck(radioButtonCell);
-                AndroidUtilities.runOnUIThread(() -> {
-                    switchBuilder.dismiss();
-                    Browser.openUrl(getParentActivity(), "tg://update"); //
-                }, 500);
-                return Unit.INSTANCE;
-            });
-            switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateBeta), NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UpdateHelper.UPDATE_CHANNEL_BETA, (radioButtonCell) -> { //
-                NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_CHANNEL_BETA); //
-                switchBuilder.doRadioCheck(radioButtonCell);
-                AndroidUtilities.runOnUIThread(() -> {
-                    switchBuilder.dismiss();
-                    Browser.openUrl(getParentActivity(), "tg://update"); //
-                }, 500);
-                return Unit.INSTANCE;
-            });
-            showDialog(switchBuilder.create());
+        // Beta version switch
+        builder.addCheckItem(getString(R.string.EnableBetaVersion), R.drawable.test_tube_solar, NaConfig.INSTANCE.getEnableBetaVersion().Bool(), false, (cell, isChecked) -> {
+            NaConfig.INSTANCE.getEnableBetaVersion().setConfigBool(isChecked);
             return Unit.INSTANCE;
         });
+
+        // Check update on startup switch
+        builder.addCheckItem(getString(R.string.CheckUpdateOnStartup), R.drawable.msg_timer, NaConfig.INSTANCE.getCheckUpdateOnStartup().Bool(), false, (cell, isChecked) -> {
+            NaConfig.INSTANCE.getCheckUpdateOnStartup().setConfigBool(isChecked);
+            return Unit.INSTANCE;
+        });
+
+        // Startup update check interval - temporarily commented out for testing
+        /*
+        String currentInterval = " - ";
+        int intervalHours = NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int();
+        switch (intervalHours) {
+            case 1:
+                currentInterval += getString(R.string.UpdateCheckInterval1Hour);
+                break;
+            case 4:
+                currentInterval += getString(R.string.UpdateCheckInterval4Hours);
+                break;
+            case 8:
+                currentInterval += getString(R.string.UpdateCheckInterval8Hours);
+                break;
+            case 24:
+                currentInterval += getString(R.string.UpdateCheckInterval24Hours);
+                break;
+            default:
+                currentInterval += intervalHours + " " + getString(R.string.Hours);
+                break;
+        }
+        builder.addItem(getString(R.string.StartupUpdateCheckInterval) + currentInterval, R.drawable.msg_timer, (it) -> {
+            BottomBuilder intervalBuilder = new BottomBuilder(getParentActivity());
+            intervalBuilder.addTitle(getString(R.string.StartupUpdateCheckInterval), getString(R.string.StartupUpdateCheckIntervalNotice));
+            intervalBuilder.addRadioItem(getString(R.string.UpdateCheckInterval1Hour), NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int() == 1, (radioButtonCell) -> {
+                NaConfig.INSTANCE.getStartupUpdateCheckInterval().setConfigInt(1);
+                intervalBuilder.doRadioCheck(radioButtonCell);
+                AndroidUtilities.runOnUIThread(intervalBuilder::dismiss, 500);
+                return Unit.INSTANCE;
+            });
+            intervalBuilder.addRadioItem(getString(R.string.UpdateCheckInterval4Hours), NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int() == 4, (radioButtonCell) -> {
+                NaConfig.INSTANCE.getStartupUpdateCheckInterval().setConfigInt(4);
+                intervalBuilder.doRadioCheck(radioButtonCell);
+                AndroidUtilities.runOnUIThread(intervalBuilder::dismiss, 500);
+                return Unit.INSTANCE;
+            });
+            intervalBuilder.addRadioItem(getString(R.string.UpdateCheckInterval8Hours), NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int() == 8, (radioButtonCell) -> {
+                NaConfig.INSTANCE.getStartupUpdateCheckInterval().setConfigInt(8);
+                intervalBuilder.doRadioCheck(radioButtonCell);
+                AndroidUtilities.runOnUIThread(intervalBuilder::dismiss, 500);
+                return Unit.INSTANCE;
+            });
+            intervalBuilder.addRadioItem(getString(R.string.UpdateCheckInterval24Hours), NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int() == 24, (radioButtonCell) -> {
+                NaConfig.INSTANCE.getStartupUpdateCheckInterval().setConfigInt(24);
+                intervalBuilder.doRadioCheck(radioButtonCell);
+                AndroidUtilities.runOnUIThread(intervalBuilder::dismiss, 500);
+                return Unit.INSTANCE;
+            });
+            showDialog(intervalBuilder.create());
+            return Unit.INSTANCE;
+        });
+        */
 
         // Clean updates cache with icon
         builder.addItem(getString(R.string.DebugMenuCleanAppUpdate), R.drawable.msg_clear, (it) -> {
             UpdateHelper.cleanAppUpdate(); //
             return Unit.INSTANCE;
         });
+
+        // Check Update - moved to bottom
+        builder.addItem(getString(R.string.CheckUpdate), R.drawable.msg_search_solar,
+                (it) -> {
+                    Browser.openUrl(getParentActivity(), "tg://update"); //
+                    return Unit.INSTANCE;
+                });
 
         showDialog(builder.create());
     }

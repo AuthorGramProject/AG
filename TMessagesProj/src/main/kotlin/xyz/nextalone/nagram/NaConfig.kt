@@ -1195,6 +1195,48 @@ object NaConfig {
             ConfigItem.configTypeInt,
             1 // 0: off; 1: release; 2: beta
         )
+    val enableBetaVersion =
+        addConfig(
+            "EnableBetaVersion",
+            ConfigItem.configTypeBool,
+            false // false: release channel; true: beta channel
+        )
+    val checkUpdateOnStartup =
+        addConfig(
+            "CheckUpdateOnStartup",
+            ConfigItem.configTypeBool,
+            true // true: check update on app startup; false: don't check
+        )
+    // Temporarily commented out for testing
+    /*
+    val startupUpdateCheckInterval =
+        addConfig(
+            "StartupUpdateCheckInterval",
+            ConfigItem.configTypeInt,
+            0 // hours between startup update checks (default: 4 hours)
+        )
+    */
+    // Migration function for old update channel system
+    fun migrateUpdateChannelSettings() {
+        try {
+            // Only migrate if config is loaded and values are available
+            if (!configLoaded || autoUpdateChannel.value == null) {
+                return
+            }
+
+            // Migrate old autoUpdateChannel setting to new switches
+            val oldChannel = autoUpdateChannel.Int()
+            if (oldChannel == 2) { // UPDATE_CHANNEL_BETA
+                enableBetaVersion.setConfigBool(true)
+                autoUpdateChannel.setConfigInt(1) // Reset to release channel
+            } else if (oldChannel == 0) { // UPDATE_OFF
+                checkUpdateOnStartup.setConfigBool(false)
+                autoUpdateChannel.setConfigInt(1) // Reset to release channel
+            }
+        } catch (e: Exception) {
+            // Ignore migration errors to prevent crashes
+        }
+    }
     val userAvatarsInMessagePreview =
         addConfig(
             "UserAvatarsInMessagePreview",
@@ -1330,6 +1372,7 @@ object NaConfig {
             4 -> llmProviderDeepSeekKey
             5 -> llmProviderXAIKey
             else -> llmApiKey
+        }
         return keyConfig.String().isNotEmpty() && showTranslateMessageLLM.Bool()
     }
 
@@ -1494,6 +1537,7 @@ object NaConfig {
         loadConfig(
             false
         )
+        migrateUpdateChannelSettings()
         updatePreferredTranslateTargetLangList()
     }
 }

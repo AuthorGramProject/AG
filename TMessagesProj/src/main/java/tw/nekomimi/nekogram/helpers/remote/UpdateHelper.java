@@ -57,7 +57,8 @@ public class UpdateHelper extends BaseRemoteHelper {
     
     @Override
     protected String getTag() {
-        return NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UPDATE_CHANNEL_RELEASE ? "updateRelease" : "updateBeta";
+        // Use new beta version switch to determine update channel
+        return NaConfig.INSTANCE.getEnableBetaVersion().Bool() ? "updateBeta" : "updateRelease";
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -114,6 +115,9 @@ public class UpdateHelper extends BaseRemoteHelper {
                 } else if (remoteVersion == currentVersion && remoteBuildTimestamp > buildTimestamp) {
                     shouldUpdate = true;
                 }
+
+                // Fix for can_not_skip issue: Only return update if version is actually newer
+                // This prevents forced updates from persisting after the app has been updated
                 if (shouldUpdate || updateAlways) {
                     if (updateAlways) {
                         updateAlways = false;
@@ -143,10 +147,10 @@ public class UpdateHelper extends BaseRemoteHelper {
             update.url = json.url;
             update.flags |= 4;
         }
-        if (NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UPDATE_OFF && !update.can_not_skip) {
-            delegate.onTLResponse(null, null);
-            return;
-        }
+        // Note: We don't check checkUpdateOnStartup here because this method is used
+        // for both startup checks and manual checks. The startup check logic is
+        // handled in LaunchActivity.checkAppUpdateOnStartup()
+        // Only forced updates (can_not_skip=true) bypass all user preferences
         if (response != null) {
             var res = (TLRPC.messages_Messages) response;
             getMessagesController().removeDeletedMessagesFromArray(CHANNEL_METADATA_ID, res.messages);

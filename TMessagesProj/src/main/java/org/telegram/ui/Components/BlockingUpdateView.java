@@ -300,6 +300,12 @@ public class BlockingUpdateView extends FrameLayout implements NotificationCente
                         SharedConfig.pendingAppUpdate = null;
                         SharedConfig.saveConfig();
                     }
+                } else {
+                    // If no update is available from server, clear any pending forced update
+                    // This handles the case where the app was updated but the forced update flag persists
+                    setVisibility(GONE);
+                    SharedConfig.pendingAppUpdate = null;
+                    SharedConfig.saveConfig();
                 }
             }));
         }
