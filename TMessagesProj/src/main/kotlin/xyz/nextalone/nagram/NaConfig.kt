@@ -1279,6 +1279,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val useCamera2Api =
+        addConfig(
+            "UseCamera2Api",
+            ConfigItem.configTypeBool,
+            true
+        )
     val markdownParser =
         addConfig(
             "MarkdownParser",
@@ -1480,8 +1486,5 @@ object NaConfig {
             false
         )
         updatePreferredTranslateTargetLangList()
-        if (!BuildVars.LOGS_ENABLED) {
-            showRPCError.setConfigBool(false)
-        }
     }
 }

@@ -238,6 +238,7 @@ import org.telegram.ui.Components.EmojiPacksAlert;
 import org.telegram.ui.Components.EmptyStubSpan;
 import org.telegram.ui.Components.FiltersListBottomSheet;
 import org.telegram.ui.Components.FloatingDebug.FloatingDebugController;
+import org.telegram.ui.Components.FloatingDebug.FloatingDebugProvider;
 import org.telegram.ui.Components.Forum.ForumUtilities;
 import org.telegram.ui.Components.FragmentContextView;
 import org.telegram.ui.Components.HintView;
@@ -4473,6 +4474,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     return Unit.INSTANCE;
                 });
 
+                builder.addItem((NaConfig.INSTANCE.getShowRPCError().Bool() ? "Disable" : "Enable") + " RPC Error Toast", R.drawable.msg_error_solar, (it) -> {
+                    boolean currentValue = NaConfig.INSTANCE.getShowRPCError().Bool();
+                    NaConfig.INSTANCE.getShowRPCError().setConfigBool(!currentValue);
+                    AlertsCreator.showSimpleToast(ProfileActivity.this, (currentValue ? "Disabled" : "Enabled") + " RPC Error Toast");
+                    return Unit.INSTANCE;
+                });
+
                 builder.addItem(getString(R.string.CheckUpdate), R.drawable.msg_search_solar,
                         (it) -> {
                             Browser.openUrl(context, "tg://update");
@@ -4621,6 +4629,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 getString(R.string.DebugMenuResetContacts),
                                 getString(R.string.DebugMenuResetDialogs),
                                 null, //BuildVars.DEBUG_VERSION ? null : BuildVars.LOGS_ENABLED ? getString(R.string.DebugMenuDisableLogs) : getString(R.string.DebugMenuEnableLogs),
+                                (NaConfig.INSTANCE.getShowRPCError().Bool() ? "Disable" : "Enable") + " RPC Error Toast",
                                 SharedConfig.inappCamera ? getString(R.string.DebugMenuDisableCamera) : getString(R.string.DebugMenuEnableCamera),
                                 getString(R.string.DebugMenuClearMediaCache),
                                 getString(R.string.DebugMenuCallSettings),
@@ -4644,7 +4653,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 BuildVars.DEBUG_PRIVATE_VERSION ? SharedConfig.photoViewerBlur ? "do not blur in photoviewer" : "blur in photoviewer" : null,
                                 !SharedConfig.payByInvoice ? getString(R.string.DebugMenuEnableInvoicePayment) : getString(R.string.DebugMenuDisableInvoicePayment),
                                 BuildVars.DEBUG_PRIVATE_VERSION ? "Update Attach Bots" : null,
-                                !SharedConfig.isUsingCamera2(currentAccount) ? getString(R.string.DebugMenuUseCamera2Api) : getString(R.string.DebugMenuUseOldCamera1Api),
                                 BuildVars.DEBUG_VERSION ? "Clear Mini Apps Permissions and Files" : null,
                                 BuildVars.DEBUG_PRIVATE_VERSION ? "Clear all login tokens" : null,
                                 SharedConfig.canBlurChat() && Build.VERSION.SDK_INT >= 31 ? SharedConfig.useNewBlur ? getString(R.string.DebugMenuUseCpuBlur) : getString(R.string.DebugMenuUseNewGpuBlur) : null,
@@ -4680,9 +4688,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                         FileLog.e(e);
                                     }
                                 }
-                            } else if (which == 5) { // In-app camera
+                            } else if (which == 5) { // RPC Error Toast
+                                boolean currentValue = NaConfig.INSTANCE.getShowRPCError().Bool();
+                                NaConfig.INSTANCE.getShowRPCError().setConfigBool(!currentValue);
+                                AlertsCreator.showSimpleToast(ProfileActivity.this, (currentValue ? "Disabled" : "Enabled") + " RPC Error Toast");
+                            } else if (which == 6) { // In-app camera
                                 SharedConfig.toggleInappCamera();
-                            } else if (which == 6) { // Clear sent media cache
+                            } else if (which == 7) { // Clear sent media cache
                                 getMessagesStorage().clearSentMedia();
                                 SharedConfig.setNoSoundHintShowed(false);
                                 SharedPreferences.Editor editor = MessagesController.getGlobalMainSettings().edit();
@@ -4722,24 +4734,24 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                     }
                                 }
                                 editor.apply();
-                            } else if (which == 7) { // Call settings
+                            } else if (which == 8) { // Call settings
                                 VoIPHelper.showCallDebugSettings(getParentActivity());
-                            } else if (which == 8) { // ?
+                            } else if (which == 9) { // ?
                                 SharedConfig.toggleRoundCamera16to9();
-                            } else if (which == 9) { // Check app update
+                            } else if (which == 10) { // Check app update
                                 ((LaunchActivity) getParentActivity()).checkAppUpdate(true, null);
-                            } else if (which == 10) { // Read all chats
+                            } else if (which == 11) { // Read all chats
                                 getMessagesStorage().readAllDialogs(-1);
-                            } else if (which == 11) { // Voip audio effects
+                            } else if (which == 12) { // Voip audio effects
                                 SharedConfig.toggleDisableVoiceAudioEffects();
-                            } else if (which == 12) { // Clean app update
+                            } else if (which == 13) { // Clean app update
                                 UpdateHelper.cleanAppUpdate();
-                            } else if (which == 13) { // Reset suggestions
+                            } else if (which == 14) { // Reset suggestions
                                 Set<String> suggestions = getMessagesController().pendingSuggestions;
                                 suggestions.add("VALIDATE_PHONE_NUMBER");
                                 suggestions.add("VALIDATE_PASSWORD");
                                 getNotificationCenter().postNotificationName(NotificationCenter.newSuggestionsAvailable);
-                            } else if (which == 14) { // Clear WebView Cache
+                            } else if (which == 15) { // Clear WebView Cache
                                 ApplicationLoader.applicationContext.deleteDatabase("webview.db");
                                 ApplicationLoader.applicationContext.deleteDatabase("webviewCache.db");
                                 WebStorage.getInstance().deleteAllData();
@@ -4748,14 +4760,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                     webView.clearHistory();
                                     webView.destroy();
                                 } catch (Exception ignored) {}
-                            } else if (which == 15) { // Clear WebView cookies
+                            } else if (which == 16) { // Clear WebView cookies
                                 CookieManager cookieManager = CookieManager.getInstance();
                                 cookieManager.removeAllCookies(null);
                                 cookieManager.flush();
-                            } else if (which == 16) { // WebView debug
+                            } else if (which == 17) { // WebView debug
                                 SharedConfig.toggleDebugWebView();
                                 Toast.makeText(getParentActivity(), getString(SharedConfig.debugWebView ? R.string.DebugMenuWebViewDebugEnabled : R.string.DebugMenuWebViewDebugDisabled), Toast.LENGTH_SHORT).show();
-                            } else if (which == 17) { // Tablet mode
+                            } else if (which == 18) { // Tablet mode
                                 SharedConfig.toggleForceDisableTabletMode();
 
                                 Activity activity = AndroidUtilities.findActivity(context);
@@ -4764,9 +4776,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 activity.finishAffinity(); // Finishes all activities.
                                 activity.startActivity(intent);    // Start the launch activity
                                 System.exit(0);
-                            } else if (which == 18) { // Floating debug
+                            } else if (which == 19) { // Floating debug
                                 FloatingDebugController.setActive((LaunchActivity) getParentActivity(), !FloatingDebugController.isActive());
-                            } else if (which == 19) { // Force remove premium suggestions
+                            } else if (which == 20) { // Force remove premium suggestions
                                 getMessagesController().loadAppConfig();
                                 TLRPC.TL_help_dismissSuggestion req = new TLRPC.TL_help_dismissSuggestion();
                                 req.suggestion = "VALIDATE_PHONE_NUMBER";
@@ -4920,26 +4932,24 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 SharedConfig.togglePaymentByInvoice();
                             } else if (which == 27) { // Update Attach Bots
                                 getMediaDataController().loadAttachMenuBots(false, true);
-                            } else if (which == 28) { // Use Camera 2 API
-                                SharedConfig.toggleUseCamera2(currentAccount);
-                            } else if (which == 29) { // Clear mini Apps permissions and files
+                            } else if (which == 28) { // Clear mini Apps permissions and files
                                 BotBiometry.clear();
                                 BotLocation.clear();
                                 BotDownloads.clear();
                                 SetupEmojiStatusSheet.clear();
-                            } else if (which == 30) { // Clear all login tokens
+                            } else if (which == 29) { // Clear all login tokens
                                 AuthTokensHelper.clearLogInTokens();
-                            } else if (which == 31) { // Back to cpu blur / use new gpu blur
+                            } else if (which == 30) { // Back to cpu blur / use new gpu blur
                                 SharedConfig.toggleUseNewBlur();
-                            } else if (which == 32) { // Adaptive browser colors
+                            } else if (which == 31) { // Adaptive browser colors
                                 SharedConfig.toggleBrowserAdaptableColors();
-                            } else if (which == 33) { // Debug video qualities
+                            } else if (which == 32) { // Debug video qualities
                                 SharedConfig.toggleDebugVideoQualities();
-                            } else if (which == 34) {
+                            } else if (which == 33) {
                                 SharedConfig.toggleUseSystemBoldFont();
-                            } else if (which == 35) {
+                            } else if (which == 34) {
                                 MessagesController.getInstance(currentAccount).loadAppConfig(true);
-                            } else if (which == 36) {
+                            } else if (which == 35) {
                                 SharedConfig.toggleForceForumTabs();
                             }
                         });
