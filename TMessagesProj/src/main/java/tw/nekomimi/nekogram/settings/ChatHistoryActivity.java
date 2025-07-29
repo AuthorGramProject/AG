@@ -3,16 +3,15 @@ package tw.nekomimi.nekogram.settings;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.TextView;
+
+import static android.view.View.MeasureSpec;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -20,15 +19,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ContactsController;
-import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
-import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.R;
-import tw.nekomimi.nekogram.BackButtonMenuRecent;
-import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
@@ -36,10 +30,6 @@ import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Cells.EmptyCell;
-import org.telegram.ui.Cells.ShadowSectionCell;
-import org.telegram.ui.Cells.TextInfoPrivacyCell;
-import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.BlurredRecyclerView;
@@ -47,148 +37,180 @@ import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
-import org.telegram.ui.TopicsFragment;
+import org.telegram.ui.Components.ViewPagerFixed;
+import org.telegram.ui.LaunchActivity;
+
+import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 
-import tw.nekomimi.nekogram.ui.cells.HeaderCell;
-import xyz.nextalone.nagram.NaConfig;
+import tw.nekomimi.nekogram.BackButtonMenuRecent;
 
 public class ChatHistoryActivity extends BaseFragment {
 
-    private BlurredRecyclerView listView;
-    private ListAdapter listAdapter;
-    private LinearLayoutManager layoutManager;
+    // Chat categories
+    public enum ChatCategory {
+        ALL(0, "All"),
+        USERS(1, "Users"),
+        BOTS(2, "Bots"),
+        GROUPS(3, "Groups"),
+        CHANNELS(4, "Channels");
 
-    private ArrayList<HistoryItem> historyItems = new ArrayList<>();
-    private int rowCount;
+        public final int id;
+        public final String title;
 
-    private int emptyRow;
-    private int historyHeaderRow;
-    private int historyStartRow;
-    private int historyEndRow;
-    private int shadowRow;
+        ChatCategory(int id, String title) {
+            this.id = id;
+            this.title = title;
+        }
+    }
+
+    // UI Components
+    private ViewPagerFixed viewPager;
+    private ViewPagerFixed.TabsView tabsView;
+
+    // Data
+    private ArrayList<HistoryItem> allHistoryItems = new ArrayList<>();
 
     @Override
     public boolean onFragmentCreate() {
         super.onFragmentCreate();
         loadHistoryItems();
-        updateRows();
         return true;
     }
 
     @Override
     public View createView(Context context) {
+        // Setup ActionBar
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
-
-        // Count visible accounts (excluding hidden accounts)
-        int visibleAccountsCount = 0;
-        for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
-            if (UserConfig.getInstance(i).isClientActivated() && !PasscodeHelper.isAccountHidden(i)) {
-                visibleAccountsCount++;
-            }
-        }
-
-        // Set title with current account info if multiple visible accounts exist
-        String title = getString(R.string.RecentChats);
-        if (visibleAccountsCount > 1) {
-            TLRPC.User currentUser = UserConfig.getInstance(currentAccount).getCurrentUser();
-            String accountName = UserObject.getFirstName(currentUser);
-            if (accountName.length() > 15) {
-                accountName = accountName.substring(0, 15) + "...";
-            }
-            title = title + " - " + accountName;
-        }
-        actionBar.setTitle(title);
         actionBar.setAllowOverlayTitle(true);
-
-        // Add account switcher menu if there are multiple visible accounts
-        if (visibleAccountsCount > 1) {
-            ActionBarMenu menu = actionBar.createMenu();
-            ActionBarMenuItem item = menu.addItem(0, R.drawable.ic_ab_other);
-            item.setSubMenuOpenSide(1);
-
-            for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
-                if (UserConfig.getInstance(i).isClientActivated() && !PasscodeHelper.isAccountHidden(i)) {
-                    TLRPC.User user = UserConfig.getInstance(i).getCurrentUser();
-                    String accountName = UserObject.getFirstName(user);
-                    if (accountName.length() > 15) {
-                        accountName = accountName.substring(0, 15) + "...";
-                    }
-                    item.addSubItem(100 + i, accountName);
-                }
-            }
-        }
-
-        if (AndroidUtilities.isTablet()) {
-            actionBar.setOccupyStatusBar(false);
-        }
-
-        ActionBarMenu menu = actionBar.createMenu();
-        ActionBarMenuItem clearItem = menu.addItem(0, R.drawable.msg_clear);
-        clearItem.setContentDescription(getString(R.string.ClearRecentChats));
-        clearItem.setOnClickListener(v -> showClearHistoryDialog());
+        updateTitle();
 
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(int id) {
                 if (id == -1) {
                     finishFragment();
-                } else if (id >= 100 && id < 100 + UserConfig.MAX_ACCOUNT_COUNT) {
-                    // Switch to different account
-                    int accountNum = id - 100;
-                    if (accountNum != currentAccount &&
-                        UserConfig.getInstance(accountNum).isClientActivated() &&
-                        !PasscodeHelper.isAccountHidden(accountNum)) {
-                        switchToAccount(accountNum);
-                    }
+                } else if (id == 1) {
+                    showClearHistoryDialog();
+                } else if (id == 2) {
+                    showAccountSwitchDialog();
                 }
             }
         });
 
-        fragmentView = new SizeNotifierFrameLayout(context) {
-            @Override
-            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-            }
-        };
+        // Create menu (clear existing menu first)
+        actionBar.createMenu().clearItems();
+        ActionBarMenu menu = actionBar.createMenu();
+
+        // Add account switch button (only if multiple accounts and not hidden by passcode)
+        if (shouldShowAccountSwitch()) {
+            menu.addItem(2, R.drawable.msg_settings);
+        }
+
+        // Add clear button
+        menu.addItem(1, R.drawable.msg_delete);
+
+        // Create main layout
+        SizeNotifierFrameLayout fragmentView = new SizeNotifierFrameLayout(context);
         fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
 
-        listView = new BlurredRecyclerView(context);
-        listView.setLayoutManager(layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
-        listView.setVerticalScrollBarEnabled(false);
-        listView.setAdapter(listAdapter = new ListAdapter(context));
-
-        ((SizeNotifierFrameLayout) fragmentView).addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-
-        listView.setOnItemClickListener((view, position) -> {
-            if (position >= historyStartRow && position < historyEndRow) {
-                int index = position - historyStartRow;
-                if (index >= 0 && index < historyItems.size()) {
-                    HistoryItem item = historyItems.get(index);
-                    openChat(item);
-                }
-            }
-        });
+        // Create ViewPager with tabs
+        createViewPager(context, fragmentView);
 
         return fragmentView;
     }
 
-    private void loadHistoryItems() {
-        historyItems.clear();
+    private void createViewPager(Context context, SizeNotifierFrameLayout fragmentView) {
+        // Create ViewPager
+        viewPager = new ViewPagerFixed(context);
+        viewPager.setAdapter(new CategoryPagerAdapter());
 
-        // Get recent dialogs from BackButtonMenuRecent directly
+        // Create tabs
+        tabsView = viewPager.createTabsView(true, 3);
+        tabsView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+
+        // Add tabs and viewpager to main view
+        fragmentView.addView(tabsView,
+            LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.TOP));
+        fragmentView.addView(viewPager,
+            LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP, 0, 48, 0, 0));
+
+        // Update tabs
+        updateTabs();
+    }
+
+    private void updateTabs() {
+        if (tabsView != null) {
+            tabsView.removeTabs();
+            for (int i = 0; i < ChatCategory.values().length; i++) {
+                ChatCategory category = ChatCategory.values()[i];
+                tabsView.addTab(i, getTabTitle(category));
+            }
+            tabsView.finishAddingTabs();
+        }
+    }
+
+    private String getTabTitle(ChatCategory category) {
+        int count = getCategoryCount(category);
+        String baseTitle = category.title;
+        return count > 0 ? baseTitle + " (" + count + ")" : baseTitle;
+    }
+
+    private int getCategoryCount(ChatCategory category) {
+        int count = 0;
+        for (HistoryItem item : allHistoryItems) {
+            if (shouldIncludeItem(item, category)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean shouldIncludeItem(HistoryItem item, ChatCategory category) {
+        // Filter out official Telegram chats (Saved Messages, Replies, etc.)
+        if (item.user != null) {
+            // Skip official Telegram users (like Replies bot, Saved Messages)
+            if (item.user.id == 777000 || // Telegram service notifications
+                item.user.id == 708513 ||  // Replies bot
+                item.user.id == UserConfig.getInstance(currentAccount).getClientUserId()) { // Self
+                return false;
+            }
+        }
+
+        if (category == ChatCategory.ALL) {
+            return true;
+        }
+
+        if (item.user != null) {
+            // User dialog
+            if (item.user.bot) {
+                return category == ChatCategory.BOTS;
+            } else {
+                return category == ChatCategory.USERS;
+            }
+        } else if (item.chat != null) {
+            // Chat dialog
+            if (item.chat.broadcast) {
+                return category == ChatCategory.CHANNELS;
+            } else {
+                return category == ChatCategory.GROUPS;
+            }
+        }
+        return false;
+    }
+
+    private void loadHistoryItems() {
+        allHistoryItems.clear();
+
         try {
-            // Use reflection to access the private getRecentDialogs method
+            // Get recent dialogs from BackButtonMenuRecent
             java.lang.reflect.Method getRecentDialogsMethod = BackButtonMenuRecent.class.getDeclaredMethod("getRecentDialogs", int.class);
             getRecentDialogsMethod.setAccessible(true);
 
             @SuppressWarnings("unchecked")
-            java.util.LinkedList<Long> recentDialogIds = (java.util.LinkedList<Long>) getRecentDialogsMethod.invoke(null, currentAccount);
-
-            // Debug: Log the number of dialogs for this account
-            android.util.Log.d("ChatHistoryActivity", "Loading history for account " + currentAccount + ", found " + recentDialogIds.size() + " dialogs");
+            LinkedList<Long> recentDialogIds = (LinkedList<Long>) getRecentDialogsMethod.invoke(null, currentAccount);
 
             for (Long dialogId : recentDialogIds) {
                 // Skip official/system dialogs
@@ -199,242 +221,348 @@ public class ChatHistoryActivity extends BaseFragment {
                 HistoryItem item = new HistoryItem();
                 item.dialogId = dialogId;
 
-                // Get chat or user info
                 if (dialogId > 0) {
                     // User dialog
                     item.user = MessagesController.getInstance(currentAccount).getUser(dialogId);
-                    // If user is null, try to load it from database
-                    if (item.user == null) {
-                        // Load user from database synchronously
-                        try {
-                            java.util.ArrayList<Long> userIds = new java.util.ArrayList<>();
-                            userIds.add(dialogId);
-                            java.util.ArrayList<TLRPC.User> users = MessagesStorage.getInstance(currentAccount).getUsers(userIds);
-                            if (!users.isEmpty()) {
-                                item.user = users.get(0);
-                                // Put it in memory cache for future use
-                                MessagesController.getInstance(currentAccount).putUser(item.user, true);
-                            }
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }
                 } else {
                     // Chat dialog
-                    item.chat = MessagesController.getInstance(currentAccount).getChat(-dialogId);
-                    // If chat is null, try to load it from database
-                    if (item.chat == null) {
-                        try {
-                            java.util.ArrayList<Long> chatIds = new java.util.ArrayList<>();
-                            chatIds.add(-dialogId);
-                            java.util.ArrayList<TLRPC.Chat> chats = MessagesStorage.getInstance(currentAccount).getChats(chatIds);
-                            if (!chats.isEmpty()) {
-                                item.chat = chats.get(0);
-                                // Put it in memory cache for future use
-                                MessagesController.getInstance(currentAccount).putChat(item.chat, true);
-                            }
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }
+                    long chatId = -dialogId;
+                    item.chat = MessagesController.getInstance(currentAccount).getChat(chatId);
                 }
 
-                historyItems.add(item);
+                if (item.user != null || item.chat != null) {
+                    allHistoryItems.add(item);
+                }
             }
         } catch (Exception e) {
-            // Fallback: if reflection fails, the list will remain empty
             e.printStackTrace();
         }
 
-        // Update the UI after loading items
-        updateRows();
+        // Update tabs after loading data
+        updateTabs();
     }
 
     private boolean isOfficialDialog(long dialogId) {
-        // Filter out official/system dialogs that shouldn't appear in chat history
         if (dialogId > 0) {
-            // User dialogs - check for official users
+            // 过滤官方 Telegram 用户
+            if (dialogId == 777000 || // Telegram service notifications
+                dialogId == 708513 ||  // Replies bot
+                dialogId == UserConfig.getInstance(currentAccount).getClientUserId()) { // Self
+                return true;
+            }
+
             TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(dialogId);
             if (user != null) {
-                // Filter out official Telegram users like Replies, Saved Messages, etc.
-                if (UserObject.isReplyUser(user) ||
-                    UserObject.isUserSelf(user) ||
-                    user.id == 777000 || // Telegram notifications
-                    user.id == 429000 || // Stickers bot
-                    user.id == 136817688) { // @BotFather
+                // 检查是否为 回复
+                if ("replies".equals(user.username) && "Replies".equals(user.first_name)) {
                     return true;
                 }
-            }
-        } else {
-            // Chat dialogs - check for official chats
-            long chatId = -dialogId;
-            TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(chatId);
-            if (chat != null) {
-                // Filter out official Telegram channels/groups if needed
-                // Currently no specific official chats to filter
+                // 检查是否为官方认证或支持账号
+                if (user.verified || user.support) {
+                    return true;
+                }
             }
         }
         return false;
     }
 
-    private void updateRows() {
-        rowCount = 0;
-        
-        if (historyItems.isEmpty()) {
-            emptyRow = rowCount++;
-            historyHeaderRow = -1;
-            historyStartRow = -1;
-            historyEndRow = -1;
-        } else {
-            emptyRow = -1;
-            historyHeaderRow = -1; // Remove header row since we have title in action bar
-            historyStartRow = rowCount;
-            rowCount += historyItems.size();
-            historyEndRow = rowCount;
-        }
-        
-        shadowRow = rowCount++;
-        
-        if (listAdapter != null) {
-            listAdapter.notifyDataSetChanged();
-        }
-    }
-
-    private void switchToAccount(int accountNum) {
-        android.util.Log.d("ChatHistoryActivity", "Switching from account " + currentAccount + " to account " + accountNum);
-        currentAccount = accountNum;
-
-        // Update action bar title to show current account
-        TLRPC.User currentUser = UserConfig.getInstance(currentAccount).getCurrentUser();
-        String accountName = UserObject.getFirstName(currentUser);
+    private void updateTitle() {
+        String accountName = UserConfig.getInstance(currentAccount).getCurrentUser().first_name;
         if (accountName.length() > 15) {
             accountName = accountName.substring(0, 15) + "...";
         }
         actionBar.setTitle(getString(R.string.RecentChats) + " - " + accountName);
-
-        // Reload history for the new account
-        loadHistoryItems();
-        updateRows();
-        android.util.Log.d("ChatHistoryActivity", "Account switch completed, historyItems size: " + historyItems.size());
     }
 
-    private void openChat(HistoryItem item) {
-        Bundle args = new Bundle();
-        if (item.dialogId < 0) {
-            args.putLong("chat_id", -item.dialogId);
-            if (MessagesController.getInstance(currentAccount).isForum(item.dialogId)) {
-                presentFragment(new TopicsFragment(args));
-            } else {
-                presentFragment(new ChatActivity(args));
-            }
-        } else {
-            args.putLong("user_id", item.dialogId);
-            presentFragment(new ChatActivity(args));
+    private boolean shouldShowAccountSwitch() {
+        // Don't show if only one account
+        if (UserConfig.getActivatedAccountsCount() <= 1) {
+            return false;
         }
+
+        // Check if any accounts are hidden by passcode
+        // If all other accounts are hidden, don't show the switch button
+        int visibleAccounts = 0;
+        for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
+            if (UserConfig.getInstance(i).isClientActivated() && !PasscodeHelper.isAccountHidden(i)) {
+                visibleAccounts++;
+            }
+        }
+
+        return visibleAccounts > 1;
+    }
+
+    private void showAccountSwitchDialog() {
+        if (!shouldShowAccountSwitch()) {
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.SwitchAccountNax));
+
+        ArrayList<String> accounts = new ArrayList<>();
+        ArrayList<Integer> accountIds = new ArrayList<>();
+
+        for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
+            if (UserConfig.getInstance(i).isClientActivated() && !PasscodeHelper.isAccountHidden(i)) {
+                TLRPC.User user = UserConfig.getInstance(i).getCurrentUser();
+                if (user != null) {
+                    String name = ContactsController.formatName(user.first_name, user.last_name);
+                    if (i == currentAccount) {
+                        name += " (" + getString(R.string.CurrentNax) + ")";
+                    }
+                    accounts.add(name);
+                    accountIds.add(i);
+                }
+            }
+        }
+
+        builder.setItems(accounts.toArray(new String[0]), (dialog, which) -> {
+            int selectedAccount = accountIds.get(which);
+            if (selectedAccount != currentAccount) {
+                switchToAccount(selectedAccount);
+            }
+        });
+
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(builder.create());
+    }
+
+    private void switchToAccount(int accountId) {
+        currentAccount = accountId;
+        updateTitle();
+        loadHistoryItems();
+        refreshAllPages();
     }
 
     private void showClearHistoryDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
         builder.setTitle(getString(R.string.ClearRecentChats));
         builder.setMessage(getString(R.string.ClearRecentChatAlert));
+
         builder.setPositiveButton(getString(R.string.Clear), (dialog, which) -> {
             clearHistory();
         });
+
         builder.setNegativeButton(getString(R.string.Cancel), null);
         showDialog(builder.create());
     }
 
     private void clearHistory() {
         try {
-            Class<?> backButtonMenuRecentClass = Class.forName("tw.nekomimi.nekogram.BackButtonMenuRecent");
-            java.lang.reflect.Method clearRecentDialogsMethod = backButtonMenuRecentClass.getDeclaredMethod("clearRecentDialogs", int.class);
+            java.lang.reflect.Method clearRecentDialogsMethod = BackButtonMenuRecent.class.getDeclaredMethod("clearRecentDialogs", int.class);
             clearRecentDialogsMethod.setAccessible(true);
             clearRecentDialogsMethod.invoke(null, currentAccount);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
+        // Immediately refresh the interface
         loadHistoryItems();
-        updateRows();
+        refreshAllPages();
         BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete, getString(R.string.ClearRecentChats)).show();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        if (listAdapter != null) {
-            listAdapter.notifyDataSetChanged();
+        loadHistoryItems();
+        refreshAllPages();
+    }
+
+    private void refreshAllPages() {
+        if (viewPager != null) {
+            // Clear all cached views to prevent old content from showing
+            clearViewPagerCache();
+
+            // Force refresh all pages by recreating the adapter
+            viewPager.setAdapter(new CategoryPagerAdapter());
+            updateTabs();
         }
     }
 
-    private class ListAdapter extends RecyclerListView.SelectionAdapter {
+    private void clearViewPagerCache() {
+        if (viewPager != null) {
+            try {
+                // Force ViewPager to clear its view cache
+                viewPager.removeAllViews();
 
+                // Request layout to ensure proper refresh
+                viewPager.requestLayout();
+
+                // Small delay to ensure views are properly cleared
+                viewPager.post(() -> {
+                    if (viewPager != null) {
+                        viewPager.invalidate();
+                    }
+                });
+            } catch (Exception e) {
+                // Ignore any exceptions during cache clearing
+            }
+        }
+    }
+
+    // ViewPager Adapter
+    private class CategoryPagerAdapter extends ViewPagerFixed.Adapter {
+        @Override
+        public int getItemCount() {
+            return ChatCategory.values().length;
+        }
+
+        @Override
+        public String getItemTitle(int position) {
+            return getTabTitle(ChatCategory.values()[position]);
+        }
+
+        @Override
+        public View createView(int viewType) {
+            Context context = getContext();
+            if (context == null) return new View(getParentActivity());
+
+            // Create a container to ensure proper isolation between pages
+            FrameLayout container = new FrameLayout(context) {
+                @Override
+                protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                    super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+                    // Ensure container fills the entire available space
+                    setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec));
+                }
+            };
+            container.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+
+            // Create RecyclerView for this category
+            BlurredRecyclerView listView = new BlurredRecyclerView(context);
+            listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
+            listView.setVerticalScrollBarEnabled(false);
+
+            // Add RecyclerView to container
+            container.addView(listView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ));
+
+            return container;
+        }
+
+        @Override
+        public void bindView(View view, int position, int viewType) {
+            if (view instanceof FrameLayout) {
+                FrameLayout container = (FrameLayout) view;
+
+                // Find the RecyclerView inside the container
+                BlurredRecyclerView listView = null;
+                for (int i = 0; i < container.getChildCount(); i++) {
+                    View child = container.getChildAt(i);
+                    if (child instanceof BlurredRecyclerView) {
+                        listView = (BlurredRecyclerView) child;
+                        break;
+                    }
+                }
+
+                if (listView != null) {
+                    // Clear any existing adapter to prevent data mixing
+                    listView.setAdapter(null);
+
+                    // Create fresh adapter with current data
+                    CategoryListAdapter adapter = new CategoryListAdapter(getContext(), position);
+                    listView.setAdapter(adapter);
+
+                    // Set click listener
+                    listView.setOnItemClickListener((itemView, itemPosition) -> {
+                        adapter.onItemClick(itemView, itemPosition);
+                    });
+
+                    // Scroll to top to show fresh content
+                    listView.scrollToPosition(0);
+                }
+            }
+        }
+    }
+
+    // Category List Adapter
+    private class CategoryListAdapter extends RecyclerListView.SelectionAdapter {
         private Context mContext;
+        private ChatCategory category;
+        private ArrayList<HistoryItem> categoryItems = new ArrayList<>();
 
-        public ListAdapter(Context context) {
+        public CategoryListAdapter(Context context, int categoryIndex) {
             mContext = context;
+            category = ChatCategory.values()[categoryIndex];
+            updateCategoryData();
+        }
+
+        private void updateCategoryData() {
+            categoryItems.clear();
+
+            // Ensure we're working with the latest data
+            if (allHistoryItems == null || allHistoryItems.isEmpty()) {
+                android.util.Log.d("CategoryListAdapter",
+                    "No data available for " + category.name() + " category");
+                return;
+            }
+
+            for (HistoryItem item : allHistoryItems) {
+                if (shouldIncludeItem(item, category)) {
+                    categoryItems.add(item);
+                }
+            }
+
+            // Debug log
+            android.util.Log.d("CategoryListAdapter",
+                "Updated " + category.name() + " category: " + categoryItems.size() + " items from " + allHistoryItems.size() + " total");
+        }
+
+        public void onItemClick(View view, int position) {
+            if (position >= 0 && position < categoryItems.size()) {
+                HistoryItem item = categoryItems.get(position);
+                openChat(item);
+            }
         }
 
         @Override
         public int getItemCount() {
-            return rowCount;
+            return categoryItems.isEmpty() ? 1 : categoryItems.size(); // Show empty state if no items
         }
 
         @Override
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-            switch (holder.getItemViewType()) {
-                case 0: // Empty
-                    break;
-                case 1: // Header
-                    HeaderCell headerCell = (HeaderCell) holder.itemView;
-                    if (position == historyHeaderRow) {
-                        headerCell.setText(getString(R.string.RecentChats));
-                    }
-                    break;
-                case 2: // History item
-                    HistoryCell historyCell = (HistoryCell) holder.itemView;
-                    int index = position - historyStartRow;
-                    if (index >= 0 && index < historyItems.size()) {
-                        HistoryItem item = historyItems.get(index);
-                        historyCell.setDialog(item);
-                    }
-                    break;
-                case 3: // Shadow
-                    break;
-                case 4: // Empty state
+            int viewType = getItemViewType(position);
+
+            if (viewType == 1) { // Empty state
+                if (holder.itemView instanceof EmptyStateCell) {
                     EmptyStateCell emptyStateCell = (EmptyStateCell) holder.itemView;
-                    emptyStateCell.setText(getString(R.string.RecentChatsEmpty), getString(R.string.RecentChatsEmptyDesc));
-                    break;
+
+                    if (category == ChatCategory.ALL) {
+                        // For ALL category, show "Recent Chats Empty" 
+                        emptyStateCell.setText("","No recent chats");
+                    } else {
+                        // For specific categories, show "No xx found" (no title)
+                        String categoryDisplayName = getCategoryDisplayName(category);
+                        emptyStateCell.setText("", "No " + categoryDisplayName + " found");
+                    }
+                }
+            } else { // History item
+                if (holder.itemView instanceof HistoryCell && position >= 0 && position < categoryItems.size()) {
+                    HistoryCell historyCell = (HistoryCell) holder.itemView;
+                    HistoryItem item = categoryItems.get(position);
+                    historyCell.setDialog(item);
+                }
             }
         }
 
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
-            int type = holder.getItemViewType();
-            return type == 2; // Only history items are clickable
+            return !categoryItems.isEmpty();
         }
 
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View view;
-            switch (viewType) {
-                case 0:
-                    view = new EmptyCell(mContext, AndroidUtilities.dp(8));
-                    break;
-                case 1:
-                    view = new HeaderCell(mContext);
-                    break;
-                case 2:
-                    view = new HistoryCell(mContext);
-                    break;
-                case 3:
-                    view = new ShadowSectionCell(mContext);
-                    break;
-                case 4:
-                default:
-                    view = new EmptyStateCell(mContext);
-                    break;
+            if (viewType == 1) {
+                view = new EmptyStateCell(mContext);
+            } else {
+                view = new HistoryCell(mContext);
             }
             view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, RecyclerView.LayoutParams.WRAP_CONTENT));
             return new RecyclerListView.Holder(view);
@@ -442,25 +570,61 @@ public class ChatHistoryActivity extends BaseFragment {
 
         @Override
         public int getItemViewType(int position) {
-            if (position == emptyRow) {
-                return historyItems.isEmpty() ? 4 : 0; // Empty state or spacing
-            } else if (position == historyHeaderRow) {
-                return 1; // Header
-            } else if (position >= historyStartRow && position < historyEndRow) {
-                return 2; // History item
-            } else if (position == shadowRow) {
-                return 3; // Shadow
-            }
-            return 0;
+            return categoryItems.isEmpty() ? 1 : 0; // 0 = history item, 1 = empty state
         }
     }
 
+    private String getCategoryDisplayName(ChatCategory category) {
+        switch (category) {
+            case USERS:
+                return "users";
+            case BOTS:
+                return "bots";
+            case GROUPS:
+                return "groups";
+            case CHANNELS:
+                return "channels";
+            default:
+                return "items";
+        }
+    }
+    
+
+    private void openChat(HistoryItem item) {
+        if (item == null || (item.user == null && item.chat == null)) {
+            return;
+        }
+        if (item.user != null) {
+            MessagesController.getInstance(currentAccount).putUser(item.user, true);
+        } else {
+            MessagesController.getInstance(currentAccount).putChat(item.chat, true);
+        }
+
+        Bundle args = new Bundle();
+        args.putInt("currentAccount", currentAccount);
+
+        if (item.user != null) {
+            args.putLong("user_id", item.dialogId);
+            if (!TextUtils.isEmpty(item.user.username)) {
+                args.putString("username", item.user.username);
+            }
+        } else if (item.chat != null) {
+            args.putLong("chat_id", -item.dialogId);
+            if (!TextUtils.isEmpty(item.chat.username)) {
+                args.putString("username", item.chat.username);
+            }
+        }
+        presentFragment(new org.telegram.ui.ChatActivity(args));
+    }
+
+    // Data classes
     private static class HistoryItem {
         long dialogId;
         TLRPC.Chat chat;
         TLRPC.User user;
     }
 
+    // Custom cells
     private class HistoryCell extends FrameLayout {
         private BackupImageView avatarImageView;
         private TextView nameTextView;
@@ -504,61 +668,58 @@ public class ChatHistoryActivity extends BaseFragment {
         }
 
         public void setDialog(HistoryItem item) {
-            String name;
-            String username = null;
+            if (item.user != null) {
+                // User dialog
+                avatarDrawable.setInfo(item.user);
+                avatarImageView.setForUserOrChat(item.user, avatarDrawable);
+                nameTextView.setText(ContactsController.formatName(item.user.first_name, item.user.last_name));
 
-            if (item.chat != null) {
-                TLRPC.Chat chat = item.chat;
-                name = chat.title;
-                if (!TextUtils.isEmpty(chat.username)) {
-                    username = "@" + chat.username;
+                // Show username or special status
+                String usernameText = getUsernameText(item.user);
+                if (!TextUtils.isEmpty(usernameText)) {
+                    usernameTextView.setText(usernameText);
+                    usernameTextView.setVisibility(VISIBLE);
                 } else {
-                    // For private chats without username, show type
-                    if (chat.megagroup) {
-                        username = getString(R.string.MegaPrivate);
-                    } else if (chat.broadcast) {
-                        username = getString(R.string.ChannelPrivate);
-                    } else {
-                        username = getString(R.string.MegaPrivate);
-                    }
+                    usernameTextView.setVisibility(GONE);
                 }
-                avatarDrawable.setInfo(chat);
-                avatarImageView.setForUserOrChat(chat, avatarDrawable);
-            } else if (item.user != null) {
-                TLRPC.User user = item.user;
-                if (UserObject.isUserSelf(user)) {
-                    name = getString(R.string.SavedMessages);
-                    avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_SAVED);
-                    avatarImageView.setImageDrawable(avatarDrawable);
-                } else if (UserObject.isReplyUser(user)) {
-                    name = getString(R.string.RepliesTitle);
-                    avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_REPLIES);
-                    avatarImageView.setImageDrawable(avatarDrawable);
-                } else if (UserObject.isDeleted(user)) {
-                    name = getString(R.string.HiddenName);
-                    avatarDrawable.setInfo(user);
-                    avatarImageView.setForUserOrChat(user, avatarDrawable);
+            } else if (item.chat != null) {
+                // Chat dialog
+                avatarDrawable.setInfo(item.chat);
+                avatarImageView.setForUserOrChat(item.chat, avatarDrawable);
+                nameTextView.setText(item.chat.title);
+
+                // Show username or private status
+                String usernameText = getChatUsernameText(item.chat);
+                if (!TextUtils.isEmpty(usernameText)) {
+                    usernameTextView.setText(usernameText);
+                    usernameTextView.setVisibility(VISIBLE);
                 } else {
-                    name = UserObject.getUserName(user);
-                    String publicUsername = UserObject.getPublicUsername(user);
-                    if (!TextUtils.isEmpty(publicUsername)) {
-                        username = "@" + publicUsername;
-                    }
-                    avatarDrawable.setInfo(user);
-                    avatarImageView.setForUserOrChat(user, avatarDrawable);
+                    usernameTextView.setVisibility(GONE);
                 }
-            } else {
-                name = "Unknown";
-                avatarDrawable.setInfo(0, "?", "?");
-                avatarImageView.setImageDrawable(avatarDrawable);
+            }
+        }
+
+        private String getUsernameText(TLRPC.User user) {
+            // Show primary username if available (including for self/saved messages)
+            if (!TextUtils.isEmpty(user.username)) {
+                return "@" + user.username;
             }
 
-            nameTextView.setText(name);
-            if (!TextUtils.isEmpty(username)) {
-                usernameTextView.setText(username);
-                usernameTextView.setVisibility(VISIBLE);
+            // For users without username, don't show anything
+            return null;
+        }
+
+        private String getChatUsernameText(TLRPC.Chat chat) {
+            // Show username if available (public channel/group)
+            if (!TextUtils.isEmpty(chat.username)) {
+                return "@" + chat.username;
+            }
+
+            // Show private status for private channels/groups
+            if (chat.broadcast) {
+                return getString(R.string.ChannelPrivate);
             } else {
-                usernameTextView.setVisibility(GONE);
+                return getString(R.string.MegaPrivate);
             }
         }
     }
@@ -587,12 +748,27 @@ public class ChatHistoryActivity extends BaseFragment {
 
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(200), MeasureSpec.EXACTLY));
+            // Use a reasonable height for empty state, container will handle the full coverage
+            super.onMeasure(
+                MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(200), MeasureSpec.EXACTLY)
+            );
         }
 
         public void setText(String title, String description) {
-            titleTextView.setText(title);
-            descriptionTextView.setText(description);
+            if (TextUtils.isEmpty(title)) {
+                titleTextView.setVisibility(GONE);
+            } else {
+                titleTextView.setText(title);
+                titleTextView.setVisibility(VISIBLE);
+            }
+
+            if (TextUtils.isEmpty(description)) {
+                descriptionTextView.setVisibility(GONE);
+            } else {
+                descriptionTextView.setText(description);
+                descriptionTextView.setVisibility(VISIBLE);
+            }
         }
     }
 }

@@ -240,4 +240,7 @@
     <string name="MarkdownParser">Markdown Parser</string>
     <string name="KeepTranslatorPreferences">Keep Translator Preferences</string>
     <string name="KeepTranslatorPreferencesNotice">Preserve the current translator settings when changing App language.</string>
+        <!-- Chat History Activity -->
+    <string name="SwitchAccountNax">Switch Account</string>
+    <string name="CurrentNax">Current</string>
 </resources>
