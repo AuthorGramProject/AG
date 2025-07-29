@@ -35,14 +35,14 @@
     <string name="LlmApiUrlDefault" translatable="false">https://generativelanguage.googleapis.com/v1beta/openai</string>
     <string name="LlmModelNameDefault" translatable="false">gemini-2.5-flash</string>
     <string name="LlmProviderOpenAIModel" translatable="false">gpt-4.1-nano</string>
-    <string name="LlmProviderGeminiModel" translatable="false">gemini-2.0-flash-lite</string>
+    <string name="LlmProviderGeminiModel" translatable="false">gemini-2.5-flash-lite</string>
     <string name="LlmProviderGroqModel" translatable="false">meta-llama/llama-4-maverick-17b-128e-instruct</string>
     <string name="LlmProviderDeepSeekModel" translatable="false">deepseek-chat</string>
     <string name="LlmProviderXAIModel" translatable="false">grok-4</string>
     <string name="LlmProviderPreset">Model Provider</string>
     <string name="LlmProviderCustom">Custom</string>
     <string name="LlmProviderOpenAI" translatable="false">OpenAI gpt-4.1-nano</string>
-    <string name="LlmProviderGemini" translatable="false">Google gemini-2.0-flash-lite</string>
+    <string name="LlmProviderGemini" translatable="false">Google gemini-2.5-flash-lite</string>
     <string name="LlmProviderGroq" translatable="false">Groq llama-4-maverick</string>
     <string name="LlmProviderDeepSeek" translatable="false">DeepSeek deepseek-v3</string>
     <string name="LlmProviderXAI" translatable="false">xAI grok-4</string>
@@ -245,6 +245,13 @@
     <string name="ShowTranslateMessageLLMNotice">Controls whether AI translation options appear in message menus and text selection menus. When disabled, only regular translation will be available.</string>
     <string name="EnableBetaVersion">Install Beta Versions</string>
     <string name="CheckUpdateOnStartup">Check Updates on Startup</string>
+    <string name="UsePersianCalendar">Use Persian Calendar</string>
+    <string name="UsePersianCalendarInfo">Display date with Solar Hijri calendar</string>
+    <string name="DisplayPersianCalendarByLatin">Display Persian calendar by Latin</string>
+    <string name="TestBackendOn">This account will connect to the test backend.</string>
+    <string name="TestBackendOff">This account will connect to the production backend.</string>
+    <string name="DidNotGetTheCodeBlameDurov">If you didn\'t get the code on another device or you don\'t have Telegram logged in on another device, please use the official Telegram app to receive the code.\n\nTelegram has **disabled the ability to log in with SMS** on third-party apps. Users logging into third-party apps are only able to receive login codes via Telegram.\n\nWe cannot help you with this, if you have any issues with logging in, please contact Telegram Support.</string>
+    <string name="QRLoginMessage">Scan QRCode with another device to login.</string>
         <!-- Chat History Activity -->
     <string name="SwitchAccountNax">Switch Account</string>
     <string name="CurrentNax">Current</string>

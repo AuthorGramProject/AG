@@ -10,8 +10,6 @@
     <string name="DeleteAllFromSelfBefore">До...</string>
     <string name="DeleteAllFromSelfAdmin">С правами администратора</string>
     <string name="DeleteAllFromSelfDone">Все ваши сообщения удалены</string>
-    <string name="BotLogin">Вход по токену</string>
-    <string name="InvalidAccessToken">Недопустимый токен</string>
     <string name="IgnoreBlocked">Скрыть сообщения от заблокированных пользователей</string>
     <string name="Connection">Сеть</string>
     <string name="NameOrder">Сортировать контакты</string>
@@ -88,7 +86,7 @@
     <string name="AutoPauseVideoAbout">При блокировке экрана или сворачивании приложения.</string>
     <string name="DisableProximityEvents">Отключить датчик приближения</string>
     <string name="SelectBetween">Выберите диапазон</string>
-    <string name="AvatarAsBackground">Фото профиля как фон</string>
+    <string name="AvatarAsBackground">Тип фона</string>
     <string name="BlurAvatarBackground">Размыть фон</string>
     <string name="DarkenAvatarBackground">Затемнить фон</string>
     <string name="ProviderDeepLTranslate">DeepL</string>
@@ -98,8 +96,6 @@
     <string name="UseMediaStreamInVoip">Использовать медиапоток в VoIP</string>
     <string name="HideTimeForSticker">Скрыть время на стикерах</string>
     <string name="hideGroupSticker">Скрыть стикер группы</string>
-    <string name="useSystemDNS">Системный DNS</string>
-    <string name="customDoH">Пользовательский DoH</string>
     <string name="customGroupVoipAudioBitrate">Битрейт VoIP-аудио для группы</string>
     <string name="maxRecentStickerCount">Максимум недавних стикеров</string>
     <string name="disableSwipeToNextChannel">Отключить переход на следующий канал пролистыванием</string>
@@ -194,7 +190,6 @@
     <string name="CustomApi">Выбрать API</string>
     <string name="UseCustomApiNotice">Войдите в систему, используя пользовательский API. Если вы не можете зарегистрироваться или войти в систему, это может помочь.\n\nПримечание: FCM не будет работать, если вы используете пользовательский API.</string>
     <string name="CustomApiNo">Не использовать (рекомендуется)</string>
-    <string name="CustomApiTGX">Telegram X</string>
     <string name="CustomApiInput">Ввести вручную</string>
     <string name="LinkedGroupChat">Привязанная группа</string>
     <string name="LinkedChannelChat">Привязанный канал</string>
@@ -272,7 +267,7 @@
     <string name="useCustomEmojiInvalid">Недопустимый набор эмодзи.</string>
     <string name="repeatConfirm">Спрашивать перед повтором</string>
     <string name="repeatConfirmText">Вы хотите повторить сообщение?</string>
-    <string name="valuesLargeAvatarInDrawer">По умолчанию\nАватар\nУвеличенный аватар</string>
+    <string name="valuesLargeAvatarInDrawer">По умолчанию\nАватар\nУвеличенный аватар\nОбои</string>
     <string name="rememberAllBackMessages">Запомнить все нажатые ответы</string>
     <string name="DisableInstantCamera">Скрыть превью с камеры в панели «Прикрепить»</string>
     <string name="showSeconds">Время с секундами</string>

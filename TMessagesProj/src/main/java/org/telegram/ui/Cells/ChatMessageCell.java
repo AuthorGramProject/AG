@@ -4751,9 +4751,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
 
     private boolean checkPinchToZoom(MotionEvent ev) {
         PinchToZoomHelper pinchToZoomHelper = delegate == null ? null : delegate.getPinchToZoomHelper();
-        if (currentMessageObject == null || !photoImage.hasNotThumb() || pinchToZoomHelper == null || currentMessageObject.isSticker() ||
-                currentMessageObject.isAnimatedEmoji() || (currentMessageObject.isVideo() && !autoPlayingMedia) ||
-                isRoundVideo || currentMessageObject.isAnimatedSticker() || (currentMessageObject.isDocument() && !currentMessageObject.isGif()) || currentMessageObject.needDrawBluredPreview()) {
+        if (currentMessageObject == null || !photoImage.hasNotThumb() || pinchToZoomHelper == null ||
+                (currentMessageObject.isVideo() && !autoPlayingMedia) ||
+                isRoundVideo || (currentMessageObject.isDocument() && !currentMessageObject.isGif()) || currentMessageObject.needDrawBluredPreview()) {
             return false;
         }
         return pinchToZoomHelper.checkPinchToZoom(ev, this, photoImage, null, null, currentMessageObject, mediaSpoilerEffect2 == null ? 0 : mediaSpoilerEffect2.getAttachIndex(this));
@@ -5067,6 +5067,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 if (lastTime != currentProgress) {
                     lastTime = currentProgress;
                     String timeString = AndroidUtilities.formatShortDuration(currentProgress, (int) duration);
+                    timeString = String.format("%s %s", timeString, AndroidUtilities.formatFileSize(documentAttach.size));
                     int timeWidth = (int) Math.ceil(Theme.chat_audioTimePaint.measureText(timeString));
                     durationLayout = new StaticLayout(timeString, Theme.chat_audioTimePaint, timeWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
                 }
@@ -15477,7 +15478,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (textLayoutBlocks == null || textLayoutBlocks.isEmpty() || alpha == 0) {
             return;
         }
-
+        if (NaConfig.INSTANCE.getTranslucentDeletedMessages().Bool() && ayuDeleted && caption) {
+            Theme.chat_msgTextPaint.setAlpha((int) (255 * 0.75f));
+        }
         int firstVisibleBlockNum;
         int lastVisibleBlockNum;
         if (origin && !drawAllBlocks) {
@@ -15491,7 +15494,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             firstVisibleBlockNum = 0;
             lastVisibleBlockNum = textLayoutBlocks.size();
         }
-        boolean translating = MessagesController.getInstance(currentAccount).getTranslateController().isTranslating(getMessageObject());
+
+        boolean translating = getMessageObject().translating || MessagesController.getInstance(currentAccount).getTranslateController().isTranslating(getMessageObject());
         if (!origin == (currentMessageObject != null && currentMessageObject.translated)) {
             if (translationLoadingFloat == null) {
                 translationLoadingFloat = new AnimatedFloat(this, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
@@ -17108,7 +17112,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         var ayuDeletedVal = messageObject.messageOwner.ayuDeleted;
         if (messageObject.scheduled || messageObject.isLiveLocation() || messageObject.messageOwner.edit_hide || messageObject.getDialogId() == 777000 || messageObject.messageOwner.via_bot_id != 0 || messageObject.messageOwner.via_bot_name != null || author != null && author.bot) {
             edited = false;
-            ayuDeleted =  ayuDeletedVal && !(currentChat instanceof TLRPC.TL_chat && author != null && author.bot); // ensure we're not in PM with bot, as it can screw experience
+            ayuDeleted = ayuDeletedVal && !(currentChat instanceof TLRPC.TL_chat && author != null && author.bot); // ensure we're not in PM with bot, as it can screw experience
         } else if (currentPosition == null || currentMessagesGroup == null || currentMessagesGroup.messages.isEmpty()) {
             edited = (messageObject.messageOwner.flags & TLRPC.MESSAGE_FLAG_EDITED) != 0 || messageObject.isEditing();
             ayuDeleted = ayuDeletedVal;
@@ -18448,9 +18452,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 h = view.getMeasuredHeight();
             }
         }
-        if (drawable != null)
-        drawable.setTop((int) (parentViewTopOffset + offset), w, h, (int) parentViewTopOffset, blurredViewTopOffset, blurredViewBottomOffset, pinnedTop, pinnedBottom || transitionParams.changePinnedBottomProgress != 1);
-        drawable.setBotButtonsBottom(currentMessageObject != null && currentMessageObject.hasInlineBotButtons());
+        if (drawable != null) {
+            drawable.setTop((int) (parentViewTopOffset + offset), w, h, (int) parentViewTopOffset, blurredViewTopOffset, blurredViewBottomOffset, pinnedTop, pinnedBottom || transitionParams.changePinnedBottomProgress != 1);
+            drawable.setBotButtonsBottom(currentMessageObject != null && currentMessageObject.hasInlineBotButtons());
+        }
     }
 
     public float transitionYOffsetForDrawables;
@@ -20145,7 +20150,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 currentBackgroundShadowDrawable.draw(canvas);
                 currentBackgroundShadowDrawable.setAlpha(255);
             }
-            currentBackgroundDrawable.setAlpha((int) (getAlpha() * 255));
+            currentBackgroundDrawable.setAlpha((int) (getAlpha() * (NaConfig.INSTANCE.getTranslucentDeletedMessages().Bool() && ayuDeleted ? 255 * 0.75f : 255)));
             currentBackgroundDrawable.setBounds(left, top, right, bottom);
             currentBackgroundDrawable.drawCached(canvas, backgroundCacheParams);
             currentBackgroundDrawable.setAlpha(255);
@@ -21832,7 +21837,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (currentMessageObject != null && currentMessageObject.type == MessageObject.TYPE_JOINED_CHANNEL) {
             return;
         }
-        if (NekoConfig.hideTimeForSticker.Bool() && currentMessageObject != null && currentMessageObject.isAnyKindOfSticker() && !isDrawSelectionBackground()) {
+        if (NekoConfig.hideTimeForSticker.Bool() && currentMessageObject != null && currentMessageObject.isAnyKindOfSticker() && !isDrawSelectionBackground() && !currentMessageObject.messageOwner.ayuDeleted) {
             return;
         }
         for (int i = 0; i < 2; i++) {
@@ -24766,6 +24771,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         sb.append(LocaleController.formatString("AccDescrMusicInfo", R.string.AccDescrMusicInfo, currentMessageObject.getMusicAuthor(), currentMessageObject.getMusicTitle()));
                         sb.append(", ");
                         sb.append(LocaleController.formatDuration((int) currentMessageObject.getDuration()));
+                        sb.append(", ");
+                        sb.append(AndroidUtilities.formatFileSize(documentAttach.size));
                     } else if (currentMessageObject.isVoice() || isRoundVideo) {
                         sb.append(", ");
                         sb.append(LocaleController.formatDuration((int) currentMessageObject.getDuration()));
@@ -26563,12 +26570,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
 
     private Drawable getThemedDrawable(String key) {
         Drawable drawable = resourcesProvider != null ? resourcesProvider.getDrawable(key) : null;
-        final Drawable ret = drawable != null ? drawable : Theme.getThemeDrawable(key);
-        if (ret == null) {
-            FileLog.e("getThemedDrawable failed with key:" + key);
-            FileLog.e(new Exception());
-        }
-        return ret;
+        return drawable != null ? drawable : Theme.getThemeDrawable(key);
     }
 
     public Paint getThemedPaint(String paintKey) {

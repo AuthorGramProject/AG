@@ -10,8 +10,6 @@
     <string name="DeleteAllFromSelfBefore">Before...</string>
     <string name="DeleteAllFromSelfAdmin">With admin rights</string>
     <string name="DeleteAllFromSelfDone">All your messages are deleted</string>
-    <string name="BotLogin">Bot Login</string>
-    <string name="InvalidAccessToken">Invalid access token</string>
     <string name="IgnoreBlocked">Hide Messages from Blocked Users</string>
     <string name="Connection">Connections</string>
     <string name="NameOrder">Name Order</string>
@@ -88,7 +86,7 @@
     <string name="AutoPauseVideoAbout">When lock screen/switch to background.</string>
     <string name="DisableProximityEvents">Disable Proximity Events</string>
     <string name="SelectBetween">Select Range</string>
-    <string name="AvatarAsBackground">Profile Photo as Background</string>
+    <string name="AvatarAsBackground">Background Type</string>
     <string name="BlurAvatarBackground">Blur Background</string>
     <string name="DarkenAvatarBackground">Darken Background</string>
     <string name="ProviderDeepLTranslate">DeepL Translate</string>
@@ -98,8 +96,6 @@
     <string name="UseMediaStreamInVoip">Use Media Stream in VoIP</string>
     <string name="HideTimeForSticker">Hide Time on Stickers</string>
     <string name="hideGroupSticker">Hide Group Sticker</string>
-    <string name="useSystemDNS">Use System DNS</string>
-    <string name="customDoH">Custom DoH</string>
     <string name="customGroupVoipAudioBitrate">Group VoIP Audio Bitrate</string>
     <string name="maxRecentStickerCount">Max Recent Stickers</string>
     <string name="disableSwipeToNextChannel">Disable Swipe to Next Channel</string>
@@ -196,8 +192,6 @@
     <string name="CustomApi">Custom API</string>
     <string name="UseCustomApiNotice">Log in using the custom API, if you are unable to register or log in, this may help.\n\nNote: FCM will not work if you are using a custom API.</string>
     <string name="CustomApiNo">Don\'t use custom API</string>
-    <string name="CustomApiOfficial">Telegram Android</string>
-    <string name="CustomApiTGX">Telegram Android X</string>
     <string name="CustomApiInput">Manual input</string>
     <string name="LinkedGroupChat">Linked Group</string>
     <string name="LinkedChannelChat">Linked Channel</string>
@@ -275,7 +269,7 @@
     <string name="useCustomEmojiInvalid">Not a valid emoji pack.</string>
     <string name="repeatConfirm">Ask Before Repost</string>
     <string name="repeatConfirmText">Are you sure you want to Repost?</string>
-    <string name="valuesLargeAvatarInDrawer">Telegram Default\nAvatar as background\nBig avatar as background</string>
+    <string name="valuesLargeAvatarInDrawer">Default\nAvatar\nBig Avatar\nWallpaper</string>
     <string name="rememberAllBackMessages">Remember All Clicked Replies</string>
     <string name="DisableInstantCamera">Disable Instant Camera</string>
     <string name="showSeconds">Show Timestamp in Seconds</string>

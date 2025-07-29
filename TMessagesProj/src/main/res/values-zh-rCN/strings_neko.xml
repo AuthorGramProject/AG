@@ -10,8 +10,6 @@
     <string name="DeleteAllFromSelfBefore">早于...</string>
     <string name="DeleteAllFromSelfAdmin">使用管理员权限</string>
     <string name="DeleteAllFromSelfDone">您的所有消息都已删除</string>
-    <string name="BotLogin">机器人登录</string>
-    <string name="InvalidAccessToken">无效的访问令牌</string>
     <string name="IgnoreBlocked">忽略被屏蔽用户在群组内的消息</string>
     <string name="Connection">连接</string>
     <string name="NameOrder">姓名顺序</string>
@@ -88,7 +86,7 @@
     <string name="AutoPauseVideoAbout">当锁定屏幕/切换到后台时。</string>
     <string name="DisableProximityEvents">禁用距离传感器事件</string>
     <string name="SelectBetween">选择范围内消息</string>
-    <string name="AvatarAsBackground">使用头像作为背景</string>
+    <string name="AvatarAsBackground">背景类型</string>
     <string name="BlurAvatarBackground">模糊头像背景</string>
     <string name="DarkenAvatarBackground">暗色头像背景</string>
     <string name="ProviderDeepLTranslate">DeepL 翻译</string>
@@ -98,8 +96,6 @@
     <string name="UseMediaStreamInVoip">在通话中使用媒体流</string>
     <string name="HideTimeForSticker">隐藏贴纸发送时间</string>
     <string name="hideGroupSticker">隐藏群组贴纸</string>
-    <string name="useSystemDNS">使用系统 DNS</string>
-    <string name="customDoH">自定义 DoH</string>
     <string name="customGroupVoipAudioBitrate">群组通话音频比特率</string>
     <string name="maxRecentStickerCount">最近贴纸数量上限</string>
     <string name="disableSwipeToNextChannel">禁用滑动到下个频道</string>
@@ -194,8 +190,6 @@
     <string name="CustomApi">自定义 API</string>
     <string name="UseCustomApiNotice">使用自定义 API 登录，如果您无法注册或登录，这可能会有帮助。\n\n注意：如果您使用自定义 API，FCM 将无法工作。</string>
     <string name="CustomApiNo">不使用自定义 API</string>
-    <string name="CustomApiOfficial">Telegram Android</string>
-    <string name="CustomApiTGX">Telegram Android X</string>
     <string name="CustomApiInput">手动输入</string>
     <string name="LinkedGroupChat">链接的群组</string>
     <string name="LinkedChannelChat">链接的频道</string>
@@ -273,7 +267,7 @@
     <string name="useCustomEmojiInvalid">非有效 Emoji ZIP 文件。</string>
     <string name="repeatConfirm">复读前确认</string>
     <string name="repeatConfirmText">确定要复读这条消息？</string>
-    <string name="valuesLargeAvatarInDrawer">Telegram 默认\n使用头像作为背景\n使用大只头像作为背景</string>
+    <string name="valuesLargeAvatarInDrawer">默认\n头像\n大只头像\n聊天壁纸</string>
     <string name="rememberAllBackMessages">记住所有已点击的回复</string>
     <string name="DisableInstantCamera">禁用相机即时预览</string>
     <string name="showSeconds">以秒为单位显示时间戳</string>

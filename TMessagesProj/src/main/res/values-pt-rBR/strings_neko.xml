@@ -10,8 +10,6 @@
     <string name="DeleteAllFromSelfBefore">Antes...</string>
     <string name="DeleteAllFromSelfAdmin">Com direitos de administrador</string>
     <string name="DeleteAllFromSelfDone">Todas as suas mensagens foram excluídas</string>
-    <string name="BotLogin">Login via Bot</string>
-    <string name="InvalidAccessToken">Token de acesso inválido</string>
     <string name="IgnoreBlocked">Ocultar Mensagens de Usuários Bloqueados</string>
     <string name="Connection">Conexões</string>
     <string name="NameOrder">Ordem do Nome</string>
@@ -88,7 +86,7 @@
     <string name="AutoPauseVideoAbout">Quando bloquear tela/alternar para plano de fundo.</string>
     <string name="DisableProximityEvents">Desativar Eventos de Proximidade</string>
     <string name="SelectBetween">Selecionar intervalo</string>
-    <string name="AvatarAsBackground">Foto de Perfil como Plano de Fundo</string>
+    <string name="AvatarAsBackground">Tipo de Fundo</string>
     <string name="BlurAvatarBackground">Fundo Desfocado</string>
     <string name="DarkenAvatarBackground">Escurecer Fundo</string>
     <string name="ProviderDeepLTranslate">DeepL Tradutor</string>
@@ -98,8 +96,6 @@
     <string name="UseMediaStreamInVoip">Use o Stream de Mídia no VoIP</string>
     <string name="HideTimeForSticker">Ocultar Horário nos Stickers</string>
     <string name="hideGroupSticker">Ocultar Sticker do Grupo</string>
-    <string name="useSystemDNS">Usar DNS do sistema</string>
-    <string name="customDoH">DoH Personalizado</string>
     <string name="customGroupVoipAudioBitrate">Taxa de bits de áudio VoIP do grupo</string>
     <string name="maxRecentStickerCount">Máximo de Stickers Recentes</string>
     <string name="disableSwipeToNextChannel">Desativar Deslizar para o Próximo Canal</string>
@@ -271,7 +267,7 @@
     <string name="useCustomEmojiInvalid">Não é um pacote de emojis válido.</string>
     <string name="repeatConfirm">Perguntar antes de repostar</string>
     <string name="repeatConfirmText">Você tem certeza de que deseja repostar?</string>
-    <string name="valuesLargeAvatarInDrawer">Avatar padrão do Telegram\nAvatar como plano de fundo\nAvatar grande como plano de fundo</string>
+    <string name="valuesLargeAvatarInDrawer">Padrão\nAvatar\nAvatar Grande\nPapel de Parede</string>
     <string name="rememberAllBackMessages">Lembrar todas as respostas clicadas</string>
     <string name="DisableInstantCamera">Desativar câmera instantânea</string>
     <string name="showSeconds">Mostrar data/hora em segundos</string>

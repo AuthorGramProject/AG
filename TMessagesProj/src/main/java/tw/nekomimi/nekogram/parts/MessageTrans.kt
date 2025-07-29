@@ -138,7 +138,7 @@ fun ChatActivity.translateMessages(
                         }
                         return@trans
                     }
-                    poll.translatedQuestion = translatedQuestion?.trim()
+                    poll.translatedQuestion = translatedQuestion
 
                     poll.answers.forEach {
                         var translatedAnswer: String? = null
@@ -150,7 +150,7 @@ fun ChatActivity.translateMessages(
                             }
                             return@trans
                         }
-                        it.translatedText = translatedAnswer?.trim()
+                        it.translatedText = translatedAnswer
                     }
                 } else {
                     var result: TLRPC.TL_textWithEntities? = null
@@ -167,9 +167,10 @@ fun ChatActivity.translateMessages(
                         }
                         return@trans
                     }
-                    if (result != null) {
-                        result?.text = result?.text?.trim()
-                        selectedObject.messageOwner.translatedMessage = selectedObject.messageOwner.message + "\n\n--------\n\n" + result?.text
+                    selectedObject.messageOwner.translatedMessage =
+                        "${if (translatorMode == TRANSLATE_MODE_APPEND) selectedObject.messageOwner.message + "\n\n--------\n\n" else ""}${result?.text}"
+
+                    if (result != null && translatorMode == TRANSLATE_MODE_REPLACE) {
                         selectedObject.messageOwner.translatedText = result
                     }
                 }
@@ -182,13 +183,14 @@ fun ChatActivity.translateMessages(
                     selectedObject.messageOwner
                 )
 
-                if (selectedObject.messageOwner.translatedText != null) {
+                if (selectedObject.messageOwner.translatedText != null && translatorMode == TRANSLATE_MODE_REPLACE) {
                     AndroidUtilities.runOnUIThread {
                         NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, selectedObject)
                         NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, 0)
                     }
                 } else {
                     withContext(Dispatchers.Main) {
+                        clearTranslated(selectedObject, currentAccount)
                         messageHelper.resetMessageContent(dialogId, selectedObject)
                     }
                 }
@@ -230,3 +232,12 @@ private fun isTranslatedPoll(messageObject: MessageObject) = messageObject.isPol
         poll.translatedQuestion?.isNotEmpty() == true &&
         poll.answers.all { it.translatedText?.isNotEmpty() == true }
     } ?: false
+
+private fun clearTranslated(messageObject: MessageObject, currentAccount: Int) {
+    messageObject.messageOwner.translatedText = null
+    messageObject.messageOwner.translatedPoll = null
+    MessagesStorage.getInstance(currentAccount).updateMessageCustomParams(
+        messageObject.dialogId,
+        messageObject.messageOwner
+    )
+}

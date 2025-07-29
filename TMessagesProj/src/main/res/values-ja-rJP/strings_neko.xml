@@ -10,8 +10,6 @@
     <string name="DeleteAllFromSelfBefore">…以前</string>
     <string name="DeleteAllFromSelfAdmin">管理者権限を使用</string>
     <string name="DeleteAllFromSelfDone">すべてのメッセージが削除されました</string>
-    <string name="BotLogin">ボットログイン</string>
-    <string name="InvalidAccessToken">無効なアクセストークン</string>
     <string name="IgnoreBlocked">ブロックしたユーザーのメッセージを非表示</string>
     <string name="Connection">接続</string>
     <string name="NameOrder">姓名の順番</string>
@@ -88,7 +86,7 @@
     <string name="AutoPauseVideoAbout">画面ロック時/バックグラウンドに移動時。</string>
     <string name="DisableProximityEvents">近接センサーイベントを無効にする</string>
     <string name="SelectBetween">範囲内のメッセージを選択</string>
-    <string name="AvatarAsBackground">アバターを背景として使用</string>
+    <string name="AvatarAsBackground">背景の種類</string>
     <string name="BlurAvatarBackground">アバターをぼかす</string>
     <string name="DarkenAvatarBackground">アバターを暗くする</string>
     <string name="ProviderDeepLTranslate">DeepL 翻訳</string>
@@ -98,8 +96,6 @@
     <string name="UseMediaStreamInVoip">通話でメディアストリームを使用</string>
     <string name="HideTimeForSticker">ステッカーの送信時間を非表示</string>
     <string name="hideGroupSticker">グループステッカーを非表示</string>
-    <string name="useSystemDNS">システム DNS を使用</string>
-    <string name="customDoH">カスタム DoH</string>
     <string name="customGroupVoipAudioBitrate">グループ通話の音声ビットレート</string>
     <string name="maxRecentStickerCount">最近使用したステッカーの数の上限</string>
     <string name="disableSwipeToNextChannel">次のチャンネルへのスワイプを無効にする</string>
@@ -270,7 +266,7 @@
     <string name="useCustomEmojiInvalid">有効な絵文字パックではありません</string>
     <string name="repeatConfirm">リポストに確認</string>
     <string name="repeatConfirmText">本当にリポストしますか？</string>
-    <string name="valuesLargeAvatarInDrawer">Telegram デフォルト\nアバターを背景に\n大きなアバターを背景に</string>
+    <string name="valuesLargeAvatarInDrawer">デフォルト\nアバター\n大きなアバター\nチャット背景</string>
     <string name="rememberAllBackMessages">全てのクリックされた返信を記憶</string>
     <string name="DisableInstantCamera">インスタントカメラを無効にする</string>
     <string name="showSeconds">タイムスタンプを秒単位で表示</string>

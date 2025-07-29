@@ -43,6 +43,11 @@ public class NekoConfig {
     public static final int MARKDOWN_PARSER_TELEGRAM = 0;
     public static final int MARKDOWN_PARSER_NEKO = 1;
 
+    public static final int DRAWER_BACKGROUND_DEFAULT = 0;
+    public static final int DRAWER_BACKGROUND_AVATAR = 1;
+    public static final int DRAWER_BACKGROUND_BIG_AVATAR = 2;
+    public static final int DRAWER_BACKGROUND_WALLPAPER = 3;
+
     public static final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("nkmrcfg", Context.MODE_PRIVATE);
     public static final Object sync = new Object();
     public static final String channelAliasPrefix = "channelAliasPrefix_";
@@ -124,8 +129,6 @@ public class NekoConfig {
     public static ConfigItem askBeforeCall = addConfig("AskBeforeCalling", configTypeBool, true);
     public static ConfigItem disableNumberRounding = addConfig("DisableNumberRounding", configTypeBool, false);
 
-    public static ConfigItem useSystemDNS = addConfig("useSystemDNS", configTypeBool, true);
-    public static ConfigItem customDoH = addConfig("customDoH", configTypeString, "");
     public static ConfigItem hideProxyByDefault = addConfig("HideProxyByDefault", configTypeBool, true);
     public static ConfigItem useProxyItem = addConfig("UseProxyItem", configTypeBool, true);
 
@@ -165,10 +168,11 @@ public class NekoConfig {
     public static ConfigItem useOSMDroidMap = addConfig("useOSMDroidMap", configTypeBool, false);
     public static ConfigItem mapDriftingFixForGoogleMaps = addConfig("mapDriftingFixForGoogleMaps", configTypeBool, true);
 
-    // priv branch changes
     public static ConfigItem localPremium = addConfig("localPremium", configTypeBool, false);
-
     public static ConfigItem localeToDBC = addConfig("LocaleToDBC", configTypeBool, false);
+
+    public static ConfigItem usePersianCalendar = addConfig("UsePersianCalendar", configTypeBool, false);
+    public static ConfigItem displayPersianCalendarByLatin = addConfig("DisplayPersianCalendarByLatin", configTypeBool, false);
 
     // --- Ghost Mode ---
     public static ConfigItem sendReadMessagePackets = addConfig("sendReadMessagePackets", configTypeBool, true);

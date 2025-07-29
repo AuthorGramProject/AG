@@ -219,6 +219,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-crashlytics:19.4.4'
     implementation 'com.google.android.gms:play-services-cast-framework:22.1.0' // 21.4.0
     implementation 'com.google.android.gms:play-services-maps:19.2.0' // 18.1.0
+    implementation 'com.google.android.gms:play-services-auth:21.4.0' // 20.4.0
     implementation 'com.google.android.gms:play-services-vision:20.1.3'
     implementation 'com.google.android.gms:play-services-location:21.3.0'
     implementation 'com.googlecode.mp4parser:isoparser:1.0.6'
@@ -249,7 +250,6 @@ dependencies {
     implementation 'org.osmdroid:osmdroid-android:6.1.20'
     // network
     implementation 'com.squareup.okhttp3:okhttp:5.1.0'
-    implementation 'dnsjava:dnsjava:3.6.3'
     // add for emoji
     implementation 'com.jaredrummler:truetypeparser-light:1.0.0'
     // add for UnifiedPush

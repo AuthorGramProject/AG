@@ -109,7 +109,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import kotlin.Pair;
-import top.qwq2333.nullgram.utils.StringUtils;
+import tw.nekomimi.nekogram.utils.StringUtils;
 import tw.nekomimi.nekogram.NekoConfig;
 import xyz.nextalone.nagram.NaConfig;
 
@@ -908,14 +908,14 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         }
     }
 
-    private static SparseArray<SendMessagesHelper> Instance = new SparseArray<>();
+    private static volatile SendMessagesHelper[] Instance = new SendMessagesHelper[UserConfig.MAX_ACCOUNT_COUNT];
     public static SendMessagesHelper getInstance(int num) {
-        SendMessagesHelper localInstance = Instance.get(num);
+        SendMessagesHelper localInstance = Instance[num];
         if (localInstance == null) {
             synchronized (SendMessagesHelper.class) {
-                localInstance = Instance.get(num);
+                localInstance = Instance[num];
                 if (localInstance == null) {
-                    Instance.put(num, localInstance = new SendMessagesHelper(num));
+                    Instance[num] = localInstance = new SendMessagesHelper(num);
                 }
             }
         }

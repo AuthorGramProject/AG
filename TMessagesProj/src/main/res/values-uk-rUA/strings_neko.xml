@@ -10,8 +10,6 @@
     <string name="DeleteAllFromSelfBefore">До...</string>
     <string name="DeleteAllFromSelfAdmin">З правами адміністратора</string>
     <string name="DeleteAllFromSelfDone">Усі ваші повідомлення видалені</string>
-    <string name="BotLogin">Bot Login</string>
-    <string name="InvalidAccessToken">Недійсний токен доступу</string>
     <string name="IgnoreBlocked">Приховати повідомлення від заблокованих користувачів</string>
     <string name="Connection">З\'єднання</string>
     <string name="NameOrder">Порядок імен</string>
@@ -88,7 +86,7 @@
     <string name="AutoPauseVideoAbout">При блокуванні екрана або згортанні програми.</string>
     <string name="DisableProximityEvents">Вимкнути датчик наближення</string>
     <string name="SelectBetween">Виберіть діапазон</string>
-    <string name="AvatarAsBackground">Зображення профілю як фон</string>
+    <string name="AvatarAsBackground">Тип фону</string>
     <string name="BlurAvatarBackground">Розмиття фону</string>
     <string name="DarkenAvatarBackground">Затемнення фону</string>
     <string name="ProviderDeepLTranslate">DeepL Перекладач</string>
@@ -98,8 +96,6 @@
     <string name="UseMediaStreamInVoip">Використовувати медіапотік у VoIP</string>
     <string name="HideTimeForSticker">Приховати час на наліпках</string>
     <string name="hideGroupSticker">Приховати наліпку групи</string>
-    <string name="useSystemDNS">Використати системний DNS</string>
-    <string name="customDoH">Власний DoH</string>
     <string name="customGroupVoipAudioBitrate">Бітрейт аудіо VoIP для груп</string>
     <string name="maxRecentStickerCount">Максимум останніх наліпок</string>
     <string name="disableSwipeToNextChannel">Вимкнути перехід на наступний канал свайпом</string>
@@ -270,7 +266,7 @@
     <string name="useCustomEmojiInvalid">Недійсний набір емодзі.</string>
     <string name="repeatConfirm">Запитувати перед повтором</string>
     <string name="repeatConfirmText">Ви хочете повторити повідомлення?</string>
-    <string name="valuesLargeAvatarInDrawer">Типовий стиль\nАватар\nВеликий аватар</string>
+    <string name="valuesLargeAvatarInDrawer">Типовий\nАватар\nВеликий Аватар\nШпалери</string>
     <string name="rememberAllBackMessages">Запам’ятати всі натиснуті відповіді</string>
     <string name="DisableInstantCamera">Приховати прев\'ю з камери на панелі «Прикріпити»</string>
     <string name="showSeconds">Показувати час у секундах</string>

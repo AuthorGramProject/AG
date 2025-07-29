@@ -53,6 +53,7 @@ import org.telegram.ui.Components.SeekBarView;
 import org.telegram.ui.Components.UndoView;
 
 import java.util.ArrayList;
+import java.util.Locale;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.config.CellGroup;
@@ -106,7 +107,6 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell useIPv6Row = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.useIPv6));
     private final AbstractConfigCell useProxyItemRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.useProxyItem));
     private final AbstractConfigCell hideProxyByDefaultRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.hideProxyByDefault));
-    private final AbstractConfigCell useSystemDNSRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.useSystemDNS));
     private final AbstractConfigCell disableProxyWhenVpnEnabledRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDisableProxyWhenVpnEnabled()));
     private final AbstractConfigCell defaultHlsVideoQualityRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getDefaultHlsVideoQuality(), new String[]{
             getString(R.string.QualityAuto),
@@ -116,7 +116,6 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             getString(R.string.Quality720),
             getString(R.string.Quality144),
     }, null));
-    private final AbstractConfigCell customDoHRow = cellGroup.appendCell(new ConfigCellTextInput(null, NekoConfig.customDoH, "https://1.0.0.1/dns-query", null));
     private final AbstractConfigCell dividerConnection = cellGroup.appendCell(new ConfigCellDivider());
 
     // Folder
@@ -257,6 +256,8 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell autoPauseVideoRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.autoPauseVideo, getString(R.string.AutoPauseVideoAbout)));
     private final AbstractConfigCell disableNumberRoundingRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableNumberRounding, "4.8K -> 4777"));
     private final AbstractConfigCell useCamera2ApiRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getUseCamera2Api()));
+    private final AbstractConfigCell usePersianCalendarRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.usePersianCalendar, getString(R.string.UsePersianCalendarInfo)));
+    private final AbstractConfigCell displayPersianCalendarByLatinRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.displayPersianCalendarByLatin));
     private final AbstractConfigCell nameOrderRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NekoConfig.nameOrder, new String[]{
             getString(R.string.LastFirst),
             getString(R.string.FirstLast)
@@ -286,6 +287,10 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         if (!NaConfig.INSTANCE.getCenterActionBarTitle().Bool()) {
             NaConfig.INSTANCE.getCenterActionBarTitleType().setConfigInt(0);
         }
+        if (!shouldShowPersian()) {
+            cellGroup.rows.remove(usePersianCalendarRow);
+            cellGroup.rows.remove(displayPersianCalendarByLatinRow);
+        }
 
         if (NekoConfig.useOSMDroidMap.Bool()) {
             cellGroup.rows.remove(mapDriftingFixForGoogleMapsRow);
@@ -308,6 +313,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             cellGroup.rows.remove(chatBlurAlphaValueRow);
         }
 
+        checkProfileConfigCellRows();
         addRowsToMap(cellGroup);
     }
 
@@ -396,13 +402,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
 
         // Cells: Set OnSettingChanged Callbacks
         cellGroup.callBackSettingsChanged = (key, newValue) -> {
-            if (key.equals(NekoConfig.useIPv6.getKey())) {
-                for (int a : SharedConfig.activeAccounts) {
-                    if (UserConfig.getInstance(a).isClientActivated()) {
-                        ConnectionsManager.native_setIpStrategy(a, ConnectionsManager.getIpStrategy());
-                    }
-                }
-            } else if (key.equals(NekoConfig.hidePhone.getKey())) {
+            if (key.equals(NekoConfig.hidePhone.getKey())) {
                 parentLayout.rebuildFragments(0);
                 getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
                 listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
@@ -420,38 +420,14 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 if ((boolean) newValue) {
                     getContactsController().deleteUnknownAppAccounts();
                 } else {
-                    for (int a : SharedConfig.activeAccounts) {
+                    for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
                         ContactsController.getInstance(a).checkAppAccount();
                     }
                 }
             } else if (key.equals(NekoConfig.largeAvatarInDrawer.getKey())) {
                 getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
                 TransitionManager.beginDelayedTransition(profilePreviewCell);
-                boolean enabled = (int) newValue > 0;
-                if (enabled) {
-                    if (!cellGroup.rows.contains(avatarBackgroundBlurRow)) {
-                        final int index = cellGroup.rows.indexOf(largeAvatarInDrawerRow) + 1;
-                        cellGroup.rows.add(index, avatarBackgroundBlurRow);
-                        listAdapter.notifyItemInserted(index);
-                    }
-                    if (!cellGroup.rows.contains(avatarBackgroundDarkenRow)) {
-                        final int index = cellGroup.rows.indexOf(avatarBackgroundBlurRow) + 1;
-                        cellGroup.rows.add(index, avatarBackgroundDarkenRow);
-                        listAdapter.notifyItemInserted(index);
-                    }
-                } else {
-                    if (cellGroup.rows.contains(avatarBackgroundBlurRow)) {
-                        final int index = cellGroup.rows.indexOf(avatarBackgroundBlurRow);
-                        cellGroup.rows.remove(avatarBackgroundBlurRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                    if (cellGroup.rows.contains(avatarBackgroundDarkenRow)) {
-                        final int index = cellGroup.rows.indexOf(avatarBackgroundDarkenRow);
-                        cellGroup.rows.remove(avatarBackgroundDarkenRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                }
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
+                checkProfileConfigCellRows();
             } else if (key.equals(NekoConfig.avatarBackgroundBlur.getKey())) {
                 getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
                 listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
@@ -587,6 +563,14 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             } else if (key.equals(NaConfig.INSTANCE.getHideDividers().getKey())) {
                 restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getIconReplacements().getKey())) {
+                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NaConfig.INSTANCE.getSwitchStyle().getKey()) || key.equals(NaConfig.INSTANCE.getSliderStyle().getKey())) {
+                if (listView.getLayoutManager() != null) {
+                    recyclerViewState = listView.getLayoutManager().onSaveInstanceState();
+                    parentLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
+                    listView.getLayoutManager().onRestoreInstanceState(recyclerViewState);
+                }
+            } else if (key.equals(NekoConfig.usePersianCalendar.getKey())) {
                 restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             }
         };
@@ -779,6 +763,21 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         }
     }
 
+    private void setCanNotChange() {
+        if (NekoConfig.useOSMDroidMap.Bool())
+            ((ConfigCellTextCheck) mapDriftingFixForGoogleMapsRow).setEnabled(false);
+
+        if (NaConfig.INSTANCE.getCustomTitleUserName().Bool())
+            ((ConfigCellTextInput) customTitleRow).setEnabled(false);
+
+        boolean enabled;
+
+        enabled = NaConfig.INSTANCE.getPushServiceType().Int() == 0;
+        ((ConfigCellTextCheck) pushServiceTypeInAppDialogRow).setEnabled(enabled);
+
+        enabled = NaConfig.INSTANCE.getHideArchive().Bool();
+        ((ConfigCellTextCheck) openArchiveOnPullRow).setEnabled(!enabled);
+    }
     private static class ChatBlurAlphaSeekBar extends FrameLayout {
 
         private final SeekBarView sizeBar;
@@ -833,5 +832,45 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             textPaint.setAlpha((int) ((enabled ? 1.0f : 0.3f) * 255));
             this.invalidate();
         }
+    }
+
+    private void checkProfileConfigCellRows() {
+        int backgroundType = NekoConfig.largeAvatarInDrawer.Int();
+        boolean useAvatar = backgroundType == NekoConfig.DRAWER_BACKGROUND_AVATAR || backgroundType == NekoConfig.DRAWER_BACKGROUND_BIG_AVATAR;
+        if (listAdapter == null) {
+            if (!useAvatar) {
+                cellGroup.rows.remove(avatarBackgroundBlurRow);
+                cellGroup.rows.remove(avatarBackgroundDarkenRow);
+            }
+            return;
+        }
+        if (useAvatar) {
+            final int index = cellGroup.rows.indexOf(largeAvatarInDrawerRow);
+            if (!cellGroup.rows.contains(avatarBackgroundBlurRow)) {
+                cellGroup.rows.add(index + 1, avatarBackgroundBlurRow);
+                listAdapter.notifyItemInserted(index + 1);
+            }
+            if (!cellGroup.rows.contains(avatarBackgroundDarkenRow)) {
+                cellGroup.rows.add(index + 2, avatarBackgroundDarkenRow);
+                listAdapter.notifyItemInserted(index + 2);
+            }
+        } else {
+            int blurRowIndex = cellGroup.rows.indexOf(avatarBackgroundBlurRow);
+            if (blurRowIndex != -1) {
+                cellGroup.rows.remove(avatarBackgroundBlurRow);
+                listAdapter.notifyItemRemoved(blurRowIndex);
+            }
+            int darkenRowIndex = cellGroup.rows.indexOf(avatarBackgroundDarkenRow);
+            if (darkenRowIndex != -1) {
+                cellGroup.rows.remove(avatarBackgroundDarkenRow);
+                listAdapter.notifyItemRemoved(darkenRowIndex);
+            }
+        }
+        listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
+    }
+
+    private boolean shouldShowPersian() {
+        Locale locale = LocaleController.getInstance().getCurrentLocale();
+        return locale != null && locale.getLanguage().equals("fa");
     }
 }

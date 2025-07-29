@@ -134,7 +134,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
-import com.exteragram.messenger.components.GroupedIconsView;
+import tw.nekomimi.nekogram.ui.components.GroupedIconsView;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 import com.google.zxing.common.detector.MathUtils;
 import com.radolyn.ayugram.AyuConstants;
@@ -10812,10 +10812,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         boolean noforward = getMessagesController().isChatNoForwards(currentChat);
         actionModeViews.add(actionModeOtherItem = actionMode.addItemWithWidth(nkactionbarbtn_action_mode_other, R.drawable.ic_ab_other, AndroidUtilities.dp(54), LocaleController.getString(R.string.MessageMenu)));
 
-        if (currentEncryptedChat == null && !noforward) {
-            if (NaConfig.INSTANCE.getShowNoQuoteForward().Bool()) {
-                actionModeOtherItem.addSubItem(nkbtn_forward_noquote, R.drawable.msg_forward_noquote, LocaleController.getString(R.string.NoQuoteForward));
-            }
+        if (NaConfig.INSTANCE.getShowNoQuoteForward().Bool() && (currentEncryptedChat == null && !noforward)) {
+            actionModeOtherItem.addSubItem(nkbtn_forward_noquote, R.drawable.msg_forward_noquote, LocaleController.getString(R.string.NoQuoteForward));
         }
         actionModeOtherItem.addSubItem(nkbtn_translate, R.drawable.ic_translate, LocaleController.getString(R.string.Translate));
         if (NekoConfig.showShareMessages.Bool()) {
@@ -21829,7 +21827,12 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
                         TLRPC.TL_forumTopic topic = null;
                         if (isTopic) {
-                            topic = getMessagesController().getTopicsController().findTopic(getCurrentChatInfo().id, getTopicId());
+                            TLRPC.ChatFull chatFull = getCurrentChatInfo();
+                            if (chatFull != null) {
+                                topic = getMessagesController().getTopicsController().findTopic(chatFull.id, getTopicId());
+                            } else if (currentChat != null) {
+                                topic = getMessagesController().getTopicsController().findTopic(currentChat.id, getTopicId());
+                            }
                         }
 
                         // todo: check if these's any messages between current loaded and newly loaded
@@ -33293,8 +33296,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         if (item != null) {
             item.setVisibility(View.VISIBLE);
         }
-        if (chatMode != MODE_SCHEDULED && actionModeOtherItem != null && NaConfig.INSTANCE.getShowNoQuoteForward().Bool())
+        if (chatMode != MODE_SCHEDULED && actionModeOtherItem != null && NaConfig.INSTANCE.getShowNoQuoteForward().Bool()) {
             actionModeOtherItem.showSubItem(nkbtn_forward_noquote);
+        }
         actionMode.setItemVisibility(delete, View.VISIBLE);
         createBottomMessagesActionButtons();
         bottomMessagesActionContainer.setVisibility(View.VISIBLE);
@@ -44719,12 +44723,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
                 forwardingMessage = selectedObject;
                 forwardingMessageGroup = selectedObjectGroup;
-                Bundle args = new Bundle();
-                args.putBoolean("onlySelect", true);
-                args.putInt("dialogsType", 3);
-                DialogsActivity fragment = new DialogsActivity(args);
-                fragment.setDelegate(this);
-                presentFragment(fragment);
+                openForward(false);
                 break;
             }
             case nkbtn_deldlcache: {

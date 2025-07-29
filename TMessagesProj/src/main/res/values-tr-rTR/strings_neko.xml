@@ -10,8 +10,6 @@
     <string name="DeleteAllFromSelfBefore">Tarihten Önce...</string>
     <string name="DeleteAllFromSelfAdmin">Yönetici yetkileriyle</string>
     <string name="DeleteAllFromSelfDone">Tüm mesajlarınız silindi</string>
-    <string name="BotLogin">Bot Girişi</string>
-    <string name="InvalidAccessToken">Geçersiz erişim anahtarı</string>
     <string name="IgnoreBlocked">Engellenen Kullanıcıların Mesajlarını Gizle</string>
     <string name="Connection">Bağlantılar</string>
     <string name="NameOrder">İsim Sıralaması</string>
@@ -88,7 +86,7 @@
     <string name="AutoPauseVideoAbout">Ekran kilitlendiğinde/arka plana geçildiğinde.</string>
     <string name="DisableProximityEvents">Yakınlık Sensörünü Devre Dışı Bırak</string>
     <string name="SelectBetween">Aralık Seç</string>
-    <string name="AvatarAsBackground">Profil Fotoğrafını Arka Plan Olarak Ayarla</string>
+    <string name="AvatarAsBackground">Arka Plan Türü</string>
     <string name="BlurAvatarBackground">Arka Planı Bulanıklaştır</string>
     <string name="DarkenAvatarBackground">Arka Planı Karart</string>
     <string name="ProviderDeepLTranslate">DeepL Çeviri</string>
@@ -98,8 +96,6 @@
     <string name="UseMediaStreamInVoip">VoIP\'de Medya Akışını Kullan</string>
     <string name="HideTimeForSticker">Çıkartmalarda Zamanı Gizle</string>
     <string name="hideGroupSticker">Grup Çıkartmasını Gizle</string>
-    <string name="useSystemDNS">Sistem DNS\'ini Kullan</string>
-    <string name="customDoH">Özel DoH</string>
     <string name="customGroupVoipAudioBitrate">Grup VoIP Ses Bit Hızı</string>
     <string name="maxRecentStickerCount">Maksimum Son Çıkartma Sayısı</string>
     <string name="disableSwipeToNextChannel">Sonraki Kanala Kaydırmayı Devre Dışı Bırak</string>
@@ -270,7 +266,7 @@
     <string name="useCustomEmojiInvalid">Geçerli bir emoji paketi değil.</string>
     <string name="repeatConfirm">Yeniden Göndermeden Önce Sor</string>
     <string name="repeatConfirmText">Yeniden göndermek istediğinizden emin misiniz?</string>
-    <string name="valuesLargeAvatarInDrawer">Telegram Varsayılanı\nArka plan olarak avatar\nArka plan olarak büyük avatar</string>
+    <string name="valuesLargeAvatarInDrawer">Varsayılan\nAvatar\nBüyük Avatar\nDuvar Kağıdı</string>
     <string name="rememberAllBackMessages">Tıklanan Tüm Yanıtları Hatırla</string>
     <string name="DisableInstantCamera">Anlık Kamerayı Devre Dışı Bırak</string>
     <string name="showSeconds">Zaman Damgasını Saniye Olarak Göster</string>
