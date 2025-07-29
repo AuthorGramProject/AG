@@ -230,4 +230,7 @@
     <string name="MarkdownParser">Markdown 解析器</string>
     <string name="KeepTranslatorPreferences">保留翻译偏好</string>
     <string name="KeepTranslatorPreferencesNotice">更改应用语言时保留当前翻译器设置。</string>
+    <string name="UseCamera2Api">使用 Camera 2 API</string>
+    <string name="ShowTranslateMessageLLM">显示 AI 翻译选项</string>
+    <string name="ShowTranslateMessageLLMNotice">控制消息菜单和文本选择菜单中是否显示 AI 翻译选项。关闭后，仅显示常规翻译选项。</string>
 </resources>

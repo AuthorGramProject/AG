@@ -240,6 +240,9 @@
     <string name="MarkdownParser">Markdown Parser</string>
     <string name="KeepTranslatorPreferences">Keep Translator Preferences</string>
     <string name="KeepTranslatorPreferencesNotice">Preserve the current translator settings when changing App language.</string>
+    <string name="UseCamera2Api">Use Camera 2 API</string>
+    <string name="ShowTranslateMessageLLM">Show AI Translation Option</string>
+    <string name="ShowTranslateMessageLLMNotice">Controls whether AI translation options appear in message menus and text selection menus. When disabled, only regular translation will be available.</string>
         <!-- Chat History Activity -->
     <string name="SwitchAccountNax">Switch Account</string>
     <string name="CurrentNax">Current</string>

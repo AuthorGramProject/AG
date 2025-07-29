@@ -1297,6 +1297,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val showTranslateMessageLLMInMenu =
+        addConfig(
+            "TranslateMessageLLMInMenu",
+            ConfigItem.configTypeBool,
+            true
+        )
 
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {
@@ -1324,8 +1330,11 @@ object NaConfig {
             4 -> llmProviderDeepSeekKey
             5 -> llmProviderXAIKey
             else -> llmApiKey
-        }
-        return keyConfig.String().isNotEmpty()
+        return keyConfig.String().isNotEmpty() && showTranslateMessageLLM.Bool()
+    }
+
+    fun isLLMTranslatorAvailableInMenu(): Boolean {
+        return isLLMTranslatorAvailable() && showTranslateMessageLLMInMenu.Bool()
     }
 
     private fun getIgnoreMutedCountLegacy(): Int {
