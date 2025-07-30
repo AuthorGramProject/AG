@@ -27,6 +27,8 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
+import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
+import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -36,6 +38,7 @@ import org.telegram.ui.Components.BlurredRecyclerView;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.Components.ShareAlert;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
 import org.telegram.ui.Components.ViewPagerFixed;
 import org.telegram.ui.LaunchActivity;
@@ -596,6 +599,23 @@ public class ChatHistoryActivity extends BaseFragment {
         if (item == null || (item.user == null && item.chat == null)) {
             return;
         }
+
+        // Check if we're viewing the current user's own account
+        boolean isViewingOwnAccount = (currentAccount == UserConfig.selectedAccount);
+
+        // If viewing own account, always use internal ChatActivity
+        if (isViewingOwnAccount) {
+            Bundle args = new Bundle();
+            if (item.dialogId < 0) {
+                args.putLong("chat_id", -item.dialogId);
+                presentFragment(new ChatActivity(args));
+            } else {
+                args.putLong("user_id", item.dialogId);
+                presentFragment(new ChatActivity(args));
+            }
+            return;
+        }
+
         String username = null;
 
         if (item.user != null && !TextUtils.isEmpty(item.user.username)) {
@@ -605,8 +625,56 @@ public class ChatHistoryActivity extends BaseFragment {
         }
 
         if (username != null) {
-            org.telegram.messenger.browser.Browser.openUrl(getContext(), "https://t.me/" + username);
+            MessagesController.getInstance(UserConfig.selectedAccount).openByUserName(username, this, 1);
         } else {
+            // Check if this private chat exists in current account
+            if (chatExistsInCurrentAccount(item)) {
+                // Open directly if exists in current account
+                Bundle args = new Bundle();
+                if (item.dialogId < 0) {
+                    args.putLong("chat_id", -item.dialogId);
+                    presentFragment(new ChatActivity(args));
+                } else {
+                    args.putLong("user_id", item.dialogId);
+                    presentFragment(new ChatActivity(args));
+                }
+            } else {
+                // Show dialog for private chats when viewing other accounts
+                showPrivateChatDialog(item);
+            }
+        }
+    }
+
+    private boolean chatExistsInCurrentAccount(HistoryItem item) {
+        int selectedAccount = UserConfig.selectedAccount;
+
+        if (item.dialogId > 0) {
+            // User dialog - check if user exists in current account
+            TLRPC.User user = MessagesController.getInstance(selectedAccount).getUser(item.dialogId);
+            return user != null;
+        } else {
+            // Chat dialog - check if chat exists in current account
+            long chatId = -item.dialogId;
+            TLRPC.Chat chat = MessagesController.getInstance(selectedAccount).getChat(chatId);
+            return chat != null;
+        }
+    }
+
+    private void showPrivateChatDialog(HistoryItem item) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.AppName));
+
+        String chatName = "";
+        if (item.user != null) {
+            chatName = ContactsController.formatName(item.user.first_name, item.user.last_name);
+        } else if (item.chat != null) {
+            chatName = item.chat.title;
+        }
+
+        builder.setMessage(LocaleController.formatString("PrivateChatMessage", R.string.PrivateChatMessage, chatName));
+
+        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
+            // Try to open anyway
             Bundle args = new Bundle();
             if (item.dialogId < 0) {
                 args.putLong("chat_id", -item.dialogId);
@@ -615,6 +683,180 @@ public class ChatHistoryActivity extends BaseFragment {
                 args.putLong("user_id", item.dialogId);
                 presentFragment(new ChatActivity(args));
             }
+        });
+
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(builder.create());
+    }
+
+    private void showChatOptionsMenu(HistoryItem item, View anchorView) {
+        // Determine available options
+        boolean hasUsername = false;
+        String username = null;
+        if (item.user != null && !TextUtils.isEmpty(item.user.username)) {
+            hasUsername = true;
+            username = item.user.username;
+        } else if (item.chat != null && !TextUtils.isEmpty(item.chat.username)) {
+            hasUsername = true;
+            username = item.chat.username;
+        }
+
+        boolean isViewingOwnAccount = (currentAccount == UserConfig.selectedAccount);
+        boolean canOpen = isViewingOwnAccount || hasUsername || (!isViewingOwnAccount && chatExistsInCurrentAccount(item));
+
+        // Create final copies for lambda
+        final String finalUsername = username;
+        final boolean finalHasUsername = hasUsername;
+        final boolean finalCanOpen = canOpen;
+
+        // Create popup layout
+        ActionBarPopupWindow.ActionBarPopupWindowLayout popupLayout = new ActionBarPopupWindow.ActionBarPopupWindowLayout(getContext());
+        popupLayout.setFitItems(true);
+
+        // Create and show popup window
+        ActionBarPopupWindow popupWindow = new ActionBarPopupWindow(popupLayout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT);
+
+        // Add Open option
+        ActionBarMenuSubItem openItem = ActionBarMenuItem.addItem(popupLayout, R.drawable.msg_openin, getString(R.string.Open), false, getResourceProvider());
+        openItem.setEnabled(finalCanOpen);
+        if (!finalCanOpen) {
+            openItem.setColors(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3), Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3));
+        }
+        openItem.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            if (finalCanOpen) {
+                openChat(item);
+            }
+        });
+
+        // Add Share option
+        ActionBarMenuSubItem shareItem = ActionBarMenuItem.addItem(popupLayout, R.drawable.msg_share, getString(R.string.ShareFile), false, getResourceProvider());
+        shareItem.setEnabled(finalHasUsername);
+        if (!finalHasUsername) {
+            shareItem.setColors(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3), Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3));
+        }
+        shareItem.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            if (finalHasUsername) {
+                shareChat(finalUsername);
+            }
+        });
+
+        // Add Copy option
+        ActionBarMenuSubItem copyItem = ActionBarMenuItem.addItem(popupLayout, R.drawable.msg_copy, getString(R.string.Copy), false, getResourceProvider());
+        copyItem.setEnabled(finalHasUsername);
+        if (!finalHasUsername) {
+            copyItem.setColors(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3), Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3));
+        }
+        copyItem.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            if (finalHasUsername) {
+                copyUsername(finalUsername);
+            }
+        });
+
+        // Add Delete option (always available)
+        ActionBarMenuSubItem deleteItem = ActionBarMenuItem.addItem(popupLayout, R.drawable.msg_delete, getString(R.string.Delete), false, getResourceProvider());
+        deleteItem.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            showDeleteChatDialog(item);
+        });
+        popupWindow.setPauseNotifications(true);
+        popupWindow.setDismissAnimationDuration(220);
+        popupWindow.setOutsideTouchable(true);
+        popupWindow.setClippingEnabled(true);
+        popupWindow.setAnimationStyle(R.style.PopupContextAnimation);
+        popupWindow.setFocusable(true);
+        popupLayout.measure(View.MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(1000), View.MeasureSpec.AT_MOST),
+                           View.MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(1000), View.MeasureSpec.AT_MOST));
+        popupWindow.setInputMethodMode(ActionBarPopupWindow.INPUT_METHOD_NOT_NEEDED);
+        popupWindow.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED);
+        popupWindow.getContentView().setFocusableInTouchMode(true);
+
+        // Calculate position
+        int[] location = new int[2];
+        anchorView.getLocationInWindow(location);
+        int popupX = location[0] + anchorView.getWidth() - popupLayout.getMeasuredWidth();
+        int popupY = location[1];
+
+        popupWindow.showAtLocation(anchorView, android.view.Gravity.LEFT | android.view.Gravity.TOP, popupX, popupY);
+        popupWindow.dimBehind();
+    }
+
+    private void shareChat(String username) {
+        try {
+            String shareText = "@" + username;
+            ShareAlert shareAlert = ShareAlert.createShareAlert(getContext(), null, shareText, false, shareText, false);
+            showDialog(shareAlert);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void copyUsername(String username) {
+        try {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
+                getParentActivity().getSystemService(Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("username", "@" + username);
+            clipboard.setPrimaryClip(clip);
+            BulletinFactory.of(this).createSimpleBulletin(R.raw.copy,
+                getString(R.string.TextCopied)).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void showDeleteChatDialog(HistoryItem item) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.DeleteChatTitle));
+
+        String chatName = "";
+        if (item.user != null) {
+            chatName = ContactsController.formatName(item.user.first_name, item.user.last_name);
+        } else if (item.chat != null) {
+            chatName = item.chat.title;
+        }
+
+        builder.setMessage(LocaleController.formatString("DeleteChatMessage", R.string.DeleteChatMessage, chatName));
+
+        builder.setPositiveButton(getString(R.string.Delete), (dialog, which) -> {
+            deleteChatFromHistory(item);
+        });
+
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(builder.create());
+    }
+
+    private void deleteChatFromHistory(HistoryItem item) {
+        try {
+            // Get recent dialogs using reflection
+            java.lang.reflect.Method getRecentDialogsMethod = BackButtonMenuRecent.class.getDeclaredMethod("getRecentDialogs", int.class);
+            getRecentDialogsMethod.setAccessible(true);
+
+            @SuppressWarnings("unchecked")
+            LinkedList<Long> recentDialogIds = (LinkedList<Long>) getRecentDialogsMethod.invoke(null, currentAccount);
+
+            // Remove the dialog from the list
+            recentDialogIds.remove(item.dialogId);
+
+            // Save the updated list using reflection
+            java.lang.reflect.Method saveRecentDialogsMethod = BackButtonMenuRecent.class.getDeclaredMethod("saveRecentDialogs", int.class, LinkedList.class);
+            saveRecentDialogsMethod.setAccessible(true);
+            saveRecentDialogsMethod.invoke(null, currentAccount, recentDialogIds);
+
+            // Refresh the interface
+            loadHistoryItems();
+            refreshAllPages();
+
+            BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete,
+                getString(R.string.ChatRemovedFromRecent)).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Fallback: manually remove from local list and refresh
+            allHistoryItems.removeIf(historyItem -> historyItem.dialogId == item.dialogId);
+            refreshAllPages();
+            BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete,
+                getString(R.string.ChatRemovedFromRecent)).show();
         }
     }
 
@@ -632,6 +874,8 @@ public class ChatHistoryActivity extends BaseFragment {
         private TextView nameTextView;
         private TextView usernameTextView;
         private AvatarDrawable avatarDrawable;
+        private ActionBarMenuItem optionsButton;
+        private HistoryItem currentItem;
 
         public HistoryCell(Context context) {
             super(context);
@@ -649,7 +893,7 @@ public class ChatHistoryActivity extends BaseFragment {
             nameTextView.setSingleLine(true);
             nameTextView.setEllipsize(TextUtils.TruncateAt.END);
             nameTextView.setGravity(Gravity.LEFT);
-            addView(nameTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 82, 16, 16, 0));
+            addView(nameTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 82, 16, 64, 0));
 
             usernameTextView = new TextView(context);
             usernameTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3));
@@ -659,7 +903,18 @@ public class ChatHistoryActivity extends BaseFragment {
             usernameTextView.setSingleLine(true);
             usernameTextView.setEllipsize(TextUtils.TruncateAt.END);
             usernameTextView.setGravity(Gravity.LEFT);
-            addView(usernameTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 82, 38, 16, 0));
+            addView(usernameTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 82, 38, 64, 0));
+
+            // Add options button (three dots)
+            optionsButton = new ActionBarMenuItem(context, null, 0, Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3));
+            optionsButton.setIcon(R.drawable.ic_ab_other);
+            optionsButton.setBackgroundDrawable(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), 1));
+            optionsButton.setOnClickListener(v -> {
+                if (currentItem != null) {
+                    showChatOptionsMenu(currentItem, v);
+                }
+            });
+            addView(optionsButton, LayoutHelper.createFrame(48, 48, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0, 8, 0));
 
             setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
         }
@@ -670,6 +925,8 @@ public class ChatHistoryActivity extends BaseFragment {
         }
 
         public void setDialog(HistoryItem item) {
+            this.currentItem = item;
+
             if (item.user != null) {
                 // User dialog
                 avatarDrawable.setInfo(item.user);

@@ -242,4 +242,11 @@
     <string name="TestBackendOff">此账户将连接到正式后端。</string>
     <string name="DidNotGetTheCodeBlameDurov">如果您没有在另一台设备上收到验证码，或者您没有在其他设备上登录 Telegram，请使用官方 Telegram 应用程序接收验证码。\n\nTelegram **已禁用在第三方应用使用短信登录**的能力。登录第三方应用的用户只能通过 Telegram 接收验证码。\n\n我们无法帮助您，如果登录有任何问题，请联系 Telegram 支持。</string>
     <string name="QRLoginMessage">使用其他设备扫描二维码以登录。</string>
+        <!-- Chat History Activity -->
+    <string name="SwitchAccountNax">切换账号</string>
+    <string name="CurrentNax">当前</string>
+    <string name="PrivateChatMessage">无法打开私有聊天：%1$s\n\n此聊天为私有聊天，只能从原始账号访问。</string>
+    <string name="DeleteChatTitle">删除聊天</string>
+    <string name="DeleteChatMessage">您确定要从最近聊天中移除 %1$s 吗？</string>
+    <string name="ChatRemovedFromRecent">已从最近聊天中移除</string>
 </resources>

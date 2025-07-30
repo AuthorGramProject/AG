@@ -255,4 +255,8 @@
         <!-- Chat History Activity -->
     <string name="SwitchAccountNax">Switch Account</string>
     <string name="CurrentNax">Current</string>
+    <string name="PrivateChatMessage">Cannot open private chat: %1$s\n\nThis chat is private and can only be accessed from the original account.</string>
+    <string name="DeleteChatTitle">Delete Chat</string>
+    <string name="DeleteChatMessage">Are you sure you want to remove %1$s from recent chats?</string>
+    <string name="ChatRemovedFromRecent">Chat removed from recent chats</string>
 </resources>
