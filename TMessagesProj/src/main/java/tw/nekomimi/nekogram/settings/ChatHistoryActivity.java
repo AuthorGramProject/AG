@@ -18,11 +18,13 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
@@ -618,10 +620,10 @@ public class ChatHistoryActivity extends BaseFragment {
 
         String username = null;
 
-        if (item.user != null && !TextUtils.isEmpty(item.user.username)) {
-            username = item.user.username;
-        } else if (item.chat != null && !TextUtils.isEmpty(item.chat.username)) {
-            username = item.chat.username;
+        if (item.user != null) {
+            username = UserObject.getPublicUsername(item.user);
+        } else if (item.chat != null) {
+            username = ChatObject.getPublicUsername(item.chat);
         }
 
         if (username != null) {
@@ -693,12 +695,12 @@ public class ChatHistoryActivity extends BaseFragment {
         // Determine available options
         boolean hasUsername = false;
         String username = null;
-        if (item.user != null && !TextUtils.isEmpty(item.user.username)) {
-            hasUsername = true;
-            username = item.user.username;
-        } else if (item.chat != null && !TextUtils.isEmpty(item.chat.username)) {
-            hasUsername = true;
-            username = item.chat.username;
+        if (item.user != null) {
+            username = UserObject.getPublicUsername(item.user);
+            hasUsername = !TextUtils.isEmpty(username);
+        } else if (item.chat != null) {
+            username = ChatObject.getPublicUsername(item.chat);
+            hasUsername = !TextUtils.isEmpty(username);
         }
 
         boolean isViewingOwnAccount = (currentAccount == UserConfig.selectedAccount);
@@ -959,9 +961,10 @@ public class ChatHistoryActivity extends BaseFragment {
         }
 
         private String getUsernameText(TLRPC.User user) {
-            // Show primary username if available (including for self/saved messages)
-            if (!TextUtils.isEmpty(user.username)) {
-                return "@" + user.username;
+            // Use UserObject.getPublicUsername to get the primary username (including collectible usernames)
+            String username = UserObject.getPublicUsername(user);
+            if (!TextUtils.isEmpty(username)) {
+                return "@" + username;
             }
 
             // For users without username, don't show anything
@@ -969,9 +972,10 @@ public class ChatHistoryActivity extends BaseFragment {
         }
 
         private String getChatUsernameText(TLRPC.Chat chat) {
-            // Show username if available (public channel/group)
-            if (!TextUtils.isEmpty(chat.username)) {
-                return "@" + chat.username;
+            // Use ChatObject.getPublicUsername to get the primary username (including collectible usernames)
+            String username = ChatObject.getPublicUsername(chat);
+            if (!TextUtils.isEmpty(username)) {
+                return "@" + username;
             }
 
             // Show private status for private channels/groups
