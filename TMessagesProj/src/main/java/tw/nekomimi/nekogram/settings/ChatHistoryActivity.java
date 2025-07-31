@@ -8,6 +8,7 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
@@ -79,6 +80,12 @@ public class ChatHistoryActivity extends BaseFragment {
 
     // Data
     private ArrayList<HistoryItem> allHistoryItems = new ArrayList<>();
+    private ArrayList<HistoryItem> filteredHistoryItems = new ArrayList<>();
+
+    // Search
+    private boolean isSearchMode = false;
+    private String searchQuery = "";
+    private ActionBarMenuItem searchItem;
 
     @Override
     public boolean onFragmentCreate() {
@@ -99,10 +106,8 @@ public class ChatHistoryActivity extends BaseFragment {
             public void onItemClick(int id) {
                 if (id == -1) {
                     finishFragment();
-                } else if (id == 1) {
-                    showClearHistoryDialog();
                 } else if (id == 2) {
-                    showAccountSwitchDialog();
+                    showOptionsMenu();
                 }
             }
         });
@@ -111,13 +116,30 @@ public class ChatHistoryActivity extends BaseFragment {
         actionBar.createMenu().clearItems();
         ActionBarMenu menu = actionBar.createMenu();
 
-        // Add account switch button (only if multiple accounts and not hidden by passcode)
-        if (shouldShowAccountSwitch()) {
-            menu.addItem(2, R.drawable.msg_settings);
-        }
+        // Add search button
+        searchItem = menu.addItem(3, R.drawable.ic_ab_search).setIsSearchField(true).setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
+            @Override
+            public void onSearchExpand() {
+                isSearchMode = true;
+                searchQuery = "";
+                updateTitle();
+                performSearch("");
+            }
 
-        // Add clear button
-        menu.addItem(1, R.drawable.msg_delete);
+            @Override
+            public void onSearchCollapse() {
+                exitSearchMode();
+            }
+
+            @Override
+            public void onTextChanged(EditText editText) {
+                searchQuery = editText.getText().toString();
+                performSearch(searchQuery);
+            }
+        });
+
+        // Add options button (settings icon for menu)
+        menu.addItem(2, R.drawable.msg_settings);
 
         // Create main layout
         SizeNotifierFrameLayout fragmentView = new SizeNotifierFrameLayout(context);
@@ -245,6 +267,14 @@ public class ChatHistoryActivity extends BaseFragment {
             e.printStackTrace();
         }
 
+        // Initialize filtered data
+        if (isSearchMode) {
+            performSearch(searchQuery);
+        } else {
+            filteredHistoryItems.clear();
+            filteredHistoryItems.addAll(allHistoryItems);
+        }
+
         // Update tabs after loading data
         updateTabs();
     }
@@ -274,11 +304,64 @@ public class ChatHistoryActivity extends BaseFragment {
     }
 
     private void updateTitle() {
-        String accountName = UserConfig.getInstance(currentAccount).getCurrentUser().first_name;
-        if (accountName.length() > 15) {
-            accountName = accountName.substring(0, 15) + "...";
+        if (isSearchMode) {
+            actionBar.setTitle(getString(R.string.Search));
+        } else {
+            actionBar.setTitle(getString(R.string.RecentChats));
         }
-        actionBar.setTitle(getString(R.string.RecentChats) + " - " + accountName);
+    }
+
+    private void exitSearchMode() {
+        isSearchMode = false;
+        searchQuery = "";
+
+        updateTitle();
+        refreshAllPages();
+    }
+
+    private void performSearch(String query) {
+        filteredHistoryItems.clear();
+
+        if (TextUtils.isEmpty(query)) {
+            filteredHistoryItems.addAll(allHistoryItems);
+        } else {
+            String lowerQuery = query.toLowerCase();
+            for (HistoryItem item : allHistoryItems) {
+                if (matchesSearchQuery(item, lowerQuery)) {
+                    filteredHistoryItems.add(item);
+                }
+            }
+        }
+
+        refreshAllPages();
+    }
+
+    private boolean matchesSearchQuery(HistoryItem item, String query) {
+        // Search in user/chat name
+        String name = "";
+        if (item.user != null) {
+            name = ContactsController.formatName(item.user.first_name, item.user.last_name);
+        } else if (item.chat != null) {
+            name = item.chat.title;
+        }
+
+        if (name.toLowerCase().contains(query)) {
+            return true;
+        }
+
+        // Search in username
+        String username = "";
+        if (item.user != null) {
+            username = UserObject.getPublicUsername(item.user);
+        } else if (item.chat != null) {
+            username = ChatObject.getPublicUsername(item.chat);
+        }
+
+        if (!TextUtils.isEmpty(username) && username.toLowerCase().contains(query)) {
+            return true;
+        }
+
+        return false;
     }
 
     private boolean shouldShowAccountSwitch() {
@@ -297,6 +380,55 @@ public class ChatHistoryActivity extends BaseFragment {
         }
 
         return visibleAccounts > 1;
+    }
+
+    private void showOptionsMenu() {
+        // Create popup menu items
+        ArrayList<String> items = new ArrayList<>();
+        ArrayList<Integer> icons = new ArrayList<>();
+        ArrayList<Runnable> actions = new ArrayList<>();
+
+        // Add account switch option (only if multiple accounts and not hidden by passcode)
+        if (shouldShowAccountSwitch()) {
+            items.add(getString(R.string.SwitchAccountNax));
+            icons.add(R.drawable.left_status_profile);
+            actions.add(() -> showAccountSwitchDialog());
+        }
+
+        // Add clear history option
+        items.add(getString(R.string.ClearRecentChats));
+        icons.add(R.drawable.msg_delete);
+        actions.add(() -> showClearHistoryDialog());
+
+        // Create and show popup
+        ActionBarPopupWindow.ActionBarPopupWindowLayout popupLayout = new ActionBarPopupWindow.ActionBarPopupWindowLayout(getParentActivity());
+        ActionBarPopupWindow popupWindow = new ActionBarPopupWindow(popupLayout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT);
+
+        for (int i = 0; i < items.size(); i++) {
+            ActionBarMenuSubItem subItem = new ActionBarMenuSubItem(getParentActivity(), i == 0, i == items.size() - 1);
+            subItem.setTextAndIcon(items.get(i), icons.get(i));
+            final int index = i;
+            subItem.setOnClickListener(v -> {
+                popupWindow.dismiss();
+                actions.get(index).run();
+            });
+            popupLayout.addView(subItem);
+        }
+        popupWindow.setPauseNotifications(true);
+        popupWindow.setDismissAnimationDuration(220);
+        popupWindow.setOutsideTouchable(true);
+        popupWindow.setClippingEnabled(true);
+        popupWindow.setAnimationStyle(R.style.PopupContextAnimation);
+        popupWindow.setFocusable(true);
+        popupLayout.measure(View.MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(1000), View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(1000), View.MeasureSpec.AT_MOST));
+        popupWindow.setInputMethodMode(ActionBarPopupWindow.INPUT_METHOD_NOT_NEEDED);
+        popupWindow.getContentView().setFocusableInTouchMode(true);
+
+        // Show popup at the right position
+        View anchor = actionBar.createMenu().getChildAt(actionBar.createMenu().getChildCount() - 1);
+        if (anchor != null) {
+            popupWindow.showAsDropDown(anchor, -popupLayout.getMeasuredWidth() + AndroidUtilities.dp(14), -AndroidUtilities.dp(18));
+        }
     }
 
     private void showAccountSwitchDialog() {
@@ -375,6 +507,15 @@ public class ChatHistoryActivity extends BaseFragment {
         super.onResume();
         loadHistoryItems();
         refreshAllPages();
+    }
+
+    @Override
+    public boolean onBackPressed() {
+        if (isSearchMode && searchItem != null) {
+            searchItem.collapseSearchFilters();
+            return false;
+        }
+        return super.onBackPressed();
     }
 
     private void refreshAllPages() {
@@ -501,14 +642,17 @@ public class ChatHistoryActivity extends BaseFragment {
         private void updateCategoryData() {
             categoryItems.clear();
 
+            // Use filtered data in search mode, otherwise use all data
+            ArrayList<HistoryItem> sourceItems = isSearchMode ? filteredHistoryItems : allHistoryItems;
+
             // Ensure we're working with the latest data
-            if (allHistoryItems == null || allHistoryItems.isEmpty()) {
+            if (sourceItems == null || sourceItems.isEmpty()) {
                 android.util.Log.d("CategoryListAdapter",
                     "No data available for " + category.name() + " category");
                 return;
             }
 
-            for (HistoryItem item : allHistoryItems) {
+            for (HistoryItem item : sourceItems) {
                 if (shouldIncludeItem(item, category)) {
                     categoryItems.add(item);
                 }
@@ -516,7 +660,7 @@ public class ChatHistoryActivity extends BaseFragment {
 
             // Debug log
             android.util.Log.d("CategoryListAdapter",
-                "Updated " + category.name() + " category: " + categoryItems.size() + " items from " + allHistoryItems.size() + " total");
+                "Updated " + category.name() + " category: " + categoryItems.size() + " items from " + sourceItems.size() + " total" + (isSearchMode ? " (search mode)" : ""));
         }
 
         public void onItemClick(View view, int position) {
@@ -539,8 +683,15 @@ public class ChatHistoryActivity extends BaseFragment {
                 if (holder.itemView instanceof EmptyStateCell) {
                     EmptyStateCell emptyStateCell = (EmptyStateCell) holder.itemView;
 
-                    if (category == ChatCategory.ALL) {
-                        // For ALL category, show "Recent Chats Empty" 
+                    if (isSearchMode) {
+                        // In search mode, show search results
+                        if (TextUtils.isEmpty(searchQuery)) {
+                            emptyStateCell.setText("", "Enter search query");
+                        } else {
+                            emptyStateCell.setText("", "No results found for \"" + searchQuery + "\"");
+                        }
+                    } else if (category == ChatCategory.ALL) {
+                        // For ALL category, show "Recent Chats Empty"
                         emptyStateCell.setText("","No recent chats");
                     } else {
                         // For specific categories, show "No xx found" (no title)

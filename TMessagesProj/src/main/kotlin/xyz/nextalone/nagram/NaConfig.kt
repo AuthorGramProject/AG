@@ -847,6 +847,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val drawerItemRecentChats =
+        addConfig(
+            "DrawerItemRecentChats",
+            ConfigItem.configTypeBool,
+            true
+        )
     val hideArchive =
         addConfig(
             "HideArchive",
