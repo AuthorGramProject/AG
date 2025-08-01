@@ -832,7 +832,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     drawerLayoutContainer.closeDrawer(false);
                     NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
                 } else if (id == DrawerLayoutAdapter.nkbtnChatHistory) {
-                    presentFragment(new tw.nekomimi.nekogram.settings.ChatHistoryActivity());
+                    presentFragment(new tw.nekomimi.nekogram.ChatHistoryActivity());
                     drawerLayoutContainer.closeDrawer(false);
                 }
             }

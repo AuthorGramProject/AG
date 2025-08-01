@@ -1,4 +1,4 @@
-package tw.nekomimi.nekogram.settings;
+package tw.nekomimi.nekogram;
 
 import static org.telegram.messenger.LocaleController.getString;
 
