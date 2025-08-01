@@ -23,6 +23,7 @@ import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
@@ -252,16 +253,60 @@ public class ChatHistoryActivity extends BaseFragment {
 
                 if (dialogId > 0) {
                     // User dialog
+                    // First try to get from memory cache
                     item.user = MessagesController.getInstance(currentAccount).getUser(dialogId);
+
+                    // Always try to load from database to get the most up-to-date info
+                    try {
+                        java.util.ArrayList<Long> userIds = new java.util.ArrayList<>();
+                        userIds.add(dialogId);
+                        java.util.ArrayList<TLRPC.User> users = MessagesStorage.getInstance(currentAccount).getUsers(userIds);
+                        if (!users.isEmpty()) {
+                            TLRPC.User dbUser = users.get(0);
+                            // Use database user if it's more recent or if memory cache is null
+                            if (item.user == null || dbUser != null) {
+                                item.user = dbUser;
+                                // Update memory cache with fresh data
+                                MessagesController.getInstance(currentAccount).putUser(item.user, true);
+                            }
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+
+                    // Skip if user is still null (couldn't load from database either)
+                    if (item.user == null) {
+                        continue;
+                    }
+
+
                 } else {
                     // Chat dialog
                     long chatId = -dialogId;
                     item.chat = MessagesController.getInstance(currentAccount).getChat(chatId);
+                    // If chat is null, try to load it from database
+                    if (item.chat == null) {
+                        try {
+                            java.util.ArrayList<Long> chatIds = new java.util.ArrayList<>();
+                            chatIds.add(chatId);
+                            java.util.ArrayList<TLRPC.Chat> chats = MessagesStorage.getInstance(currentAccount).getChats(chatIds);
+                            if (!chats.isEmpty()) {
+                                item.chat = chats.get(0);
+                                // Put it in memory cache for future use
+                                MessagesController.getInstance(currentAccount).putChat(item.chat, true);
+                            }
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+
+                    // Skip if chat is still null (couldn't load from database either)
+                    if (item.chat == null) {
+                        continue;
+                    }
                 }
 
-                if (item.user != null || item.chat != null) {
-                    allHistoryItems.add(item);
-                }
+                allHistoryItems.add(item);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -281,23 +326,23 @@ public class ChatHistoryActivity extends BaseFragment {
 
     private boolean isOfficialDialog(long dialogId) {
         if (dialogId > 0) {
-            // 过滤官方 Telegram 用户
-            if (dialogId == 777000 || // Telegram service notifications
-                dialogId == 708513 ||  // Replies bot
-                dialogId == UserConfig.getInstance(currentAccount).getClientUserId()) { // Self
-                return true;
-            }
-
+            // User dialog - filter official/system users
             TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(dialogId);
             if (user != null) {
-                // 检查是否为 回复
-                if ("replies".equals(user.username) && "Replies".equals(user.first_name)) {
+                // Filter special users: self, replies, official bots
+                if (UserObject.isUserSelf(user) || UserObject.isReplyUser(user)) {
                     return true;
                 }
-                // 检查是否为官方认证或支持账号
-                if (user.verified || user.support) {
-                    return true;
-                }
+                // Filter official verified or support accounts if desired
+                // Uncomment the next line if you want to hide verified accounts too
+                // if (user.verified || user.support) return true;
+            }
+
+            // Filter specific official user IDs
+            if (dialogId == 777000 || // Telegram service notifications
+                dialogId == 429000 || // Stickers bot
+                dialogId == 136817688) { // @BotFather
+                return true;
             }
         }
         return false;
@@ -507,7 +552,10 @@ public class ChatHistoryActivity extends BaseFragment {
         super.onResume();
         loadHistoryItems();
         refreshAllPages();
+
     }
+
+
 
     @Override
     public boolean onBackPressed() {
@@ -1082,9 +1130,24 @@ public class ChatHistoryActivity extends BaseFragment {
 
             if (item.user != null) {
                 // User dialog
+                String name;
+                if (UserObject.isDeleted(item.user)) {
+                    name = getString(R.string.HiddenName);
+                } else {
+                    name = UserObject.getUserName(item.user);
+                    // If getUserName returns empty or "HiddenName", try to use username as fallback
+                    if (TextUtils.isEmpty(name) || name.equals(getString(R.string.HiddenName))) {
+                        if (!TextUtils.isEmpty(item.user.username)) {
+                            name = "@" + item.user.username;
+                        } else {
+                            name = "User " + item.user.id; // Last resort fallback
+                        }
+                    }
+                }
+
                 avatarDrawable.setInfo(item.user);
                 avatarImageView.setForUserOrChat(item.user, avatarDrawable);
-                nameTextView.setText(ContactsController.formatName(item.user.first_name, item.user.last_name));
+                nameTextView.setText(name);
 
                 // Show username or special status
                 String usernameText = getUsernameText(item.user);
@@ -1118,7 +1181,18 @@ public class ChatHistoryActivity extends BaseFragment {
                 return "@" + username;
             }
 
-            // For users without username, don't show anything
+            // For deleted users, show user ID
+            if (UserObject.isDeleted(user)) {
+                return "ID: " + user.id;
+            }
+
+            // For users without username but with empty display name, show user ID
+            String displayName = UserObject.getUserName(user);
+            if (TextUtils.isEmpty(displayName) || displayName.equals(getString(R.string.HiddenName))) {
+                return "ID: " + user.id;
+            }
+
+            // For normal users without username, don't show anything
             return null;
         }
 
