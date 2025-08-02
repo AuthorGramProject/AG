@@ -1151,7 +1151,7 @@ public class ChatHistoryActivity extends BaseFragment {
 
                 // Show username or special status
                 String usernameText = getUsernameText(item.user);
-                if (!TextUtils.isEmpty(usernameText)) {
+                if (!TextUtils.isEmpty(usernameText) && !usernameText.trim().isEmpty()) {
                     usernameTextView.setText(usernameText);
                     usernameTextView.setVisibility(VISIBLE);
                 } else {
@@ -1177,23 +1177,12 @@ public class ChatHistoryActivity extends BaseFragment {
         private String getUsernameText(TLRPC.User user) {
             // Use UserObject.getPublicUsername to get the primary username (including collectible usernames)
             String username = UserObject.getPublicUsername(user);
-            if (!TextUtils.isEmpty(username)) {
+            if (!TextUtils.isEmpty(username) && !username.trim().isEmpty()) {
                 return "@" + username;
             }
 
-            // For deleted users, show user ID
-            if (UserObject.isDeleted(user)) {
-                return "ID: " + user.id;
-            }
-
-            // For users without username but with empty display name, show user ID
-            String displayName = UserObject.getUserName(user);
-            if (TextUtils.isEmpty(displayName) || displayName.equals(getString(R.string.HiddenName))) {
-                return "ID: " + user.id;
-            }
-
-            // For normal users without username, don't show anything
-            return null;
+            // For all users without username (including deleted users and normal users), show user ID
+            return "ID: " + user.id;
         }
 
         private String getChatUsernameText(TLRPC.Chat chat) {
