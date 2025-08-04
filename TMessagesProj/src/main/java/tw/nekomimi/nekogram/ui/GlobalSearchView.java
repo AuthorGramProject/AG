@@ -6,6 +6,7 @@ import static org.telegram.messenger.LocaleController.getString;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
@@ -38,6 +39,7 @@ public class GlobalSearchView extends BlurredFrameLayout {
 
     private TextView searchTextView;
     private BlurredFrameLayout searchFrame;
+    private ColoredImageSpan searchIconSpan;
 
 
 
@@ -53,7 +55,9 @@ public class GlobalSearchView extends BlurredFrameLayout {
         searchTextView.setEllipsize(TextUtils.TruncateAt.MIDDLE);
 
         SpannableStringBuilder spannableStringBuilder = new SpannableStringBuilder();
-        spannableStringBuilder.append("..").setSpan(new ColoredImageSpan(ContextCompat.getDrawable(context, R.drawable.ic_ab_search)), 0, 1, 0);
+        searchIconSpan = new ColoredImageSpan(ContextCompat.getDrawable(context, R.drawable.ic_ab_search));
+        searchIconSpan.setOverrideColor(0xFFFFFFFF); 
+        spannableStringBuilder.append("..").setSpan(searchIconSpan, 0, 1, 0);
         spannableStringBuilder.setSpan(new DialogCell.FixedWidthSpan(AndroidUtilities.dp(4)), 1, 2, 0);
         spannableStringBuilder.append(getString(R.string.Search));
 
@@ -62,7 +66,7 @@ public class GlobalSearchView extends BlurredFrameLayout {
         searchTextView.setSingleLine(true);
 
         searchFrame.addView(searchTextView);
-        addView(searchFrame, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 36, 0, dp(3), 0, dp(3), 0));
+        addView(searchFrame, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 38, 0, dp(3), 0, dp(3), 0));
 
         updateColors();
     }
@@ -71,24 +75,41 @@ public class GlobalSearchView extends BlurredFrameLayout {
         int backgroundColor;
 
         if (Theme.getActiveTheme().isMonet()) {
-            backgroundColor = ColorUtils.setAlphaComponent(
-                    Theme.getColor(Theme.isCurrentThemeDay() ? Theme.key_chats_unreadCounter : Theme.key_chats_unreadCounterMuted),
-                    (int) (255 * 0.5f)
-            );
-            int textColor = Theme.isCurrentThemeDay()
-                    ? Theme.getColor(Theme.key_actionBarDefault)
-                    : Theme.getColor(Theme.key_dialogTextGray3);
-            searchTextView.setTextColor(textColor);
+            int monetAccentColor = Theme.getColor(Theme.key_chats_unreadCounter);
+            int baseColor = Theme.isCurrentThemeDay() ? 0xFFFFFFFF : 0xFF2A2A2A;
+            backgroundColor = ColorUtils.blendARGB(monetAccentColor, baseColor, 0.78f); 
+            backgroundColor = ColorUtils.setAlphaComponent(backgroundColor, (int) (255 * 0.7f));
+
+            searchTextView.setTextColor(monetAccentColor);
+            searchIconSpan.setOverrideColor(monetAccentColor);
         } else {
-            if (!Theme.isCurrentThemeDay()) {
-                backgroundColor = ColorUtils.setAlphaComponent(
-                        Theme.getColor(Theme.key_graySection),
-                        (int) (255 * 0.35f)
-                );
-            } else {
-                backgroundColor = Theme.getColor(Theme.key_graySection);
+            int themeColor = Theme.getColor(Theme.key_actionBarDefault);
+
+            if (Theme.getActiveTheme().hasAccentColors()) {
+                int accentColor = Theme.getActiveTheme().getAccentColor(Theme.getActiveTheme().currentAccentId);
+                if (accentColor != 0) {
+                    themeColor = accentColor;
+                }
             }
-            searchTextView.setTextColor(Theme.getColor(Theme.key_dialogTextGray3));
+
+            if (!Theme.isCurrentThemeDay()) {
+                int darkColor = 0xFF1A1A1A; 
+                backgroundColor = ColorUtils.blendARGB(darkColor, themeColor, 0.13f); 
+                backgroundColor = ColorUtils.setAlphaComponent(backgroundColor, (int) (255 * 0.9f));
+            } else {
+                int grayColor = 0xFFB0B0B0; 
+                int themeGrayBlend = ColorUtils.blendARGB(themeColor, grayColor, 0.40f);
+                int blendedColor = ColorUtils.blendARGB(themeGrayBlend, 0xFFFFFFFF, 0.25f);
+                backgroundColor = ColorUtils.setAlphaComponent(blendedColor, (int) (255 * 0.6f));
+            }
+
+            if (!Theme.isCurrentThemeDay()) {
+                searchTextView.setTextColor(0xFFB0B0B0);
+                searchIconSpan.setOverrideColor(0xFFB0B0B0);
+            } else {
+                searchTextView.setTextColor(0xFFFFFFFF);
+                searchIconSpan.setOverrideColor(0xFFFFFFFF);
+            }
         }
 
         Drawable background = Theme.createSimpleSelectorRoundRectDrawable(
