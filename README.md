@@ -54,4 +54,5 @@ A Fork with minor modifications to [NagramX](https://github.com/risin42/NagramX)
 ## Acknowledgments
 
 - [Cherrygram](https://github.com/arsLan4k1390/Cherrygram)
+- [Nagram](https://github.com/NextAlone/Nagram)
 - [NagramX](https://github.com/risin42/NagramX)
