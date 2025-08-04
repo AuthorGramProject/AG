@@ -62,7 +62,7 @@ public class GlobalSearchView extends BlurredFrameLayout {
         searchTextView.setSingleLine(true);
 
         searchFrame.addView(searchTextView);
-        addView(searchFrame, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 38, 0, dp(5), 0, dp(5), 0));
+        addView(searchFrame, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 36, 0, dp(3), 0, dp(3), 0));
 
         updateColors();
     }

@@ -2081,7 +2081,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     t = ActionBar.getCurrentActionBarHeight() + (actionBar.getOccupyStatusBar() ? AndroidUtilities.statusBarHeight : 0);
                     // Add iOS search panel height if enabled
                     if (filterTabsView != null && filterTabsView.getVisibility() == VISIBLE && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                        t += AndroidUtilities.dp(48);
+                        t += AndroidUtilities.dp(42);
                     }
                 } else {
                     t = inPreviewMode && Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0;
@@ -5023,7 +5023,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
 
         if (filterTabsView != null) {
-            int filterTabsHeight = 44 + (NaConfig.INSTANCE.getIosSearchPanel().Bool() ? 48 : 0);
+            int filterTabsHeight = 44 + (NaConfig.INSTANCE.getIosSearchPanel().Bool() ? 42 : 0);
             contentView.addView(filterTabsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, filterTabsHeight));
         }
 

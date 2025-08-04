@@ -1236,9 +1236,9 @@ public class FilterTabsView extends FrameLayout {
             }
         });
         globalSearchView.setVisibility(NaConfig.INSTANCE.getIosSearchPanel().Bool() ? View.VISIBLE : View.GONE);
-        addView(globalSearchView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.TOP, 0, 0, 0, 0));
+        addView(globalSearchView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 42, Gravity.TOP, 0, 0, 0, 0));
 
-        addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP, 0, NaConfig.INSTANCE.getIosSearchPanel().Bool() ? 48 : 0, 0, 0));
+        addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP, 0, NaConfig.INSTANCE.getIosSearchPanel().Bool() ? 42 : 0, 0, 0));
     }
 
     public void setDelegate(FilterTabsViewDelegate filterTabsViewDelegate) {
@@ -2219,7 +2219,7 @@ public class FilterTabsView extends FrameLayout {
 
             // Update listView layout parameters
             FrameLayout.LayoutParams listViewParams = (FrameLayout.LayoutParams) listView.getLayoutParams();
-            listViewParams.topMargin = showSearchPanel ? AndroidUtilities.dp(48) : 0;
+            listViewParams.topMargin = showSearchPanel ? AndroidUtilities.dp(42) : 0;
             listViewParams.bottomMargin = 0;
             listView.setLayoutParams(listViewParams);
 
