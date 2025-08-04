@@ -7,6 +7,7 @@
     <string name="Updates">更新</string>
     <string name="NagramX_Info">信息</string> 
     <string name="OneUISwitchStyle">OneUI 开关风格</string>
+    <string name="IosSearchPanel">iOS 搜索面板</string>
     <string name="EnableBackButtonMenu">返回按钮历史菜单</string>
     <string name="ShowRecentChatsInSidebar">在侧边栏中显示最近聊天</string>
     <string name="RecentChatsEmpty">无最近聊天</string>

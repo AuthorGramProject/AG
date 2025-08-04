@@ -2079,6 +2079,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 ignoreLayout = true;
                 if (hasStories || (filterTabsView != null && filterTabsView.getVisibility() == VISIBLE)) {
                     t = ActionBar.getCurrentActionBarHeight() + (actionBar.getOccupyStatusBar() ? AndroidUtilities.statusBarHeight : 0);
+                    // Add iOS search panel height if enabled
+                    if (filterTabsView != null && filterTabsView.getVisibility() == VISIBLE && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                        t += AndroidUtilities.dp(48);
+                    }
                 } else {
                     t = inPreviewMode && Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0;
                 }
@@ -3252,6 +3256,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 if (optionsItem != null) {
                     optionsItem.setVisibility(View.VISIBLE);
                 }
+                // Restore iOS search panel visibility when search collapses
+                if (filterTabsView != null && filterTabsView.getGlobalSearchView() != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                    filterTabsView.getGlobalSearchView().setVisibility(View.VISIBLE);
+                }
             }
 
             @Override
@@ -3298,23 +3306,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 optionsItem.toggleSubMenu();
             });
         }
-
-        // na: Added ability to open Saved Messages on long click on search top button
-        searchItem.setOnLongClickListener(v -> {
-            if (MessagesController.getInstance(UserConfig.selectedAccount).savedViewAsChats) {
-                Bundle args = new Bundle();
-                args.putLong("dialog_id", UserConfig.getInstance(currentAccount).getClientUserId());
-                args.putInt("type", MediaActivity.TYPE_MEDIA);
-                args.putInt("start_from", SharedMediaLayout.TAB_SAVED_DIALOGS);
-                MediaActivity mediaActivity = new MediaActivity(args, null);
-                presentFragment(mediaActivity);
-            } else {
-                Bundle args = new Bundle();
-                args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
-                presentFragment(new ChatActivity(args));
-            }
-            return true;
-        });
 
         searchItem.setSearchFieldHint(getString(R.string.Search));
         searchItem.setContentDescription(getString(R.string.Search));
@@ -3458,6 +3449,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             filterTabsViewIsVisible = false;
             filterTabsView.setVisibility(View.GONE);
             canShowFilterTabsView = false;
+
+            // Hide search button when iOS search panel is enabled
+            if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                searchItem.setVisibility(View.GONE);
+            }
             filterTabsView.setDelegate(new FilterTabsView.FilterTabsViewDelegate() {
 
                 private void showDeleteAlert(MessagesController.DialogFilter dialogFilter) {
@@ -3721,6 +3717,17 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     } else {
                         actionBar.setTitle(actionBarTitleNax, statusDrawable);
                     }
+                }
+            });
+
+            // Set search click listener for iOS search panel
+            filterTabsView.setSearchClickListener(() -> {
+                if (searchItem != null && !searching) {
+                    // Immediately hide the iOS search panel
+                    if (filterTabsView.getGlobalSearchView() != null) {
+                        filterTabsView.getGlobalSearchView().setVisibility(View.GONE);
+                    }
+                    searchItem.openSearch(true);
                 }
             });
         }
@@ -4516,7 +4523,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         FileLog.e(e);
                     }
                     if (initialDialogsType == DIALOGS_TYPE_BOT_REQUEST_PEER) {
-                        searchItem.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+                        searchItem.setVisibility(isEmpty || NaConfig.INSTANCE.getIosSearchPanel().Bool() ? View.GONE : View.VISIBLE);
                     }
                 }
 
@@ -5016,7 +5023,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
 
         if (filterTabsView != null) {
-            contentView.addView(filterTabsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 44));
+            int filterTabsHeight = 44 + (NaConfig.INSTANCE.getIosSearchPanel().Bool() ? 48 : 0);
+            contentView.addView(filterTabsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, filterTabsHeight));
         }
 
         dialogStoriesCell = new DialogStoriesCell(context, this, currentAccount, isArchive() ? DialogStoriesCell.TYPE_ARCHIVE : DialogStoriesCell.TYPE_DIALOGS) {
@@ -7540,6 +7548,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             } else {
                 viewPages[0].listView.setVisibility(View.VISIBLE);
                 viewPages[0].setVisibility(View.VISIBLE);
+                // Ensure search button stays hidden when iOS search panel is enabled
+                if (searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                    searchItem.setVisibility(View.GONE);
+                }
             }
 
             setDialogsListFrozen(true);
@@ -7675,6 +7687,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         if (rightSlidingDialogContainer != null) {
                             rightSlidingDialogContainer.setVisibility(View.VISIBLE);
                         }
+                        // Ensure search button stays hidden when iOS search panel is enabled
+                        if (searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                            searchItem.setVisibility(View.GONE);
+                        }
                     }
 
                     if (fragmentView != null) {
@@ -7762,6 +7778,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
             if (downloadsItem != null) {
                 downloadsItem.setAlpha(show ? 0 : 1f);
+            }
+
+            // Ensure search button stays hidden when iOS search panel is enabled (non-animated case)
+            if (!show && searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                searchItem.setVisibility(View.GONE);
             }
         }
         if (initialSearchType >= 0 && searchViewPager != null) {
@@ -10313,7 +10334,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 background.jumpToCurrentState();
             }
             if (searchItem != null) {
-                searchItem.setVisibility(View.VISIBLE);
+                searchItem.setVisibility(NaConfig.INSTANCE.getIosSearchPanel().Bool() ? View.GONE : View.VISIBLE);
             }
             if (proxyItem != null && proxyItemVisible) {
                 proxyItem.setVisibility(View.VISIBLE);
@@ -10341,7 +10362,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 doneItemAnimator = null;
                 if (show) {
                     if (searchItem != null) {
-                        searchItem.setVisibility(View.INVISIBLE);
+                        searchItem.setVisibility(NaConfig.INSTANCE.getIosSearchPanel().Bool() ? View.GONE : View.INVISIBLE);
                     }
                     if (proxyItem != null && proxyItemVisible) {
                         proxyItem.setVisibility(View.INVISIBLE);
@@ -12728,6 +12749,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         if (slideFragmentLite || USE_SPRING_ANIMATION) {
             if (filterTabsView != null) {
                 filterTabsView.getListView().setTranslationX((isDrawerTransition ? 1 : -1) * dp(slideAmplitudeDp) * (1f - slideFragmentProgress));
+                // Also animate the iOS search panel
+                if (filterTabsView.getGlobalSearchView() != null) {
+                    filterTabsView.getGlobalSearchView().setTranslationX((isDrawerTransition ? 1 : -1) * dp(slideAmplitudeDp) * (1f - slideFragmentProgress));
+                }
                 filterTabsView.invalidate();
             }
             if (dialogStoriesCell != null) {

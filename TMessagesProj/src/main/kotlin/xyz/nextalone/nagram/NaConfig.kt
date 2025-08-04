@@ -231,6 +231,12 @@ object NaConfig {
             ConfigItem.configTypeInt,
             0
         )
+    val iosSearchPanel =
+        addConfig(
+            "IosSearchPanel",
+            ConfigItem.configTypeBool,
+            false
+        )
     val notificationIcon =
         addConfig(
             "NotificationIcon",
