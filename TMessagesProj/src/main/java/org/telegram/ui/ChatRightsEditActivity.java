@@ -20,7 +20,6 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Vibrator;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.TypedValue;
@@ -88,6 +87,8 @@ import org.telegram.ui.Components.RecyclerListView;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Locale;
+
+import tw.nekomimi.nekogram.utils.VibrateUtil;
 
 public class ChatRightsEditActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
@@ -1373,10 +1374,7 @@ public class ChatRightsEditActivity extends BaseFragment implements Notification
         if (currentType == TYPE_ADMIN || currentType == TYPE_ADD_BOT) {
             if (rankRow != -1 && currentRank.codePointCount(0, currentRank.length()) > MAX_RANK_LENGTH) {
                 listView.smoothScrollToPosition(rankRow);
-                Vibrator v = (Vibrator) getParentActivity().getSystemService(Context.VIBRATOR_SERVICE);
-                if (v != null) {
-                    v.vibrate(200);
-                }
+                VibrateUtil.vibrate();
                 RecyclerView.ViewHolder holder = listView.findViewHolderForAdapterPosition(rankHeaderRow);
                 if (holder != null) {
                     AndroidUtilities.shakeView(holder.itemView);

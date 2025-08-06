@@ -79,6 +79,7 @@ import java.util.Collections;
 import java.util.List;
 
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.utils.VibrateUtil;
 import xyz.nextalone.nagram.NaConfig;
 
 public class ActionBarLayout extends FrameLayout implements INavigationLayout, FloatingDebugProvider {
@@ -1079,6 +1080,9 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         View fragmentView = lastFragment.fragmentView;
         if (fragmentView == null) {
             fragmentView = lastFragment.createView(parentActivity);
+            if (NekoConfig.disableVibration.Bool()) {
+                VibrateUtil.disableHapticFeedback(fragmentView);
+            }
         }
         ViewGroup parent = (ViewGroup) fragmentView.getParent();
         if (parent != null) {
@@ -1723,6 +1727,9 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         View fragmentView = fragment.fragmentView;
         if (fragmentView == null) {
             fragmentView = fragment.createView(parentActivity);
+            if (NekoConfig.disableVibration.Bool()) {
+                VibrateUtil.disableHapticFeedback(fragmentView);
+            }
         } else {
             ViewGroup parent = (ViewGroup) fragmentView.getParent();
             if (parent != null) {
@@ -2247,9 +2254,11 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             }
         });
         animatorSet.start();
-        try {
-            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-        } catch (Exception ignore) {}
+        if (!NekoConfig.disableVibration.Bool()) {
+            try {
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            } catch (Exception ignore) {}
+        }
 
         fragment.setInPreviewMode(false);
         fragment.setInMenuMode(false);
@@ -2304,6 +2313,9 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             View fragmentView = previousFragment.fragmentView;
             if (fragmentView == null) {
                 fragmentView = previousFragment.createView(parentActivity);
+                if (NekoConfig.disableVibration.Bool()) {
+                    VibrateUtil.disableHapticFeedback(fragmentView);
+                }
             }
 
             if (!inPreviewMode) {
@@ -2489,6 +2501,9 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         View fragmentView = previousFragment.fragmentView;
         if (fragmentView == null) {
             fragmentView = previousFragment.createView(parentActivity);
+            if (NekoConfig.disableVibration.Bool()) {
+                VibrateUtil.disableHapticFeedback(fragmentView);
+            }
         } else {
             ViewGroup parent = (ViewGroup) fragmentView.getParent();
             if (parent != null) {

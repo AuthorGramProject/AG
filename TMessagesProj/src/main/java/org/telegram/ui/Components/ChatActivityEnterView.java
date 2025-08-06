@@ -2859,7 +2859,9 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
                             } else {
                                 delegate.needShowMediaBanHint();
                             }
-                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                            if (!NekoConfig.disableVibration.Bool()) {
+                                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                            }
                             sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_CLICKED);
                         } else if (!hasRecordVideo || calledRecordRunnable) {
                             startedDraggingX = -1;
@@ -4259,9 +4261,11 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
 
     private void startLockTransition() {
         AnimatorSet animatorSet = new AnimatorSet();
-        try {
-            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-        } catch (Exception ignored) {}
+        if (!NekoConfig.disableVibration.Bool()) {
+            try {
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+            } catch (Exception ignored) {}
+        }
 
         ObjectAnimator translate = ObjectAnimator.ofFloat(this, "lockAnimatedTranslation", startTranslation);
         translate.setStartDelay(100);
@@ -4452,7 +4456,9 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
                     recordAudioVideoRunnable.run();
                     delegate.onSwitchRecordMode(isInVideoMode);
                     setRecordVideoButtonVisible(isInVideoMode, true);
-                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                    if (!NekoConfig.disableVibration.Bool()) {
+                        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                    }
                     sendButtonVisible = true;
                     startLockTransition();
                 }
@@ -4481,7 +4487,9 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
                         recordAudioVideoRunnable.run();
                         delegate.onSwitchRecordMode(isInVideoMode);
                         setRecordVideoButtonVisible(isInVideoMode, true);
-                        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                        if (!NekoConfig.disableVibration.Bool()) {
+                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                        }
                         sendButtonVisible = true;
                         startLockTransition();
                     }
@@ -5125,9 +5133,12 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
         messageSendPreview.setItemOptions(options);
 
         messageSendPreview.show();
-        try {
-            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-        } catch (Exception ignore) {}
+
+        if (!NekoConfig.disableVibration.Bool()) {
+            try {
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+            } catch (Exception ignore) {}
+        }
 
         return false;
     }

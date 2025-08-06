@@ -130,6 +130,8 @@ import org.telegram.ui.Stories.UploadingDotsSpannable;
 import org.telegram.ui.Stories.recorder.HintView2;
 import org.telegram.ui.Stories.recorder.PreviewView;
 
+import tw.nekomimi.nekogram.NekoConfig;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -431,6 +433,7 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
                         forceWasUnread = messageObject.wasUnread = false;
 
                         try {
+                            if (!NekoConfig.disableVibration.Bool())
                             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
                         } catch (Exception ignored) {}
 

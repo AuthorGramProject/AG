@@ -92,7 +92,9 @@ import org.telegram.ui.Components.spoilers.SpoilersTextView;
 
 import java.util.ArrayList;
 
+import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.ui.EditTextAutoFill;
+import tw.nekomimi.nekogram.utils.VibrateUtil;
 
 public class TwoStepVerificationSetupActivity extends BaseFragment {
 
@@ -781,15 +783,14 @@ public class TwoStepVerificationSetupActivity extends BaseFragment {
                 if (Build.VERSION.SDK_INT >= 21) {
                     showPasswordButton.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector)));
                 }
-                showPasswordButton.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_chat_messagePanelIcons), PorterDuff.Mode.MULTIPLY));
+                showPasswordButton.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_chat_messagePanelIcons), PorterDuff.Mode.SRC_IN));
                 AndroidUtilities.updateViewVisibilityAnimated(showPasswordButton, false, 0.1f, false);
-
                 showPasswordButton.setOnClickListener(v -> {
                     ignoreTextChange = true;
                     if (editTextFirstRow.getTransformationMethod() == null) {
                         isPasswordVisible = false;
                         editTextFirstRow.setTransformationMethod(PasswordTransformationMethod.getInstance());
-                        showPasswordButton.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_chat_messagePanelIcons), PorterDuff.Mode.MULTIPLY));
+                        showPasswordButton.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_chat_messagePanelIcons), PorterDuff.Mode.SRC_IN));
                         if (currentType == TYPE_CREATE_PASSWORD_STEP_1) {
                             if (editTextFirstRow.length() > 0 && editTextFirstRow.hasFocus()) {
                                 if (monkeyEndCallback == null) {
@@ -805,7 +806,7 @@ public class TwoStepVerificationSetupActivity extends BaseFragment {
                     } else {
                         isPasswordVisible = true;
                         editTextFirstRow.setTransformationMethod(null);
-                        showPasswordButton.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_chat_messagePanelSend), PorterDuff.Mode.MULTIPLY));
+                        showPasswordButton.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_chat_messagePanelSend), PorterDuff.Mode.SRC_IN));
 
                         if (currentType == TYPE_CREATE_PASSWORD_STEP_1) {
                             if (editTextFirstRow.length() > 0 && editTextFirstRow.hasFocus()) {
@@ -1456,6 +1457,7 @@ public class TwoStepVerificationSetupActivity extends BaseFragment {
                 if (!editTextFirstRow.getText().toString().equals(firstPassword) && currentType == TYPE_CREATE_PASSWORD_STEP_2) {
                     AndroidUtilities.shakeViewSpring(outlineTextFirstRow, 5);
                     try {
+                        if (!NekoConfig.disableVibration.Bool())
                         outlineTextFirstRow.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
                     } catch (Exception ignored) {}
                     try {
@@ -2119,9 +2121,7 @@ public class TwoStepVerificationSetupActivity extends BaseFragment {
         if (getParentActivity() == null) {
             return;
         }
-        try {
-            field.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-        } catch (Exception ignored) {}
+        VibrateUtil.vibrate();
         if (clear) {
             field.setText("");
         }

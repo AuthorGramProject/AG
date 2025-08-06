@@ -54,6 +54,8 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.SRPHelper;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.Utilities;
+import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLRPC;
@@ -85,6 +87,7 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 import tw.nekomimi.nekogram.ui.EditTextAutoFill;
+import tw.nekomimi.nekogram.utils.VibrateUtil;
 
 public class TwoStepVerificationActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
@@ -1173,9 +1176,7 @@ public class TwoStepVerificationActivity extends BaseFragment implements Notific
         if (getParentActivity() == null) {
             return;
         }
-        try {
-            field.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-        } catch (Exception ignored) {}
+        VibrateUtil.vibrate();
         if (clear) {
             field.setText("");
         }

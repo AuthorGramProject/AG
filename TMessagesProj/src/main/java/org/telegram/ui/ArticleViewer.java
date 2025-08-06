@@ -1252,9 +1252,11 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
             if (checkingForLongPress && windowView != null) {
                 checkingForLongPress = false;
                 if (pressedLink != null) {
-                    try {
-                        windowView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-                    } catch (Exception ignored) {}
+                    if (!NekoConfig.disableVibration.Bool()) {
+                        try {
+                            windowView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                        } catch (Exception ignored) {}
+                    }
                     showCopyPopup(pressedLink.getSpan().getUrl());
                     pressedLink = null;
                     pressedLinkOwnerLayout = null;
@@ -1267,15 +1269,17 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
                     } else {
                         textSelectionHelper.trySelect(pressedLinkOwnerView);
                     }
-                    if (textSelectionHelper.isInSelectionMode()) {
+                    if (textSelectionHelper.isInSelectionMode() && !NekoConfig.disableVibration.Bool()) {
                         try {
                             windowView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
                         } catch (Exception ignored) {}
                     }
                 } else if (pressedLinkOwnerLayout != null && pressedLinkOwnerView != null) {
-                    try {
-                        windowView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-                    } catch (Exception ignored) {}
+                    if (!NekoConfig.disableVibration.Bool()) {
+                        try {
+                            windowView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                        } catch (Exception ignored) {}
+                    }
 
                     int[] location = new int[2];
                     pressedLinkOwnerView.getLocationInWindow(location);

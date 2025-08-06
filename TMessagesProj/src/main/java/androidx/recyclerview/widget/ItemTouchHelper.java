@@ -45,6 +45,7 @@ import org.telegram.ui.Cells.DialogCell;
 import java.util.ArrayList;
 import java.util.List;
 
+import tw.nekomimi.nekogram.NekoConfig;
 import xyz.nextalone.nagram.NaConfig;
 
 /**
@@ -695,9 +696,12 @@ public class ItemTouchHelper extends RecyclerView.ItemDecoration
             mSelected = selected;
 
             if (actionState == ACTION_STATE_DRAG) {
-                try {
-                    mSelected.itemView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-                } catch (Exception ignore) {}
+                if (!NekoConfig.disableVibration.Bool()) {
+                    try {
+                        mSelected.itemView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                    } catch (Exception ignore) {
+                    }
+                }
             }
         }
         final ViewParent rvParent = mRecyclerView.getParent();

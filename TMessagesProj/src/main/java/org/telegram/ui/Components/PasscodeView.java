@@ -87,7 +87,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
 
+import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
+import tw.nekomimi.nekogram.utils.VibrateUtil;
+
+import xyz.nextalone.nagram.NaConfig;
 
 public class PasscodeView extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
     private final static float BACKGROUND_SPRING_STIFFNESS = 300f;
@@ -172,7 +176,9 @@ public class PasscodeView extends FrameLayout implements NotificationCenter.Noti
                 return;
             }
             try {
-                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                if (!NekoConfig.disableVibration.Bool()) {
+                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                }
             } catch (Exception e) {
                 FileLog.e(e);
             }
@@ -295,7 +301,9 @@ public class PasscodeView extends FrameLayout implements NotificationCenter.Noti
                 return false;
             }
             try {
-                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                if (!NekoConfig.disableVibration.Bool()) {
+                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                }
             } catch (Exception e) {
                 FileLog.e(e);
             }
@@ -1383,11 +1391,13 @@ public class PasscodeView extends FrameLayout implements NotificationCenter.Noti
                     imageView.getAnimatedDrawable().setCustomEndFrame(37);
                     imageView.playAnimation();
                     showPin(true);
-                    AndroidUtilities.runOnUIThread(() -> {
-                        try {
-                            imageView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-                        } catch (Exception ignore) {}
-                    }, 350);
+                    if (!NekoConfig.disableVibration.Bool()) {
+                        AndroidUtilities.runOnUIThread(() -> {
+                            try {
+                                imageView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                            } catch (Exception ignore) {}
+                        }, 350);
+                    }
                     AnimatorSet animatorSet = new AnimatorSet();
                     ArrayList<Animator> animators = new ArrayList<>();
                     int w = AndroidUtilities.displaySize.x;

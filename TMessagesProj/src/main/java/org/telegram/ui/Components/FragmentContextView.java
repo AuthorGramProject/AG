@@ -588,9 +588,11 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 isMuted = false;
 
                 AndroidUtilities.runOnUIThread(toggleMicRunnable, 90);
-                try {
-                    muteButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-                } catch (Exception ignore) {}
+                if (!NekoConfig.disableVibration.Bool()) {
+                    try {
+                        muteButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                    } catch (Exception ignore) {}
+                }
             };
 
 
@@ -625,9 +627,11 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                             muteButton.playAnimation();
                             if (VoIPService.getSharedInstance() != null) {
                                 VoIPService.getSharedInstance().setMicMute(true, true, false);
-                                try {
-                                    muteButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-                                } catch (Exception ignore) {}
+                                if (!NekoConfig.disableVibration.Bool()) {
+                                    try {
+                                        muteButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                                    } catch (Exception ignore) {}
+                                }
                             }
                             pressed = false;
                             Theme.getFragmentContextViewWavesDrawable().updateState(true);
@@ -684,9 +688,11 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             }
             muteButton.playAnimation();
             Theme.getFragmentContextViewWavesDrawable().updateState(true);
-            try {
-                muteButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-            } catch (Exception ignore) {}
+            if (!NekoConfig.disableVibration.Bool()) {
+                try {
+                    muteButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                } catch (Exception ignore) {}
+            }
         });
 
         closeButton = new ImageView(context);

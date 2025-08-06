@@ -65,6 +65,8 @@ import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import tw.nekomimi.nekogram.NekoConfig;
+
 public class ThemesHorizontalListCell extends RecyclerListView implements NotificationCenter.NotificationCenterDelegate {
 
     public static byte[] bytes = new byte[1024];
@@ -198,9 +200,11 @@ public class ThemesHorizontalListCell extends RecyclerListView implements Notifi
                     if (action == MotionEvent.ACTION_DOWN) {
                         pressed = true;
                     } else {
-                        try {
-                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                        } catch (Exception ignored) {}
+                        if (!NekoConfig.disableVibration.Bool()) {
+                            try {
+                                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                            } catch (Exception ignored) {}
+                        }
                         showOptionsForTheme(themeInfo);
                     }
                 }

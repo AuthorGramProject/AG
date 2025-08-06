@@ -3553,7 +3553,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
         if (isSliding && !swipeCanceled) {
             boolean prevValue = drawRevealBackground;
             drawRevealBackground = Math.abs(translationX) >= getMeasuredWidth() * 0.45f;
-            if (prevValue != drawRevealBackground && archiveHidden == SharedConfig.archiveHidden) {
+            if (prevValue != drawRevealBackground && archiveHidden == SharedConfig.archiveHidden && !NekoConfig.disableVibration.Bool()) {
                 try {
                     performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
                 } catch (Exception ignore) {}

@@ -71,6 +71,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
+import tw.nekomimi.nekogram.NekoConfig;
+
 @SuppressWarnings("JavaReflectionMemberAccess")
 public class RecyclerListView extends RecyclerView {
     public final static int SECTIONS_TYPE_SIMPLE = 0,
@@ -1110,16 +1112,20 @@ public class RecyclerListView extends RecyclerView {
                     View child = currentChildView;
                     if (onItemLongClickListener != null) {
                         if (onItemLongClickListener.onItemClick(currentChildView, currentChildPosition)) {
-                            try {
-                                child.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
-                            } catch (Exception ignored) {}
+                            if (!NekoConfig.disableVibration.Bool()) {
+                                try {
+                                    child.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                                } catch (Exception ignored) {}
+                            }
                             child.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);
                         }
                     } else {
                         if (onItemLongClickListenerExtended.onItemClick(currentChildView, currentChildPosition, event.getX() - currentChildView.getX(), event.getY() - currentChildView.getY())) {
-                            try {
-                                child.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
-                            } catch (Exception ignored) {}
+                            if (!NekoConfig.disableVibration.Bool()) {
+                                try {
+                                    child.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                                } catch (Exception ignored) {}
+                            }
                             child.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);
                             longPressCalled = true;
                         }
@@ -1650,10 +1656,6 @@ public class RecyclerListView extends RecyclerView {
     }
 
     public void setSelectorDrawableColor(int color) {
-        if (color == 0) {
-            selectorDrawable = null;
-            return;
-        }
         if (selectorDrawable != null) {
             selectorDrawable.setCallback(null);
         }

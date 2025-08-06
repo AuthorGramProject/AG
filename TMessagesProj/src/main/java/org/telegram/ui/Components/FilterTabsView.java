@@ -2149,9 +2149,11 @@ public class FilterTabsView extends FrameLayout {
                 TabView tabView = (TabView) listView.getChildAt(i);
                 if (tabView.currentTab.id == id) {
                     tabView.shakeLockIcon(1, 0);
-                    try {
-                        tabView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                    } catch (Exception ignore) {}
+                    if (!NekoConfig.disableVibration.Bool()) {
+                        try {
+                            tabView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                        } catch (Exception ignore) {}
+                    }
                     break;
                 }
             }
