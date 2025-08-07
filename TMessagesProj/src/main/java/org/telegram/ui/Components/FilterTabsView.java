@@ -1539,10 +1539,15 @@ public class FilterTabsView extends FrameLayout {
                 if (customTabStyle >= TabStyle.PILLS.getValue()) {
                     inlinePadding = AndroidUtilities.dp(10);
                     int searchPanelHeight = getTabsHeight();
-                    int tabAreaHeight = height - searchPanelHeight;
-                    int tabCenterY = searchPanelHeight + tabAreaHeight / 2 + AndroidUtilities.dp(10);
-                    topBound = tabCenterY - AndroidUtilities.dp(15);
-                    bottomBound = tabCenterY + AndroidUtilities.dp(15);
+                    if (searchPanelHeight > 0) {
+                        int tabAreaHeight = height - searchPanelHeight;
+                        int tabCenterY = searchPanelHeight + tabAreaHeight / 2 + AndroidUtilities.dp(10);
+                        topBound = tabCenterY - AndroidUtilities.dp(15);
+                        bottomBound = tabCenterY + AndroidUtilities.dp(15);
+                    } else {
+                        topBound = height / 2 - AndroidUtilities.dp(15);
+                        bottomBound = height / 2 + AndroidUtilities.dp(15);
+                    }
                     selectorDrawable.setColor(ColorUtils.setAlphaComponent(Theme.getColor(tabLineColorKey), 50));
                 } else {
                     selectorDrawable.setColor(Theme.getColor(tabLineColorKey));
