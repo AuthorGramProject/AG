@@ -37,6 +37,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val forceForward =
+        addConfig(
+            "ForceForward",
+            ConfigItem.configTypeBool,
+            false
+        )
     val showTextBold =
         addConfig(
             "TextBold",

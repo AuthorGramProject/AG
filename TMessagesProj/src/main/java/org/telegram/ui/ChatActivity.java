@@ -391,6 +391,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private final static int nkbtn_editPermission = 2020;
     private final static int nkbtn_copy_link_in_pm = 2025;
     private final static int nkbtn_repeatascopy = 2028;
+    // NagramX: Force Forward option id
+    private final static int nkbtn_force_forward = 2066;
     private final static int nkbtn_setReminder = 2029;
     private final static int nkbtn_reply_private = 2033;
     private final static int nkbtn_translate_llm = 2034;
@@ -14252,6 +14254,396 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         textSelectionHint.show();
     }
 
+    // NagramX: flag to mark that current forward flow is force-forward
+    private boolean isForceForwardMode = false;
+    // NagramX: when true, show forward banner and send as copy on send button
+    private boolean isForceForwardPreview = false;
+
+    // NagramX: no confirm now; helper remains for potential reuse
+    public void showForceForwardConfirm(ArrayList<MessageObject> messagesToSend, long targetDialogId) {
+        if (messagesToSend == null || messagesToSend.isEmpty()) return;
+        // no-op: we now use forward banner and send on press
+    }
+
+    private void runForceForward(ArrayList<MessageObject> messagesToSend, long targetDialogId, boolean showUndo) {
+        if (messagesToSend == null || messagesToSend.isEmpty() || getParentActivity() == null) return;
+
+        // progress dialog
+        final AlertDialog progressDialog = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER, getResourceProvider());
+        progressDialog.setCanCancel(false);
+        progressDialog.showDelayed(200);
+
+        Utilities.globalQueue.postRunnable(() -> {
+            try {
+                // 1) ensure media downloaded
+                ArrayList<MessageObject> needDownload = new ArrayList<>();
+                for (MessageObject mo : messagesToSend) {
+                    if (mo == null || mo.messageOwner == null) continue;
+                    boolean hasMedia = mo.getDocument() != null || mo.isPhoto();
+                    if (!hasMedia) continue;
+                    File f = xyz.nextalone.nagram.helper.MessageHelper.INSTANCE.getPathToMessage(mo);
+                    if (f == null || !f.exists()) {
+                        needDownload.add(mo);
+                    }
+                }
+
+                // trigger downloads
+                for (MessageObject mo : needDownload) {
+                    if (mo.getDocument() != null) {
+                        FileLoader.getInstance(currentAccount).loadFile(mo.getDocument(), mo, FileLoader.PRIORITY_HIGH, 0);
+                    } else if (mo.isPhoto()) {
+                        TLRPC.PhotoSize size = FileLoader.getClosestPhotoSizeWithSize(MessageObject.getPhoto(mo.messageOwner).sizes, AndroidUtilities.getPhotoSize());
+                        if (size != null) {
+                            FileLoader.getInstance(currentAccount).loadFile(ImageLocation.getForObject(size, mo.messageOwner), mo.messageOwner, "jpg", FileLoader.PRIORITY_HIGH, 0);
+                        }
+                    }
+                }
+
+                // wait loop (polling)
+                int attempts = 0;
+                while (!needDownload.isEmpty() && attempts < 600) { // up to ~60s
+                    Iterator<MessageObject> it = needDownload.iterator();
+                    while (it.hasNext()) {
+                        MessageObject mo = it.next();
+                        File f = xyz.nextalone.nagram.helper.MessageHelper.INSTANCE.getPathToMessage(mo);
+                        if (f != null && f.exists()) {
+                            it.remove();
+                        }
+                    }
+                    Thread.sleep(100);
+                    attempts++;
+                }
+
+                // 2) send messages as copies
+                //    - 文本：直接使用原始 messageOwner.message，重新生成 entities，避免受限聊天的取文案失败
+                //    - 相册：按 grouped_id 聚合，使用 prepareSendingMedia(..., groupMedia=true) 发送为相册
+                //    - 其他：按原有逐条路径
+
+                // 收集相册与零散媒体（按原始顺序即时发送，分组在遇到组尾时发送，确保顺序与位置保持不变）
+                java.util.HashMap<Long, java.util.ArrayList<SendMessagesHelper.SendingMediaInfo>> albumMap = new java.util.HashMap<>();
+                java.util.HashMap<Long, java.util.ArrayList<SendMessagesHelper.SendingMediaInfo>> docAlbumMap = new java.util.HashMap<>();
+                java.util.HashMap<Long, Integer> albumRemain = new java.util.HashMap<>();
+                java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> singlePhotos = new java.util.ArrayList<>();
+                java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> singleVideos = new java.util.ArrayList<>();
+                java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> singleDocuments = new java.util.ArrayList<>();
+                // 预统计每个分组的数量
+                for (MessageObject moPre : messagesToSend) {
+                    long gidPre = moPre.getGroupId();
+                    boolean isGroupedMedia = moPre.isPhoto() || moPre.isVideo();
+                    boolean isGroupedDoc = moPre.getDocument() != null && !moPre.isVideo() && !moPre.isSticker() && !moPre.isAnimatedSticker();
+                    if (gidPre != 0 && (isGroupedMedia || isGroupedDoc)) {
+                        albumRemain.put(gidPre, albumRemain.getOrDefault(gidPre, 0) + 1);
+                    }
+                }
+
+                for (MessageObject mo : messagesToSend) {
+                    CharSequence captionCs = getMessageCaption(mo, getValidGroupedMessage(mo));
+                    String caption = captionCs != null ? captionCs.toString() : null;
+
+                    // 先处理纯文本/带文字
+                    if (mo.type == MessageObject.TYPE_TEXT || mo.isAnimatedEmoji() || (caption != null && TextUtils.isEmpty(mo.messageOwner.message))) {
+                        // 优先取原始文本，避免 getMessageContent 在 noforwards 聊天返回空
+                        String text = mo != null && mo.messageOwner != null && !TextUtils.isEmpty(mo.messageOwner.message)
+                                ? mo.messageOwner.message
+                                : (captionCs != null ? captionCs.toString() : null);
+                        if (!TextUtils.isEmpty(text)) {
+                            java.util.ArrayList<TLRPC.MessageEntity> entities = mo.messageOwner != null && mo.messageOwner.entities != null && !mo.messageOwner.entities.isEmpty()
+                                    ? mo.messageOwner.entities
+                                    : org.telegram.messenger.MediaDataController.getInstance(currentAccount).getEntities(new CharSequence[]{text}, true);
+                            SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text, targetDialogId, null, null, null, true, entities, null, null, true, 0, null, false);
+                            AndroidUtilities.runOnUIThread(() -> getSendMessagesHelper().sendMessage(params));
+                        }
+                        continue;
+                    }
+
+                    // 照片：收集到相册/单张列表，稍后统一发
+                    if (mo.isPhoto()) {
+                        File f = xyz.nextalone.nagram.helper.MessageHelper.INSTANCE.getPathToMessage(mo);
+                        if (f != null && f.exists()) {
+                            SendMessagesHelper.SendingMediaInfo info = new SendMessagesHelper.SendingMediaInfo();
+                            info.path = f.getAbsolutePath();
+                            info.caption = caption;
+                            info.entities = mo.messageOwner != null ? mo.messageOwner.entities : null;
+                            long gid = mo.getGroupId();
+                            if (gid != 0) {
+                                java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> list = albumMap.computeIfAbsent(gid, k -> new java.util.ArrayList<>());
+                                list.add(info);
+                                Integer remain = albumRemain.get(gid);
+                                if (remain != null) {
+                                    remain = remain - 1;
+                                    if (remain <= 0) {
+                                        // 分组最后一项，到此处立即发送该分组，保持与文本等消息的原始相对顺序
+                                        java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> toSend = new java.util.ArrayList<>(list);
+                                        albumMap.remove(gid);
+                                        albumRemain.remove(gid);
+                                        SendMessagesHelper.prepareSendingMedia(
+                                            getAccountInstance(),
+                                            toSend,
+                                            targetDialogId,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            false,
+                                            true,  // groupMedia
+                                            null,
+                                            true,
+                                            0,
+                                            chatMode,
+                                            false,
+                                            null,
+                                            quickReplyShortcut,
+                                            getQuickReplyId(),
+                                            0,
+                                            false,
+                                            0,
+                                            getSendMonoForumPeerId(),
+                                            getSendMessageSuggestionParams()
+                                        );
+                                    } else {
+                                        albumRemain.put(gid, remain);
+                                    }
+                                }
+                            } else {
+                                singlePhotos.add(info);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // 视频：也加入相册分组
+                    if (mo.isVideo()) {
+                        File f = xyz.nextalone.nagram.helper.MessageHelper.INSTANCE.getPathToMessage(mo);
+                        if (f != null && f.exists()) {
+                            SendMessagesHelper.SendingMediaInfo info = new SendMessagesHelper.SendingMediaInfo();
+                            info.path = f.getAbsolutePath();
+                            info.caption = caption;
+                            info.entities = mo.messageOwner != null ? mo.messageOwner.entities : null;
+                            info.isVideo = true;
+                            long gid = mo.getGroupId();
+                            if (gid != 0) {
+                                java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> list = albumMap.computeIfAbsent(gid, k -> new java.util.ArrayList<>());
+                                list.add(info);
+                                Integer remain = albumRemain.get(gid);
+                                if (remain != null) {
+                                    remain = remain - 1;
+                                    if (remain <= 0) {
+                                        java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> toSend = new java.util.ArrayList<>(list);
+                                        albumMap.remove(gid);
+                                        albumRemain.remove(gid);
+                                        SendMessagesHelper.prepareSendingMedia(
+                                            getAccountInstance(),
+                                            toSend,
+                                            targetDialogId,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            false,
+                                            true,
+                                            null,
+                                            true,
+                                            0,
+                                            chatMode,
+                                            false,
+                                            null,
+                                            quickReplyShortcut,
+                                            getQuickReplyId(),
+                                            0,
+                                            false,
+                                            0,
+                                            getSendMonoForumPeerId(),
+                                            getSendMessageSuggestionParams()
+                                        );
+                                    } else {
+                                        albumRemain.put(gid, remain);
+                                    }
+                                }
+                            } else {
+                                singleVideos.add(info);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // 文档（排除视频/贴纸）：按 grouped_id 收集合并；未分组的逐条发送
+                    if (mo.getDocument() != null && !mo.isVideo() && !mo.isSticker() && !mo.isAnimatedSticker()) {
+                        File f = xyz.nextalone.nagram.helper.MessageHelper.INSTANCE.getPathToMessage(mo);
+                        if (f != null && f.exists()) {
+                            SendMessagesHelper.SendingMediaInfo info = new SendMessagesHelper.SendingMediaInfo();
+                            info.path = f.getAbsolutePath();
+                            info.caption = caption;
+                            info.entities = mo.messageOwner != null ? mo.messageOwner.entities : null;
+                            long gid = mo.getGroupId();
+                            if (gid != 0) {
+                                java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> list = docAlbumMap.computeIfAbsent(gid, k -> new java.util.ArrayList<>());
+                                list.add(info);
+                                Integer remain = albumRemain.get(gid);
+                                if (remain != null) {
+                                    remain = remain - 1;
+                                    if (remain <= 0) {
+                                        java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> toSend = new java.util.ArrayList<>(list);
+                                        docAlbumMap.remove(gid);
+                                        albumRemain.remove(gid);
+                                        // 文档分组：通过 prepareSendingMedia + forceDocument=true 作为一条合并消息发送
+                                        SendMessagesHelper.prepareSendingMedia(
+                                            getAccountInstance(),
+                                            toSend,
+                                            targetDialogId,
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            true,   // forceDocument
+                                            false,  // groupMedia=false（文档不走相册图片逻辑）
+                                            null,
+                                            true,
+                                            0,
+                                            chatMode,
+                                            false,
+                                            null,
+                                            quickReplyShortcut,
+                                            getQuickReplyId(),
+                                            0,
+                                            false,
+                                            0,
+                                            getSendMonoForumPeerId(),
+                                            getSendMessageSuggestionParams()
+                                        );
+                                    } else {
+                                        albumRemain.put(gid, remain);
+                                    }
+                                }
+                            } else {
+                                singleDocuments.add(info);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // 贴纸
+                    if (mo.isSticker() || mo.isAnimatedSticker()) {
+                        if (mo.getDocument() != null) {
+                            getSendMessagesHelper().sendSticker(mo.getDocument(), null, targetDialogId, null, null, null, null, null, true, 0, false, null, quickReplyShortcut, getQuickReplyId());
+                        }
+                        continue;
+                    }
+
+                    // 兜底：还有原始 messageOwner.message
+                    if (mo.messageOwner != null && !TextUtils.isEmpty(mo.messageOwner.message)) {
+                        String text = mo.messageOwner.message;
+                        java.util.ArrayList<TLRPC.MessageEntity> entities = mo.messageOwner.entities != null && !mo.messageOwner.entities.isEmpty()
+                                ? mo.messageOwner.entities
+                                : org.telegram.messenger.MediaDataController.getInstance(currentAccount).getEntities(new CharSequence[]{text}, true);
+                        SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text, targetDialogId, null, null, null, true, entities, null, null, true, 0, null, false);
+                        AndroidUtilities.runOnUIThread(() -> getSendMessagesHelper().sendMessage(params));
+                    }
+                }
+
+                // 分组在遍历时遇到末尾已即时发送；此处无需再次统一发送
+
+                // 发送未分组的单张照片
+                for (SendMessagesHelper.SendingMediaInfo info : singlePhotos) {
+                    java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> one = new java.util.ArrayList<>();
+                    one.add(info);
+                    SendMessagesHelper.prepareSendingMedia(
+                        getAccountInstance(),
+                        one,
+                        targetDialogId,
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        false, // single
+                        null,
+                        true,
+                        0,
+                        chatMode,
+                        false,
+                        null,
+                        quickReplyShortcut,
+                        getQuickReplyId(),
+                        0,
+                        false,
+                        0,
+                        getSendMonoForumPeerId(),
+                        getSendMessageSuggestionParams()
+                    );
+                }
+
+                // 发送未分组的视频（逐条）
+                for (SendMessagesHelper.SendingMediaInfo info : singleVideos) {
+                    java.util.ArrayList<SendMessagesHelper.SendingMediaInfo> one = new java.util.ArrayList<>();
+                    one.add(info);
+                    SendMessagesHelper.prepareSendingMedia(
+                        getAccountInstance(),
+                        one,
+                        targetDialogId,
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        false,
+                        null,
+                        true,
+                        0,
+                        chatMode,
+                        false,
+                        null,
+                        quickReplyShortcut,
+                        getQuickReplyId(),
+                        0,
+                        false,
+                        0,
+                        getSendMonoForumPeerId(),
+                        getSendMessageSuggestionParams()
+                    );
+                }
+
+                // 发送未分组的文档（逐条）
+                for (SendMessagesHelper.SendingMediaInfo info : singleDocuments) {
+                    SendMessagesHelper.prepareSendingDocument(
+                        getAccountInstance(),
+                        info.path,
+                        info.path,
+                        null,
+                        info.caption,
+                        null,
+                        targetDialogId,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        true,
+                        0,
+                        null,
+                        quickReplyShortcut,
+                        getQuickReplyId(),
+                        false
+                    );
+                }
+
+                // 相册分组已按末尾触发发送，无需 flush
+
+                AndroidUtilities.runOnUIThread(() -> {
+                    try { progressDialog.dismiss(); } catch (Exception ignore) {}
+                    if (showUndo) {
+                        createUndoView();
+                        if (undoView != null) {
+                            undoView.showWithAction(targetDialogId, UndoView.ACTION_FWD_MESSAGES, messagesToSend.size());
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                FileLog.e(e);
+                AndroidUtilities.runOnUIThread(() -> { try { progressDialog.dismiss(); } catch (Exception ignore) {} });
+            }
+        });
+    }
+
     public boolean showEmojiHint() {
         if (chatActivityEnterView == null || chatActivityEnterView.getVisibility() != View.VISIBLE) {
             return false;
@@ -15514,7 +15906,16 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 if (messagePreviewParams.forwardMessages != null) {
                     messagePreviewParams.forwardMessages.getSelectedMessages(messagesToForward);
                 }
-                forwardMessages(messagesToForward, messagePreviewParams.hideForwardSendersName, messagePreviewParams.hideCaption, notify, scheduleDate != 0 && scheduleDate != 0x7ffffffe ? scheduleDate + 1 : scheduleDate, payStars);
+                if (isForceForwardPreview) {
+                    // run force-forward sending as copies
+                    long targetDid = dialog_id;
+                    isForceForwardPreview = false;
+                    // 单聊强制转发：不显示底部提示
+                    runForceForward(messagesToForward, targetDid, false);
+                    return;
+                } else {
+                    forwardMessages(messagesToForward, messagePreviewParams.hideForwardSendersName, messagePreviewParams.hideCaption, notify, scheduleDate != 0 && scheduleDate != 0x7ffffffe ? scheduleDate + 1 : scheduleDate, payStars);
+                }
             // }
             messagePreviewParams = null;
         }
@@ -34203,6 +34604,28 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 presentFragment(fragment);
                 break;
             }
+            case nkbtn_force_forward: {
+                // open select dialog like normal forward, but mark force mode
+                if (getMessagesController().isFrozen()) {
+                    AccountFrozenAlert.show(currentAccount);
+                    selectedObject = null;
+                    selectedObjectToEditCaption = null;
+                    selectedObjectGroup = null;
+                    return;
+                }
+                isForceForwardMode = true;
+                forwardingMessage = selectedObject;
+                forwardingMessageGroup = selectedObjectGroup;
+                Bundle args = new Bundle();
+                args.putBoolean("onlySelect", true);
+                args.putInt("dialogsType", DialogsActivity.DIALOGS_TYPE_FORWARD);
+                args.putInt("messagesCount", 1);
+                args.putBoolean("canSelectTopics", true);
+                DialogsActivity fragment = new DialogsActivity(args);
+                fragment.setDelegate(this);
+                presentFragment(fragment);
+                break;
+            }
             case OPTION_COPY: {
                 if (selectedObject.isDice()) {
                     AndroidUtilities.addToClipboard(selectedObject.getDiceEmoji());
@@ -35217,20 +35640,23 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
             }
         }
-        for (int j = 0; j < dids.size(); j++) {
-            TLRPC.Chat chat = getMessagesController().getChat(-dids.get(j).dialogId);
-            if (chat != null) {
-                for (int i = 0; i < fmessages.size(); i++) {
-                    int sendError = SendMessagesHelper.canSendMessageToChat(chat, fmessages.get(i));
-                    if (sendError != 0) {
-                        AlertsCreator.showSendMediaAlert(sendError, fragment, null);
-                        return false;
+        // Skip forward-restriction checks in force-forward mode
+        if (!isForceForwardMode) {
+            for (int j = 0; j < dids.size(); j++) {
+                TLRPC.Chat chat = getMessagesController().getChat(-dids.get(j).dialogId);
+                if (chat != null) {
+                    for (int i = 0; i < fmessages.size(); i++) {
+                        int sendError = SendMessagesHelper.canSendMessageToChat(chat, fmessages.get(i));
+                        if (sendError != 0) {
+                            AlertsCreator.showSendMediaAlert(sendError, fragment, null);
+                            return false;
+                        }
                     }
                 }
             }
         }
 
-        if (!fragment.isQuote && (dids.size() > 1 || dids.get(0).dialogId == getUserConfig().getClientUserId() || message != null || scheduleDate != 0 || !notify)) {
+        if (!isForceForwardMode && !fragment.isQuote && (dids.size() > 1 || dids.get(0).dialogId == getUserConfig().getClientUserId() || message != null || scheduleDate != 0 || !notify)) {
             return !AlertsCreator.ensurePaidMessagesMultiConfirmationTopicKeys(currentAccount, dids, fmessages.size() + (TextUtils.isEmpty(message) ? 0 : 1), prices -> {
                 if (fragment.resetDelegate) {
                     fragment.setDelegate(null);
@@ -35286,7 +35712,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     }
                 }
             });
-        } else {
+        } else if (!isForceForwardMode) {
             if (forwardingMessage != null) {
                 forwardingMessage = null;
                 forwardingMessageGroup = null;
@@ -35402,6 +35828,88 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     keyboardWasVisible = false;
                 }
             }
+        }
+        // Force forward path: support multi-target; for single target open chat and show forward banner (no confirm)
+        if (isForceForwardMode) {
+            isForceForwardMode = false;
+            // collect messages to send
+            fmessages.clear();
+            if (forwardingMessage != null) {
+                if (forwardingMessageGroup != null) fmessages.addAll(forwardingMessageGroup.messages); else fmessages.add(forwardingMessage);
+                forwardingMessage = null;
+                forwardingMessageGroup = null;
+            } else {
+                for (int a = 1; a >= 0; a--) {
+                    for (int i = 0; i < selectedMessagesIds[a].size(); i++) {
+                        fmessages.add(selectedMessagesIds[a].valueAt(i));
+                    }
+                }
+                for (int a = 1; a >= 0; a--) {
+                    selectedMessagesCanCopyIds[a].clear();
+                    selectedMessagesCanStarIds[a].clear();
+                    selectedMessagesIds[a].clear();
+                }
+                hideActionMode();
+                updatePinnedMessageView(true);
+                updateVisibleRows();
+            }
+
+            // 如果多选目标对话，则直接对每个目标发送为副本，不跳转到任一聊天
+            if (dids.size() > 1) {
+                final ArrayList<MessageObject> sendList = new ArrayList<>(fmessages);
+                for (int a = 0; a < dids.size(); a++) {
+                    final long did = dids.get(a).dialogId;
+                    AndroidUtilities.runOnUIThread(() -> runForceForward(sendList, did, false));
+                }
+                if (fragment != null) {
+                    fragment.finishFragment();
+                }
+                createUndoView();
+                if (undoView != null) {
+                    undoView.showWithAction(0, UndoView.ACTION_FWD_MESSAGES, sendList.size(), dids.size(), null, null);
+                }
+                return true;
+            }
+
+            MessagesStorage.TopicKey topicKey = dids.get(0);
+            final long did = topicKey.dialogId;
+
+            if (did != dialog_id || getTopicId() != topicKey.topicId || chatMode == MODE_PINNED) {
+                Bundle args = new Bundle();
+                args.putBoolean("scrollToTopOnResume", scrollToTopOnResume);
+                if (DialogObject.isEncryptedDialog(did)) {
+                    args.putInt("enc_id", DialogObject.getEncryptedChatId(did));
+                } else {
+                    if (DialogObject.isUserDialog(did)) args.putLong("user_id", did); else args.putLong("chat_id", -did);
+                    if (!getMessagesController().checkCanOpenChat(args, fragment)) return true;
+                }
+                addToPulledDialogsMyself();
+                ChatActivity chatActivity = new ChatActivity(args);
+                if (presentFragment(chatActivity, true)) {
+                    chatActivity.isForceForwardPreview = true;
+                    AndroidUtilities.runOnUIThread(() -> chatActivity.showFieldPanelForForward(true, fmessages), 200);
+                    if (chatActivity.getDialogId() == getDialogId() && !AndroidUtilities.isTablet()) {
+                        removeSelfFromStack();
+                    }
+                } else {
+                    fragment.finishFragment();
+                }
+            } else {
+                moveScrollToLastMessage(false);
+                isForceForwardPreview = true;
+                AndroidUtilities.runOnUIThread(() -> showFieldPanelForForward(true, fmessages), 100);
+                if (AndroidUtilities.isTablet()) {
+                    hideActionMode();
+                    updatePinnedMessageView(true);
+                }
+                updateVisibleRows();
+                if (keyboardWasVisible && chatActivityEnterView != null) {
+                    chatActivityEnterView.openKeyboardInternal();
+                    chatActivityEnterView.freezeEmojiView(false);
+                    keyboardWasVisible = false;
+                }
+            }
+            return true;
         }
         return true;
     }
@@ -46577,6 +47085,13 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                         options.add(nkbtn_reply_private);
                         icons.add(R.drawable.menu_reply);
                     }
+                }
+
+                // NagramX: Force Forward menu entry (when forwarding restricted and setting enabled)
+                if (NaConfig.INSTANCE.getForceForward().Bool() && (noforwards || (currentChat != null && getMessagesController().isChatNoForwards(currentChat)))) {
+                    items.add(LocaleController.getString(R.string.ForceForward));
+                    options.add(nkbtn_force_forward);
+                    icons.add(R.drawable.msg_forward_noquote);
                 }
                 if ((selectedObject.type == MessageObject.TYPE_TEXT || selectedObject.isDice() || selectedObject.isAnimatedEmoji() || selectedObject.isAnimatedEmojiStickers() || getMessageCaption(selectedObject, selectedObjectGroup) != null) && !noforwardsOrPaidMedia && !selectedObject.sponsoredCanReport) {
                     allowCopy = true;
