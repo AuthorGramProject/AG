@@ -256,23 +256,7 @@ public class ChatHistoryActivity extends BaseFragment {
                     // First try to get from memory cache
                     item.user = MessagesController.getInstance(currentAccount).getUser(dialogId);
 
-                    // Always try to load from database to get the most up-to-date info
-                    try {
-                        java.util.ArrayList<Long> userIds = new java.util.ArrayList<>();
-                        userIds.add(dialogId);
-                        java.util.ArrayList<TLRPC.User> users = MessagesStorage.getInstance(currentAccount).getUsers(userIds);
-                        if (!users.isEmpty()) {
-                            TLRPC.User dbUser = users.get(0);
-                            // Use database user if it's more recent or if memory cache is null
-                            if (item.user == null || dbUser != null) {
-                                item.user = dbUser;
-                                // Update memory cache with fresh data
-                                MessagesController.getInstance(currentAccount).putUser(item.user, true);
-                            }
-                        }
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
+                    // Revert: do not force-load user from database here
 
                     // Skip if user is still null (couldn't load from database either)
                     if (item.user == null) {
@@ -394,12 +378,12 @@ public class ChatHistoryActivity extends BaseFragment {
             return true;
         }
 
-        // Search in username
+        // Search in username (prefer public username, fallback to local fields)
         String username = "";
         if (item.user != null) {
-            username = UserObject.getPublicUsername(item.user);
+            username = getBestLocalUsername(item.user);
         } else if (item.chat != null) {
-            username = ChatObject.getPublicUsername(item.chat);
+            username = getBestLocalUsername(item.chat);
         }
 
         if (!TextUtils.isEmpty(username) && username.toLowerCase().contains(query)) {
@@ -820,9 +804,9 @@ public class ChatHistoryActivity extends BaseFragment {
         String username = null;
 
         if (item.user != null) {
-            username = UserObject.getPublicUsername(item.user);
+            username = getBestLocalUsername(item.user);
         } else if (item.chat != null) {
-            username = ChatObject.getPublicUsername(item.chat);
+            username = getBestLocalUsername(item.chat);
         }
 
         if (username != null) {
@@ -895,10 +879,10 @@ public class ChatHistoryActivity extends BaseFragment {
         boolean hasUsername = false;
         String username = null;
         if (item.user != null) {
-            username = UserObject.getPublicUsername(item.user);
+            username = getBestLocalUsername(item.user);
             hasUsername = !TextUtils.isEmpty(username);
         } else if (item.chat != null) {
-            username = ChatObject.getPublicUsername(item.chat);
+            username = getBestLocalUsername(item.chat);
             hasUsername = !TextUtils.isEmpty(username);
         }
 
@@ -1180,8 +1164,12 @@ public class ChatHistoryActivity extends BaseFragment {
             if (!TextUtils.isEmpty(username) && !username.trim().isEmpty()) {
                 return "@" + username;
             }
-
-            // For all users without username (including deleted users and normal users), show user ID
+            // fallback to best local username without network
+            String fallback = getBestLocalUsername(user);
+            if (!TextUtils.isEmpty(fallback)) {
+                return "@" + fallback;
+            }
+            // show user id when no username locally
             return "ID: " + user.id;
         }
 
@@ -1191,6 +1179,10 @@ public class ChatHistoryActivity extends BaseFragment {
             if (!TextUtils.isEmpty(username)) {
                 return "@" + username;
             }
+            String fallback = getBestLocalUsername(chat);
+            if (!TextUtils.isEmpty(fallback)) {
+                return "@" + fallback;
+            }
 
             // Show private status for private channels/groups
             if (chat.broadcast) {
@@ -1199,6 +1191,42 @@ public class ChatHistoryActivity extends BaseFragment {
                 return getString(R.string.MegaPrivate);
             }
         }
+    }
+
+    // Removed passive refresh per request
+
+    // Prefer real-time public username; fallback to locally available username fields without network
+    private String getBestLocalUsername(TLRPC.User user) {
+        if (user == null) return "";
+        String username = UserObject.getPublicUsername(user);
+        if (!TextUtils.isEmpty(username)) return username;
+        if (!TextUtils.isEmpty(user.username)) return user.username; // legacy primary username
+        if (user.usernames != null) {
+            // pick the first active collectible username if present locally
+            for (int i = 0; i < user.usernames.size(); i++) {
+                TLRPC.TL_username u = user.usernames.get(i);
+                if (u != null && u.active && !TextUtils.isEmpty(u.username)) {
+                    return u.username;
+                }
+            }
+        }
+        return "";
+    }
+
+    private String getBestLocalUsername(TLRPC.Chat chat) {
+        if (chat == null) return "";
+        String username = ChatObject.getPublicUsername(chat);
+        if (!TextUtils.isEmpty(username)) return username;
+        if (!TextUtils.isEmpty(chat.username)) return chat.username;
+        if (chat.usernames != null) {
+            for (int i = 0; i < chat.usernames.size(); i++) {
+                TLRPC.TL_username u = chat.usernames.get(i);
+                if (u != null && u.active && !TextUtils.isEmpty(u.username)) {
+                    return u.username;
+                }
+            }
+        }
+        return "";
     }
 
     private class EmptyStateCell extends FrameLayout {
