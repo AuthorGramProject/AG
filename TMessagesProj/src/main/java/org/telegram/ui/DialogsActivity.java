@@ -3450,10 +3450,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             filterTabsView.setVisibility(View.GONE);
             canShowFilterTabsView = false;
 
-            // Hide search button when iOS search panel is enabled
-            if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                searchItem.setVisibility(View.GONE);
-            }
+            // Hide search button only if iOS search panel is enabled AND user has folder classifications
+            boolean hideSearchButtonForIosPanel = NaConfig.INSTANCE.getIosSearchPanel().Bool() && (getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1);
+            searchItem.setVisibility(hideSearchButtonForIosPanel ? View.GONE : View.VISIBLE);
             filterTabsView.setDelegate(new FilterTabsView.FilterTabsViewDelegate() {
 
                 private void showDeleteAlert(MessagesController.DialogFilter dialogFilter) {
@@ -4523,7 +4522,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         FileLog.e(e);
                     }
                     if (initialDialogsType == DIALOGS_TYPE_BOT_REQUEST_PEER) {
-                        searchItem.setVisibility(isEmpty || NaConfig.INSTANCE.getIosSearchPanel().Bool() ? View.GONE : View.VISIBLE);
+                        boolean hideSearchButtonForIosPanel = NaConfig.INSTANCE.getIosSearchPanel().Bool() && (getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1);
+                        searchItem.setVisibility(isEmpty || hideSearchButtonForIosPanel ? View.GONE : View.VISIBLE);
                     }
                 }
 
@@ -7549,8 +7549,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 viewPages[0].listView.setVisibility(View.VISIBLE);
                 viewPages[0].setVisibility(View.VISIBLE);
                 // Ensure search button stays hidden when iOS search panel is enabled
-                if (searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                    searchItem.setVisibility(View.GONE);
+                if (searchItem != null) {
+                    boolean hideSearchButtonForIosPanel = NaConfig.INSTANCE.getIosSearchPanel().Bool() && (getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1);
+                    searchItem.setVisibility(hideSearchButtonForIosPanel ? View.GONE : View.VISIBLE);
                 }
             }
 
@@ -7687,9 +7688,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         if (rightSlidingDialogContainer != null) {
                             rightSlidingDialogContainer.setVisibility(View.VISIBLE);
                         }
-                        // Ensure search button stays hidden when iOS search panel is enabled
-                        if (searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                            searchItem.setVisibility(View.GONE);
+                        // Ensure search button stays hidden only when iOS search panel is enabled AND user has folder classifications
+                        if (searchItem != null) {
+                            boolean hideSearchButtonForIosPanel = NaConfig.INSTANCE.getIosSearchPanel().Bool() && (getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1);
+                            searchItem.setVisibility(hideSearchButtonForIosPanel ? View.GONE : View.VISIBLE);
                         }
                     }
 
@@ -7780,9 +7782,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 downloadsItem.setAlpha(show ? 0 : 1f);
             }
 
-            // Ensure search button stays hidden when iOS search panel is enabled (non-animated case)
-            if (!show && searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                searchItem.setVisibility(View.GONE);
+            // Ensure search button stays hidden only when iOS search panel is enabled AND user has folder classifications (non-animated case)
+            if (!show && searchItem != null) {
+                boolean hideSearchButtonForIosPanel = NaConfig.INSTANCE.getIosSearchPanel().Bool() && (getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1);
+                searchItem.setVisibility(hideSearchButtonForIosPanel ? View.GONE : View.VISIBLE);
             }
         }
         if (initialSearchType >= 0 && searchViewPager != null) {
@@ -10333,9 +10336,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 background.setState(StateSet.NOTHING);
                 background.jumpToCurrentState();
             }
-            if (searchItem != null) {
-                searchItem.setVisibility(NaConfig.INSTANCE.getIosSearchPanel().Bool() ? View.GONE : View.VISIBLE);
-            }
+                            if (searchItem != null) {
+                    boolean hideSearchButtonForIosPanel = NaConfig.INSTANCE.getIosSearchPanel().Bool() && (getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1);
+                    searchItem.setVisibility(hideSearchButtonForIosPanel ? View.GONE : View.VISIBLE);
+                }
             if (proxyItem != null && proxyItemVisible) {
                 proxyItem.setVisibility(View.VISIBLE);
             }
@@ -10362,7 +10366,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 doneItemAnimator = null;
                 if (show) {
                     if (searchItem != null) {
-                        searchItem.setVisibility(NaConfig.INSTANCE.getIosSearchPanel().Bool() ? View.GONE : View.INVISIBLE);
+                        boolean hideSearchButtonForIosPanel = NaConfig.INSTANCE.getIosSearchPanel().Bool() && (getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1);
+                        searchItem.setVisibility(hideSearchButtonForIosPanel ? View.GONE : View.INVISIBLE);
                     }
                     if (proxyItem != null && proxyItemVisible) {
                         proxyItem.setVisibility(View.INVISIBLE);
