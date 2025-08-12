@@ -88,10 +88,20 @@ public class ChatHistoryActivity extends BaseFragment {
     private String searchQuery = "";
     private ActionBarMenuItem searchItem;
 
+    // State preservation
+    private boolean shouldPreserveState = false;
+    private int[] savedScrollPositions = new int[ChatCategory.values().length];
+    private boolean wasInSearchMode = false;
+    private String savedSearchQuery = "";
+    private int currentTabPosition = 0;
+
     @Override
     public boolean onFragmentCreate() {
         super.onFragmentCreate();
-        loadHistoryItems();
+        // Only load items if we're not preserving state
+        if (!shouldPreserveState) {
+            loadHistoryItems();
+        }
         return true;
     }
 
@@ -122,9 +132,11 @@ public class ChatHistoryActivity extends BaseFragment {
             @Override
             public void onSearchExpand() {
                 isSearchMode = true;
-                searchQuery = "";
+                if (TextUtils.isEmpty(searchQuery)) {
+                    searchQuery = "";
+                }
                 updateTitle();
-                performSearch("");
+                performSearch(searchQuery);
             }
 
             @Override
@@ -149,6 +161,16 @@ public class ChatHistoryActivity extends BaseFragment {
         // Create ViewPager with tabs
         createViewPager(context, fragmentView);
 
+        // Restore search state if needed
+        if (wasInSearchMode && !TextUtils.isEmpty(savedSearchQuery)) {
+            searchItem.expandSearchFilters();
+            searchItem.getSearchField().setText(savedSearchQuery);
+            isSearchMode = true;
+            searchQuery = savedSearchQuery;
+            updateTitle();
+            performSearch(searchQuery);
+        }
+
         return fragmentView;
     }
 
@@ -169,6 +191,25 @@ public class ChatHistoryActivity extends BaseFragment {
 
         // Update tabs
         updateTabs();
+
+        // Set current tab position
+        if (shouldPreserveState) {
+            viewPager.setCurrentItem(currentTabPosition, false);
+        }
+
+        // Set page change listener to track current tab
+        viewPager.addOnPageChangeListener(new ViewPagerFixed.OnPageChangeListener() {
+            @Override
+            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {}
+
+            @Override
+            public void onPageSelected(int position) {
+                currentTabPosition = position;
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int state) {}
+        });
     }
 
     private void updateTabs() {
@@ -341,6 +382,10 @@ public class ChatHistoryActivity extends BaseFragment {
     }
 
     private void exitSearchMode() {
+        // Save search state before exiting
+        wasInSearchMode = true;
+        savedSearchQuery = searchQuery;
+        
         isSearchMode = false;
         searchQuery = "";
 
@@ -361,6 +406,12 @@ public class ChatHistoryActivity extends BaseFragment {
                 }
             }
         }
+
+        // Save search state
+        isSearchMode = true;
+        searchQuery = query;
+        wasInSearchMode = true;
+        savedSearchQuery = query;
 
         refreshAllPages();
     }
@@ -498,6 +549,15 @@ public class ChatHistoryActivity extends BaseFragment {
 
     private void switchToAccount(int accountId) {
         currentAccount = accountId;
+        // Reset state preservation when switching accounts
+        shouldPreserveState = false;
+        wasInSearchMode = false;
+        savedSearchQuery = "";
+        for (int i = 0; i < savedScrollPositions.length; i++) {
+            savedScrollPositions[i] = 0;
+        }
+        currentTabPosition = 0;
+        
         updateTitle();
         loadHistoryItems();
         refreshAllPages();
@@ -525,6 +585,15 @@ public class ChatHistoryActivity extends BaseFragment {
             e.printStackTrace();
         }
 
+        // Reset state preservation when clearing history
+        shouldPreserveState = false;
+        wasInSearchMode = false;
+        savedSearchQuery = "";
+        for (int i = 0; i < savedScrollPositions.length; i++) {
+            savedScrollPositions[i] = 0;
+        }
+        currentTabPosition = 0;
+
         // Immediately refresh the interface
         loadHistoryItems();
         refreshAllPages();
@@ -534,9 +603,13 @@ public class ChatHistoryActivity extends BaseFragment {
     @Override
     public void onResume() {
         super.onResume();
-        loadHistoryItems();
-        refreshAllPages();
-
+        // Only refresh if we're not preserving state
+        if (!shouldPreserveState) {
+            loadHistoryItems();
+            refreshAllPages();
+        }
+        // Reset the flag after onResume
+        shouldPreserveState = false;
     }
 
 
@@ -544,6 +617,10 @@ public class ChatHistoryActivity extends BaseFragment {
     @Override
     public boolean onBackPressed() {
         if (isSearchMode && searchItem != null) {
+            // Save search state before collapsing
+            wasInSearchMode = true;
+            savedSearchQuery = searchQuery;
+            
             searchItem.collapseSearchFilters();
             return false;
         }
@@ -551,6 +628,11 @@ public class ChatHistoryActivity extends BaseFragment {
     }
 
     private void refreshAllPages() {
+        // Don't refresh if we're preserving state
+        if (shouldPreserveState) {
+            return;
+        }
+        
         if (viewPager != null) {
             // Clear all cached views to prevent old content from showing
             clearViewPagerCache();
@@ -652,8 +734,18 @@ public class ChatHistoryActivity extends BaseFragment {
                         adapter.onItemClick(itemView, itemPosition);
                     });
 
-                    // Scroll to top to show fresh content
-                    listView.scrollToPosition(0);
+                    // Restore scroll position if preserving state
+                    if (shouldPreserveState && savedScrollPositions[position] > 0) {
+                        listView.post(() -> {
+                            if (listView.getLayoutManager() instanceof LinearLayoutManager) {
+                                LinearLayoutManager layoutManager = (LinearLayoutManager) listView.getLayoutManager();
+                                layoutManager.scrollToPosition(savedScrollPositions[position]);
+                            }
+                        });
+                    } else {
+                        // Scroll to top to show fresh content only when not preserving state
+                        listView.scrollToPosition(0);
+                    }
                 }
             }
         }
@@ -785,6 +877,9 @@ public class ChatHistoryActivity extends BaseFragment {
             return;
         }
 
+        // Save current state before opening chat
+        saveCurrentState();
+
         // Check if we're viewing the current user's own account
         boolean isViewingOwnAccount = (currentAccount == UserConfig.selectedAccount);
 
@@ -828,6 +923,37 @@ public class ChatHistoryActivity extends BaseFragment {
                 showPrivateChatDialog(item);
             }
         }
+    }
+
+    private void saveCurrentState() {
+        // Save scroll positions for all categories
+        if (viewPager != null) {
+            for (int i = 0; i < ChatCategory.values().length; i++) {
+                View pageView = viewPager.getChildAt(i);
+                if (pageView instanceof FrameLayout) {
+                    FrameLayout container = (FrameLayout) pageView;
+                    for (int j = 0; j < container.getChildCount(); j++) {
+                        View child = container.getChildAt(j);
+                        if (child instanceof BlurredRecyclerView) {
+                            BlurredRecyclerView listView = (BlurredRecyclerView) child;
+                            if (listView.getLayoutManager() instanceof LinearLayoutManager) {
+                                LinearLayoutManager layoutManager = (LinearLayoutManager) listView.getLayoutManager();
+                                savedScrollPositions[i] = layoutManager.findFirstVisibleItemPosition();
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Save search state
+        wasInSearchMode = isSearchMode;
+        savedSearchQuery = searchQuery;
+        currentTabPosition = viewPager != null ? viewPager.getCurrentItem() : 0;
+
+        // Mark that we should preserve state on return
+        shouldPreserveState = true;
     }
 
     private boolean chatExistsInCurrentAccount(HistoryItem item) {
@@ -1029,6 +1155,15 @@ public class ChatHistoryActivity extends BaseFragment {
             saveRecentDialogsMethod.setAccessible(true);
             saveRecentDialogsMethod.invoke(null, currentAccount, recentDialogIds);
 
+            // Reset state preservation when deleting chat
+            shouldPreserveState = false;
+            wasInSearchMode = false;
+            savedSearchQuery = "";
+            for (int i = 0; i < savedScrollPositions.length; i++) {
+                savedScrollPositions[i] = 0;
+            }
+            currentTabPosition = 0;
+
             // Refresh the interface
             loadHistoryItems();
             refreshAllPages();
@@ -1039,6 +1174,16 @@ public class ChatHistoryActivity extends BaseFragment {
             e.printStackTrace();
             // Fallback: manually remove from local list and refresh
             allHistoryItems.removeIf(historyItem -> historyItem.dialogId == item.dialogId);
+            
+            // Reset state preservation when deleting chat
+            shouldPreserveState = false;
+            wasInSearchMode = false;
+            savedSearchQuery = "";
+            for (int i = 0; i < savedScrollPositions.length; i++) {
+                savedScrollPositions[i] = 0;
+            }
+            currentTabPosition = 0;
+            
             refreshAllPages();
             BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete,
                 getString(R.string.ChatRemovedFromRecent)).show();
