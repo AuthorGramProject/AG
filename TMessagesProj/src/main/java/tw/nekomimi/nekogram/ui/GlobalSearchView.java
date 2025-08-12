@@ -20,6 +20,7 @@ import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.Theme;
@@ -35,7 +36,7 @@ import tw.nekomimi.nekogram.NekoConfig;
 import xyz.nextalone.nagram.NaConfig;
 
 @SuppressLint("ViewConstructor")
-public class GlobalSearchView extends BlurredFrameLayout {
+public class GlobalSearchView extends BlurredFrameLayout implements NotificationCenter.NotificationCenterDelegate {
 
     private TextView searchTextView;
     private BlurredFrameLayout searchFrame;
@@ -122,6 +123,27 @@ public class GlobalSearchView extends BlurredFrameLayout {
 
     }
 
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.didSetNewTheme);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.didSetNewTheme);
+    }
+
+    @Override
+    public void didReceivedNotification(int id, int account, Object... args) {
+        if (id == NotificationCenter.didSetNewTheme) {
+            updateColors();
+            if (searchFrame != null) searchFrame.invalidate();
+            if (searchTextView != null) searchTextView.invalidate();
+            invalidate();
+        }
+    }
     public BlurredFrameLayout getSearchFrame() {
         return searchFrame;
     }
@@ -142,8 +164,4 @@ public class GlobalSearchView extends BlurredFrameLayout {
         return MessagesController.getMainSettings(UserConfig.selectedAccount)
                 .getBoolean("user_has_folders_for_search", NaConfig.INSTANCE.getIosSearchPanel().Bool());
     }
-
-
-
-
 }
