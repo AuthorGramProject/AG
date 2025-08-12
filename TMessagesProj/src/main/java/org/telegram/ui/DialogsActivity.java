@@ -3475,9 +3475,15 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             filterTabsView.setVisibility(View.GONE);
             canShowFilterTabsView = false;
 
-            // Hide search button when iOS search panel is enabled
+            // Hide search button only if there are folders (tabs) visible NOW; otherwise keep it visible.
             if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                searchItem.setVisibility(View.GONE);
+                boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
+                searchItem.setVisibility(hasFolders ? View.GONE : View.VISIBLE);
+                // If folders list is not yet loaded on first app launch, keep button visible until filters arrive.
+                // When filters arrive, dialogFiltersUpdated will re-evaluate.
+                if (filterTabsView != null && filterTabsView.getGlobalSearchView() != null) {
+                    filterTabsView.setGlobalSearchVisible(hasFolders);
+                }
             }
             filterTabsView.setDelegate(new FilterTabsView.FilterTabsViewDelegate() {
 
@@ -7805,9 +7811,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 downloadsItem.setAlpha(show ? 0 : 1f);
             }
 
-            // Ensure search button stays hidden when iOS search panel is enabled (non-animated case)
+            // Ensure: if no folders (tabs), keep search button visible as fallback
             if (!show && searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                searchItem.setVisibility(View.GONE);
+                boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
+                searchItem.setVisibility(hasFolders ? View.GONE : View.VISIBLE);
             }
         }
         if (initialSearchType >= 0 && searchViewPager != null) {
@@ -10886,6 +10893,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         } else if (id == NotificationCenter.dialogFiltersUpdated) {
             updateFilterTabs(true, true);
+            // Re-evaluate search entry points when folders availability changes
+            if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
+                if (searchItem != null) {
+                    searchItem.setVisibility(hasFolders ? View.GONE : View.VISIBLE);
+                }
+                if (filterTabsView != null && filterTabsView.getGlobalSearchView() != null) {
+                    filterTabsView.setGlobalSearchVisible(hasFolders);
+                }
+            }
         } else if (id == NotificationCenter.filterSettingsUpdated) {
             showFiltersHint();
         } else if (id == NotificationCenter.newSuggestionsAvailable) {

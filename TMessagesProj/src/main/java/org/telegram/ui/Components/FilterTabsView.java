@@ -1235,10 +1235,32 @@ public class FilterTabsView extends FrameLayout {
                 searchClickListener.run();
             }
         });
-        globalSearchView.setVisibility(NaConfig.INSTANCE.getIosSearchPanel().Bool() ? View.VISIBLE : View.GONE);
+        boolean iosPanel = NaConfig.INSTANCE.getIosSearchPanel().Bool();
+        boolean hasFolders = MessagesController.getInstance(UserConfig.selectedAccount).getDialogFilters() != null && MessagesController.getInstance(UserConfig.selectedAccount).getDialogFilters().size() > 1;
+        boolean showSearchBar = iosPanel && hasFolders;
+        globalSearchView.setVisibility(showSearchBar ? View.VISIBLE : View.GONE);
         addView(globalSearchView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 42, Gravity.TOP, 0, 0, 0, 0));
 
-        addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP, 0, NaConfig.INSTANCE.getIosSearchPanel().Bool() ? 42 : 0, 0, 0));
+        // If filters likely not loaded yet at first launch, add top margin preemptively to prevent overlap.
+        int initialTopMargin = iosPanel ? AndroidUtilities.dp(42) : 0;
+        addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP, 0, showSearchBar ? 42 : initialTopMargin, 0, 0));
+    }
+
+    public void setGlobalSearchVisible(boolean visible) {
+        if (globalSearchView != null) {
+            globalSearchView.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
+        ViewGroup.LayoutParams lp = listView.getLayoutParams();
+        if (lp instanceof FrameLayout.LayoutParams) {
+            FrameLayout.LayoutParams flp = (FrameLayout.LayoutParams) lp;
+            int top = visible ? AndroidUtilities.dp(42) : 0;
+            if (flp.topMargin != top) {
+                flp.topMargin = top;
+                listView.setLayoutParams(flp);
+            }
+        }
+        requestLayout();
+        invalidate();
     }
 
     public void setDelegate(FilterTabsViewDelegate filterTabsViewDelegate) {
