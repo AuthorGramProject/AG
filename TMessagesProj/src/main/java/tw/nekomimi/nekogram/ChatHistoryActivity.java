@@ -809,7 +809,7 @@ public class ChatHistoryActivity extends BaseFragment {
             username = getBestLocalUsername(item.chat);
         }
 
-        if (username != null) {
+        if (!TextUtils.isEmpty(username)) {
             MessagesController.getInstance(UserConfig.selectedAccount).openByUserName(username, this, 1);
         } else {
             // Check if this private chat exists in current account
