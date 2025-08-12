@@ -6813,7 +6813,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             filterOptions = null;
         }
         ArrayList<MessagesController.DialogFilter> filters = getMessagesController().getDialogFilters();
-        if (filters.size() > 1) {
+        if (filters.size() > 1 || NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
             if (force || filterTabsView.getVisibility() != View.VISIBLE) {
                 boolean animatedUpdateItems = animated;
                 if (filterTabsView.getVisibility() != View.VISIBLE) {
@@ -6897,7 +6897,15 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 viewPages[1].dialogsAdapter.setDialogsType(0);
                 viewPages[1].dialogsType = initialDialogsType;
                 viewPages[1].dialogsAdapter.notifyDataSetChanged();
-                canShowFilterTabsView = false;
+                if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                    canShowFilterTabsView = true;
+                    if (filterTabsView != null) {
+                        filterTabsView.removeTabs();
+                        filterTabsView.updateSearchPanelVisibility();
+                    }
+                } else {
+                    canShowFilterTabsView = false;
+                }
                 updateFilterTabsVisibility(animated);
                 for (int a = 0; a < viewPages.length; a++) {
                     if (viewPages[a].dialogsType == DIALOGS_TYPE_DEFAULT && viewPages[a].archivePullViewState == ARCHIVE_ITEM_STATE_HIDDEN && hasHiddenArchive()) {
