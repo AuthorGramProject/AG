@@ -62,6 +62,9 @@ jobs:
           # Создаем local.properties из секретов
           echo "${{ secrets.LOCAL_PROPERTIES }}" >> local.properties
           
+          # Отрубаем релизную подпись, чтобы собралось без паролей
+          sed -i 's/signingConfig = signingConfigs.release//g' TMessagesProj/build.gradle || true
+          
           ./gradlew TMessagesProj:assembleStaging
 
           APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk')
