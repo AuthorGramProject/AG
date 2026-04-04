@@ -675,6 +675,18 @@ object NaConfig {
             ConfigItem.configTypeString,
             ""
         )
+    val deletedIconStyle =
+        addConfig(
+            "DeletedIconStyle",
+            ConfigItem.configTypeInt,
+            -1
+        )
+    val deletedIconColor =
+        addConfig(
+            "DeletedIconColor",
+            ConfigItem.configTypeInt,
+            0
+        )
     val hidePremiumSection =
         addConfig(
             "HidePremiumSection",
@@ -914,6 +926,90 @@ object NaConfig {
             "CenterActionBarTitleType",
             ConfigItem.configTypeInt,
             1 // 0: off; 1: always on; 2: settings only; 3: chats only
+        )
+    val drawerItemMyProfile =
+        addConfig(
+            "DrawerItemMyProfile",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val drawerItemSetEmojiStatus =
+        addConfig(
+            "DrawerItemSetEmojiStatus",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val drawerItemNewGroup =
+        addConfig(
+            "DrawerItemNewGroup",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val drawerItemNewChannel =
+        addConfig(
+            "DrawerItemNewChannel",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val drawerItemContacts =
+        addConfig(
+            "DrawerItemContacts",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val drawerItemCalls =
+        addConfig(
+            "DrawerItemCalls",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val drawerItemSaved =
+        addConfig(
+            "DrawerItemSaved",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val drawerItemSettings =
+        addConfig(
+            "DrawerItemSettings",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val drawerItemNSettings =
+        addConfig(
+            "DrawerItemNSettings",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val drawerItemQrLogin =
+        addConfig(
+            "DrawerItemQrLogin",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val drawerItemArchivedChats =
+        addConfig(
+            "DrawerItemArchivedChats",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val drawerItemRestartApp =
+        addConfig(
+            "DrawerItemRestartApp",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val drawerItemBrowser =
+        addConfig(
+            "DrawerItemBrowser",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val drawerItemSessions =
+        addConfig(
+            "DrawerItemSessions",
+            ConfigItem.configTypeBool,
+            false
         )
     val hideArchive =
         addConfig(

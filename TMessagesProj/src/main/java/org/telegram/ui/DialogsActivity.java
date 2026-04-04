@@ -163,6 +163,12 @@ import org.telegram.ui.Cells.ArchiveHintInnerCell;
 import org.telegram.ui.Cells.DialogCell;
 import org.telegram.ui.Cells.DialogsEmptyCell;
 import org.telegram.ui.Cells.DialogsHintCell;
+import org.telegram.ui.Cells.DividerCell;
+import org.telegram.ui.Cells.DrawerActionCell;
+import org.telegram.ui.Cells.DrawerActionCheckCell;
+import org.telegram.ui.Cells.DrawerAddCell;
+import org.telegram.ui.Cells.DrawerProfileCell;
+import org.telegram.ui.Cells.DrawerUserCell;
 import org.telegram.ui.Cells.GraySectionCell;
 import org.telegram.ui.Cells.HashtagSearchCell;
 import org.telegram.ui.Cells.HeaderCell;
@@ -560,6 +566,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private boolean updatePullAfterScroll;
 
     private BackDrawable backDrawable;
+    private MenuDrawable menuDrawable;
+    private RecyclerView sideMenu;
 
     private final Paint actionBarDefaultPaint = new Paint();
 
@@ -1335,6 +1343,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                             !searching &&
                             !rightSlidingDialogContainer.hasFragment() &&
                             !parentLayout.checkTransitionAnimation() && !parentLayout.isInPreviewMode() && !parentLayout.isPreviewOpenAnimationInProgress() &&
+                            !(parentLayout.getDrawerLayoutContainer() != null && parentLayout.getDrawerLayoutContainer().isDrawerOpened()) &&
                             (
                                     ev == null ||
                                             startedTracking ||
@@ -1355,6 +1364,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     startedTracking = true;
                     startedTrackingPointerId = ev.getPointerId(0);
                     startedTrackingX = (int) ev.getX();
+                    if (parentLayout.getDrawerLayoutContainer() != null) {
+                        parentLayout.getDrawerLayoutContainer().setAllowOpenDrawerBySwipe(false);
+                    }
                     if (animatingForward) {
                         if (startedTrackingX < viewPages[0].getMeasuredWidth() + viewPages[0].getTranslationX()) {
                             additionalOffset = viewPages[0].getTranslationX();
@@ -1536,6 +1548,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                                 actionBar.setEnabled(true);
                                 filterTabsView.setEnabled(true);
                                 checkListLoad(viewPages[0]);
+                                updateHomeDrawerAvailability();
                             }
                         });
                         tabsAnimation.start();
@@ -1545,6 +1558,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         maybeStartTracking = false;
                         actionBar.setEnabled(true);
                         filterTabsView.setEnabled(true);
+                        updateHomeDrawerAvailability();
                     }
                     if (velocityTracker != null) {
                         velocityTracker.recycle();
@@ -3049,6 +3063,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
     @Override
     public void onFragmentDestroy() {
+        var drawerLayoutContainer = getHomeDrawerContainer();
+        if (drawerLayoutContainer != null) {
+            drawerLayoutContainer.setAllowOpenDrawer(false);
+        }
         super.onFragmentDestroy();
         if (searchString == null) {
             getNotificationCenter().removeObserver(this, NotificationCenter.dialogsNeedReload);
@@ -3566,6 +3584,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 });
                 updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);
             }
+            if (useHomeDrawer()) {
+                actionBar.setBackButtonDrawable(menuDrawable = new MenuDrawable());
+                menuDrawable.setRotateToBack(false);
+                menuDrawable.setRotation(0f, false);
+            }
             if (folderId == 0) {
                 actionBar.setSupportsHolidayImage(true);
             }
@@ -3585,6 +3608,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 scrollToTop(true, true);
             }
         });
+        updateHomeDrawerAvailability();
 
         if (
             (initialDialogsType == DIALOGS_TYPE_DEFAULT && !onlySelect || initialDialogsType == DIALOGS_TYPE_FORWARD) &&
@@ -3672,6 +3696,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     if (!tab.isDefault && (tab.id < 0 || tab.id >= dialogFilters.size())) {
                         return;
                     }
+                    updateHomeDrawerAvailability();
                     viewPages[1].selectedType = tab.id;
                     viewPages[1].setVisibility(View.VISIBLE);
                     viewPages[1].setTranslationX(viewPages[0].getMeasuredWidth());
@@ -3708,6 +3733,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         checkListLoad(viewPages[0]);
                         viewPages[0].dialogsAdapter.resume();
                         viewPages[1].dialogsAdapter.pause();
+                        updateHomeDrawerAvailability();
                     }
                 }
 
@@ -3968,6 +3994,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                             searchViewPager.hideActionMode();
                         } else {
                             hideActionMode(true);
+                        }
+                    } else if (useHomeDrawer()) {
+                        var drawerLayoutContainer = getHomeDrawerContainer();
+                        if (drawerLayoutContainer != null) {
+                            if (drawerLayoutContainer.isDrawerOpened()) {
+                                drawerLayoutContainer.closeDrawer(true);
+                            } else if (canOpenHomeDrawer()) {
+                                drawerLayoutContainer.openDrawer(true);
+                            }
+                            return;
                         }
                     } else if (onlySelect || folderId != 0) {
                         finishFragment();
@@ -6778,7 +6814,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             return;
         }
         final ActionBarMenu actionMode = actionBar.createActionMode(false, tag);
-        final boolean showActionModeCloseView = hasMainTabs || mainTabsActivityController != null;
+        final boolean showActionModeCloseView = useStandaloneActionModeCloseView();
         // actionMode.setBackgroundColor(Color.TRANSPARENT);
         // actionMode.drawBlur = false;
 
@@ -7042,6 +7078,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
             }
         }
+        updateHomeDrawerAvailability();
     }
 
     @Override
@@ -7091,6 +7128,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onResume() {
         super.onResume();
+        updateHomeDrawerAvailability();
         if (dialogStoriesCell != null) {
             dialogStoriesCell.onResume();
         }
@@ -7390,6 +7428,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
     @Override
     public void onBecomeFullyHidden() {
+        var drawerLayoutContainer = getHomeDrawerContainer();
+        if (drawerLayoutContainer != null) {
+            drawerLayoutContainer.setAllowOpenDrawer(false);
+        }
         if (closeSearchFieldOnHide) {
             if (actionBar != null) {
                 actionBar.closeSearchField();
@@ -7428,6 +7470,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onBecomeFullyVisible() {
         super.onBecomeFullyVisible();
+        updateHomeDrawerAvailability();
         if (isArchive()) {
             SharedPreferences preferences = MessagesController.getGlobalMainSettings();
             boolean showArchiveHint = preferences.getBoolean("archivehint", true);
@@ -11813,6 +11856,13 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 }
             }
+            if (sideMenu != null) {
+                View child = sideMenu.getChildAt(0);
+                if (child instanceof DrawerProfileCell profileCell) {
+                    profileCell.applyBackground(true);
+                    profileCell.updateColors();
+                }
+            }
             if (viewPages != null) {
                 for (int a = 0; a < viewPages.length; a++) {
                     if (viewPages[a].pullForegroundDrawable != null) {
@@ -12152,6 +12202,30 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
         arrayList.add(new ThemeDescription(null, 0, null, null, null, cellDelegate, Theme.key_chats_archivePullDownBackground));
         arrayList.add(new ThemeDescription(null, 0, null, null, null, cellDelegate, Theme.key_chats_archivePullDownBackgroundActive));
+
+        arrayList.add(new ThemeDescription(sideMenu, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_chats_menuBackground));
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerProfileCell.class}, null, null, null, Theme.key_chats_menuName));
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerProfileCell.class}, null, null, null, Theme.key_chats_menuPhone));
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerProfileCell.class}, null, null, null, Theme.key_chats_menuPhoneCats));
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerProfileCell.class}, null, null, null, Theme.key_chat_serviceBackground));
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerProfileCell.class}, null, null, null, Theme.key_chats_menuTopShadow));
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerProfileCell.class}, null, null, null, Theme.key_chats_menuTopShadowCats));
+        arrayList.add(new ThemeDescription(sideMenu, ThemeDescription.FLAG_IMAGECOLOR, new Class[]{DrawerProfileCell.class}, new String[]{"darkThemeView"}, null, null, null, Theme.key_chats_menuName));
+        arrayList.add(new ThemeDescription(sideMenu, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR | ThemeDescription.FLAG_CHECKTAG, new Class[]{DrawerProfileCell.class}, null, null, cellDelegate, Theme.key_chats_menuTopBackgroundCats));
+        arrayList.add(new ThemeDescription(sideMenu, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR | ThemeDescription.FLAG_CHECKTAG, new Class[]{DrawerProfileCell.class}, null, null, cellDelegate, Theme.key_chats_menuTopBackground));
+
+        arrayList.add(new ThemeDescription(sideMenu, ThemeDescription.FLAG_IMAGECOLOR, new Class[]{DrawerActionCell.class}, new String[]{"imageView"}, null, null, null, Theme.key_chats_menuItemIcon));
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerActionCell.class}, new String[]{"textView"}, null, null, null, Theme.key_chats_menuItemText));
+        arrayList.add(new ThemeDescription(sideMenu, ThemeDescription.FLAG_IMAGECOLOR, new Class[]{DrawerActionCheckCell.class}, new String[]{"imageView"}, null, null, null, Theme.key_chats_menuItemIcon));
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerActionCheckCell.class}, new String[]{"textView"}, null, null, null, Theme.key_chats_menuItemText));
+
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerUserCell.class}, new String[]{"textView"}, null, null, null, Theme.key_chats_menuItemText));
+        arrayList.add(new ThemeDescription(sideMenu, ThemeDescription.FLAG_CHECKBOX, new Class[]{DrawerUserCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_chats_unreadCounter));
+        arrayList.add(new ThemeDescription(sideMenu, ThemeDescription.FLAG_CHECKBOXCHECK, new Class[]{DrawerUserCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_chats_unreadCounterText));
+        arrayList.add(new ThemeDescription(sideMenu, ThemeDescription.FLAG_IMAGECOLOR, new Class[]{DrawerAddCell.class}, new String[]{"textView"}, null, null, null, Theme.key_chats_menuItemIcon));
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DrawerAddCell.class}, new String[]{"textView"}, null, null, null, Theme.key_chats_menuItemText));
+
+        arrayList.add(new ThemeDescription(sideMenu, 0, new Class[]{DividerCell.class}, Theme.dividerPaint, null, null, Theme.key_divider));
 
         if (searchViewPager != null) {
             arrayList.add(new ThemeDescription(searchViewPager.dialogsSearchAdapter != null ? searchViewPager.dialogsSearchAdapter.getInnerListView() : null, 0, new Class[]{HintDialogCell.class}, Theme.dialogs_countPaint, null, null, Theme.key_chats_unreadCounter));
@@ -13502,7 +13576,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                             themeInfo = Theme.getTheme(dayThemeName);
                         }
                         switchTheme(themeInfo, toDark);
-                        Theme.turnOffAutoNight(BulletinFactory.of(this), () -> {
+                        BaseFragment bulletinFragment = this;
+                        if (hasMainTabs && getParentLayout() != null && getParentLayout().getLastFragment() != null) {
+                            bulletinFragment = getParentLayout().getLastFragment();
+                        }
+                        Theme.turnOffAutoNight(BulletinFactory.of(bulletinFragment), () -> {
                             presentFragment(new ThemeActivity(ThemeActivity.THEME_TYPE_NIGHT));
                         });
                     });
@@ -13874,16 +13952,101 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         final float factor1 = 1f - animatorSearchVisible.getFloatValue();
         final float factor2 = 1f - getRightSlidingProgress();
         final float factor3 = 1f - animatorDoneButtonVisible.getFloatValue();
-        final float factor = Math.max(progressToActionMode, factor1 * factor2 * factor3);
+        final float baseFactor = factor1 * factor2 * factor3;
+        final float factor = useStandaloneActionModeCloseView()
+                ? baseFactor * (1f - progressToActionMode)
+                : Math.max(progressToActionMode, baseFactor);
         FragmentFloatingButton.setAnimatedVisibility(actionBar.getBackButton(), factor);
+    }
+
+    private boolean useStandaloneActionModeCloseView() {
+        return hasMainTabs || mainTabsActivityController != null;
     }
 
     private void checkUi_itemOptionsVisibility() {
         final float factor1 = 1f - animatorSearchVisible.getFloatValue();
         final float factor2 = 1f - getRightSlidingProgress();
         final float factor3 = 1f - animatorDoneButtonVisible.getFloatValue();
-        final float factor = factor1 * factor2 * factor3;
+        final float factor = useHomeDrawer() ? 0f : factor1 * factor2 * factor3;
         FragmentFloatingButton.setAnimatedVisibility(optionsItem, factor);
+        updateHomeDrawerAvailability();
+    }
+
+    private boolean useHomeDrawer() {
+        return NekoConfig.navigationDrawerEnabled.Bool()
+                && !onlySelect
+                && folderId == 0
+                && initialDialogsType == DIALOGS_TYPE_DEFAULT
+                && TextUtils.isEmpty(searchString);
+    }
+
+    private boolean canOpenHomeDrawer() {
+        if (!useHomeDrawer()) {
+            return false;
+        }
+        if (searching || animatorSearchVisible.getFloatValue() > 0f) {
+            return false;
+        }
+        if (actionBar != null && actionBar.isActionModeShowed()) {
+            return false;
+        }
+        if (rightSlidingDialogContainer != null && rightSlidingDialogContainer.hasFragment()) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isHomeDrawerOnFirstTab() {
+        return filterTabsView == null
+                || filterTabsView.getTabsCount() < 2
+                || filterTabsView.getCurrentTabId() == filterTabsView.getFirstTabId();
+    }
+
+    private boolean canSwipeOpenHomeDrawer() {
+        if (!canOpenHomeDrawer()) {
+            return false;
+        }
+        if (tabsAnimationInProgress || startedTracking || maybeStartTracking) {
+            return false;
+        }
+        if (filterTabsView != null && (filterTabsView.isEditing() || filterTabsView.isAnimatingIndicator())) {
+            return false;
+        }
+        return SharedConfig.getChatSwipeAction(currentAccount) != SwipeGestureSettingsView.SWIPE_GESTURE_FOLDERS
+                || isHomeDrawerOnFirstTab();
+    }
+
+    @Nullable
+    private org.telegram.ui.ActionBar.DrawerLayoutContainer getHomeDrawerContainer() {
+        return getParentLayout() != null ? getParentLayout().getDrawerLayoutContainer() : null;
+    }
+
+    public void setSideMenu(RecyclerView recyclerView) {
+        sideMenu = recyclerView;
+        sideMenu.setBackgroundColor(Theme.getColor(Theme.key_chats_menuBackground));
+        if (sideMenu instanceof org.telegram.ui.Components.RecyclerListView recyclerListView) {
+            recyclerListView.setGlowColor(Theme.getColor(Theme.key_chats_menuBackground));
+        }
+        if (sideMenu.getAdapter() != null) {
+            sideMenu.getAdapter().notifyDataSetChanged();
+        }
+    }
+
+    private void updateHomeDrawerAvailability() {
+        var drawerLayoutContainer = getHomeDrawerContainer();
+        if (drawerLayoutContainer == null) {
+            return;
+        }
+        if (!useHomeDrawer()) {
+            drawerLayoutContainer.setAllowOpenDrawer(false, false);
+            drawerLayoutContainer.setAllowOpenDrawerBySwipe(false);
+            if (drawerLayoutContainer.isDrawerOpened()) {
+                drawerLayoutContainer.closeDrawer(false);
+            }
+            return;
+        }
+        drawerLayoutContainer.setAllowOpenDrawer(canOpenHomeDrawer(), false);
+        drawerLayoutContainer.setAllowOpenDrawerBySwipe(canSwipeOpenHomeDrawer());
     }
 
     private void checkUi_itemPasscodeVisibility() {

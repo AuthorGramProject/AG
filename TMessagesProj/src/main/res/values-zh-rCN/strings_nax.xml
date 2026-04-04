@@ -11,6 +11,11 @@
     <string name="ClearMessageDatabaseNotification">消息数据库已清除</string>
     <string name="AyuGramMenu">AyuGram</string>
     <string name="CustomDeletedMark">自定义已删除消息标记</string>
+    <string name="DeletedMarkText">已删除标识</string>
+    <string name="DeletedMarkNothing">无</string>
+    <string name="DeletedMarkTrashBin">垃圾桶</string>
+    <string name="DeletedMarkCross">叉</string>
+    <string name="DeletedMarkEyeCrossed">划掉的眼睛</string>
     <string name="HidePremiumSection">在设置中隐藏 Telegram Premium</string>
     <string name="HideHelpSection">在设置中隐藏帮助</string>
     <string name="ProviderLLMTranslator">AI 翻译</string>
@@ -49,6 +54,7 @@
     <string name="NowPlayingLastFmApiKeyInfo">本地模式需要填写你自己的 **Last.fm API Key**。</string>
     <string name="NowPlayingNothingPlaying">当前没有播放内容</string>
     <string name="TranslucentDeletedMessages">使已删除的消息半透明</string>
+    <string name="SemiTransparentDeletedMessages">半透明已删除的消息</string>
     <string name="ArticleTranslationProvider">文章翻译源</string>
     <string name="EnableSeparateArticleTranslator">单独设置文章翻译源</string>
     <string name="DisableCrashlyticsCollection">禁用 Firebase Crashlytics 崩溃报告</string>
@@ -208,6 +214,9 @@
     <string name="LeftBottomButtonAction">左侧按钮操作</string>
     <string name="MainTabsCustomize">自定义底边栏</string>
     <string name="MainTabsCustomizeDesc">点按标签可显示或隐藏。长按并拖动可调整顺序。</string>
+    <string name="MainTabsCustomizeDrawerLocked">开启主页侧边栏后，聊天会固定在最左侧。</string>
+    <string name="HomeDrawer">主页侧边栏</string>
+    <string name="DrawerElements">侧边栏菜单</string>
     <string name="MainTabsShowTitles">显示标签名称</string>
     <string name="MainTabsHideBottomBar">隐藏底栏</string>
     <string name="FoldersAtBottom">将文件夹栏移动到底部</string>
@@ -326,6 +335,7 @@
     <string name="SetLocalName">设置备注</string>
     <string name="DeleteChatForBothSides">默认使用“同时为对方删除”</string>
     <string name="BackAnimationStyle">导航动画</string>
+    <string name="AppNavigation">应用导航</string>
     <string name="BackAnimationClassic">经典</string>
     <string name="BackAnimationSpring">Spring</string>
     <string name="BackAnimationPredictive">预测</string>
@@ -417,4 +427,8 @@
     <string name="AyuAttachments">Ayu 附件</string>
     <string name="AyuDatabase">Ayu 数据库</string>
     <string name="TelegramLocalDatabase">Telegram 本地数据库</string>
+    <string name="PeekOnlineMenuText">在线预览</string>
+    <string name="PeekOnlineSuccess">在线状态已刷新</string>
+    <string name="PeekOnlineUnavailable">无法获取精确在线状态。</string>
+    <string name="PeekOnlineRestoreFailed">无法恢复“最后上线”隐私设置。</string>
 </resources>

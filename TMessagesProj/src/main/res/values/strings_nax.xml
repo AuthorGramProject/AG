@@ -12,6 +12,11 @@
     <string name="ClearMessageDatabaseNotification">Message database cleared.</string>
     <string name="AyuGramMenu">AyuGram</string>
     <string name="CustomDeletedMark">Custom Deleted Mark</string>
+    <string name="DeletedMarkText">Deleted Mark</string>
+    <string name="DeletedMarkNothing">Nothing</string>
+    <string name="DeletedMarkTrashBin">Trash Bin</string>
+    <string name="DeletedMarkCross">Cross</string>
+    <string name="DeletedMarkEyeCrossed">Eye Crossed</string>
     <string name="HidePremiumSection">Hide Premium in Settings</string>
     <string name="HideHelpSection">Hide Help in Settings</string>
     <string name="ProviderLLMTranslator">AI Translator</string>
@@ -62,6 +67,7 @@
     <string name="NowPlayingLastFmApiKeyInfo">Local mode needs your own **Last.fm API key**.</string>
     <string name="NowPlayingNothingPlaying">Nothing playing</string>
     <string name="TranslucentDeletedMessages">Translucent Deleted Messages</string>
+    <string name="SemiTransparentDeletedMessages">Semi-transparent Deleted Messages</string>
     <string name="ArticleTranslationProvider">Article Translation Provider</string>
     <string name="EnableSeparateArticleTranslator">Use a Different Provider for Article</string>
     <string name="DisableCrashlyticsCollection">Disable Firebase Crashlytics</string>
@@ -222,6 +228,9 @@
     <string name="LeftBottomButtonAction">Left Button Action</string>
     <string name="MainTabsCustomize">Customize Bottom Tabs</string>
     <string name="MainTabsCustomizeDesc">Tap a tab to show or hide it. Long-press and drag to reorder.</string>
+    <string name="MainTabsCustomizeDrawerLocked">When Home Drawer is enabled, Chats is pinned to the far left.</string>
+    <string name="HomeDrawer">Home Drawer</string>
+    <string name="DrawerElements">Drawer Elements</string>
     <string name="MainTabsShowTitles">Show Tab Titles</string>
     <string name="MainTabsHideBottomBar">Hide Bottom Bar</string>
     <string name="FoldersAtBottom">Move Folders to Bottom</string>
@@ -337,10 +346,15 @@
     <string name="DeviceAccount">Device</string>
     <string name="ApiKeyNotSet">API Key is not configured.</string>
     <string name="SaveLocalLastSeen">Save Last Seen Date</string>
+    <string name="PeekOnlineMenuText">Peek Online</string>
+    <string name="PeekOnlineSuccess">Online status refreshed</string>
+    <string name="PeekOnlineUnavailable">Could not fetch exact online status.</string>
+    <string name="PeekOnlineRestoreFailed">Failed to restore Last Seen privacy.</string>
     <string name="CopyVideoFrame">Copy Frame</string>
     <string name="SetLocalName">Set Local Name</string>
     <string name="DeleteChatForBothSides">Use \"Also delete for\" by Default</string>
     <string name="BackAnimationStyle">Navigation Animation</string>
+    <string name="AppNavigation">App Navigation</string>
     <string name="BackAnimationClassic">Classic</string>
     <string name="BackAnimationSpring">Spring</string>
     <string name="BackAnimationPredictive">Predictive</string>
