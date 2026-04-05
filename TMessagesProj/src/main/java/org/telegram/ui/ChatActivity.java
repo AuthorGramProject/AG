@@ -676,6 +676,8 @@ public class ChatActivity extends BaseFragment implements
     private ChecksHintView checksHintView;
     private View emojiButtonRed;
     private FrameLayout pinnedMessageView;
+    private RecentDialogsSidebarView recentDialogsSidebarView;
+    private View.OnLayoutChangeListener recentDialogsSidebarLayoutListener;
     private BluredView blurredView;
     private PinnedLineView pinnedLineView;
     private boolean setPinnedTextTranslationX;
@@ -3542,6 +3544,10 @@ public class ChatActivity extends BaseFragment implements
         if (avatarContainer != null) {
             avatarContainer.onDestroy();
         }
+        if (contentView != null && recentDialogsSidebarLayoutListener != null) {
+            contentView.removeOnLayoutChangeListener(recentDialogsSidebarLayoutListener);
+            recentDialogsSidebarLayoutListener = null;
+        }
         if (mentionContainer != null && mentionContainer.getAdapter() != null) {
             mentionContainer.getAdapter().onDestroy();
         }
@@ -5033,6 +5039,8 @@ public class ChatActivity extends BaseFragment implements
         }
         removingFromParent = false;
         fragmentView = contentView = new ChatActivityFragmentView(context, parentLayout);
+        recentDialogsSidebarView = null;
+        recentDialogsSidebarLayoutListener = null;
         invalidateBlurredSourcesView = new OnPostDrawView(context, this::invalidateMergedVisibleBlurredPositionsAndSourcesImpl);
         contentView.addView(invalidateBlurredSourcesView);
 
@@ -7229,6 +7237,9 @@ public class ChatActivity extends BaseFragment implements
 
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                if (dy != 0 && recentDialogsSidebarView != null && recentDialogsSidebarView.isOpened()) {
+                    recentDialogsSidebarView.setOpened(false, true);
+                }
                 chatListView.invalidate();
                 if (contentView != null) {
                     contentView.updateBlurContent();
@@ -9447,6 +9458,7 @@ public class ChatActivity extends BaseFragment implements
             windowInsetsStateHolder.setupAnimatedInsetsProvider(((LaunchActivity) context).getRootAnimatedInsetsListener(), fragmentView);
         }
 
+        addRecentDialogsSidebar(true);
         onBottomItemsVisibilityChanged();
         ViewCompat.setOnApplyWindowInsetsListener(fragmentView, this::onApplyWindowInsets);
         Timer.finish(t);
@@ -11975,6 +11987,46 @@ public class ChatActivity extends BaseFragment implements
             }
         };
         contentView.addView(topUndoView, 17, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.LEFT, 8, 8, 8, 0));
+    }
+
+    private void addRecentDialogsSidebar(boolean recreate) {
+        if (contentView == null || getContext() == null || chatMode != 0 || isThreadChat() || currentEncryptedChat != null || isInPreviewMode()) {
+            return;
+        }
+        if (recentDialogsSidebarView != null) {
+            if (!recreate) {
+                return;
+            }
+            AndroidUtilities.removeFromParent(recentDialogsSidebarView);
+        }
+        if (recentDialogsSidebarLayoutListener != null) {
+            contentView.removeOnLayoutChangeListener(recentDialogsSidebarLayoutListener);
+        }
+
+        recentDialogsSidebarView = new RecentDialogsSidebarView(getContext(), currentAccount, dialog_id, getResourceProvider());
+        recentDialogsSidebarView.setDelegate(dialogId -> {
+            if (dialogId == dialog_id) {
+                return;
+            }
+            presentFragment(ChatActivity.of(dialogId), true);
+        });
+        contentView.addView(recentDialogsSidebarView, LayoutHelper.createFrame(RecentDialogsSidebarView.getTotalWidthDp(), LayoutHelper.MATCH_PARENT, Gravity.END | Gravity.TOP));
+
+        recentDialogsSidebarLayoutListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateRecentDialogsSidebarInsets();
+        contentView.addOnLayoutChangeListener(recentDialogsSidebarLayoutListener);
+        updateRecentDialogsSidebarInsets();
+    }
+
+    private void updateRecentDialogsSidebarInsets() {
+        if (recentDialogsSidebarView == null) {
+            return;
+        }
+        int topInset = 0;
+        int bottomInset = 0;
+        if (contentView != null && chatActivityEnterView != null && chatActivityEnterView.getTop() > 0) {
+            bottomInset = Math.max(0, contentView.getMeasuredHeight() - chatActivityEnterView.getTop() - AndroidUtilities.dp(1));
+        }
+        recentDialogsSidebarView.setPanelInsets(topInset, bottomInset);
     }
 
     private void createPinnedMessageView() {
@@ -18091,6 +18143,10 @@ public class ChatActivity extends BaseFragment implements
             }
             if ((scrimView != null && scrimView != actionBar.getBackButton()) || chatActivityEnterView != null && chatActivityEnterView.isStickersExpanded() && ev.getY() < expandY) {
                 return false;
+            }
+
+            if (ev.getAction() == MotionEvent.ACTION_DOWN && recentDialogsSidebarView != null && recentDialogsSidebarView.isOpened() && !recentDialogsSidebarView.containsPoint(ev.getX(), ev.getY())) {
+                recentDialogsSidebarView.setOpened(false, true);
             }
 
             lastTouchY = ev.getY();
