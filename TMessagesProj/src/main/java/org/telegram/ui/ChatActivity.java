@@ -3552,7 +3552,13 @@ public class ChatActivity extends BaseFragment implements
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
         if (forceForwardHandler != null) {
-            forceForwardHandler.dispose();
+            if (forceForwardHandler.isForwarding()) {
+                // Keep the forwarding running in the background so the target chat
+                // can still show the progress bar via ForceForward.isForwardingToDialog()
+                forceForwardHandler.detachFromFragment();
+            } else {
+                forceForwardHandler.dispose();
+            }
             forceForwardHandler = null;
         }
         if (messageMetricsView != null) {
@@ -15412,6 +15418,18 @@ public class ChatActivity extends BaseFragment implements
         updateSecretStatus();
     }
 
+    private boolean hasRegularForwardChunk(ArrayList<MessageObject> messages) {
+        if (messages == null) {
+            return false;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            if (!shouldUseForceForward(messages.get(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void forwardMessages(ArrayList<MessageObject> arrayList, boolean fromMyName, boolean hideCaption, boolean notify, int scheduleDate, long payStars) {
         if (arrayList == null || arrayList.isEmpty()) {
             return;
@@ -15419,7 +15437,25 @@ public class ChatActivity extends BaseFragment implements
         if (!checkSlowModeAlert()) {
             return;
         }
-        forwardMessagesByChunks(arrayList, dialog_id, fromMyName, hideCaption, notify, scheduleDate, payStars, themeDelegate, true);
+        if ((scheduleDate != 0) == (chatMode == MODE_SCHEDULED) && hasRegularForwardChunk(arrayList)) {
+            waitingForSendingMessageLoad = true;
+        }
+        int result = getSendMessagesHelper().sendMessage(arrayList, dialog_id, fromMyName, hideCaption, notify, scheduleDate, 0, getThreadMessage(), -1, payStars, getSendMonoForumPeerId(), getSendMessageSuggestionParams(), (sendError, failureReason) -> {
+            if (sendError != 0) {
+                AlertsCreator.showSendMediaAlert(sendError, ChatActivity.this, themeDelegate);
+            } else if (!TextUtils.isEmpty(failureReason) && BulletinFactory.canShowBulletin(ChatActivity.this)) {
+                BulletinFactory.of(ChatActivity.this).createErrorBulletin(failureReason, themeDelegate).show();
+            }
+            AndroidUtilities.runOnUIThread(() -> {
+                waitingForSendingMessageLoad = false;
+                hideFieldPanel(true);
+            });
+        });
+        AlertsCreator.showSendMediaAlert(result, this, themeDelegate);
+        if (result != 0) {
+            waitingForSendingMessageLoad = false;
+            hideFieldPanel(true);
+        }
     }
 
     // This method is used to forward messages to Saved Messages, or to multi Dialogs
@@ -15428,7 +15464,7 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         final long targetDid = did == 0 ? dialog_id : did;
-        forwardMessagesByChunks(arrayList, targetDid, fromMyName, hideCaption, notify, scheduleDate, payStars, null, false);
+        getSendMessagesHelper().sendMessage(arrayList, targetDid, fromMyName, hideCaption, notify, scheduleDate, 0, getThreadMessage(), -1, payStars, getSendMonoForumPeerId(), getSendMessageSuggestionParams());
     }
 
     public void forwardMessagesExternally(ArrayList<MessageObject> arrayList, long did, boolean fromMyName, boolean hideCaption, boolean notify, int scheduleDate) {
@@ -19712,13 +19748,17 @@ public class ChatActivity extends BaseFragment implements
         boolean hideKeyboard = false;
         bottomOverlayText.setBackground(null);
         bottomOverlayText.setOnClickListener(null);
-        if (forceForwardHandler != null && forceForwardHandler.isForwarding()) {
-            String forceForwardStatus = forceForwardHandler.getForwardingStatus();
+        if (ForceForward.isForwardingToDialog(dialog_id)) {
+            String forceForwardStatus = ForceForward.getStatusForDialog(dialog_id);
             if (!TextUtils.isEmpty(forceForwardStatus)) {
                 bottomOverlayText.setText(forceForwardStatus + " - " + LocaleController.getString(R.string.CancelForwarding));
                 bottomOverlayText.setBackground(Theme.createSelectorWithBackgroundDrawable(0, Theme.getColor(Theme.key_listSelector)));
-                bottomOverlayText.setOnClickListener(v -> forceForwardHandler.stopCurrentRun());
+                bottomOverlayText.setOnClickListener(v -> ForceForward.stopForDialog(dialog_id));
                 bottomOverlay.setVisibility(inPreviewMode ? View.INVISIBLE : View.VISIBLE);
+                if (chatActivityEnterView != null) {
+                    chatActivityEnterView.setVisibility(View.INVISIBLE);
+                    chatActivityEnterView.hidePopup(false);
+                }
                 if (mentionListAnimation != null) {
                     mentionListAnimation.cancel();
                     mentionListAnimation = null;
@@ -19726,6 +19766,9 @@ public class ChatActivity extends BaseFragment implements
                 mentionContainer.setVisibility(View.GONE);
                 mentionContainer.setTag(null);
                 updateMessageListAccessibilityVisibility();
+                if (suggestEmojiPanel != null) {
+                    suggestEmojiPanel.forceClose();
+                }
                 return;
             }
         }
@@ -19786,6 +19829,13 @@ public class ChatActivity extends BaseFragment implements
             createEmptyView(false);
             if (currentEncryptedChat == null || bigEmptyView == null) {
                 bottomOverlay.setVisibility(View.INVISIBLE);
+                if (chatActivityEnterView != null
+                        && !inPreviewMode
+                        && !isInsideContainer
+                        && chatMode != MODE_SAVED
+                        && (bottomChannelButtonsLayout == null || bottomChannelButtonsLayout.getVisibility() != View.VISIBLE)) {
+                    chatActivityEnterView.setVisibility(View.VISIBLE);
+                }
                 if (suggestEmojiPanel != null && chatActivityEnterView != null && chatActivityEnterView.hasText()) {
                     suggestEmojiPanel.fireUpdate();
                 }
@@ -23060,6 +23110,7 @@ public class ChatActivity extends BaseFragment implements
             if (headerItem != null) {
                 headerItem.setSubItemShown(open_direct, ChatObject.isChannel(currentChat) && !ChatObject.isMonoForum(currentChat) && currentChat.linked_monoforum_id != 0 && (NaConfig.INSTANCE.getDisableChannelMuteButton().Bool() || ChatObject.canManageMonoForum(currentAccount, -currentChat.linked_monoforum_id)));
             }
+            updateSecretStatus();
         } else if (id == NotificationCenter.didReceiveNewMessages) {
             FileLog.d("ChatActivity didReceiveNewMessages start");
             long did = (Long) args[0];
