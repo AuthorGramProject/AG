@@ -143,8 +143,12 @@ public abstract class AyuMessageUtils {
         return messageObject.type == MessageObject.TYPE_PAID_MEDIA || message.media instanceof TLRPC.TL_messageMediaPaidMedia;
     }
 
+    public static boolean isFullAyuForwardsNeeded(MessageObject messageObject) {
+        return isPeerNoForwards(messageObject);
+    }
+
     public static boolean isAyuForwardNeeded(MessageObject messageObject) {
-        return canForwardAyuDeletedMessage(messageObject) || isPeerNoForwards(messageObject) || isUnforwardable(messageObject);
+        return canForwardAyuDeletedMessage(messageObject) || isUnforwardable(messageObject);
     }
 
     public static boolean isUnrepliable(MessageObject messageObject) {
@@ -241,13 +245,13 @@ public abstract class AyuMessageUtils {
     }
 
     private static boolean shouldPrependPseudoReply(MessageObject messageObject, long targetDialogId) {
-        if (messageObject == null || messageObject.messageOwner == null || !isUnrepliable(messageObject)) {
+        if (messageObject == null || messageObject.messageOwner == null) {
             return false;
         }
-        if (messageObject.isAyuDeleted()) {
-            return true;
+        if (Math.abs(messageObject.getDialogId()) == Math.abs(targetDialogId)) {
+            return false;
         }
-        return Math.abs(messageObject.getDialogId()) != Math.abs(targetDialogId);
+        return isFullAyuForwardsNeeded(messageObject) || isAyuForwardNeeded(messageObject);
     }
 
     private static void shiftEntities(ArrayList<TLRPC.MessageEntity> entities, int offset) {

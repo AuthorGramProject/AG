@@ -1,24 +1,16 @@
 package com.radolyn.ayugram;
 
-import android.os.Looper;
-import android.os.SystemClock;
 import android.text.TextUtils;
+import android.util.LongSparseArray;
 
-import com.radolyn.ayugram.controllers.AyuAttachments;
 import com.radolyn.ayugram.controllers.AyuMapper;
 import com.radolyn.ayugram.utils.AyuMessageUtils;
 import com.radolyn.ayugram.utils.seq.AyuSequentialUtils;
-import com.radolyn.ayugram.utils.seq.DummyFileDownloadWaiter;
-import com.radolyn.ayugram.utils.seq.DummyFileUploadWaiter;
-import com.radolyn.ayugram.utils.seq.DummyMessageWaiter;
 
-import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.DispatchQueue;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
-import org.telegram.messenger.ImageLoader;
-import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
@@ -32,23 +24,27 @@ import org.telegram.ui.ChatActivity;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class AyuForward implements NotificationCenter.NotificationCenterDelegate {
+public class AyuForward {
 
-    // Static state map: target dialogId -> AyuForward instance
-    // This allows any ChatActivity to check if its dialog is the target of a forwarding operation
+    private static final DispatchQueue forwardQueue = new DispatchQueue("AyuForwardQueue");
     private static final ConcurrentHashMap<Long, AyuForward> activeForwards = new ConcurrentHashMap<>();
 
-    private static class GroupedMediaItem {
-        final MessageObject messageObject;
-        final String caption;
+    private static final int STATUS_IDLE = 0;
+    private static final int STATUS_LOADING = 1;
+    private static final int STATUS_FORWARDING = 2;
+    private static final int STATUS_STOPPING = 3;
+    private static final int STATUS_REFRESH_MASK_BASE = 1 << 30;
 
-        GroupedMediaItem(MessageObject messageObject, String caption) {
-            this.messageObject = messageObject;
-            this.caption = caption;
+    private static final class ForwardGroupState {
+        final Long groupToken;
+        final boolean finalItem;
+
+        ForwardGroupState(Long groupToken, boolean finalItem) {
+            this.groupToken = groupToken;
+            this.finalItem = finalItem;
         }
     }
 
@@ -56,76 +52,36 @@ public class AyuForward implements NotificationCenter.NotificationCenterDelegate
         void onComplete(boolean shouldContinue);
     }
 
-    private static final long MAX_MEDIA_WAIT_MS = 300_000L;
-    private static final long MAX_MEDIA_STALL_TIMEOUT_MS = 30_000L;
-    private static final long STALL_CHECK_INTERVAL_MS = 5_000L;
-    private static final long SEND_STEP_DELAY_MS = 16L;
-    private static final long SEND_PHASE_FINISH_DELAY_MS = 180L;
-    private static final long SEND_WAIT_POLL_INTERVAL_MS = 25L;
-    private static final long MAX_SEND_WAIT_MS = 600_000L;
-    private static final int STATUS_REFRESH_MASK_BASE = 1 << 30;
-    private static final int MAX_GROUP_BATCH_SIZE = 10;
-    private static final int STATUS_IDLE = 0;
-    private static final int STATUS_LOADING = 1;
-    private static final int STATUS_FORWARDING = 2;
-    private static final int STATUS_STOPPING = 3;
-
     private final ChatActivity parentFragment;
     private final int currentAccount;
     private final MessageObject replyToTopMessage;
-    private final int chatMode;
     private final String quickReplyShortcut;
     private final int quickReplyShortcutId;
     private final long monoForumPeerId;
     private final MessageSuggestionParams suggestionParams;
-    private final DummyFileDownloadWaiter fileDownloadWaiter;
-    private final DummyFileUploadWaiter fileUploadWaiter;
-    private final DummyMessageWaiter messageWaiter;
-    private final AyuAttachments attachments;
     private final AyuMapper mapper;
-    private long targetDialogId; // The target dialog where messages are being forwarded to
-    private long activeTaskId;
-    private int currentStatus = STATUS_IDLE;
-    private int totalMessages;
-    private int sentMessages;
-    private int skippedMessages;
-    private int totalMediaToPrepare;
-    private int pendingMedia;
-    private String currentStatusDetail;
-    private String lastFailureReason;
-    private boolean stopRequested;
-    private long mediaWaitStartTime;
-    private long mediaLastProgressTime;
-    private long mediaLastObservedBytes;
-    private int mediaLastMissingCount;
-    private boolean disposed;
-    private boolean detached; // True after source fragment is destroyed while forwarding
-    private boolean notificationSubscribed;
-    // Pending run state for event-driven media wait
-    private ArrayList<MessageObject> pendingMessages;
-    private long pendingTargetDialogId;
-    private boolean pendingShowUndo;
-    private boolean pendingHideCaption;
-    private boolean pendingNotify;
-    private int pendingScheduleDate;
-    private long pendingPayStars;
-    private long pendingTaskId;
-    private CompletionCallback pendingOnComplete;
-    private Runnable stallCheckRunnable;
-    private int currentChunkIndex;
-    private int totalChunks = 1;
+
+    private volatile long activeTaskId;
+    private volatile long targetDialogId;
+    private volatile int currentStatus = STATUS_IDLE;
+    private volatile int totalMessages;
+    private volatile int sentMessages;
+    private volatile int skippedMessages;
+    private volatile int currentChunkIndex;
+    private volatile int totalChunks = 1;
+    private volatile String currentStatusDetail;
+    private volatile String lastFailureReason;
+    private volatile boolean stopRequested;
+    private volatile boolean disposed;
+    private volatile boolean detached;
+
     private int statusUpdateVersion;
-    private Runnable sendWaitRunnable;
-    private ArrayList<AyuSequentialUtils.SendStep> activeSendSteps;
-    private int activeSendStepIndex;
-    private CompletionCallback activeSendOnComplete;
-    
+
     public AyuForward(ChatActivity fragment, int account) {
         this(
                 fragment,
                 account,
                 fragment != null ? fragment.getThreadMessage() : null,
-                fragment != null ? fragment.getChatMode() : 0,
                 fragment != null ? fragment.quickReplyShortcut : null,
                 fragment != null ? fragment.getQuickReplyId() : 0,
                 fragment != null ? fragment.getSendMonoForumPeerId() : 0,
@@ -134,22 +90,17 @@ public class AyuForward implements NotificationCenter.NotificationCenterDelegate
     }
 
     public AyuForward(int account, MessageObject replyToTopMessage, int chatMode, String quickReplyShortcut, int quickReplyShortcutId, long monoForumPeerId, MessageSuggestionParams suggestionParams) {
-        this(null, account, replyToTopMessage, chatMode, quickReplyShortcut, quickReplyShortcutId, monoForumPeerId, suggestionParams);
+        this(null, account, replyToTopMessage, quickReplyShortcut, quickReplyShortcutId, monoForumPeerId, suggestionParams);
     }
 
-    protected AyuForward(ChatActivity fragment, int account, MessageObject replyToTopMessage, int chatMode, String quickReplyShortcut, int quickReplyShortcutId, long monoForumPeerId, MessageSuggestionParams suggestionParams) {
+    private AyuForward(ChatActivity fragment, int account, MessageObject replyToTopMessage, String quickReplyShortcut, int quickReplyShortcutId, long monoForumPeerId, MessageSuggestionParams suggestionParams) {
         this.parentFragment = fragment;
         this.currentAccount = account;
         this.replyToTopMessage = replyToTopMessage;
-        this.chatMode = chatMode;
         this.quickReplyShortcut = quickReplyShortcut;
         this.quickReplyShortcutId = quickReplyShortcutId;
         this.monoForumPeerId = monoForumPeerId;
         this.suggestionParams = suggestionParams;
-        this.fileDownloadWaiter = new DummyFileDownloadWaiter(account);
-        this.fileUploadWaiter = new DummyFileUploadWaiter(account);
-        this.messageWaiter = new DummyMessageWaiter(account);
-        this.attachments = new AyuAttachments(account, fileDownloadWaiter);
         this.mapper = new AyuMapper(account);
     }
 
@@ -169,253 +120,72 @@ public class AyuForward implements NotificationCenter.NotificationCenterDelegate
         return AyuMessageUtils.isUnforwardable(messageObject);
     }
 
+    public static boolean isFullAyuForwardsNeeded(MessageObject messageObject) {
+        return AyuMessageUtils.isFullAyuForwardsNeeded(messageObject);
+    }
+
+    public static boolean isFullAyuForwardsNeeded(ArrayList<MessageObject> messages) {
+        if (messages == null) {
+            return false;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            if (isFullAyuForwardsNeeded(messages.get(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean isAyuForwardNeeded(MessageObject messageObject) {
         return AyuMessageUtils.isAyuForwardNeeded(messageObject);
     }
 
-    /** Check if a dialog is currently the target of a force-forward operation */
+    public static boolean isAyuForwardNeeded(ArrayList<MessageObject> messages) {
+        if (messages == null) {
+            return false;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            if (isAyuForwardNeeded(messages.get(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean isForwardingToDialog(long dialogId) {
-        AyuForward ff = activeForwards.get(dialogId);
-        if (ff == null) return false;
-        return ff.isForwarding();
+        AyuForward forward = activeForwards.get(dialogId);
+        return forward != null && forward.isForwarding();
     }
 
-    /** Get the forwarding status string for a target dialog, or null if not forwarding */
     public static String getStatusForDialog(long dialogId) {
-        AyuForward ff = activeForwards.get(dialogId);
-        if (ff == null) return null;
-        return ff.getForwardingStatus();
+        AyuForward forward = activeForwards.get(dialogId);
+        return forward != null ? forward.getForwardingStatus() : null;
     }
 
-    /** Stop the force-forward operation targeting a dialog */
     public static boolean stopForDialog(long dialogId) {
-        AyuForward ff = activeForwards.get(dialogId);
-        if (ff == null) return false;
-        return ff.stopCurrentRun();
+        AyuForward forward = activeForwards.get(dialogId);
+        return forward != null && forward.stopCurrentRun();
     }
 
-    /** Consume the last failure reason for a target dialog */
     public static String consumeFailureReasonForDialog(long dialogId) {
-        AyuForward ff = activeForwards.get(dialogId);
-        if (ff == null) return null;
-        return ff.consumeLastFailureReason();
-    }
-
-    private String prependPseudoReply(MessageObject mo, String text, ArrayList<TLRPC.MessageEntity> entities) {
-        return AyuMessageUtils.prependPseudoReply(text, null, false, mo, entities, currentAccount, targetDialogId).text;
-    }
-
-    private String prependPseudoReplyCaption(MessageObject mo, String caption, ArrayList<TLRPC.MessageEntity> entities) {
-        return AyuMessageUtils.prependPseudoReply(null, caption, mo != null && mo.isPhoto(), mo, entities, currentAccount, targetDialogId).caption;
-    }
-
-    private void clearRunState() {
-        clearActiveSendQueue();
-        unsubscribeFromNotifications();
-        if (targetDialogId != 0) {
-            activeForwards.remove(targetDialogId);
-        }
-        activeTaskId = 0L;
-        currentStatus = STATUS_IDLE;
-        totalMessages = 0;
-        sentMessages = 0;
-        skippedMessages = 0;
-        totalMediaToPrepare = 0;
-        pendingMedia = 0;
-        currentStatusDetail = null;
-        stopRequested = false;
-        mediaWaitStartTime = 0L;
-        mediaLastProgressTime = 0L;
-        mediaLastObservedBytes = 0L;
-        mediaLastMissingCount = 0;
-        fileDownloadWaiter.clear();
-        currentChunkIndex = 0;
-        totalChunks = 1;
-        statusUpdateVersion = 0;
-    }
-
-    private void clearPendingRunState() {
-        pendingMessages = null;
-        pendingTargetDialogId = 0;
-        pendingShowUndo = false;
-        pendingHideCaption = false;
-        pendingNotify = false;
-        pendingScheduleDate = 0;
-        pendingPayStars = 0;
-        pendingTaskId = 0;
-        pendingOnComplete = null;
-    }
-
-    private void subscribeToNotifications() {
-        if (notificationSubscribed) return;
-        notificationSubscribed = true;
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.fileLoaded);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.fileLoadFailed);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.httpFileDidLoad);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.httpFileDidFailedLoad);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.messageReceivedByAck);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.messageReceivedByServer);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.messageSendError);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.fileUploaded);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.fileUploadFailed);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.filePreparingFailed);
-    }
-
-    private void unsubscribeFromNotifications() {
-        if (!notificationSubscribed) return;
-        notificationSubscribed = false;
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.fileLoaded);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.fileLoadFailed);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.httpFileDidLoad);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.httpFileDidFailedLoad);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.messageReceivedByAck);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.messageReceivedByServer);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.messageSendError);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.fileUploaded);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.fileUploadFailed);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.filePreparingFailed);
-    }
-
-    private void scheduleStallCheck() {
-        cancelStallCheck();
-        stallCheckRunnable = () -> {
-            if (disposed || !isTaskActive(pendingTaskId)) return;
-            AyuAttachments.MediaPreparationResult mediaState = attachments.prepareMedia(pendingMessages);
-            if (shouldAbortMediaWait(mediaState, pendingTaskId, pendingOnComplete)) {
-                unsubscribeFromNotifications();
-                clearPendingRunState();
-                return;
-            }
-            // Schedule next stall check
-            scheduleStallCheck();
-        };
-        AndroidUtilities.runOnUIThread(stallCheckRunnable, STALL_CHECK_INTERVAL_MS);
-    }
-
-    private void cancelStallCheck() {
-        if (stallCheckRunnable != null) {
-            AndroidUtilities.cancelRunOnUIThread(stallCheckRunnable);
-            stallCheckRunnable = null;
-        }
-    }
-
-    private void didReceivedNotificationLegacy(int id, int account, Object... args) {
-        if (disposed) {
-            return;
-        }
-        if (id == NotificationCenter.fileLoaded || id == NotificationCenter.httpFileDidLoad) {
-            if (isTaskActive(pendingTaskId) && pendingMessages != null) {
-                // A file finished downloading, so re-check media readiness.
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (disposed || !isTaskActive(pendingTaskId) || pendingMessages == null) return;
-                    resumeMediaWait();
-                });
-            }
-        } else if (id == NotificationCenter.fileLoadFailed || id == NotificationCenter.httpFileDidFailedLoad) {
-            if (isTaskActive(pendingTaskId) && pendingMessages != null) {
-                // A file failed to download, so re-check media readiness.
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (disposed || !isTaskActive(pendingTaskId) || pendingMessages == null) return;
-                    resumeMediaWait();
-                });
-            }
-        }
-    }
-
-    @Override
-    public void didReceivedNotification(int id, int account, Object... args) {
-        if (disposed) {
-            return;
-        }
-        if (id == NotificationCenter.fileLoaded || id == NotificationCenter.httpFileDidLoad) {
-            if (isTaskActive(pendingTaskId) && pendingMessages != null) {
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (disposed || !isTaskActive(pendingTaskId) || pendingMessages == null) return;
-                    resumeMediaWait();
-                });
-            }
-        } else if (id == NotificationCenter.fileLoadFailed || id == NotificationCenter.httpFileDidFailedLoad) {
-            if (isTaskActive(pendingTaskId) && pendingMessages != null) {
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (disposed || !isTaskActive(pendingTaskId) || pendingMessages == null) return;
-                    resumeMediaWait();
-                });
-            }
-        } else if (id == NotificationCenter.messageReceivedByAck) {
-            handleSendAcknowledged(args);
-        } else if (id == NotificationCenter.messageReceivedByServer) {
-            handleSendConfirmedByServer(args);
-        } else if (id == NotificationCenter.messageSendError) {
-            handleSendError(args);
-        } else if (id == NotificationCenter.fileUploaded) {
-            handleUploadStateChanged(args, false);
-        } else if (id == NotificationCenter.fileUploadFailed || id == NotificationCenter.filePreparingFailed) {
-            handleUploadStateChanged(args, true);
-        }
-    }
-
-    private void resumeMediaWait() {
-        if (disposed || pendingMessages == null || !isTaskActive(pendingTaskId)) return;
-
-        AyuAttachments.MediaPreparationResult mediaState = attachments.prepareMedia(pendingMessages);
-        if (mediaState.hasUndownloadedAyuDeletedMedia) {
-            unsubscribeFromNotifications();
-            cancelStallCheck();
-            failRun(pendingTaskId, LocaleController.getString(R.string.PleaseDownload), pendingOnComplete);
-            clearPendingRunState();
-            return;
-        }
-
-        int missingMediaCount = mediaState.missingMediaCount;
-        updateLoadingState(missingMediaCount);
-
-        if (missingMediaCount > 0) {
-            if (shouldAbortMediaWait(mediaState, pendingTaskId, pendingOnComplete)) {
-                unsubscribeFromNotifications();
-                cancelStallCheck();
-                clearPendingRunState();
-                return;
-            }
-            // Still missing; keep waiting for the next notification or stall check.
-            return;
-        }
-
-        // All media is ready; proceed to send.
-        unsubscribeFromNotifications();
-        cancelStallCheck();
-        ArrayList<MessageObject> messages = pendingMessages;
-        long targetDialogId = pendingTargetDialogId;
-        boolean hideCaption = pendingHideCaption;
-        boolean notify = pendingNotify;
-        int scheduleDate = pendingScheduleDate;
-        long payStars = pendingPayStars;
-        long taskId = pendingTaskId;
-        CompletionCallback onComplete = pendingOnComplete;
-        clearPendingRunState();
-        executeSendPhase(messages, targetDialogId, hideCaption, notify, scheduleDate, payStars, taskId, onComplete);
+        AyuForward forward = activeForwards.get(dialogId);
+        return forward != null ? forward.consumeLastFailureReason() : null;
     }
 
     public void dispose() {
-        if (disposed) {
-            return;
-        }
         disposed = true;
         detached = true;
-        unsubscribeFromNotifications();
-        cancelStallCheck();
-        cancelPendingDownloads();
-        clearRunState();
-        clearPendingRunState();
+        stopRequested = true;
+        synchronized (this) {
+            if (activeTaskId == 0L) {
+                clearRunStateLocked();
+            }
+        }
         lastFailureReason = null;
+        notifyStatusChanged();
     }
 
-    /**
-     * Detach from the source ChatActivity so the forwarding operation continues
-     * independently after the fragment is destroyed.
-     * The progress bar in the target chat remains functional via activeForwards.
-     */
     public void detachFromFragment() {
-        if (detached) return;
         detached = true;
     }
 
@@ -423,7 +193,7 @@ public class AyuForward implements NotificationCenter.NotificationCenterDelegate
         return activeTaskId != 0L;
     }
 
-    public String consumeLastFailureReason() {
+    public synchronized String consumeLastFailureReason() {
         String reason = lastFailureReason;
         lastFailureReason = null;
         return reason;
@@ -437,23 +207,6 @@ public class AyuForward implements NotificationCenter.NotificationCenterDelegate
         currentStatus = STATUS_STOPPING;
         currentStatusDetail = LocaleController.getString(R.string.ForceForwardStatusStoppingCurrentBatch);
         lastFailureReason = null;
-        unsubscribeFromNotifications();
-        cancelStallCheck();
-        cancelPendingDownloads();
-        if (pendingMessages != null) {
-            long taskId = pendingTaskId != 0 ? pendingTaskId : activeTaskId;
-            CompletionCallback onComplete = pendingOnComplete;
-            clearPendingRunState();
-            finishRun(taskId, false, onComplete);
-            return true;
-        }
-        if (activeSendSteps != null || isSendWaitActive()) {
-            long taskId = messageWaiter.isActive() ? messageWaiter.getTaskId() : activeTaskId;
-            CompletionCallback onComplete = activeSendOnComplete;
-            clearActiveSendQueue();
-            finishRun(taskId, false, onComplete);
-            return true;
-        }
         notifyStatusChanged();
         return true;
     }
@@ -463,93 +216,559 @@ public class AyuForward implements NotificationCenter.NotificationCenterDelegate
             return null;
         }
         if (currentStatus == STATUS_LOADING) {
-            String label = TextUtils.isEmpty(currentStatusDetail) ? LocaleController.getString(R.string.ForceForwardStatusPreparingMedia) : currentStatusDetail;
-            String progress;
-            if (totalMediaToPrepare > 0) {
-                progress = LocaleController.formatString(R.string.ForceForwardStatusSentCount, Math.max(totalMediaToPrepare - pendingMedia, 0), totalMediaToPrepare);
-            } else {
-                progress = LocaleController.formatString(R.string.ForceForwardStatusSentCount, sentMessages, totalMessages);
-            }
-            if (totalChunks > 1) {
-                progress = progress + " | " + LocaleController.formatString(R.string.ForceForwardStatusChunkCount, currentChunkIndex + 1, totalChunks);
-            }
-            return label + " " + progress;
+            return TextUtils.isEmpty(currentStatusDetail)
+                    ? LocaleController.getString(R.string.ForceForwardStatusPreparingMedia)
+                    : currentStatusDetail;
         }
+
         String progress = LocaleController.formatString(R.string.ForceForwardStatusSentCount, sentMessages, totalMessages);
         if (totalChunks > 1) {
             progress = progress + " | " + LocaleController.formatString(R.string.ForceForwardStatusChunkCount, currentChunkIndex + 1, totalChunks);
         }
+
         if (currentStatus == STATUS_FORWARDING) {
-            String label = TextUtils.isEmpty(currentStatusDetail) ? LocaleController.getString(R.string.ForceForwardStatusForwarding) : currentStatusDetail;
+            String label = TextUtils.isEmpty(currentStatusDetail)
+                    ? LocaleController.getString(R.string.ForceForwardStatusForwarding)
+                    : currentStatusDetail;
             return label + " " + progress;
         }
+
         if (currentStatus == STATUS_STOPPING) {
-            String label = TextUtils.isEmpty(currentStatusDetail) ? LocaleController.getString(R.string.ForceForwardStatusStopping) : currentStatusDetail;
-            return totalChunks > 1 ? label + " | " + LocaleController.formatString(R.string.ForceForwardStatusChunkCount, currentChunkIndex + 1, totalChunks) : label;
+            String label = TextUtils.isEmpty(currentStatusDetail)
+                    ? LocaleController.getString(R.string.ForceForwardStatusStopping)
+                    : currentStatusDetail;
+            return totalChunks > 1
+                    ? label + " | " + LocaleController.formatString(R.string.ForceForwardStatusChunkCount, currentChunkIndex + 1, totalChunks)
+                    : label;
         }
+
         return null;
     }
 
-    private void notifyStatusChanged() {
-        if (disposed) {
+    public void forwardMessages(ArrayList<MessageObject> messagesToSend, long targetDialogId, boolean showUndo, boolean hideCaption, boolean notify, int scheduleDate, long payStars, CompletionCallback onComplete) {
+        forwardMessages(messagesToSend, targetDialogId, showUndo, hideCaption, notify, scheduleDate, payStars, 0, 1, onComplete);
+    }
+
+    public void forwardMessages(ArrayList<MessageObject> messagesToSend, long targetDialogId, boolean showUndo, boolean hideCaption, boolean notify, int scheduleDate, long payStars, int chunkIndex, int chunkCount, CompletionCallback onComplete) {
+        if (disposed || messagesToSend == null || messagesToSend.isEmpty() || (!detached && parentFragment != null && parentFragment.getParentActivity() == null)) {
+            setFailureReason(null);
+            runCompletion(onComplete, false);
             return;
         }
-        int updateMask = STATUS_REFRESH_MASK_BASE | ((statusUpdateVersion++ & 0x1FF) << 21);
-        Runnable action = () -> NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, updateMask);
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            action.run();
-        } else {
-            AndroidUtilities.runOnUIThread(action);
+
+        ArrayList<MessageObject> request = new ArrayList<>(messagesToSend);
+        long taskId = startRun(request.size(), targetDialogId, chunkIndex, chunkCount);
+        forwardQueue.postRunnable(() -> executeForward(request, targetDialogId, hideCaption, notify, scheduleDate, payStars, taskId, onComplete));
+    }
+
+    private void executeForward(ArrayList<MessageObject> messages, long targetDialogId, boolean hideCaption, boolean notify, int scheduleDate, long payStars, long taskId, CompletionCallback onComplete) {
+        try {
+            if (!ensureTaskCanProceed(taskId, onComplete)) {
+                return;
+            }
+
+            if (hasUndownloadedAyuDeletedMedia(messages)) {
+                failRun(taskId, LocaleController.getString(R.string.PleaseDownload), onComplete);
+                return;
+            }
+
+            ArrayList<MessageObject> pendingDownloads = collectPendingDownloads(messages);
+            if (!pendingDownloads.isEmpty()) {
+                updateLoadingState(LocaleController.getString(R.string.ForceForwardStatusWaitingDownloads));
+                if (!AyuSequentialUtils.loadDocumentsSync(currentAccount, pendingDownloads)) {
+                    failRun(taskId, LocaleController.getString(R.string.ForceForwardMediaStalled), onComplete);
+                    return;
+                }
+                if (!ensureTaskCanProceed(taskId, onComplete)) {
+                    return;
+                }
+            }
+
+            updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusStarting));
+
+            LongSparseArray<Integer> groupRemaining = new LongSparseArray<>();
+            LongSparseArray<Long> groupTokens = new LongSparseArray<>();
+            prepareGroupState(messages, groupRemaining, groupTokens);
+
+            for (int i = 0; i < messages.size(); i++) {
+                if (!ensureTaskCanProceed(taskId, onComplete)) {
+                    return;
+                }
+                MessageObject messageObject = messages.get(i);
+                if (messageObject == null || messageObject.messageOwner == null) {
+                    onMessageSkipped();
+                    continue;
+                }
+
+                ForwardGroupState groupState = consumeGroupState(messageObject, groupRemaining, groupTokens);
+                if (!forwardSingleMessage(messageObject, targetDialogId, hideCaption, notify, scheduleDate, payStars, groupState)) {
+                    onMessageSkipped();
+                    continue;
+                }
+                onMessageSent();
+            }
+
+            finishRun(taskId, true, onComplete);
+        } catch (Exception e) {
+            FileLog.e(e);
+            failRun(taskId, LocaleController.getString(R.string.ForceForwardFailed), onComplete);
         }
     }
 
-    private long startRun(int messageCount, int mediaCount, long targetDid, int chunkIndex, int chunkCount) {
+    private boolean forwardSingleMessage(MessageObject messageObject, long targetDialogId, boolean hideCaption, boolean notify, int scheduleDate, long payStars, ForwardGroupState groupState) {
+        String caption = null;
+        CharSequence captionSequence = hideCaption ? null : getForwardCaption(messageObject);
+        if (captionSequence != null) {
+            caption = captionSequence.toString();
+        }
+        String textFallback = getTextFallback(messageObject, caption);
+
+        if (messageObject.type == MessageObject.TYPE_TEXT || messageObject.isAnimatedEmoji()) {
+            updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusTextCopy));
+            return sendTextSync(messageObject, textFallback, targetDialogId, notify, scheduleDate, payStars);
+        }
+
+        if (messageObject.isSticker() || messageObject.isAnimatedSticker()) {
+            updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusStickerCopy));
+            return sendStickerSync(messageObject, targetDialogId, notify, scheduleDate, payStars);
+        }
+
+        boolean waitForMessage = groupState.groupToken == null || groupState.finalItem;
+        boolean waitForUpload = groupState.groupToken == null;
+        HashMap<String, String> groupParams = groupState.groupToken != null ? mapper.createGroupedParams(groupState.groupToken, groupState.finalItem) : null;
+
+        if (messageObject.isPhoto()) {
+            if (!hasLocalCopy(messageObject)) {
+                return fallbackToText(messageObject, textFallback, targetDialogId, notify, scheduleDate, payStars);
+            }
+            updateForwardingState(groupState.groupToken != null
+                    ? LocaleController.getString(R.string.ForceForwardStatusMediaGroup)
+                    : LocaleController.getString(R.string.ForceForwardStatusPhotoCopy));
+            SendMessagesHelper.SendMessageParams params = buildMappedPhotoParams(messageObject, caption, targetDialogId, notify, scheduleDate, groupParams);
+            if (params == null) {
+                return fallbackToText(messageObject, textFallback, targetDialogId, notify, scheduleDate, payStars);
+            }
+            return dispatchParamsSync(params, resolvePhotoUploadTrackingPath(params.photo), targetDialogId, payStars, waitForMessage, waitForUpload);
+        }
+
+        if (messageObject.getDocument() != null) {
+            if (!hasLocalCopy(messageObject) && !TextUtils.isEmpty(textFallback)) {
+                return fallbackToText(messageObject, textFallback, targetDialogId, notify, scheduleDate, payStars);
+            }
+            if (!hasLocalCopy(messageObject)) {
+                return false;
+            }
+
+            updateForwardingState(groupState.groupToken != null
+                    ? (messageObject.isVideo() || messageObject.isGif()
+                    ? LocaleController.getString(R.string.ForceForwardStatusMediaGroup)
+                    : LocaleController.getString(R.string.ForceForwardStatusDocumentGroup))
+                    : (messageObject.isVideo() || messageObject.isGif()
+                    ? LocaleController.getString(R.string.ForceForwardStatusMediaCopy)
+                    : LocaleController.getString(R.string.ForceForwardStatusDocumentCopy)));
+
+            SendMessagesHelper.SendMessageParams params = buildMappedDocumentParams(messageObject, caption, targetDialogId, notify, scheduleDate, groupParams);
+            if (params == null) {
+                params = buildDocumentFallbackParams(messageObject, caption, targetDialogId, notify, scheduleDate, groupParams);
+                if (params == null) {
+                    return fallbackToText(messageObject, textFallback, targetDialogId, notify, scheduleDate, payStars);
+                }
+                if (groupState.groupToken == null) {
+                    updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusDocumentFallback));
+                }
+            }
+            return dispatchParamsSync(params, params.path, targetDialogId, payStars, waitForMessage, waitForUpload);
+        }
+
+        return fallbackToText(messageObject, textFallback, targetDialogId, notify, scheduleDate, payStars);
+    }
+
+    private boolean fallbackToText(MessageObject messageObject, String text, long targetDialogId, boolean notify, int scheduleDate, long payStars) {
+        if (TextUtils.isEmpty(text)) {
+            return false;
+        }
+        updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusTextFallback));
+        return sendTextSync(messageObject, text, targetDialogId, notify, scheduleDate, payStars);
+    }
+
+    private void prepareGroupState(ArrayList<MessageObject> messages, LongSparseArray<Integer> groupRemaining, LongSparseArray<Long> groupTokens) {
+        for (int i = 0; i < messages.size(); i++) {
+            MessageObject messageObject = messages.get(i);
+            if (messageObject == null) {
+                continue;
+            }
+            long groupId = messageObject.getGroupId();
+            if (groupId == 0L) {
+                continue;
+            }
+            Integer remaining = groupRemaining.get(groupId);
+            groupRemaining.put(groupId, remaining == null ? 1 : remaining + 1);
+            if (groupTokens.get(groupId) == null) {
+                long generatedGroupId;
+                do {
+                    generatedGroupId = Utilities.random.nextLong();
+                } while (generatedGroupId == 0L);
+                groupTokens.put(groupId, generatedGroupId);
+            }
+        }
+    }
+
+    private ForwardGroupState consumeGroupState(MessageObject messageObject, LongSparseArray<Integer> groupRemaining, LongSparseArray<Long> groupTokens) {
+        if (messageObject == null) {
+            return new ForwardGroupState(null, false);
+        }
+        long groupId = messageObject.getGroupId();
+        if (groupId == 0L) {
+            return new ForwardGroupState(null, false);
+        }
+        Integer remaining = groupRemaining.get(groupId);
+        Long groupToken = groupTokens.get(groupId);
+        if (remaining == null || groupToken == null) {
+            return new ForwardGroupState(null, false);
+        }
+        remaining = remaining - 1;
+        if (remaining <= 0) {
+            groupRemaining.remove(groupId);
+            return new ForwardGroupState(groupToken, true);
+        }
+        groupRemaining.put(groupId, remaining);
+        return new ForwardGroupState(groupToken, false);
+    }
+
+    private ArrayList<MessageObject> collectPendingDownloads(ArrayList<MessageObject> messages) {
+        ArrayList<MessageObject> result = new ArrayList<>();
+        for (int i = 0; i < messages.size(); i++) {
+            MessageObject messageObject = messages.get(i);
+            if (needsLocalCopy(messageObject) && !hasLocalCopy(messageObject) && !messageObject.isAyuDeleted()) {
+                result.add(messageObject);
+            }
+        }
+        return result;
+    }
+
+    private boolean hasUndownloadedAyuDeletedMedia(ArrayList<MessageObject> messages) {
+        for (int i = 0; i < messages.size(); i++) {
+            MessageObject messageObject = messages.get(i);
+            if (messageObject != null && messageObject.isAyuDeleted() && needsLocalCopy(messageObject) && !hasLocalCopy(messageObject)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean needsLocalCopy(MessageObject messageObject) {
+        if (messageObject == null || messageObject.messageOwner == null) {
+            return false;
+        }
+        if (messageObject.type == MessageObject.TYPE_TEXT || messageObject.isAnimatedEmoji()) {
+            return false;
+        }
+        if (messageObject.isPhoto() || messageObject.isVideo() || messageObject.isGif()) {
+            return true;
+        }
+        if (messageObject.isAyuDeleted()) {
+            return messageObject.getDocument() != null;
+        }
+        return messageObject.getDocument() != null && !messageObject.isSticker() && !messageObject.isAnimatedSticker();
+    }
+
+    private boolean hasLocalCopy(MessageObject messageObject) {
+        if (messageObject == null || messageObject.messageOwner == null) {
+            return false;
+        }
+        if (AyuMessageUtils.hasLocalForwardCopy(messageObject)) {
+            return true;
+        }
+        String path = resolvePath(messageObject);
+        return !TextUtils.isEmpty(path) && new File(path).exists();
+    }
+
+    private String getTextFallback(MessageObject messageObject, String caption) {
+        if (messageObject != null && messageObject.messageOwner != null && !TextUtils.isEmpty(messageObject.messageOwner.message)) {
+            return messageObject.messageOwner.message;
+        }
+        return caption;
+    }
+
+    private CharSequence getForwardCaption(MessageObject messageObject) {
+        return ChatActivity.getMessageCaption(messageObject, null, null);
+    }
+
+    private String resolvePath(MessageObject messageObject) {
+        if (messageObject == null || messageObject.messageOwner == null) {
+            return null;
+        }
+        return FileLoader.getInstance(currentAccount).getPathToMessage(messageObject.messageOwner).toString();
+    }
+
+    private boolean sendTextSync(MessageObject messageObject, String sourceText, long targetDialogId, boolean notify, int scheduleDate, long payStars) {
+        if (TextUtils.isEmpty(sourceText)) {
+            return false;
+        }
+
+        ArrayList<TLRPC.MessageEntity> entities;
+        if (messageObject != null && messageObject.messageOwner != null && messageObject.messageOwner.entities != null && !messageObject.messageOwner.entities.isEmpty()) {
+            entities = new ArrayList<>(messageObject.messageOwner.entities);
+        } else {
+            entities = MediaDataController.getInstance(currentAccount).getEntities(new CharSequence[]{sourceText}, true);
+            if (entities == null) {
+                entities = new ArrayList<>();
+            }
+        }
+
+        String text = prependPseudoReply(messageObject, sourceText, entities);
+        SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text, targetDialogId, null, null, null, false, entities.isEmpty() ? null : entities, null, null, notify, scheduleDate, 0, null, false);
+        applySendContext(params, payStars);
+
+        return AyuSequentialUtils.dispatchSendSync(currentAccount, targetDialogId, null, true, false, () ->
+                SendMessagesHelper.getInstance(currentAccount).sendMessage(params));
+    }
+
+    private boolean sendStickerSync(MessageObject messageObject, long targetDialogId, boolean notify, int scheduleDate, long payStars) {
+        if (messageObject == null || messageObject.getDocument() == null) {
+            return false;
+        }
+        MessageObject replyToMessage = replyToTopMessage;
+        return AyuSequentialUtils.dispatchSendSync(currentAccount, targetDialogId, null, true, false, () ->
+                SendMessagesHelper.getInstance(currentAccount).sendSticker(
+                        messageObject.getDocument(),
+                        null,
+                        targetDialogId,
+                        replyToMessage,
+                        replyToMessage,
+                        null,
+                        null,
+                        null,
+                        notify,
+                        scheduleDate,
+                        0,
+                        false,
+                        null,
+                        quickReplyShortcut,
+                        quickReplyShortcutId,
+                        payStars,
+                        monoForumPeerId,
+                        suggestionParams
+                ));
+    }
+
+    private boolean dispatchParamsSync(SendMessagesHelper.SendMessageParams params, String uploadTrackingPath, long targetDialogId, long payStars, boolean waitForMessage, boolean waitForUpload) {
+        if (params == null) {
+            return false;
+        }
+        applySendContext(params, payStars);
+        String effectiveUploadPath = !TextUtils.isEmpty(uploadTrackingPath) ? uploadTrackingPath : params.path;
+        return AyuSequentialUtils.dispatchSendSync(currentAccount, targetDialogId, effectiveUploadPath, waitForMessage, waitForUpload && !TextUtils.isEmpty(effectiveUploadPath), () ->
+                SendMessagesHelper.getInstance(currentAccount).sendMessage(params));
+    }
+
+    private String resolvePhotoUploadTrackingPath(TLRPC.TL_photo photo) {
+        if (photo == null || photo.sizes == null || photo.sizes.isEmpty()) {
+            return null;
+        }
+        TLRPC.PhotoSize photoSize = photo.sizes.get(photo.sizes.size() - 1);
+        if (photoSize == null || photoSize.location == null) {
+            photoSize = FileLoader.getClosestPhotoSizeWithSize(photo.sizes, AndroidUtilities.getPhotoSize(true));
+        }
+        if (photoSize == null || photoSize.location == null) {
+            return null;
+        }
+        return FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE) + "/" + photoSize.location.volume_id + "_" + photoSize.location.local_id + ".jpg";
+    }
+
+    private SendMessagesHelper.SendMessageParams buildMappedPhotoParams(MessageObject messageObject, String caption, long targetDialogId, boolean notify, int scheduleDate, HashMap<String, String> extraParams) {
+        String filePath = resolvePath(messageObject);
+        TLRPC.TL_photo photo = mapper.mapPhoto(messageObject, filePath);
+        if (photo == null) {
+            return null;
+        }
+        ArrayList<TLRPC.MessageEntity> entities = copyEntities(messageObject);
+        String effectiveCaption = prependPseudoReplyCaption(messageObject, caption, entities);
+        if (TextUtils.isEmpty(effectiveCaption)) {
+            effectiveCaption = null;
+        }
+        HashMap<String, String> params = extraParams != null ? new HashMap<>(extraParams) : null;
+        return SendMessagesHelper.SendMessageParams.of(
+                photo,
+                filePath,
+                targetDialogId,
+                null,
+                null,
+                effectiveCaption,
+                entities.isEmpty() ? null : entities,
+                null,
+                params,
+                notify,
+                scheduleDate,
+                0,
+                mapper.getMessageTtl(messageObject),
+                messageObject,
+                false,
+                messageObject != null && messageObject.hasMediaSpoilers()
+        );
+    }
+
+    private SendMessagesHelper.SendMessageParams buildMappedDocumentParams(MessageObject messageObject, String caption, long targetDialogId, boolean notify, int scheduleDate, HashMap<String, String> extraParams) {
+        String filePath = resolvePath(messageObject);
+        if (TextUtils.isEmpty(filePath)) {
+            return null;
+        }
+        TLRPC.TL_document document = mapper.mapDocument(messageObject, filePath);
+        if (document == null) {
+            return null;
+        }
+        ArrayList<TLRPC.MessageEntity> entities = copyEntities(messageObject);
+        String effectiveCaption = prependPseudoReplyCaption(messageObject, caption, entities);
+        if (TextUtils.isEmpty(effectiveCaption)) {
+            effectiveCaption = null;
+        }
+        HashMap<String, String> params = extraParams != null ? new HashMap<>(extraParams) : null;
+        return SendMessagesHelper.SendMessageParams.of(
+                document,
+                null,
+                filePath,
+                targetDialogId,
+                null,
+                null,
+                effectiveCaption,
+                entities.isEmpty() ? null : entities,
+                null,
+                params,
+                notify,
+                scheduleDate,
+                0,
+                mapper.getMessageTtl(messageObject),
+                messageObject,
+                null,
+                false,
+                messageObject != null && messageObject.hasMediaSpoilers()
+        );
+    }
+
+    private SendMessagesHelper.SendMessageParams buildDocumentFallbackParams(MessageObject messageObject, String caption, long targetDialogId, boolean notify, int scheduleDate, HashMap<String, String> extraParams) {
+        String filePath = resolvePath(messageObject);
+        if (TextUtils.isEmpty(filePath)) {
+            return null;
+        }
+
+        File file = new File(filePath);
+        if (!file.exists()) {
+            return null;
+        }
+
+        TLRPC.TL_document document = mapper.mapDocument(messageObject, filePath);
+        if (document == null) {
+            return null;
+        }
+
+        document.localPath = filePath;
+        document.size = (int) file.length();
+        document.date = (int) (System.currentTimeMillis() / 1000);
+
+        ArrayList<TLRPC.MessageEntity> entities = copyEntities(messageObject);
+        String effectiveCaption = prependPseudoReplyCaption(messageObject, caption, entities);
+        if (TextUtils.isEmpty(effectiveCaption)) {
+            effectiveCaption = null;
+        }
+
+        HashMap<String, String> params = extraParams != null ? new HashMap<>(extraParams) : null;
+        return SendMessagesHelper.SendMessageParams.of(
+                document,
+                null,
+                filePath,
+                targetDialogId,
+                null,
+                null,
+                effectiveCaption,
+                entities.isEmpty() ? null : entities,
+                null,
+                params,
+                notify,
+                scheduleDate,
+                0,
+                0,
+                messageObject,
+                null,
+                false,
+                messageObject != null && messageObject.hasMediaSpoilers()
+        );
+    }
+
+    private ArrayList<TLRPC.MessageEntity> copyEntities(MessageObject messageObject) {
+        if (messageObject == null || messageObject.messageOwner == null || messageObject.messageOwner.entities == null) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(messageObject.messageOwner.entities);
+    }
+
+    private void applySendContext(SendMessagesHelper.SendMessageParams params, long payStars) {
+        if (params == null) {
+            return;
+        }
+        if (params.replyToMsg == null) {
+            params.replyToMsg = replyToTopMessage;
+        }
+        if (params.replyToTopMsg == null) {
+            params.replyToTopMsg = replyToTopMessage;
+        }
+        params.quick_reply_shortcut = quickReplyShortcut;
+        params.quick_reply_shortcut_id = quickReplyShortcutId;
+        params.payStars = payStars;
+        params.monoForumPeer = monoForumPeerId;
+        params.suggestionParams = suggestionParams;
+    }
+
+    private String prependPseudoReply(MessageObject messageObject, String text, ArrayList<TLRPC.MessageEntity> entities) {
+        return AyuMessageUtils.prependPseudoReply(text, null, false, messageObject, entities, currentAccount, targetDialogId).text;
+    }
+
+    private String prependPseudoReplyCaption(MessageObject messageObject, String caption, ArrayList<TLRPC.MessageEntity> entities) {
+        return AyuMessageUtils.prependPseudoReply(null, caption, messageObject != null && messageObject.isPhoto(), messageObject, entities, currentAccount, targetDialogId).caption;
+    }
+
+    private boolean ensureTaskCanProceed(long taskId, CompletionCallback onComplete) {
+        if (disposed || !isTaskActive(taskId) || stopRequested) {
+            finishRun(taskId, false, onComplete);
+            return false;
+        }
+        return true;
+    }
+
+    private synchronized long startRun(int messageCount, long targetDialogId, int chunkIndex, int chunkCount) {
         activeTaskId++;
-        this.targetDialogId = targetDid;
+        this.targetDialogId = targetDialogId;
         this.currentChunkIndex = Math.max(chunkIndex, 0);
         this.totalChunks = Math.max(chunkCount, 1);
-        currentStatus = STATUS_LOADING;
-        totalMessages = Math.max(messageCount, 0);
-        sentMessages = 0;
-        skippedMessages = 0;
-        totalMediaToPrepare = Math.max(mediaCount, 0);
-        pendingMedia = totalMediaToPrepare;
-        currentStatusDetail = LocaleController.getString(R.string.ForceForwardStatusPreparingMedia);
-        lastFailureReason = null;
-        stopRequested = false;
-        mediaWaitStartTime = 0L;
-        mediaLastProgressTime = 0L;
-        mediaLastObservedBytes = 0L;
-        mediaLastMissingCount = 0;
-        statusUpdateVersion = 0;
-        activeForwards.put(targetDid, this);
+        this.currentStatus = STATUS_LOADING;
+        this.totalMessages = Math.max(messageCount, 0);
+        this.sentMessages = 0;
+        this.skippedMessages = 0;
+        this.currentStatusDetail = LocaleController.getString(R.string.ForceForwardStatusPreparingMedia);
+        this.lastFailureReason = null;
+        this.stopRequested = false;
+        this.statusUpdateVersion = 0;
+        activeForwards.put(targetDialogId, this);
         notifyStatusChanged();
         return activeTaskId;
     }
 
-    private boolean isTaskActive(long taskId) {
+    private synchronized boolean isTaskActive(long taskId) {
         return activeTaskId == taskId;
     }
 
-    private void updateLoadingState(int missingMedia) {
+    private void updateLoadingState(String detail) {
         currentStatus = STATUS_LOADING;
-        pendingMedia = Math.min(Math.max(missingMedia, 0), totalMediaToPrepare);
-        currentStatusDetail = missingMedia > 0 ? LocaleController.getString(R.string.ForceForwardStatusWaitingDownloads) : LocaleController.getString(R.string.ForceForwardStatusMediaReady);
-        notifyStatusChanged();
-    }
-
-    private void updateForwardingState() {
-        updateForwardingState(null);
-    }
-
-    private void updateForwardingState(String detail) {
-        currentStatus = STATUS_FORWARDING;
-        pendingMedia = 0;
         currentStatusDetail = detail;
         notifyStatusChanged();
     }
 
-    private void setFailureReason(String failureReason) {
+    private void updateForwardingState(String detail) {
+        currentStatus = STATUS_FORWARDING;
+        currentStatusDetail = detail;
+        notifyStatusChanged();
+    }
+
+    private synchronized void setFailureReason(String failureReason) {
         lastFailureReason = failureReason;
     }
 
@@ -568,1121 +787,73 @@ public class AyuForward implements NotificationCenter.NotificationCenterDelegate
             totalMessages--;
         }
         skippedMessages++;
-        pendingMedia = Math.min(pendingMedia, totalMediaToPrepare);
-        sentMessages = Math.min(sentMessages, totalMessages);
+        if (sentMessages > totalMessages) {
+            sentMessages = totalMessages;
+        }
         notifyStatusChanged();
     }
 
     private void finishRun(long taskId, boolean shouldContinue, CompletionCallback onComplete) {
-        if (disposed) {
-            return;
-        }
-        boolean isCurrentTask = activeTaskId == taskId;
-        if (isCurrentTask) {
-            // If some messages were skipped, inform the user
-            if (skippedMessages > 0 && shouldContinue && lastFailureReason == null) {
-                lastFailureReason = LocaleController.formatString(R.string.ForceForwardSomeSkipped, skippedMessages);
+        boolean currentTask;
+        synchronized (this) {
+            currentTask = activeTaskId == taskId;
+            if (currentTask) {
+                if (skippedMessages > 0 && shouldContinue && lastFailureReason == null) {
+                    lastFailureReason = LocaleController.formatString(R.string.ForceForwardSomeSkipped, skippedMessages);
+                }
+                clearRunStateLocked();
             }
-            clearRunState();
+        }
+
+        if (currentTask) {
             notifyStatusChanged();
         }
-        if (shouldContinue) {
-            // Keep partial-skip warnings; they are informational.
-        }
-        // When detached from source fragment, skip the callback (fragment is destroyed)
-        // and auto-dispose since no one will clean us up
-        if (detached) {
-            if (isCurrentTask) {
-                disposed = true;
-            }
-            return;
-        }
-        if (onComplete != null) {
-            onComplete.onComplete(isCurrentTask && shouldContinue);
-        }
-    }
 
-    private void finishRunAfterUiRefresh(long taskId, CompletionCallback onComplete) {
+        final boolean callbackResult = currentTask && shouldContinue;
         AndroidUtilities.runOnUIThread(() -> {
-            if (disposed) {
-                return;
-            }
-            finishRun(taskId, !stopRequested, onComplete);
-        }, SEND_PHASE_FINISH_DELAY_MS);
-    }
-
-    private void cancelSendWaitPoll() {
-        if (sendWaitRunnable != null) {
-            AndroidUtilities.cancelRunOnUIThread(sendWaitRunnable);
-            sendWaitRunnable = null;
-        }
-    }
-
-    private void clearSendWaitState() {
-        cancelSendWaitPoll();
-        messageWaiter.clear();
-        fileUploadWaiter.clear();
-    }
-
-    private void clearActiveSendQueue() {
-        clearSendWaitState();
-        activeSendSteps = null;
-        activeSendStepIndex = 0;
-        activeSendOnComplete = null;
-    }
-
-    private boolean isSendWaitActive() {
-        return messageWaiter.isActive();
-    }
-
-    private void prepareSendWait(ArrayList<AyuSequentialUtils.SendStep> sendSteps, int index, long taskId, CompletionCallback onComplete) {
-        clearSendWaitState();
-        activeSendSteps = sendSteps;
-        activeSendStepIndex = index;
-        activeSendOnComplete = onComplete;
-        AyuSequentialUtils.prepareWait(messageWaiter, fileUploadWaiter, SendMessagesHelper.getInstance(currentAccount), taskId, targetDialogId);
-    }
-
-    private boolean refreshTrackedSendIds() {
-        if (!isSendWaitActive()) {
-            return true;
-        }
-        DummyMessageWaiter.Result result = messageWaiter.refreshTrackedSendIds(SendMessagesHelper.getInstance(currentAccount), this::onMessageSent);
-        if (result == DummyMessageWaiter.Result.FAIL) {
-            failCurrentSendStep(LocaleController.getString(R.string.ForceForwardFailed));
-            return false;
-        }
-        if (result == DummyMessageWaiter.Result.COMPLETE) {
-            completeCurrentSendStep();
-            return false;
-        }
-        return true;
-    }
-
-    private void scheduleSendWaitPoll() {
-        cancelSendWaitPoll();
-        sendWaitRunnable = () -> {
-            sendWaitRunnable = null;
-            if (disposed || !isSendWaitActive()) {
-                return;
-            }
-            if (!isTaskActive(messageWaiter.getTaskId())) {
-                clearSendWaitState();
-                return;
-            }
-            if (!refreshTrackedSendIds()) {
-                return;
-            }
-            if (messageWaiter.getExpectedCount() > 0 && messageWaiter.getCompletedCount() >= messageWaiter.getExpectedCount()) {
-                completeCurrentSendStep();
-                return;
-            }
-            if (SystemClock.elapsedRealtime() - messageWaiter.getLastActivityTime() >= MAX_SEND_WAIT_MS) {
-                failCurrentSendStep(LocaleController.getString(R.string.ForceForwardFailed));
-                return;
-            }
-            scheduleSendWaitPoll();
-        };
-        AndroidUtilities.runOnUIThread(sendWaitRunnable, SEND_WAIT_POLL_INTERVAL_MS);
-    }
-
-    private void completeCurrentSendStep() {
-        ArrayList<AyuSequentialUtils.SendStep> sendSteps = activeSendSteps;
-        int nextIndex = activeSendStepIndex + 1;
-        long taskId = messageWaiter.getTaskId();
-        CompletionCallback onComplete = activeSendOnComplete;
-        clearSendWaitState();
-        if (disposed || sendSteps == null) {
-            return;
-        }
-        runSendQueue(sendSteps, nextIndex, taskId, onComplete);
-    }
-
-    private void failCurrentSendStep(String failureReason) {
-        long taskId = messageWaiter.getTaskId();
-        CompletionCallback onComplete = activeSendOnComplete;
-        clearActiveSendQueue();
-        if (taskId == 0L) {
-            return;
-        }
-        failRun(taskId, failureReason, onComplete);
-    }
-
-    private void handleSendAcknowledged(Object... args) {
-        if (!isSendWaitActive() || !isTaskActive(messageWaiter.getTaskId())) {
-            return;
-        }
-        if (messageWaiter.handleAcknowledged(args) == DummyMessageWaiter.Result.FAIL) {
-            failCurrentSendStep(LocaleController.getString(R.string.ForceForwardFailed));
-        }
-    }
-
-    private void handleSendConfirmedByServer(Object... args) {
-        if (!isSendWaitActive() || !isTaskActive(messageWaiter.getTaskId())) {
-            return;
-        }
-        if (messageWaiter.handleConfirmedByServer(args, this::onMessageSent) == DummyMessageWaiter.Result.COMPLETE) {
-            completeCurrentSendStep();
-        }
-    }
-
-    private void handleSendError(Object... args) {
-        if (!isSendWaitActive() || !isTaskActive(messageWaiter.getTaskId())) {
-            return;
-        }
-        if (messageWaiter.handleError(args) == DummyMessageWaiter.Result.FAIL) {
-            failCurrentSendStep(LocaleController.getString(R.string.ForceForwardFailed));
-        }
-    }
-
-    private boolean matchesTrackedUploadPath(String path) {
-        return fileUploadWaiter.matchesTrackedUploadPath(path);
-    }
-
-    private void handleUploadStateChanged(Object[] args, boolean failed) {
-        if (!isSendWaitActive() || !isTaskActive(messageWaiter.getTaskId()) || args == null || args.length == 0) {
-            return;
-        }
-        Object value = args[0];
-        if (failed && args.length > 1 && args[1] instanceof String) {
-            value = args[1];
-        }
-        if (!(value instanceof String)) {
-            return;
-        }
-        String path = (String) value;
-        if (!matchesTrackedUploadPath(path)) {
-            return;
-        }
-        messageWaiter.bumpActivity();
-        if (failed) {
-            failCurrentSendStep(LocaleController.getString(R.string.ForceForwardFailed));
-        }
-    }
-
-    private void runSendQueue(ArrayList<AyuSequentialUtils.SendStep> sendSteps, int index, long taskId, CompletionCallback onComplete) {
-        if (disposed) {
-            return;
-        }
-        if (!isTaskActive(taskId) || stopRequested) {
-            finishRun(taskId, false, onComplete);
-            return;
-        }
-        if (index >= sendSteps.size()) {
-            finishRunAfterUiRefresh(taskId, onComplete);
-            return;
-        }
-        AndroidUtilities.runOnUIThread(() -> {
-            if (disposed) {
-                return;
-            }
-            if (!isTaskActive(taskId) || stopRequested) {
-                finishRun(taskId, false, onComplete);
-                return;
-            }
-            prepareSendWait(sendSteps, index, taskId, onComplete);
-            AyuSequentialUtils.DispatchResult dispatchResult;
-            try {
-                dispatchResult = sendSteps.get(index).dispatch();
-            } catch (Exception e) {
-                FileLog.e(e);
-                clearActiveSendQueue();
-                failRun(taskId, LocaleController.getString(R.string.ForceForwardFailed), onComplete);
-                return;
-            }
-            if (dispatchResult == null || dispatchResult.expectedCompletions <= 0) {
-                clearSendWaitState();
-                runSendQueue(sendSteps, index + 1, taskId, onComplete);
-                return;
-            }
-            AyuSequentialUtils.applyDispatchResult(messageWaiter, fileUploadWaiter, dispatchResult);
-            if (!refreshTrackedSendIds()) {
-                return;
-            }
-            if (messageWaiter.getCompletedCount() >= messageWaiter.getExpectedCount()) {
-                completeCurrentSendStep();
-                return;
-            }
-            scheduleSendWaitPoll();
-        }, index == 0 ? 0 : SEND_STEP_DELAY_MS);
-    }
-    
-    private CharSequence getMessageCaption(MessageObject mo) {
-        return ChatActivity.getMessageCaption(mo, null, null);
-    }
-
-    private CharSequence getForwardCaption(MessageObject mo) {
-        if (mo == null) {
-            return null;
-        }
-        if (mo.getGroupId() != 0) {
-            return ChatActivity.getMessageCaption(mo, null, null);
-        }
-        return getMessageCaption(mo);
-    }
-
-    private String resolvePath(MessageObject mo) {
-        return attachments.resolvePath(mo);
-    }
-
-    private void trackPendingDownload(String fileName) {
-        fileDownloadWaiter.trackPendingDownload(fileName);
-    }
-
-    private void clearPendingDownload(String fileName) {
-        fileDownloadWaiter.clearPendingDownload(fileName);
-    }
-
-    private void cancelPendingDownloads() {
-        attachments.cancelPendingDownloads();
-    }
-
-    private void resetDownloadCancellationFlags(ArrayList<MessageObject> messagesToSend) {
-        attachments.resetDownloadCancellationFlags(messagesToSend);
-    }
-
-    private boolean ensureDownloaded(MessageObject mo) {
-        if (mo == null || mo.messageOwner == null) return false;
-        if (mo.loadingCancelled) return false;
-        
-        String path = resolvePath(mo);
-        if (!TextUtils.isEmpty(path) && new File(path).exists()) return true;
-        if (mo.isAyuDeleted()) return false;
-
-        if (mo.getDocument() != null) {
-            String fileName = FileLoader.getAttachFileName(mo.getDocument());
-            trackPendingDownload(fileName);
-            if (!FileLoader.getInstance(currentAccount).isLoadingFile(fileName)) {
-                FileLoader.getInstance(currentAccount).loadFile(mo.getDocument(), mo, FileLoader.PRIORITY_NORMAL, 0);
-            }
-            return false;
-        }
-        
-        if (mo.isPhoto()) {
-            TLRPC.Photo photo = MessageObject.getPhoto(mo.messageOwner);
-            if (photo != null) {
-                TLRPC.PhotoSize size = FileLoader.getClosestPhotoSizeWithSize(photo.sizes, 1280);
-                if (size != null) {
-                    String fileName = FileLoader.getAttachFileName(size);
-                    trackPendingDownload(fileName);
-                    if (!FileLoader.getInstance(currentAccount).isLoadingFile(fileName)) {
-                        ImageLocation imageLocation = ImageLocation.getForObject(size, mo.messageOwner);
-                        if (imageLocation != null) {
-                            FileLoader.getInstance(currentAccount).loadFile(imageLocation, mo.messageOwner, "jpg", FileLoader.PRIORITY_NORMAL, 0);
-                        }
-                    }
+            if (detached) {
+                if (currentTask) {
+                    disposed = true;
                 }
-            }
-            return false;
-        }
-        
-        if (mo.isVideo()) {
-            // Modern videos are already handled by getDocument() check above
-            // This branch only handles legacy videos without document
-            // Note: Legacy API limitation - can only load thumbnail, not the actual video file
-            if (mo.getDocument() == null && mo.messageOwner.media instanceof TLRPC.TL_messageMediaVideo_old) {
-                TLRPC.TL_messageMediaVideo_old videoMedia = (TLRPC.TL_messageMediaVideo_old) mo.messageOwner.media;
-                 if (videoMedia.video_unused != null && videoMedia.video_unused.thumb != null) {
-                     String fileName = FileLoader.getAttachFileName(videoMedia.video_unused.thumb);
-                     trackPendingDownload(fileName);
-                     if (!FileLoader.getInstance(currentAccount).isLoadingFile(fileName)) {
-                         ImageLocation imageLocation = ImageLocation.getForObject(videoMedia.video_unused.thumb, mo.messageOwner);
-                         if (imageLocation != null) {
-                             FileLoader.getInstance(currentAccount).loadFile(imageLocation, mo.messageOwner, "jpg", FileLoader.PRIORITY_NORMAL, 0);
-                         }
-                     }
-                 }
-            }
-            return false;
-        }
-        
-        return false;
-    }
-
-    private String getDownloadTrackingKey(MessageObject mo) {
-        if (mo == null || mo.messageOwner == null) {
-            return null;
-        }
-        if (mo.getDocument() != null) {
-            return FileLoader.getAttachFileName(mo.getDocument());
-        }
-        if (mo.isPhoto()) {
-            TLRPC.Photo photo = MessageObject.getPhoto(mo.messageOwner);
-            if (photo == null) {
-                return null;
-            }
-            TLRPC.PhotoSize size = FileLoader.getClosestPhotoSizeWithSize(photo.sizes, 1280);
-            return size != null ? FileLoader.getAttachFileName(size) : null;
-        }
-        if (mo.isVideo() && mo.messageOwner.media instanceof TLRPC.TL_messageMediaVideo_old) {
-            TLRPC.TL_messageMediaVideo_old videoMedia = (TLRPC.TL_messageMediaVideo_old) mo.messageOwner.media;
-            if (videoMedia.video_unused != null && videoMedia.video_unused.thumb != null) {
-                return FileLoader.getAttachFileName(videoMedia.video_unused.thumb);
-            }
-        }
-        return null;
-    }
-
-    private boolean needsLocalCopy(MessageObject mo) {
-        if (mo == null || mo.messageOwner == null) {
-            return false;
-        }
-        if (mo.type == MessageObject.TYPE_TEXT || mo.isAnimatedEmoji()) {
-            return false;
-        }
-        if (mo.isPhoto() || mo.isVideo() || mo.isGif()) {
-            return true;
-        }
-        if (mo.isAyuDeleted()) {
-            return mo.getDocument() != null;
-        }
-        return mo.getDocument() != null && !mo.isSticker() && !mo.isAnimatedSticker();
-    }
-
-    private int countMediaToPrepare(ArrayList<MessageObject> messagesToSend) {
-        if (messagesToSend == null || messagesToSend.isEmpty()) {
-            return 0;
-        }
-        int count = 0;
-        for (int i = 0; i < messagesToSend.size(); i++) {
-            if (needsLocalCopy(messagesToSend.get(i))) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private AyuAttachments.MediaPreparationResult prepareMedia(ArrayList<MessageObject> messagesToSend) {
-        AyuAttachments.MediaPreparationResult result = new AyuAttachments.MediaPreparationResult();
-        for (int i = 0; i < messagesToSend.size(); i++) {
-            MessageObject messageObject = messagesToSend.get(i);
-            if (!needsLocalCopy(messageObject)) {
-                continue;
-            }
-            if (messageObject.loadingCancelled) {
-                result.cancelledByUser = true;
-                return result;
-            }
-            if (messageObject.isAyuDeleted() && !AyuMessageUtils.hasLocalForwardCopy(messageObject)) {
-                result.hasUndownloadedAyuDeletedMedia = true;
-                return result;
-            }
-            if (!ensureDownloaded(messageObject)) {
-                result.missingMediaCount++;
-                String trackingKey = getDownloadTrackingKey(messageObject);
-                if (!TextUtils.isEmpty(trackingKey)) {
-                    trackPendingDownload(trackingKey);
-                    if (FileLoader.getInstance(currentAccount).isLoadingFile(trackingKey)) {
-                        result.activeDownloadCount++;
-                    }
-                    long[] progress = ImageLoader.getInstance().getFileProgressSizes(trackingKey);
-                    if (progress != null) {
-                        result.downloadedBytes += progress[0];
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    private void sendMediaBatch(ArrayList<SendMessagesHelper.SendingMediaInfo> list, long targetDialogId, boolean isDocument, boolean isGrouping, boolean notify, int scheduleDate, long payStars) {
-        MessageObject replyToMsg = replyToTopMessage;
-        MessageObject replyToTopMsg = replyToTopMessage;
-        SendMessagesHelper.prepareSendingMedia(
-                AccountInstance.getInstance(currentAccount),
-                list,
-                targetDialogId,
-                replyToMsg,
-                replyToTopMsg,
-                null,
-                null,
-                isDocument,
-                isGrouping,
-                null,
-                notify,
-                scheduleDate,
-                0,
-                chatMode,
-                false,
-                null,
-                quickReplyShortcut,
-                quickReplyShortcutId,
-                0,
-                false,
-                payStars,
-                monoForumPeerId,
-                suggestionParams
-        );
-    }
-
-    private void applySendContext(SendMessagesHelper.SendMessageParams params, long payStars) {
-        if (params == null) {
-            return;
-        }
-        MessageObject replyToMsg = replyToTopMessage;
-        if (params.replyToMsg == null) {
-            params.replyToMsg = replyToMsg;
-        }
-        if (params.replyToTopMsg == null) {
-            params.replyToTopMsg = replyToMsg;
-        }
-        params.quick_reply_shortcut = quickReplyShortcut;
-        params.quick_reply_shortcut_id = quickReplyShortcutId;
-        params.payStars = payStars;
-        params.monoForumPeer = monoForumPeerId;
-        params.suggestionParams = suggestionParams;
-    }
-
-    private void addUploadPath(ArrayList<String> uploadPaths, String path) {
-        if (uploadPaths == null || TextUtils.isEmpty(path) || uploadPaths.contains(path)) {
-            return;
-        }
-        uploadPaths.add(path);
-    }
-
-    private ArrayList<String> createUploadPaths(SendMessagesHelper.SendMessageParams params) {
-        if (params == null) {
-            return null;
-        }
-        ArrayList<String> uploadPaths = new ArrayList<>(1);
-        addUploadPath(uploadPaths, params.path);
-        return uploadPaths.isEmpty() ? null : uploadPaths;
-    }
-
-    private ArrayList<String> createUploadPaths(ArrayList<SendMessagesHelper.SendingMediaInfo> mediaInfos) {
-        if (mediaInfos == null || mediaInfos.isEmpty()) {
-            return null;
-        }
-        ArrayList<String> uploadPaths = new ArrayList<>(mediaInfos.size());
-        for (int i = 0; i < mediaInfos.size(); i++) {
-            SendMessagesHelper.SendingMediaInfo info = mediaInfos.get(i);
-            if (info != null) {
-                addUploadPath(uploadPaths, info.path);
-            }
-        }
-        return uploadPaths.isEmpty() ? null : uploadPaths;
-    }
-
-    private int getMessageTtl(MessageObject mo) {
-        if (mo == null || mo.messageOwner == null || mo.messageOwner.media == null) {
-            return 0;
-        }
-        return mo.messageOwner.media.ttl_seconds;
-    }
-
-    private TLRPC.TL_photo mapPhoto(MessageObject mo, String filePath) {
-        if (mo == null || mo.messageOwner == null || TextUtils.isEmpty(filePath)) {
-            return null;
-        }
-        TLRPC.Photo source = MessageObject.getPhoto(mo.messageOwner);
-        if (source == null) {
-            return null;
-        }
-        TLRPC.TL_photo mapped = new TLRPC.TL_photo();
-        mapped.flags = source.flags;
-        mapped.has_stickers = source.has_stickers;
-        mapped.date = (int) (System.currentTimeMillis() / 1000);
-        mapped.dc_id = Integer.MIN_VALUE;
-        mapped.user_id = source.user_id;
-        mapped.geo = source.geo;
-        mapped.caption = source.caption;
-        mapped.video_sizes = new ArrayList<>(source.video_sizes);
-        mapped = SendMessagesHelper.getInstance(currentAccount).generatePhotoSizes(mapped, filePath, null, false);
-        if (mapped == null || mapped.sizes == null || mapped.sizes.isEmpty()) {
-            return null;
-        }
-        mapped.id = 0;
-        mapped.access_hash = 0;
-        mapped.file_reference = new byte[0];
-        return mapped;
-    }
-
-    private TLRPC.TL_document mapDocument(MessageObject mo) {
-        TLRPC.Document source = mo != null ? mo.getDocument() : null;
-        if (source == null) {
-            return null;
-        }
-        String localPath = resolvePath(mo);
-        boolean hasLocalFile = !TextUtils.isEmpty(localPath) && new File(localPath).exists();
-
-        TLRPC.TL_document mapped = new TLRPC.TL_document();
-        mapped.flags = source.flags;
-        mapped.id = 0;
-        mapped.access_hash = 0;
-        mapped.file_reference = new byte[0];
-        mapped.user_id = source.user_id;
-        mapped.date = (int) (System.currentTimeMillis() / 1000);
-        mapped.file_name = source.file_name;
-        mapped.mime_type = source.mime_type;
-        mapped.size = hasLocalFile ? (int) new File(localPath).length() : source.size;
-        mapped.thumbs = new ArrayList<>(source.thumbs);
-        mapped.video_thumbs = new ArrayList<>(source.video_thumbs);
-        mapped.version = source.version;
-        mapped.dc_id = hasLocalFile ? source.dc_id : Integer.MIN_VALUE;
-        mapped.key = null;
-        mapped.iv = null;
-        mapped.attributes = new ArrayList<>(source.attributes);
-        mapped.file_name_fixed = source.file_name_fixed;
-        mapped.localPath = hasLocalFile ? localPath : source.localPath;
-        mapped.localThumbPath = source.localThumbPath;
-        // Force the GIF mime type to video/mp4 to match AyuGram behavior.
-        if (mo != null && mo.isGif()) {
-            mapped.mime_type = "video/mp4";
-        }
-        return mapped;
-    }
-
-    private HashMap<String, String> createGroupedParams(long groupId, boolean isFinal) {
-        HashMap<String, String> params = new HashMap<>();
-        if (groupId != 0) {
-            params.put("groupId", String.valueOf(groupId));
-        }
-        if (isFinal) {
-            params.put("final", "1");
-        }
-        return params.isEmpty() ? null : params;
-    }
-
-    private SendMessagesHelper.SendMessageParams buildMappedPhotoParams(MessageObject mo, String caption, long targetDialogId, boolean notify, int scheduleDate, HashMap<String, String> extraParams) {
-        String filePath = resolvePath(mo);
-        TLRPC.TL_photo photo = mapPhoto(mo, filePath);
-        if (photo == null) {
-            return null;
-        }
-        ArrayList<TLRPC.MessageEntity> entities = mo == null || mo.messageOwner == null || mo.messageOwner.entities == null ? new ArrayList<>() : new ArrayList<>(mo.messageOwner.entities);
-        String effectiveCaption = prependPseudoReplyCaption(mo, caption, entities);
-        if (TextUtils.isEmpty(effectiveCaption)) {
-            effectiveCaption = null;
-        }
-        HashMap<String, String> params = extraParams != null ? new HashMap<>(extraParams) : null;
-        return SendMessagesHelper.SendMessageParams.of(photo, filePath, targetDialogId, null, null, effectiveCaption, entities.isEmpty() ? null : entities, null, params, notify, scheduleDate, 0, getMessageTtl(mo), mo, false, mo != null && mo.hasMediaSpoilers());
-    }
-
-    private SendMessagesHelper.SendMessageParams buildMappedDocumentParams(MessageObject mo, String caption, long targetDialogId, boolean notify, int scheduleDate, HashMap<String, String> extraParams) {
-        String filePath = resolvePath(mo);
-        if (TextUtils.isEmpty(filePath)) {
-            return null;
-        }
-        TLRPC.TL_document document = mapDocument(mo);
-        if (document == null) {
-            return null;
-        }
-        ArrayList<TLRPC.MessageEntity> entities = mo == null || mo.messageOwner == null || mo.messageOwner.entities == null ? new ArrayList<>() : new ArrayList<>(mo.messageOwner.entities);
-        String effectiveCaption = prependPseudoReplyCaption(mo, caption, entities);
-        if (TextUtils.isEmpty(effectiveCaption)) {
-            effectiveCaption = null;
-        }
-        HashMap<String, String> params = extraParams != null ? new HashMap<>(extraParams) : null;
-        return SendMessagesHelper.SendMessageParams.of(document, null, filePath, targetDialogId, null, null, effectiveCaption, entities.isEmpty() ? null : entities, null, params, notify, scheduleDate, 0, getMessageTtl(mo), mo, null, false, mo != null && mo.hasMediaSpoilers());
-    }
-
-    private void sendMappedParams(SendMessagesHelper.SendMessageParams params, long payStars) {
-        if (params == null) {
-            return;
-        }
-        applySendContext(params, payStars);
-        SendMessagesHelper.getInstance(currentAccount).sendMessage(params);
-    }
-
-    private SendMessagesHelper.SendMessageParams buildDocumentFallbackParams(MessageObject mo, String caption, long targetDialogId, boolean notify, int scheduleDate) {
-        String filePath = resolvePath(mo);
-        if (TextUtils.isEmpty(filePath)) {
-            return null;
-        }
-        File file = new File(filePath);
-        if (!file.exists()) {
-            return null;
-        }
-        TLRPC.TL_document document = mapDocument(mo);
-        if (document == null) {
-            return null;
-        }
-        document.localPath = filePath;
-        document.size = (int) file.length();
-        document.date = (int) (System.currentTimeMillis() / 1000);
-        ArrayList<TLRPC.MessageEntity> entities = mo == null || mo.messageOwner == null || mo.messageOwner.entities == null ? new ArrayList<>() : new ArrayList<>(mo.messageOwner.entities);
-        String effectiveCaption = prependPseudoReplyCaption(mo, caption, entities);
-        if (TextUtils.isEmpty(effectiveCaption)) {
-            effectiveCaption = null;
-        }
-        return SendMessagesHelper.SendMessageParams.of(
-                document, null, filePath, targetDialogId, null, null, effectiveCaption, entities.isEmpty() ? null : entities,
-                null, null, notify, scheduleDate, 0, 0, mo, null, false, mo != null && mo.hasMediaSpoilers());
-    }
-
-    private ArrayList<SendMessagesHelper.SendingMediaInfo> createMediaInfoList(ArrayList<GroupedMediaItem> items) {
-        ArrayList<SendMessagesHelper.SendingMediaInfo> list = new ArrayList<>();
-        if (items == null) {
-            return list;
-        }
-        for (int i = 0; i < items.size(); i++) {
-            GroupedMediaItem item = items.get(i);
-            SendMessagesHelper.SendingMediaInfo info = createMediaInfo(item.messageObject, item.caption);
-            if (item.messageObject != null) {
-                info.isVideo = item.messageObject.isVideo() || item.messageObject.isGif();
-            }
-            list.add(info);
-        }
-        return list;
-    }
-
-    private void enqueueMappedGroup(ArrayList<AyuSequentialUtils.SendStep> sendSteps, ArrayList<GroupedMediaItem> group, long targetDialogId, boolean notify, int scheduleDate, long payStars, boolean documentFallback) {
-        if (group == null || group.isEmpty()) {
-            return;
-        }
-
-        if (group.size() > MAX_GROUP_BATCH_SIZE) {
-            for (int start = 0; start < group.size(); start += MAX_GROUP_BATCH_SIZE) {
-                int end = Math.min(start + MAX_GROUP_BATCH_SIZE, group.size());
-                enqueueMappedGroup(sendSteps, new ArrayList<>(group.subList(start, end)), targetDialogId, notify, scheduleDate, payStars, documentFallback);
-            }
-            return;
-        }
-
-        final String groupLabel = documentFallback ? LocaleController.getString(R.string.ForceForwardStatusDocumentGroup) : LocaleController.getString(R.string.ForceForwardStatusMediaGroup);
-        if (group.size() == 1) {
-            GroupedMediaItem item = group.get(0);
-            MessageObject messageObject = item.messageObject;
-            sendSteps.add(() -> {
-                updateForwardingState(groupLabel + " 1/1");
-                SendMessagesHelper.SendMessageParams params = messageObject != null && messageObject.isPhoto()
-                        ? buildMappedPhotoParams(messageObject, item.caption, targetDialogId, notify, scheduleDate, null)
-                        : buildMappedDocumentParams(messageObject, item.caption, targetDialogId, notify, scheduleDate, null);
-                if (params == null) {
-                    updateForwardingState(documentFallback ? LocaleController.getString(R.string.ForceForwardStatusDocumentFallback) : LocaleController.getString(R.string.ForceForwardStatusMediaFallback));
-                    ArrayList<SendMessagesHelper.SendingMediaInfo> fallbackInfo = createMediaInfoList(group);
-                    sendMediaBatch(fallbackInfo, targetDialogId, documentFallback, false, notify, scheduleDate, payStars);
-                    return AyuSequentialUtils.DispatchResult.dispatched(1, createUploadPaths(fallbackInfo));
-                }
-                sendMappedParams(params, payStars);
-                return AyuSequentialUtils.DispatchResult.dispatched(1, createUploadPaths(params));
-            });
-            return;
-        }
-
-        long generatedGroupId;
-        do {
-            generatedGroupId = Utilities.random.nextLong();
-        } while (generatedGroupId == 0);
-
-        ArrayList<SendMessagesHelper.SendMessageParams> paramsList = new ArrayList<>(group.size());
-        for (int i = 0; i < group.size(); i++) {
-            GroupedMediaItem item = group.get(i);
-            MessageObject messageObject = item.messageObject;
-            HashMap<String, String> groupParams = createGroupedParams(generatedGroupId, i == group.size() - 1);
-            SendMessagesHelper.SendMessageParams params = messageObject != null && messageObject.isPhoto()
-                    ? buildMappedPhotoParams(messageObject, item.caption, targetDialogId, notify, scheduleDate, groupParams)
-                    : buildMappedDocumentParams(messageObject, item.caption, targetDialogId, notify, scheduleDate, groupParams);
-            if (params == null) {
-                ArrayList<GroupedMediaItem> fallbackGroup = new ArrayList<>(group);
-                sendSteps.add(() -> {
-                    updateForwardingState(documentFallback ? LocaleController.getString(R.string.ForceForwardStatusDocumentGroupFallback) : LocaleController.getString(R.string.ForceForwardStatusMediaGroupFallback));
-                    ArrayList<SendMessagesHelper.SendingMediaInfo> fallbackInfo = createMediaInfoList(fallbackGroup);
-                    sendMediaBatch(fallbackInfo, targetDialogId, documentFallback, !documentFallback, notify, scheduleDate, payStars);
-                    return AyuSequentialUtils.DispatchResult.dispatched(fallbackGroup.size(), createUploadPaths(fallbackInfo));
-                });
                 return;
             }
-            paramsList.add(params);
-        }
-
-        for (int i = 0; i < paramsList.size(); i++) {
-            final int stepIndex = i;
-            final int stepCount = paramsList.size();
-            final SendMessagesHelper.SendMessageParams params = paramsList.get(i);
-            sendSteps.add(() -> {
-                updateForwardingState(groupLabel + " " + (stepIndex + 1) + "/" + stepCount);
-                sendMappedParams(params, payStars);
-                return AyuSequentialUtils.DispatchResult.dispatched(1, createUploadPaths(params));
-            });
-        }
-    }
-
-    private void enqueueLeftoverGroupAsSingles(ArrayList<AyuSequentialUtils.SendStep> sendSteps, ArrayList<GroupedMediaItem> group, long targetDialogId, boolean notify, int scheduleDate, long payStars, boolean documentFallback) {
-        if (group == null || group.isEmpty()) {
-            return;
-        }
-        FileLog.w("AyuForward: degraded leftover " + (documentFallback ? "document" : "media") + " group to singles");
-        for (int i = 0; i < group.size(); i++) {
-            GroupedMediaItem item = group.get(i);
-            MessageObject messageObject = item.messageObject;
-            if (messageObject == null) {
-                sendSteps.add(() -> {
-                    onMessageSkipped();
-                    return AyuSequentialUtils.DispatchResult.none();
-                });
-                continue;
-            }
-            final String caption = item.caption;
-            sendSteps.add(() -> {
-                if (documentFallback) {
-                    updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusDocumentCopy));
-                    SendMessagesHelper.SendMessageParams params = buildMappedDocumentParams(messageObject, caption, targetDialogId, notify, scheduleDate, null);
-                    if (params == null) {
-                        updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusDocumentFallback));
-                        params = buildDocumentFallbackParams(messageObject, caption, targetDialogId, notify, scheduleDate);
-                        if (params == null) {
-                            onMessageSkipped();
-                            return AyuSequentialUtils.DispatchResult.none();
-                        }
-                    }
-                    sendMappedParams(params, payStars);
-                    return AyuSequentialUtils.DispatchResult.dispatched(1, createUploadPaths(params));
-                } else {
-                    updateForwardingState(messageObject.isPhoto()
-                            ? LocaleController.getString(R.string.ForceForwardStatusPhotoCopy)
-                            : LocaleController.getString(R.string.ForceForwardStatusMediaCopy));
-                    SendMessagesHelper.SendMessageParams params = messageObject.isPhoto()
-                            ? buildMappedPhotoParams(messageObject, caption, targetDialogId, notify, scheduleDate, null)
-                            : buildMappedDocumentParams(messageObject, caption, targetDialogId, notify, scheduleDate, null);
-                    if (params == null) {
-                        updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusMediaFallback));
-                        ArrayList<SendMessagesHelper.SendingMediaInfo> one = new ArrayList<>(1);
-                        SendMessagesHelper.SendingMediaInfo info = createMediaInfo(messageObject, caption);
-                        info.isVideo = messageObject.isVideo() || messageObject.isGif();
-                        one.add(info);
-                        sendMediaBatch(one, targetDialogId, false, false, notify, scheduleDate, payStars);
-                        return AyuSequentialUtils.DispatchResult.dispatched(1, createUploadPaths(one));
-                    }
-                    sendMappedParams(params, payStars);
-                    return AyuSequentialUtils.DispatchResult.dispatched(1, createUploadPaths(params));
-                }
-            });
-        }
-    }
-
-    private void addToGroup(long gid,
-                            GroupedMediaItem item,
-                            HashMap<Long, ArrayList<GroupedMediaItem>> map,
-                            HashMap<Long, Integer> remain,
-                            ArrayList<AyuSequentialUtils.SendStep> sendSteps,
-                            boolean document,
-                            long targetDialogId,
-                            boolean notify,
-                            int scheduleDate,
-                            long payStars) {
-        ArrayList<GroupedMediaItem> list = map.computeIfAbsent(gid, k -> new ArrayList<>());
-        list.add(item);
-        Integer r = remain.get(gid);
-        if (r != null) {
-            r = r - 1;
-            if (r <= 0) {
-                map.remove(gid);
-                remain.remove(gid);
-                enqueueMappedGroup(sendSteps, new ArrayList<>(list), targetDialogId, notify, scheduleDate, payStars, document);
-            } else {
-                remain.put(gid, r);
-            }
-        }
-    }
-    
-    public void forwardMessages(ArrayList<MessageObject> messagesToSend, long targetDialogId, boolean showUndo, boolean hideCaption, boolean notify, int scheduleDate, long payStars, CompletionCallback onComplete) {
-        forwardMessages(messagesToSend, targetDialogId, showUndo, hideCaption, notify, scheduleDate, payStars, 0, 1, onComplete);
-    }
-
-    public void forwardMessages(ArrayList<MessageObject> messagesToSend, long targetDialogId, boolean showUndo, boolean hideCaption, boolean notify, int scheduleDate, long payStars, int chunkIndex, int chunkCount, CompletionCallback onComplete) {
-        if (disposed || messagesToSend == null || messagesToSend.isEmpty() || (!detached && parentFragment != null && parentFragment.getParentActivity() == null)) {
-            setFailureReason(null);
             if (onComplete != null) {
-                onComplete.onComplete(false);
+                onComplete.onComplete(callbackResult);
             }
-            return;
-        }
-        resetDownloadCancellationFlags(messagesToSend);
-        long taskId = startRun(messagesToSend.size(), countMediaToPrepare(messagesToSend), targetDialogId, chunkIndex, chunkCount);
-        forwardMessages(messagesToSend, targetDialogId, showUndo, hideCaption, notify, scheduleDate, payStars, taskId, 0, onComplete);
+        });
     }
 
-    private void forwardMessages(ArrayList<MessageObject> messagesToSend, long targetDialogId, boolean showUndo, boolean hideCaption, boolean notify, int scheduleDate, long payStars, long taskId, int retryCount, CompletionCallback onComplete) {
+    private void clearRunStateLocked() {
+        if (targetDialogId != 0L) {
+            activeForwards.remove(targetDialogId);
+        }
+        activeTaskId = 0L;
+        targetDialogId = 0L;
+        currentStatus = STATUS_IDLE;
+        totalMessages = 0;
+        sentMessages = 0;
+        skippedMessages = 0;
+        currentStatusDetail = null;
+        stopRequested = false;
+        currentChunkIndex = 0;
+        totalChunks = 1;
+        statusUpdateVersion = 0;
+    }
+
+    private void notifyStatusChanged() {
         if (disposed) {
             return;
         }
-        if (!isTaskActive(taskId)) {
-            finishRun(taskId, false, onComplete);
-            return;
-        }
-        if (stopRequested) {
-            finishRun(taskId, false, onComplete);
-            return;
-        }
-
-        AyuAttachments.MediaPreparationResult mediaState = prepareMedia(messagesToSend);
-        if (mediaState.hasUndownloadedAyuDeletedMedia) {
-            failRun(taskId, LocaleController.getString(R.string.PleaseDownload), onComplete);
-            return;
-        }
-        int missingMediaCount = mediaState.missingMediaCount;
-        updateLoadingState(missingMediaCount);
-        if (!isTaskActive(taskId)) {
-            finishRun(taskId, false, onComplete);
-            return;
-        }
-
-        if (missingMediaCount > 0) {
-            if (shouldAbortMediaWait(mediaState, taskId, onComplete)) {
-                return;
-            }
-            // Store pending state and subscribe to file download notifications
-            pendingMessages = messagesToSend;
-            pendingTargetDialogId = targetDialogId;
-            pendingShowUndo = showUndo;
-            pendingHideCaption = hideCaption;
-            pendingNotify = notify;
-            pendingScheduleDate = scheduleDate;
-            pendingPayStars = payStars;
-            pendingTaskId = taskId;
-            pendingOnComplete = onComplete;
-            subscribeToNotifications();
-            scheduleStallCheck();
-            return;
-        }
-
-        executeSendPhase(messagesToSend, targetDialogId, hideCaption, notify, scheduleDate, payStars, taskId, onComplete);
+        int updateMask = STATUS_REFRESH_MASK_BASE | ((statusUpdateVersion++ & 0x1FF) << 21);
+        AndroidUtilities.runOnUIThread(() ->
+                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, updateMask));
     }
 
-    private void executeSendPhase(ArrayList<MessageObject> messagesToSend, long targetDialogId, boolean hideCaption, boolean notify, int scheduleDate, long payStars, long taskId, CompletionCallback onComplete) {
-        subscribeToNotifications();
-        updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusStarting));
-        try {
-            HashMap<Long, ArrayList<GroupedMediaItem>> albumMap = new HashMap<>();
-            HashMap<Long, ArrayList<GroupedMediaItem>> docAlbumMap = new HashMap<>();
-            HashMap<Long, Integer> albumRemain = new HashMap<>();
-            ArrayList<AyuSequentialUtils.SendStep> sendSteps = new ArrayList<>();
-
-            // 1. Calculate grouping counts
-            for (MessageObject mo : messagesToSend) {
-                long gid = mo.getGroupId();
-                if (gid == 0) continue;
-                
-                boolean groupedMedia = mo.isPhoto() || mo.isVideo() || mo.isGif();
-                boolean groupedDoc = mo.getDocument() != null && !mo.isVideo() && !MessageObject.isGifMessage(mo.messageOwner) && !mo.isSticker() && !mo.isAnimatedSticker();
-                
-                if (groupedMedia || groupedDoc) {
-                    albumRemain.put(gid, albumRemain.getOrDefault(gid, 0) + 1);
-                }
+    private void runCompletion(CompletionCallback onComplete, boolean shouldContinue) {
+        AndroidUtilities.runOnUIThread(() -> {
+            if (onComplete != null) {
+                onComplete.onComplete(shouldContinue);
             }
-
-            // 2. Process Messages
-            for (MessageObject mo : messagesToSend) {
-                if (!isTaskActive(taskId) || stopRequested) {
-                    finishRun(taskId, false, onComplete);
-                    return;
-                }
-                CharSequence captionCs = hideCaption ? null : getForwardCaption(mo);
-                String caption = captionCs != null ? captionCs.toString() : null;
-                boolean hasMessage = mo.messageOwner != null && !TextUtils.isEmpty(mo.messageOwner.message);
-
-                // Text Messages Check
-                if (mo.type == MessageObject.TYPE_TEXT || mo.isAnimatedEmoji()) {
-                    MessageObject messageObject = mo;
-                    String messageCaption = caption;
-                    sendSteps.add(() -> {
-                        updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusTextCopy));
-                        sendTextMessage(messageObject, messageCaption, targetDialogId, notify, scheduleDate, payStars);
-                        return AyuSequentialUtils.DispatchResult.dispatched(1, null);
-                    });
-                    continue;
-                }
-                
-                // Group ID
-                long gid = mo.getGroupId();
-
-                // Media: Photo / Video / Gif
-                if (mo.isPhoto() || mo.isVideo() || mo.isGif()) {
-                    if (!ensureDownloaded(mo)) {
-                        onMessageSkipped();
-                        continue;
-                    }
-
-                    if (gid != 0) {
-                        addToGroup(gid, new GroupedMediaItem(mo, caption), albumMap, albumRemain, sendSteps, false, targetDialogId, notify, scheduleDate, payStars);
-                    } else {
-                        MessageObject messageObject = mo;
-                        String messageCaption = caption;
-                        sendSteps.add(() -> {
-                            updateForwardingState(messageObject.isPhoto() ? LocaleController.getString(R.string.ForceForwardStatusPhotoCopy) : LocaleController.getString(R.string.ForceForwardStatusMediaCopy));
-                            SendMessagesHelper.SendMessageParams params = messageObject.isPhoto()
-                                    ? buildMappedPhotoParams(messageObject, messageCaption, targetDialogId, notify, scheduleDate, null)
-                                    : buildMappedDocumentParams(messageObject, messageCaption, targetDialogId, notify, scheduleDate, null);
-                            if (params == null) {
-                                updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusMediaFallback));
-                                ArrayList<SendMessagesHelper.SendingMediaInfo> one = new ArrayList<>(1);
-                                SendMessagesHelper.SendingMediaInfo info = createMediaInfo(messageObject, messageCaption);
-                                info.isVideo = messageObject.isVideo() || messageObject.isGif();
-                                one.add(info);
-                                sendMediaBatch(one, targetDialogId, false, false, notify, scheduleDate, payStars);
-                                return AyuSequentialUtils.DispatchResult.dispatched(1, createUploadPaths(one));
-                            }
-                            sendMappedParams(params, payStars);
-                            return AyuSequentialUtils.DispatchResult.dispatched(1, createUploadPaths(params));
-                        });
-                    }
-                    continue;
-                }
-
-                // Documents
-                if (mo.getDocument() != null && !mo.isSticker() && !mo.isAnimatedSticker()) {
-                    if (!ensureDownloaded(mo)) {
-                        onMessageSkipped();
-                        continue;
-                    }
-                    
-                    if (gid != 0) {
-                        addToGroup(gid, new GroupedMediaItem(mo, caption), docAlbumMap, albumRemain, sendSteps, true, targetDialogId, notify, scheduleDate, payStars);
-                    } else {
-                        MessageObject messageObject = mo;
-                        String messageCaption = caption;
-                        sendSteps.add(() -> {
-                            updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusDocumentCopy));
-                            SendMessagesHelper.SendMessageParams params = buildMappedDocumentParams(messageObject, messageCaption, targetDialogId, notify, scheduleDate, null);
-                            if (params == null) {
-                                updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusDocumentFallback));
-                                params = buildDocumentFallbackParams(messageObject, messageCaption, targetDialogId, notify, scheduleDate);
-                                if (params == null) {
-                                    onMessageSkipped();
-                                    return AyuSequentialUtils.DispatchResult.none();
-                                }
-                            }
-                            sendMappedParams(params, payStars);
-                            return AyuSequentialUtils.DispatchResult.dispatched(1, createUploadPaths(params));
-                        });
-                    }
-                    continue;
-                }
-
-                // Stickers
-                if (mo.isSticker() || mo.isAnimatedSticker()) {
-                    if (mo.getDocument() != null) {
-                        MessageObject messageObject = mo;
-                        sendSteps.add(() -> {
-                            updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusStickerCopy));
-                            MessageObject replyToMsg = replyToTopMessage;
-                            SendMessagesHelper.getInstance(currentAccount).sendSticker(messageObject.getDocument(), null, targetDialogId, replyToMsg, replyToMsg, null, null, null, notify, scheduleDate, 0, false, null, quickReplyShortcut, quickReplyShortcutId, payStars, monoForumPeerId, suggestionParams);
-                            return AyuSequentialUtils.DispatchResult.dispatched(1, null);
-                        });
-                    } else {
-                        onMessageSkipped();
-                    }
-                    continue;
-                }
-                
-                // Fallback Text (e.g. text message with obscure type or just failsafe)
-                if (hasMessage) {
-                    MessageObject messageObject = mo;
-                    sendSteps.add(() -> {
-                        updateForwardingState(LocaleController.getString(R.string.ForceForwardStatusTextFallback));
-                        sendTextMessage(messageObject, null, targetDialogId, notify, scheduleDate, payStars);
-                        return AyuSequentialUtils.DispatchResult.dispatched(1, null);
-                    });
-                } else {
-                    onMessageSkipped();
-                }
-            }
-
-            if (!isTaskActive(taskId) || stopRequested) {
-                finishRun(taskId, false, onComplete);
-                return;
-            }
-
-            // 3. Process Leftover Groups
-            for (ArrayList<GroupedMediaItem> group : albumMap.values()) {
-                enqueueLeftoverGroupAsSingles(sendSteps, new ArrayList<>(group), targetDialogId, notify, scheduleDate, payStars, false);
-            }
-            for (ArrayList<GroupedMediaItem> group : docAlbumMap.values()) {
-                enqueueLeftoverGroupAsSingles(sendSteps, new ArrayList<>(group), targetDialogId, notify, scheduleDate, payStars, true);
-            }
-
-            if (!isTaskActive(taskId) || stopRequested) {
-                finishRun(taskId, false, onComplete);
-                return;
-            }
-
-            if (sendSteps.isEmpty()) {
-                finishRunAfterUiRefresh(taskId, onComplete);
-                return;
-            }
-            runSendQueue(sendSteps, 0, taskId, onComplete);
-        } catch (Exception e) {
-            FileLog.e(e);
-            failRun(taskId, LocaleController.getString(R.string.ForceForwardFailed), onComplete);
-        }
+        });
     }
-    
-    private SendMessagesHelper.SendingMediaInfo createMediaInfo(MessageObject mo, String caption) {
-        SendMessagesHelper.SendingMediaInfo info = new SendMessagesHelper.SendingMediaInfo();
-        info.path = resolvePath(mo);
-        ArrayList<TLRPC.MessageEntity> entities = mo == null || mo.messageOwner == null || mo.messageOwner.entities == null ? new ArrayList<>() : new ArrayList<>(mo.messageOwner.entities);
-        info.caption = prependPseudoReplyCaption(mo, caption, entities);
-        info.entities = entities.isEmpty() ? null : entities;
-        if (mo.messageOwner != null && mo.messageOwner.media != null) {
-            info.ttl = mo.messageOwner.media.ttl_seconds;
-        }
-        info.hasMediaSpoilers = mo.hasMediaSpoilers();
-        return info;
-    }
-
-    private void sendTextMessage(MessageObject mo, String captionOverride, long targetDialogId, boolean notify, int scheduleDate, long payStars) {
-        if (mo == null) return; // Defensive null check
-
-        String text = mo.messageOwner != null && !TextUtils.isEmpty(mo.messageOwner.message)
-                ? mo.messageOwner.message
-                : captionOverride;
-
-        if (TextUtils.isEmpty(text)) return;
-
-        ArrayList<TLRPC.MessageEntity> entities = mo.messageOwner != null && mo.messageOwner.entities != null && !mo.messageOwner.entities.isEmpty()
-                ? new ArrayList<>(mo.messageOwner.entities)
-                : MediaDataController.getInstance(currentAccount).getEntities(new CharSequence[]{text}, true);
-
-        // Prepend pseudo-reply header with original sender info
-        text = prependPseudoReply(mo, text, entities);
-
-        SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text, targetDialogId, null, null, null, false, entities, null, null, notify, scheduleDate, 0, null, false);
-        applySendContext(params, payStars);
-        SendMessagesHelper.getInstance(currentAccount).sendMessage(params);
-    }
-
-    private boolean shouldAbortMediaWait(AyuAttachments.MediaPreparationResult mediaState, long taskId, CompletionCallback onComplete) {
-        if (mediaState.cancelledByUser) {
-            setFailureReason(null);
-            finishRun(taskId, false, onComplete);
-            return true;
-        }
-
-        long now = SystemClock.elapsedRealtime();
-        if (mediaWaitStartTime == 0L) {
-            mediaWaitStartTime = now;
-            mediaLastProgressTime = now;
-            mediaLastObservedBytes = mediaState.downloadedBytes;
-            mediaLastMissingCount = mediaState.missingMediaCount;
-            return false;
-        }
-
-        boolean progressAdvanced = mediaState.missingMediaCount < mediaLastMissingCount || mediaState.downloadedBytes > mediaLastObservedBytes;
-        if (progressAdvanced) {
-            mediaLastProgressTime = now;
-            mediaLastObservedBytes = mediaState.downloadedBytes;
-            mediaLastMissingCount = mediaState.missingMediaCount;
-            return false;
-        }
-
-        if (now - mediaWaitStartTime >= MAX_MEDIA_WAIT_MS) {
-            FileLog.w("AyuForward: media wait exceeded hard timeout");
-            failRun(taskId, LocaleController.getString(R.string.ForceForwardMediaTimedOut), onComplete);
-            return true;
-        }
-
-        if (now - mediaLastProgressTime >= MAX_MEDIA_STALL_TIMEOUT_MS) {
-            String failureReason = mediaState.activeDownloadCount > 0
-                    ? LocaleController.getString(R.string.ForceForwardMediaStalled)
-                    : LocaleController.getString(R.string.ForceForwardMediaDidNotStart);
-            FileLog.w("AyuForward: " + failureReason);
-            failRun(taskId, failureReason, onComplete);
-            return true;
-        }
-
-        return false;
-    }
-
 }
-

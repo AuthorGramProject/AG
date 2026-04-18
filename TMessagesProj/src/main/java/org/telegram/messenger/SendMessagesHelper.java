@@ -2033,16 +2033,12 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         }
     }
 
+    private boolean hasFullAyuForwardMessages(ArrayList<MessageObject> messages) {
+        return AyuForward.isFullAyuForwardsNeeded(messages);
+    }
+
     private boolean hasAyuForwardMessages(ArrayList<MessageObject> messages) {
-        if (messages == null) {
-            return false;
-        }
-        for (int i = 0; i < messages.size(); i++) {
-            if (AyuForward.isAyuForwardNeeded(messages.get(i))) {
-                return true;
-            }
-        }
-        return false;
+        return AyuForward.isAyuForwardNeeded(messages);
     }
 
     private ArrayList<ArrayList<MessageObject>> splitForwardChunks(ArrayList<MessageObject> messages, ArrayList<Boolean> ayuForwardModes) {
@@ -2113,6 +2109,15 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         if (currentPayStars != payStars) {
             AlertsCreator.ensurePaidMessageConfirmation(currentAccount, peer, Math.max(1, messages.size()), newPayStars -> {
                 sendMessageSmart(messages, peer, forwardFromMyName, hideCaption, notify, scheduleDate, scheduleRepeatPeriod, replyToTopMsg, video_timestamp, newPayStars, monoForumPeerId, suggestionParams, onAsyncFailure);
+            });
+            return 0;
+        }
+        if (hasFullAyuForwardMessages(messages)) {
+            AyuForward handler = new AyuForward(currentAccount, replyToTopMsg, 0, null, 0, monoForumPeerId, suggestionParams);
+            handler.forwardMessages(messages, peer, false, hideCaption, notify, scheduleDate, payStars, shouldContinue -> {
+                if (!shouldContinue) {
+                    notifyForwardChunkFailure(onAsyncFailure, 0, handler.consumeLastFailureReason());
+                }
             });
             return 0;
         }
