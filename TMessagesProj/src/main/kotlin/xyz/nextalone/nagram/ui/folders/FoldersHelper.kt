@@ -44,7 +44,7 @@ object FoldersHelper {
         if (!moveFoldersToBottom()) {
             return 0
         }
-        return if (showMainTabs) AndroidUtilities.dp(80f) else AndroidUtilities.dp(30f)
+        return AndroidUtilities.dp(35f)
     }
 
     @JvmStatic
