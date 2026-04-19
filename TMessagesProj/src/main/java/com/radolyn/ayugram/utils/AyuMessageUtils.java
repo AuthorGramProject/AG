@@ -10,7 +10,9 @@ import com.radolyn.ayugram.AyuUtils;
 import com.radolyn.ayugram.database.entities.AyuMessageBase;
 import com.radolyn.ayugram.messages.AyuMessagesController;
 import com.radolyn.ayugram.messages.AyuSavePreferences;
+import com.radolyn.ayugram.utils.seq.AyuSequentialUtils;
 
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
@@ -830,6 +832,10 @@ public abstract class AyuMessageUtils {
     private static File processAttachment(AyuSavePreferences prefs) {
         TLRPC.Message message = prefs.getMessage();
         if (message == null) return new File("/");
+        MessageObject messageObject = new MessageObject(prefs.getAccountId(), message, false, true);
+        if (!hasLocalForwardCopy(messageObject)) {
+            ensureAttachmentAvailableForSaving(messageObject);
+        }
         if (message.media instanceof TLRPC.TL_messageMediaStory story && story.storyItem != null && story.storyItem.media != null) {
             TLRPC.MessageMedia storyMedia = story.storyItem.media;
             if (storyMedia.document != null) {
@@ -849,6 +855,27 @@ public abstract class AyuMessageUtils {
             return processAttachment(prefs.getAccountId(), message.media.photo);
         }
         return processAttachment(prefs.getAccountId(), message.media.document);
+    }
+
+    private static void ensureAttachmentAvailableForSaving(MessageObject messageObject) {
+        if (messageObject == null || messageObject.messageOwner == null) {
+            return;
+        }
+        if (Thread.currentThread() == ApplicationLoader.applicationHandler.getLooper().getThread()) {
+            return;
+        }
+        long messageSize = MessageObject.getMessageSize(messageObject.messageOwner);
+        if (messageSize > 0) {
+            long limit = ApplicationLoader.isConnectedToWiFi()
+                    ? NaConfig.INSTANCE.getSaveMediaOnWiFiLimit().Long()
+                    : NaConfig.INSTANCE.getSaveMediaOnCellularDataLimit().Long();
+            if (messageSize > limit) {
+                return;
+            }
+        }
+        ArrayList<MessageObject> messages = new ArrayList<>(1);
+        messages.add(messageObject);
+        AyuSequentialUtils.loadDocumentsSync(messageObject.currentAccount, messages);
     }
 
     private static File processAttachment(File source, File target) {
