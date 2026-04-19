@@ -651,6 +651,18 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val saveMediaOnCellularDataLimit =
+        addConfig(
+            "SaveMediaOnCellularDataLimit",
+            ConfigItem.configTypeLong,
+            16L * 1024L * 1024L
+        )
+    val saveMediaOnWiFiLimit =
+        addConfig(
+            "SaveMediaOnWiFiLimit",
+            ConfigItem.configTypeLong,
+            64L * 1024L * 1024L
+        )
     val attachmentFolderSizeLimitPreset =
         addConfig(
             "AttachmentFolderSizeLimitPreset",
@@ -969,6 +981,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val drawerItemRecentChats =
+        addConfig(
+            "DrawerItemRecentChats",
+            ConfigItem.configTypeBool,
+            true
+        )
     val drawerItemSaved =
         addConfig(
             "DrawerItemSaved",
@@ -1094,6 +1112,12 @@ object NaConfig {
             "MessageColoredBackground",
             ConfigItem.configTypeBool,
             true
+        )
+    val removeMessageTail =
+        addConfig(
+            "RemoveMessageTail",
+            ConfigItem.configTypeBool,
+            false
         )
     val chatMenuItemBoostGroup =
         addConfig(
@@ -1335,9 +1359,15 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
-    val mainTabsHideBottomBar =
+    val mainTabsDisplayMode =
         addConfig(
-            "MainTabsHideBottomBar",
+            "MainTabsDisplayMode",
+            ConfigItem.configTypeInt,
+            0
+        )
+    val mainTabsShowSearchButton =
+        addConfig(
+            "MainTabsShowSearchButton",
             ConfigItem.configTypeBool,
             false
         )
@@ -1376,6 +1406,12 @@ object NaConfig {
             "AutoUpdateChannel",
             ConfigItem.configTypeInt,
             1 // 0: off; 1: release; 2: beta
+        )
+    val sendLockedCustomEmojiAsSticker =
+        addConfig(
+            "SendLockedCustomEmojiAsSticker",
+            ConfigItem.configTypeBool,
+            false
         )
     val premiumItemEmojiStatus =
         addConfig(
@@ -1620,6 +1656,25 @@ object NaConfig {
                 backAnimationStyle.setConfigInt(1) // SPRING
             }
             getPreferences().edit { remove("SpringAnimation") }
+        }
+        if (!getPreferences().contains(mainTabsDisplayMode.key) &&
+            (getPreferences().contains("MainTabsHideBottomBar") || getPreferences().contains("MainTabsHideOnScroll"))
+        ) {
+            val legacyHideBottomBar = getPreferences().getBoolean("MainTabsHideBottomBar", false)
+            val legacyHideOnScroll = getPreferences().getBoolean("MainTabsHideOnScroll", false)
+            mainTabsDisplayMode.setConfigInt(
+                when {
+                    legacyHideBottomBar -> 1
+                    legacyHideOnScroll -> 2
+                    else -> 0
+                }
+            )
+        }
+        if (getPreferences().contains("MainTabsHideBottomBar") || getPreferences().contains("MainTabsHideOnScroll")) {
+            getPreferences().edit {
+                remove("MainTabsHideBottomBar")
+                remove("MainTabsHideOnScroll")
+            }
         }
 
         val currentLlmApiUrl = llmApiUrl.String()

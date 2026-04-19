@@ -10,6 +10,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
 import android.graphics.drawable.ShapeDrawable;
 import android.os.Build;
@@ -21,6 +23,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -90,8 +93,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     private static final int DEFAULT_PAGER_POSITION = 0;
 
     private static final int ANIMATOR_ID_TABS_VISIBLE = 0;
+    private static final int ANIMATOR_ID_TABS_SCROLL_HIDE = 1;
     private final BoolAnimator animatorTabsVisible = new BoolAnimator(ANIMATOR_ID_TABS_VISIBLE,
         this, CubicBezierInterpolator.EASE_OUT_QUINT, 380, true);
+    private final BoolAnimator animatorTabsScrollHide = new BoolAnimator(ANIMATOR_ID_TABS_SCROLL_HIDE,
+        this, CubicBezierInterpolator.EASE_OUT_QUINT, 300, false);
 
 
     private IUpdateLayout updateLayout;
@@ -99,9 +105,12 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
     private UpdateLayoutWrapper updateLayoutWrapper;
     private FrameLayout tabsViewWrapper;
+    private LinearLayout tabsBarContainer;
     private MainTabsLayout tabsView;
     private BlurredBackgroundDrawable tabsViewBackground;
+    private BlurredBackgroundDrawable searchTabButtonBackground;
     private View fadeView;
+    private FrameLayout searchTabButton;
     private ArrayList<MainTabsConfigManager.TabState> configuredTabs = new ArrayList<>();
     private boolean lastBottomBarHidden = isBottomBarHidden();
 
@@ -284,11 +293,56 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         fadeView.setBackground(fadeDrawable);
 
         contentView.addView(fadeView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 0, Gravity.BOTTOM));
-
         tabsViewWrapper = new FrameLayout(context);
         tabsViewWrapper.setOnClickListener(v -> {});
-        tabsViewWrapper.addView(tabsView, LayoutHelper.createFrame(328 + DialogsActivity.MAIN_TABS_MARGIN * 2, DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+        tabsViewWrapper.setClipChildren(false);
         tabsViewWrapper.setClipToPadding(false);
+
+        tabsBarContainer = new LinearLayout(context);
+        tabsBarContainer.setOrientation(LinearLayout.HORIZONTAL);
+        tabsBarContainer.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
+        tabsBarContainer.setClipChildren(false);
+        tabsBarContainer.setClipToPadding(false);
+        tabsBarContainer.setPadding(dp(2), 0, dp(2), 0);
+        tabsView.setTranslationX(0f);
+        tabsBarContainer.addView(tabsView, LayoutHelper.createLinear(dp(MainTabsHelper.getTabsViewWidth()), DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS));
+
+        searchTabButton = new FrameLayout(context);
+        searchTabButton.setClipChildren(false);
+        searchTabButton.setClipToPadding(false);
+        searchTabButtonBackground = iBlur3FactoryGlass.create(searchTabButton, BlurredBackgroundProviderImpl.mainTabs(resourceProvider));
+        searchTabButtonBackground.setRadius(dp(28));
+        searchTabButtonBackground.setPadding(dp(0.334f));
+        searchTabButton.setBackground(searchTabButtonBackground);
+
+        ImageView searchIcon = new ImageView(context);
+        searchIcon.setImageResource(R.drawable.outline_header_search);
+        searchIcon.setPadding(dp(14), dp(14), dp(14), dp(14));
+        searchIcon.setColorFilter(new PorterDuffColorFilter(
+            Theme.getColor(Theme.key_glass_tabUnselected, resourceProvider), PorterDuff.Mode.SRC_IN));
+        searchTabButton.addView(searchIcon, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+
+        searchTabButton.setClickable(true);
+        searchTabButton.setContentDescription(getString(R.string.Search));
+        searchTabButton.setOnClickListener(v -> onSearchTabButtonClicked());
+        searchTabButton.setOnLongClickListener(v -> {
+            onSearchTabButtonLongClicked();
+            return true;
+        });
+        int searchBtnSize = dp(56);
+        LinearLayout.LayoutParams searchBtnLp = new LinearLayout.LayoutParams(searchBtnSize, searchBtnSize);
+        searchBtnLp.setMarginStart(-dp(10));
+        searchBtnLp.setMarginEnd(dp(4));
+        tabsBarContainer.addView(searchTabButton, searchBtnLp);
+        tabsViewWrapper.addView(tabsBarContainer, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+
+        tabsViewWrapper.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                repositionSearchButton();
+            }
+        });
+
         contentView.addView(tabsViewWrapper, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM));
 
         updateLayoutWrapper = new UpdateLayoutWrapper(context);
@@ -300,6 +354,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         }
 
         checkUnreadCount(false);
+        updateSearchTabButtonVisibility();
         return contentView;
     }
 
@@ -323,7 +378,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private boolean isBottomBarHidden() {
-        return NaConfig.INSTANCE.getMainTabsHideBottomBar().Bool();
+        return NaConfig.INSTANCE.getMainTabsDisplayMode().Int() == MainTabsHelper.BOTTOM_BAR_MODE_HIDE;
     }
 
     private boolean shouldUseMainTabsPadding() {
@@ -706,6 +761,10 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         lastBottomBarHidden = bottomBarHidden;
         configuredTabs = newTabs;
 
+        if (NaConfig.INSTANCE.getMainTabsDisplayMode().Int() != MainTabsHelper.BOTTOM_BAR_MODE_FLOATING) {
+            animatorTabsScrollHide.setValue(false, false);
+        }
+
         int targetPosition = getSafePagerPosition(getPreferredStartPositionFor(selectedType));
 
         if (viewPager != null) {
@@ -765,6 +824,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             checkUi_fadeView();
         }
         checkContactsTabBadge();
+        updateSearchTabButtonVisibility();
     }
 
 
@@ -781,6 +841,14 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
         default BlurredBackgroundSourceRenderNode getGlassSource() {
             return null;
+        }
+
+        default void onSearchButtonClicked() {
+
+        }
+
+        default boolean hasSearch() {
+            return false;
         }
     }
 
@@ -942,7 +1010,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
     @Override
     public void onFactorChanged(int id, float factor, float fraction, FactorAnimator callee) {
-        if (id == ANIMATOR_ID_TABS_VISIBLE) {
+        if (id == ANIMATOR_ID_TABS_VISIBLE || id == ANIMATOR_ID_TABS_SCROLL_HIDE) {
             checkUi_tabsPosition();
             checkUi_fadeView();
         }
@@ -964,7 +1032,8 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             ? 1f - MathUtils.clamp(Math.abs(profilePosition - animatedPosition), 0, 1)
             : 0f;
         final float hide = 1f - AndroidUtilities.getNavigationBarThirdButtonsFactor(0, 1f, navigationBarHeight);
-        final float alpha = (1f - isProfile * hide) * animatorTabsVisible.getFloatValue();
+        final float scrollHideFactor = animatorTabsScrollHide.getFloatValue();
+        final float alpha = (1f - isProfile * hide) * animatorTabsVisible.getFloatValue() * (1f - scrollHideFactor);
 
         fadeView.setAlpha(alpha);
         fadeView.setTranslationY(isProfile * dp(48));
@@ -981,6 +1050,9 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             tabsView.setEnabled(false);
             tabsView.setAlpha(0f);
             tabsView.setVisibility(View.GONE);
+            if (searchTabButton != null) {
+                searchTabButton.setVisibility(View.GONE);
+            }
             return;
         }
         final boolean isUpdateLayoutVisible = updateLayoutWrapper.isUpdateLayoutVisible();
@@ -988,17 +1060,20 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         final int normalY = -(updateLayoutHeight);
         final int hiddenY = normalY + dp(40);
 
-        final float factor = animatorTabsVisible.getFloatValue();
-        final float scale = lerp(0.85f, 1f, factor);
+        final float visibleFactor = animatorTabsVisible.getFloatValue();
+        final float scrollHideFactor = animatorTabsScrollHide.getFloatValue();
+        final float combinedFactor = visibleFactor * (1f - scrollHideFactor);
+        final float scale = lerp(0.85f, 1f, combinedFactor);
+        final int scrollHideOffset = dp(MainTabsHelper.getMainTabsHeight() + MainTabsHelper.getMainTabsMargin() * 2);
 
-        tabsViewWrapper.setTranslationY(lerp(hiddenY, normalY, factor));
-        tabsViewWrapper.setVisibility(factor > 0 ? View.VISIBLE : View.GONE);
+        tabsViewWrapper.setTranslationY(lerp(hiddenY, normalY, visibleFactor) + scrollHideOffset * scrollHideFactor);
+        tabsViewWrapper.setVisibility(combinedFactor > 0 ? View.VISIBLE : View.GONE);
         tabsView.setScaleX(scale);
         tabsView.setScaleY(scale);
-        tabsView.setClickable(factor > 1);
-        tabsView.setEnabled(factor > 1);
-        tabsView.setAlpha(factor);
-        tabsView.setVisibility(factor > 0 ? View.VISIBLE : View.GONE);
+        tabsView.setClickable(combinedFactor > 0.5f);
+        tabsView.setEnabled(combinedFactor > 0.5f);
+        tabsView.setAlpha(combinedFactor);
+        tabsView.setVisibility(combinedFactor > 0 ? View.VISIBLE : View.GONE);
     }
 
     private void checkUi_callTabVisible(boolean callTabsVisible, boolean animated) {
@@ -1022,6 +1097,12 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         @Override
         public void setTabsVisible(boolean visible) {
             animatorTabsVisible.setValue(visible, true);
+        }
+
+        @Override
+        public void setTabsScrollHide(boolean hide) {
+            if (NaConfig.INSTANCE.getMainTabsDisplayMode().Int() != MainTabsHelper.BOTTOM_BAR_MODE_FLOATING) return;
+            animatorTabsScrollHide.setValue(hide, true);
         }
     }
 
@@ -1127,6 +1208,9 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         if (tabsViewBackground != null) {
             tabsViewBackground.updateColors();
         }
+        if (searchTabButtonBackground != null) {
+            searchTabButtonBackground.updateColors();
+        }
         blur3_invalidateBlur();
         if (fadeView != null) {
             fadeView.invalidate();
@@ -1134,6 +1218,10 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         if (tabsView != null) {
             tabsView.invalidate();
         }
+        if (searchTabButton != null) {
+            searchTabButton.invalidate();
+        }
+        updateSearchTabButtonVisibility();
         if (tabs != null) {
             for (GlassTabView tabView : tabs) {
                 tabView.updateColorsLottie();
@@ -1201,13 +1289,122 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         o.show();
         return true;
     }
-
     private void setupPopupMenuStyle(ItemOptions options) {
         options.setBlur(true);
         options.translate(0, -dp(4));
         final ShapeDrawable bg = Theme.createRoundRectDrawable(dp(28), getThemedColor(Theme.key_windowBackgroundWhite));
         bg.getPaint().setShadowLayer(dp(6), 0, dp(1), Theme.multAlpha(0xFF000000, 0.15f));
         options.setScrimViewBackground(bg);
+    }
+    private void repositionSearchButton() {
+        if (searchTabButton == null || tabsView == null || tabsViewWrapper == null || tabsBarContainer == null) return;
+        boolean show = NaConfig.INSTANCE.getMainTabsShowSearchButton().Bool() && !isBottomBarHidden();
+
+        ViewGroup.LayoutParams tabsBaseLp = tabsView.getLayoutParams();
+        LinearLayout.LayoutParams tabsLp;
+        if (tabsBaseLp instanceof LinearLayout.LayoutParams) {
+            tabsLp = (LinearLayout.LayoutParams) tabsBaseLp;
+        } else {
+            tabsLp = new LinearLayout.LayoutParams(dp(MainTabsHelper.getTabsViewWidth()), dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS));
+            tabsView.setLayoutParams(tabsLp);
+        }
+
+        ViewGroup.LayoutParams searchBaseLp = searchTabButton.getLayoutParams();
+        LinearLayout.LayoutParams searchLp;
+        if (searchBaseLp instanceof LinearLayout.LayoutParams) {
+            searchLp = (LinearLayout.LayoutParams) searchBaseLp;
+        } else {
+            int searchBtnSize = dp(56);
+            searchLp = new LinearLayout.LayoutParams(searchBtnSize, searchBtnSize);
+            searchLp.setMarginStart(-dp(10));
+            searchTabButton.setLayoutParams(searchLp);
+        }
+
+        tabsView.setTranslationX(0f);
+        searchTabButton.setTranslationX(0f);
+        tabsBarContainer.setTranslationX(0f);
+
+        if (!show) {
+            int baseTabsWidth = dp(MainTabsHelper.getTabsViewWidth());
+            int wrapperWidth = tabsViewWrapper.getWidth();
+            if (wrapperWidth > 0) {
+                int containerPadding = tabsBarContainer.getPaddingLeft() + tabsBarContainer.getPaddingRight();
+                int outerInset = dp(Math.min(DialogsActivity.MAIN_TABS_MARGIN, 6));
+                int maxTabsWidth = Math.max(0, wrapperWidth - containerPadding - outerInset * 2);
+                baseTabsWidth = Math.min(baseTabsWidth, maxTabsWidth);
+            }
+            if (tabsLp.width != baseTabsWidth) {
+                tabsLp.width = baseTabsWidth;
+                tabsView.setLayoutParams(tabsLp);
+            }
+            searchTabButton.setVisibility(View.GONE);
+            return;
+        }
+
+        int searchBtnWidth = searchTabButton.getWidth();
+        if (searchBtnWidth <= 0) {
+            searchBtnWidth = searchLp.width > 0 ? searchLp.width : dp(56);
+        }
+        int gap = searchLp.getMarginStart();
+        int endInset = searchLp.getMarginEnd();
+        int wrapperWidth = tabsViewWrapper.getWidth();
+        if (wrapperWidth <= 0) return;
+
+        int containerPadding = tabsBarContainer.getPaddingLeft() + tabsBarContainer.getPaddingRight();
+        int outerInset = dp(Math.min(DialogsActivity.MAIN_TABS_MARGIN, 6));
+        int maxTabsWidth = Math.max(0, wrapperWidth - containerPadding - searchBtnWidth - gap - endInset - outerInset * 2);
+        if (tabsLp.width != maxTabsWidth) {
+            tabsLp.width = maxTabsWidth;
+            tabsView.setLayoutParams(tabsLp);
+        }
+        searchTabButton.setVisibility(View.VISIBLE);
+
+        // Fix visual centering: the pill background is inset from tabsView bounds
+        // by bgPadding on the left, while the search button only has marginEnd on
+        // the right. Shift the container so both visual edges are equidistant from
+        // the screen edges.
+        int bgPadding = dp(MainTabsHelper.getMainTabsMargin() - 0.334f);
+        int leftVisualPad = tabsBarContainer.getPaddingLeft() + bgPadding;
+        int rightVisualPad = tabsBarContainer.getPaddingRight() + endInset;
+        float correction = (rightVisualPad - leftVisualPad) / 2f;
+        tabsBarContainer.setTranslationX(correction);
+    }
+    private void onSearchTabButtonClicked() {
+        final BaseFragment fragment = getCurrentVisibleFragment();
+        if (fragment instanceof TabFragmentDelegate) {
+            TabFragmentDelegate delegate = (TabFragmentDelegate) fragment;
+            if (delegate.hasSearch()) {
+                delegate.onSearchButtonClicked();
+                return;
+            }
+        }
+        int chatsPosition = getTabIndex(MainTabsConfigManager.TabType.CHATS);
+        if (chatsPosition >= 0 && viewPager != null) {
+            viewPager.scrollToPosition(chatsPosition);
+            if (dialogsActivity != null) {
+                dialogsActivity.onSearchButtonClicked();
+            }
+        }
+    }
+
+    private void onSearchTabButtonLongClicked() {
+        Bundle args = new Bundle();
+        args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
+        presentFragment(new ChatActivity(args));
+    }
+
+    private void updateSearchTabButtonVisibility() {
+        if (searchTabButton == null) return;
+        boolean show = NaConfig.INSTANCE.getMainTabsShowSearchButton().Bool() && !isBottomBarHidden();
+        searchTabButton.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (show) {
+            View child = searchTabButton.getChildAt(0);
+            if (child instanceof ImageView) {
+                ((ImageView) child).setColorFilter(new PorterDuffColorFilter(
+                    Theme.getColor(Theme.key_glass_tabUnselected, resourceProvider), PorterDuff.Mode.SRC_IN));
+            }
+        }
+        repositionSearchButton();
     }
 
 }
