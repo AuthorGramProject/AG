@@ -8,36 +8,54 @@ plugins {
 }
 
 // ---------------------------------------------------------------------------
-// Automatic versioning — nothing below this block should ever be edited
-// manually.  All values are derived from git metadata at build time.
+// Automatic versioning — fully configuration-cache-safe.
+// Nothing in this block should ever be edited manually.
+//
+// External processes are run via providers.exec {} (Gradle's supported API
+// for configuration-cache-compatible process execution).  On CI every value
+// is injected as an environment variable by the workflow so no git subprocess
+// is needed at all during CI builds.
 // ---------------------------------------------------------------------------
 
-/** Run a shell command in the project root; return trimmed stdout or null. */
-def gitOutput = { String cmd ->
+/** Run a git command and return trimmed stdout, or null on any failure. */
+def gitOutput = { List<String> cmd ->
     try {
-        def proc = cmd.execute([], rootProject.projectDir)
-        proc.waitFor()
-        proc.exitValue() == 0 ? proc.text.trim() : null
+        def result = providers.exec {
+            commandLine cmd
+            workingDir rootProject.projectDir
+            ignoreExitValue = true
+        }
+        result.result.get().exitValue == 0
+                ? result.standardOutput.asText.get().trim()
+                : null
     } catch (ignored) { null }
 }
 
-// versionCode — strictly-monotonic commit count from the full history.
-// Falls back to APP_VERSION_CODE (gradle.properties) only when git is absent
-// (e.g. a source-tarball build without a .git directory).
-def computedVersionCode = (gitOutput('git rev-list --count HEAD')?.toInteger()
-        ?: APP_VERSION_CODE.toInteger())
+// versionCode — CI passes VERSION_CODE (computed by the workflow step that
+// already ran "git rev-list --count HEAD" in plain bash).  For local builds
+// we call git via providers.exec (config-cache safe).  Falls back to
+// APP_VERSION_CODE when git is also unavailable (source-tarball builds).
+def computedVersionCode = (
+        System.getenv('VERSION_CODE')?.toInteger()
+        ?: gitOutput(['git', 'rev-list', '--count', 'HEAD'])?.toInteger()
+        ?: APP_VERSION_CODE.toInteger()
+)
 
-// Short SHA — prefer the full 40-char SHA from CI (COMMIT_ID) for accuracy,
-// otherwise ask git directly.
-def shortSha = (System.getenv('COMMIT_ID')?.take(7)
-        ?: gitOutput('git rev-parse --short=7 HEAD'))
+// Short SHA — CI passes the full COMMIT_ID env var; local builds ask git.
+def shortSha = (
+        System.getenv('COMMIT_ID')?.take(7)
+        ?: gitOutput(['git', 'rev-parse', '--short=7', 'HEAD'])
+)
 
-// Dirty-tree detection: append "dev+" prefix so local test builds are
-// trivially distinguishable from clean CI builds.
-def isDirty = ((gitOutput('git status --porcelain')?.length() ?: 0) > 0)
+// Dirty-tree detection — skipped entirely on CI (always a clean checkout).
+// The "dev+" suffix helps distinguish local test builds at a glance.
+def isDirty = !System.getenv('CI') &&
+        ((gitOutput(['git', 'status', '--porcelain'])?.length() ?: 0) > 0)
 
-// Full version name: <base>-dev+<sha> locally (dirty), <base>-<sha> on CI.
-// Degrades gracefully to just <base> when git is unavailable.
+// Full version name:
+//   <base>-<sha>       — CI / clean local tree
+//   <base>-dev+<sha>   — dirty local working tree
+//   <base>             — git unavailable (source-tarball fallback)
 def verName = shortSha
         ? (isDirty ? "${APP_VERSION_NAME}-dev+${shortSha}" : "${APP_VERSION_NAME}-${shortSha}")
         : APP_VERSION_NAME
