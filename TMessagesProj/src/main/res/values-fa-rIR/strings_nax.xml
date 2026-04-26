@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="NagramExteraChannel">کانال Nagram Extera</string>
+    <string name="NagramExteraGroup">گروه Nagram Extera</string>
+    <string name="AyuGramChannel">کانال AyuGram</string>
+    <string name="ExteraGramChannel">کانال exteraGram</string>
     <string name="XChannel">کانال Nagram X</string>
     <string name="EnableSaveDeletedMessages">نمایش پیام‌های حذف شده</string>
     <string name="DeletedMessage">حذف شده</string>

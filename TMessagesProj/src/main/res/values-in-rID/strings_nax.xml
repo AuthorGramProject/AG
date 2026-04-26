@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="NagramExteraChannel">Saluran Nagram Extera</string>
+    <string name="NagramExteraGroup">Grup Nagram Extera</string>
+    <string name="AyuGramChannel">Saluran AyuGram</string>
+    <string name="ExteraGramChannel">Saluran exteraGram</string>
     <string name="XChannel">Saluran Nagram X</string>
     <string name="EnableSaveDeletedMessages">Simpan Pesan yang Dihapus</string>
     <string name="DeletedMessage">dihapus</string>

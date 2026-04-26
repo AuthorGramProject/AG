@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="NagramExteraChannel">Canal Nagram Extera</string>
+    <string name="NagramExteraGroup">Grupo Nagram Extera</string>
+    <string name="AyuGramChannel">Canal AyuGram</string>
+    <string name="ExteraGramChannel">Canal exteraGram</string>
     <string name="XChannel">Canal Nagram X</string>
     <string name="EnableSaveDeletedMessages">Salvar mensagens excluídas</string>
     <string name="DeletedMessage">excluído</string>

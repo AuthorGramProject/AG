@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="NagramExteraChannel">Nagram Extera チャンネル</string>
+    <string name="NagramExteraGroup">Nagram Extera グループ</string>
+    <string name="AyuGramChannel">AyuGram チャンネル</string>
+    <string name="ExteraGramChannel">exteraGram チャンネル</string>
     <string name="XChannel">Nagram X チャンネル</string>
     <string name="EnableSaveDeletedMessages">削除済みメッセージを保存</string>
     <string name="DeletedMessage">削除済み</string>

@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="NagramExteraChannel">Nagram Extera 頻道</string>
+    <string name="NagramExteraGroup">Nagram Extera 群組</string>
+    <string name="AyuGramChannel">AyuGram 頻道</string>
+    <string name="ExteraGramChannel">exteraGram 頻道</string>
     <string name="XChannel">Nagram X 頻道</string>
     <string name="EnableSaveDeletedMessages">儲存已刪除訊息</string>
     <string name="DeletedMessage">已刪除</string>

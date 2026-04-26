@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="NagramExteraChannel">Канал Nagram Extera</string>
+    <string name="NagramExteraGroup">Група Nagram Extera</string>
+    <string name="AyuGramChannel">Канал AyuGram</string>
+    <string name="ExteraGramChannel">Канал exteraGram</string>
     <string name="XChannel">Канал Nagram X</string>
     <string name="EnableSaveDeletedMessages">Зберігати видаленні повідомлення</string>
     <string name="DeletedMessage">видалено</string>
