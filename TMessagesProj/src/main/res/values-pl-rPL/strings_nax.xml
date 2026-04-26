@@ -320,4 +320,11 @@
     <string name="UnifiedPushCurrentEndpoint">Aktualny punkt końcowy UnifiedPush to: %1$s</string>
     <string name="PlayOnce">Zagraj raz</string>
     <string name="StorageSettings">Pamięć</string>
+    <string name="Changelog">Lista zmian</string>
+    <string name="MessageMenuScrollable">Przewijalne menu wiadomości</string>
+    <string name="MessageMenuScrollableInfo">Gdy menu wiadomości ma wiele wpisów, pozwól na przewijanie zamiast wypełniania ekranu.</string>
+    <string name="TopMessageMenuEnabled">Górne menu wiadomości</string>
+    <string name="TopMessageMenuEnabledInfo">Przenieś najczęściej używane akcje (Odpowiedz, Kopiuj, Prześlij, Edytuj, Usuń) na górny pasek akcji nad menu wiadomości.</string>
+    <string name="MessageMenuMaxItems">Maks. widocznych elementów</string>
+    <string name="MessageMenuMaxItemsInfo">Liczba elementów menu wiadomości wyświetlanych przed włączeniem przewijania.</string>
 </resources>

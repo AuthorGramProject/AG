@@ -326,4 +326,11 @@
     <string name="PasscodeShowMessagePreviewWhenLockedAbout">Показувати вміст сповіщень навіть під час блокування паролем.</string>
     <string name="StickerSavedHint">Стікер збережено в галереї.</string>
     <string name="StickerCopied">Стікер скопійовано в буфер обміну.</string>
+    <string name="Changelog">Журнал змін</string>
+    <string name="MessageMenuScrollable">Прокручуване меню повідомлення</string>
+    <string name="MessageMenuScrollableInfo">Коли в меню повідомлення багато записів, дозвольте прокручування замість заповнення екрана.</string>
+    <string name="TopMessageMenuEnabled">Верхнє меню повідомлення</string>
+    <string name="TopMessageMenuEnabledInfo">Перемістіть найчастіше використовувані дії (Відповісти, Копіювати, Переслати, Редагувати, Видалити) у верхню панель дій над меню повідомлення.</string>
+    <string name="MessageMenuMaxItems">Макс. видимих елементів</string>
+    <string name="MessageMenuMaxItemsInfo">Кількість пунктів меню повідомлення, показаних до активації прокручування.</string>
 </resources>

@@ -324,4 +324,11 @@
     <string name="PasscodeShowMessagePreviewWhenLockedAbout">Mostrar o conteúdo das notificações mesmo com o bloqueio por senha ativo.</string>
     <string name="StickerSavedHint">Sticker salvo na galeria.</string>
     <string name="StickerCopied">Sticker copiado para a área de transferência.</string>
+    <string name="Changelog">Registro de alterações</string>
+    <string name="MessageMenuScrollable">Menu de Mensagem Rolável</string>
+    <string name="MessageMenuScrollableInfo">Quando o menu de mensagem tiver muitas entradas, permita rolar em vez de preencher a tela.</string>
+    <string name="TopMessageMenuEnabled">Menu de Mensagem Superior</string>
+    <string name="TopMessageMenuEnabledInfo">Mova as ações mais usadas (Responder, Copiar, Encaminhar, Editar, Excluir) para uma barra de ação acima do menu de mensagem.</string>
+    <string name="MessageMenuMaxItems">Máx. Itens Visíveis</string>
+    <string name="MessageMenuMaxItemsInfo">Número de itens do menu de mensagem mostrados antes da rolagem ser ativada.</string>
 </resources>

@@ -324,4 +324,11 @@
     <string name="PasscodeShowMessagePreviewWhenLockedAbout">Menampilkan isi pemberitahuan meskipun kunci sandi aktif.</string>
     <string name="StickerSavedHint">Stiker disimpan ke galeri.</string>
     <string name="StickerCopied">Stiker disalin ke papan klip.</string>
+    <string name="Changelog">Changelog</string>
+    <string name="MessageMenuScrollable">Menu Pesan Bisa Di-scroll</string>
+    <string name="MessageMenuScrollableInfo">Saat menu pesan punya banyak entri, izinkan untuk di-scroll daripada memenuhi layar.</string>
+    <string name="TopMessageMenuEnabled">Menu Pesan Atas</string>
+    <string name="TopMessageMenuEnabledInfo">Pindahkan aksi paling sering dipakai (Balas, Salin, Teruskan, Edit, Hapus) ke action bar di atas menu pesan.</string>
+    <string name="MessageMenuMaxItems">Maks Item Terlihat</string>
+    <string name="MessageMenuMaxItemsInfo">Jumlah item menu pesan yang ditampilkan sebelum scroll aktif.</string>
 </resources>

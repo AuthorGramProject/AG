@@ -460,4 +460,11 @@
     <string name="SendLockedCustomEmojiAsStickerInfo">WebP/WebM のカスタム絵文字のみ対応しています。TGS 専用の絵文字は含まれません。</string>
     <string name="ShowFilteredMessagesMenuText">フィルタリングされたメッセージを表示</string>
     <string name="HideFilteredMessagesMenuText">フィルタリングされたメッセージを隠す</string>
+    <string name="Changelog">変更履歴</string>
+    <string name="MessageMenuScrollable">スクロール可能なメッセージメニュー</string>
+    <string name="MessageMenuScrollableInfo">メッセージメニューに多くのエントリがある場合、画面を埋める代わりにスクロールできるようにします。</string>
+    <string name="TopMessageMenuEnabled">上部メッセージメニュー</string>
+    <string name="TopMessageMenuEnabledInfo">最もよく使うアクション（返信、コピー、転送、編集、削除）をメッセージメニュー上部のアクションバーに移動します。</string>
+    <string name="MessageMenuMaxItems">最大表示項目数</string>
+    <string name="MessageMenuMaxItemsInfo">スクロールが有効になる前に表示されるメッセージメニュー項目の数。</string>
 </resources>

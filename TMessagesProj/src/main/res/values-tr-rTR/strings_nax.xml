@@ -265,4 +265,11 @@
     <string name="PasskeyUnsupportedMessage">**Bitwarden** veya **KeePassDX** gibi diğer parola yöneticilerini deneyin.</string>
     <string name="PasskeyNoCredentialAvailable">Geçerli bir kimlik bilgisi bulunmuyor.</string>
     <string name="SortByUnread">Okunmamışa Göre Sırala</string>
+    <string name="Changelog">Değişiklik günlüğü</string>
+    <string name="MessageMenuScrollable">Kaydırılabilir Mesaj Menüsü</string>
+    <string name="MessageMenuScrollableInfo">Mesaj menüsünde çok fazla giriş olduğunda, ekranı doldurmak yerine kaydırmaya izin ver.</string>
+    <string name="TopMessageMenuEnabled">Üst Mesaj Menüsü</string>
+    <string name="TopMessageMenuEnabledInfo">En çok kullanılan eylemleri (Yanıtla, Kopyala, İlet, Düzenle, Sil) mesaj menüsünün üstündeki bir eylem çubuğuna taşıyın.</string>
+    <string name="MessageMenuMaxItems">Maks. Görünür Öğe</string>
+    <string name="MessageMenuMaxItemsInfo">Kaydırma devreye girmeden önce gösterilen mesaj menüsü öğesi sayısı.</string>
 </resources>

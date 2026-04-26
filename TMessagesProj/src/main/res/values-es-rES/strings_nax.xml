@@ -313,4 +313,11 @@
     <string name="UnifiedPushLastReceivedNotification">La última notificación recibida con UnifiedPush fue hace %1$d segundos.\n\nHas recibido %2$d notificaciones desde que Nagram Extera se inició.</string>
     <string name="UnifiedPushCurrentEndpoint">El endpoint UnifiedPush actual es: %1$s</string>
     <string name="RegexFiltersGlobalHeader">Filtros globales</string>
+    <string name="Changelog">Registro de cambios</string>
+    <string name="MessageMenuScrollable">Menú de Mensaje Desplazable</string>
+    <string name="MessageMenuScrollableInfo">Cuando el menú de mensaje tenga muchas entradas, permite desplazarse en lugar de llenar la pantalla.</string>
+    <string name="TopMessageMenuEnabled">Menú de Mensaje Superior</string>
+    <string name="TopMessageMenuEnabledInfo">Mueve las acciones más usadas (Responder, Copiar, Reenviar, Editar, Eliminar) a una barra de acción sobre el menú de mensaje.</string>
+    <string name="MessageMenuMaxItems">Máx. Elementos Visibles</string>
+    <string name="MessageMenuMaxItemsInfo">Número de elementos del menú de mensaje mostrados antes de activar el desplazamiento.</string>
 </resources>

@@ -460,4 +460,11 @@
     <string name="SendLockedCustomEmojiAsStickerInfo">Поддерживаются только пользовательские Emoji в формате WebP/WebM. Emoji только в формате TGS не поддерживаются.</string>
     <string name="ShowFilteredMessagesMenuText">Показывать отфильтрованные</string>
     <string name="HideFilteredMessagesMenuText">Скрывать отфильтрованные</string>
+    <string name="Changelog">Журнал изменений</string>
+    <string name="MessageMenuScrollable">Прокручиваемое меню сообщения</string>
+    <string name="MessageMenuScrollableInfo">Когда в меню сообщения много пунктов, разрешите прокрутку вместо заполнения экрана.</string>
+    <string name="TopMessageMenuEnabled">Верхнее меню сообщения</string>
+    <string name="TopMessageMenuEnabledInfo">Переместите наиболее используемые действия (Ответ, Копировать, Переслать, Редактировать, Удалить) в верхнюю панель действий над меню сообщения.</string>
+    <string name="MessageMenuMaxItems">Макс. видимых элементов</string>
+    <string name="MessageMenuMaxItemsInfo">Количество пунктов меню сообщения, отображаемых до активации прокрутки.</string>
 </resources>

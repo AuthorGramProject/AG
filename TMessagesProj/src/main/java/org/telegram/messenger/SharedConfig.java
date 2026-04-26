@@ -1910,6 +1910,13 @@ public class SharedConfig {
     }
 
     public static boolean chatBlurEnabled() {
+        // Liquid Glass takes over the visual treatment exclusively — when it is
+        // active, all NekoX/Telegram chat-blur passes are disabled to avoid a
+        // double-blur look (chat input, floating top panel, recents sidebar,
+        // and every other SizeNotifierFrameLayout child honour this flag).
+        if (LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS)) {
+            return false;
+        }
         return (canBlurChat() && LiteMode.isEnabled(LiteMode.FLAG_CHAT_BLUR)) || NekoConfig.forceBlurInChat.Bool();
     }
 
