@@ -1,20 +1,20 @@
 # ---------------------------------------------------------------------------
-# Nagram Extera — Release pipeline
+# Nagram Extera - Release pipeline
 # ---------------------------------------------------------------------------
 # Builds a signed arm64-v8a release APK, archives it as a workflow artifact,
 # and (optionally) publishes it to the configured Telegram release channel.
 #
 # Performance posture
-#   * Single-ABI build (arm64-v8a) by default — no universal APK.
+#   * Single-ABI build (arm64-v8a) by default - no universal APK.
 #   * Gradle daemon ON, configuration-cache ON, build-cache ON, parallel ON.
 #   * setup-gradle handles dependency + build cache (no manual ~/.gradle cache).
 #   * ccache wraps the NDK toolchain and persists across runs.
 #   * Lint and unit tests are skipped for release builds (run them in PR CI).
-#   * Partial git clone (blobless) — fetched in full only for versionCode.
+#   * Partial git clone (blobless) - fetched in full only for versionCode.
 #
 # Triggers
-#   * push to `main`         — full build + publish
-#   * workflow_dispatch      — manual rebuild, with an `upload` toggle
+#   * push to `main`         - full build + publish
+#   * workflow_dispatch      - manual rebuild, with an `upload` toggle
 #
 # Skip tokens (in the head commit message)
 #   * `[skip upload]` → build-only, no publish
@@ -223,6 +223,9 @@ jobs:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
           COMMIT_ID: ${{ github.sha }}
           BUILD_TIMESTAMP: ${{ steps.meta.outputs.build_timestamp }}
+          # VERSION_CODE injected here so build.gradle never needs to spawn a
+          # git subprocess during configuration — required by Gradle config cache.
+          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
         run: |
           set -euo pipefail
           ./gradlew \
