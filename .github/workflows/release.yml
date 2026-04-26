@@ -141,7 +141,12 @@ jobs:
           VERSION_CODE=$(git rev-list --count HEAD)
           EXTERA_BASE=$(grep -E '^APP_VERSION_NAME=' gradle.properties | cut -d= -f2)
           TG_VERSION=$(grep -E '^TELEGRAM_VERSION_NAME=' gradle.properties | cut -d= -f2)
-          VERSION_NAME="${EXTERA_BASE}-${SHORT_SHA}"
+
+          # Mirror the auto-versioning rule from TMessagesProj/build.gradle:
+          #   versionName = <MAJOR>.<MINOR>.<commitCount>-<shortSha>
+          # so the artifact name stays in lock-step with the APK's versionName.
+          MAJOR_MINOR=$(echo "$EXTERA_BASE" | awk -F. '{ if (NF>=2) printf "%s.%s", $1, $2; else printf "%s", $0 }')
+          VERSION_NAME="${MAJOR_MINOR}.${VERSION_CODE}-${SHORT_SHA}"
           BUILD_TIMESTAMP=$(date +%s)
 
           echo "Nagram Extera : ${VERSION_NAME} (code ${VERSION_CODE})"
