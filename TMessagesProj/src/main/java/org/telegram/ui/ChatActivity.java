@@ -32277,8 +32277,8 @@ public class ChatActivity extends BaseFragment implements
             // Nagram Extera: optional scrollable message menu — clamp the popup
             // height so the inner ScrollView kicks in instead of overflowing.
             if (NaConfig.INSTANCE.getMessageMenuScrollable().Bool()) {
-                int items = Math.max(3, NaConfig.INSTANCE.getMessageMenuMaxItems().Int());
-                popupLayout.setMaxHeight(AndroidUtilities.dp(items * 48 + 16));
+                int maxItems = Math.max(3, NaConfig.INSTANCE.getMessageMenuMaxItems().Int());
+                popupLayout.setMaxHeight(AndroidUtilities.dp(maxItems * 48 + 16));
             }
             Rect backgroundPaddings = new Rect();
             Drawable shadowDrawable = getParentActivity().getResources().getDrawable(R.drawable.popup_fixed_alert4).mutate();
