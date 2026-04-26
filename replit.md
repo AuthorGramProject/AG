@@ -34,15 +34,19 @@ NagramExtera/
 | Field | Source | Example |
 |---|---|---|
 | `versionCode` | `git rev-list --count HEAD` (strictly monotonic); fallback: `APP_VERSION_CODE` | `42` |
-| `versionName` (CI/clean) | `APP_VERSION_NAME + "-" + shortSha` | `1.0.0-a1b2c3d` |
-| `versionName` (local dirty) | `APP_VERSION_NAME + "-dev+" + shortSha` | `1.0.0-dev+a1b2c3d` |
+| `versionName` (CI/clean) | `MAJOR.MINOR.<commitCount>-<shortSha>` | `1.0.42-a1b2c3d` |
+| `versionName` (local dirty) | `MAJOR.MINOR.<commitCount>-dev+<shortSha>` | `1.0.42-dev+a1b2c3d` |
 | `BUILD_TIMESTAMP` | CI env var or wall-clock at build time | `1714123456` |
 
-**To bump the Nagram Extera version**, edit only one line in `gradle.properties`:
+**To bump the Nagram Extera version**, edit only the `MAJOR.MINOR` portion in `gradle.properties` (the patch component is overwritten on every build by the commit count, so it always reflects the actual build):
 ```properties
 APP_VERSION_NAME=1.1.0
 ```
-Everything else (versionCode, SHA suffix, timestamp) is computed automatically. The upstream Telegram version is tracked separately in `TELEGRAM_VERSION_NAME` / `TELEGRAM_VERSION_CODE` for informational display only.
+Everything else (versionCode, patch number, SHA suffix, timestamp) is computed automatically — the visible version changes on every commit, not just the SHA suffix. The upstream Telegram version is tracked separately in `TELEGRAM_VERSION_NAME` / `TELEGRAM_VERSION_CODE` for informational display only.
+
+## Changelogs
+
+Changelogs live in `documentations/changelogs/` and follow the naming convention `changelog-<versionName>-<versionCode>.md`. The Gradle task `:TMessagesProj:generateChangelogStub` runs before every build and creates a stub file for the current version if none exists, so the contributor only edits content. Changelogs are **not** packaged into the APK; the in-app About → Changelog screen fetches the latest file from this repository on GitHub and renders the Markdown inline (headings, bold/italic, inline code, bullets).
 
 ## Important Notes for Replit
 

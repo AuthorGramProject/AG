@@ -52,15 +52,66 @@ def shortSha = (
 def isDirty = !System.getenv('CI') &&
         ((gitOutput(['git', 'status', '--porcelain'])?.length() ?: 0) > 0)
 
+// Auto-derive the patch component of the human-readable version from the
+// commit count.  This ensures the visible version (e.g. "1.0.42") changes
+// on every commit, not just the SHA suffix.  APP_VERSION_NAME is treated
+// as a MAJOR.MINOR prefix; only the first two segments are used.  When
+// git is unavailable (source-tarball build) we keep APP_VERSION_NAME as-is.
+def baseSegments = APP_VERSION_NAME.tokenize('.')
+def baseMajorMinor = baseSegments.size() >= 2
+        ? "${baseSegments[0]}.${baseSegments[1]}"
+        : APP_VERSION_NAME
+def autoBaseVersion = (shortSha != null)
+        ? "${baseMajorMinor}.${computedVersionCode}"
+        : APP_VERSION_NAME
+
 // Full version name:
-//   <base>-<sha>       — CI / clean local tree
-//   <base>-dev+<sha>   — dirty local working tree
-//   <base>             — git unavailable (source-tarball fallback)
+//   <auto-base>-<sha>       — CI / clean local tree   (e.g. 1.0.42-abc1234)
+//   <auto-base>-dev+<sha>   — dirty local working tree
+//   <APP_VERSION_NAME>      — git unavailable (source-tarball fallback)
 def verName = shortSha
-        ? (isDirty ? "${APP_VERSION_NAME}-dev+${shortSha}" : "${APP_VERSION_NAME}-${shortSha}")
+        ? (isDirty ? "${autoBaseVersion}-dev+${shortSha}" : "${autoBaseVersion}-${shortSha}")
         : APP_VERSION_NAME
 
 def verCode = computedVersionCode
+
+// ---------------------------------------------------------------------------
+// Changelog file auto-generation
+//
+// Naming convention: documentations/changelogs/changelog-<verName>-<verCode>.md
+// (e.g. changelog-1.0.42-abc1234-42.md). The build creates a stub for the
+// current version if none exists, so contributors only need to edit content.
+// The file lives outside the APK (assets are no longer used for changelogs);
+// the About screen fetches the latest changelog directly from GitHub.
+// ---------------------------------------------------------------------------
+def changelogDir = new File(rootProject.projectDir, "documentations/changelogs")
+def changelogFile = new File(changelogDir, "changelog-${verName}-${verCode}.md")
+
+tasks.register("generateChangelogStub") {
+    description = "Create a stub changelog file for the current build if missing."
+    group = "build"
+    doLast {
+        if (!changelogDir.exists()) {
+            changelogDir.mkdirs()
+        }
+        if (!changelogFile.exists()) {
+            def stub = """# Nagram Extera ${verName}
+
+_Build code: ${verCode}_
+
+## What's New
+
+- _(add release notes here before tagging this build)_
+"""
+            changelogFile.text = stub
+            println("Generated changelog stub: ${changelogFile.relativePath(rootProject.projectDir)}")
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.matching { it.name == "preBuild" }.configureEach { dependsOn("generateChangelogStub") }
+}
 
 // Upstream Telegram reference — for display only (About screen).
 def officialVer  = TELEGRAM_VERSION_NAME
