@@ -58,7 +58,7 @@ that does its own bookkeeping.
 | **Languages** | Java + Kotlin (JVM 21) |
 | **Toolchain** | Gradle 8.x · AGP 9.1 · NDK 27.2 · CMake 3.31 |
 | **Module layout** | Single Android module — `:TMessagesProj` |
-| **License** | [GPL-2.0](LICENSE) |
+| **License** | [GPL-3.0](LICENSE) |
 
 ## Quick start
 
