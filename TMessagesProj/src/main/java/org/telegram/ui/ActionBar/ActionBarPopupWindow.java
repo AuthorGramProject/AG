@@ -698,9 +698,35 @@ public class ActionBarPopupWindow extends PopupWindow {
             getSwipeBack().setForegroundColor(color);
         }
 
+        // Nagram Extera: optional maximum height for the popup. When > 0, this
+        // is enforced via the height MeasureSpec so the inner ScrollView (when
+        // present) becomes scrollable instead of pushing the popup off-screen.
+        private int maxHeightOverride = 0;
+
+        /**
+         * Clamp this popup's height to {@code px} pixels. Pass 0 to disable.
+         * Only useful when the layout has the built-in ScrollView (i.e. when
+         * {@link #FLAG_DONT_USE_SCROLLVIEW} was NOT set).
+         */
+        public void setMaxHeight(int px) {
+            if (this.maxHeightOverride != px) {
+                this.maxHeightOverride = px;
+                requestLayout();
+            }
+        }
+
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            int spec = heightMeasureSpec;
+            if (maxHeightOverride > 0) {
+                int mode = MeasureSpec.getMode(heightMeasureSpec);
+                int size = MeasureSpec.getSize(heightMeasureSpec);
+                int newSize = (mode == MeasureSpec.UNSPECIFIED)
+                        ? maxHeightOverride
+                        : Math.min(size, maxHeightOverride);
+                spec = MeasureSpec.makeMeasureSpec(newSize, MeasureSpec.AT_MOST);
+            }
+            super.onMeasure(widthMeasureSpec, spec);
             if (swipeBackLayout != null) {
                 swipeBackLayout.invalidateTransforms(!startAnimationPending);
             }
