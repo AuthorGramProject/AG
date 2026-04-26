@@ -1612,6 +1612,66 @@ object NaConfig {
             false
         )
 
+    // ===== Nagram Extera additions =====
+    // Recent chats sidebar styling: follow Telegram top bar (light/dark/blur)
+    val recentSidebarFollowTopBar =
+        addConfig(
+            "RecentSidebarFollowTopBar",
+            ConfigItem.configTypeBool,
+            true
+        )
+    val recentSidebarBlur =
+        addConfig(
+            "RecentSidebarBlur",
+            ConfigItem.configTypeBool,
+            true
+        )
+    // 0..100 perceived intensity; mapped to alpha in renderer
+    val blurIntensity =
+        addConfig(
+            "BlurIntensity",
+            ConfigItem.configTypeInt,
+            70
+        )
+    val navBarBlur =
+        addConfig(
+            "NavBarBlur",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val chatInputBlur =
+        addConfig(
+            "ChatInputBlur",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val floatingPanelBlur =
+        addConfig(
+            "FloatingPanelBlur",
+            ConfigItem.configTypeBool,
+            false
+        )
+    // Message menu density controls
+    val messageMenuScrollable =
+        addConfig(
+            "MessageMenuScrollable",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val topMessageMenuEnabled =
+        addConfig(
+            "TopMessageMenuEnabled",
+            ConfigItem.configTypeBool,
+            false
+        )
+    // Maximum visible items before message menu becomes scrollable (when scroll mode is on)
+    val messageMenuMaxItems =
+        addConfig(
+            "MessageMenuMaxItems",
+            ConfigItem.configTypeInt,
+            8
+        )
+
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {
         AndroidUtilities.runOnUIThread({

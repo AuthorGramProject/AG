@@ -96,3 +96,40 @@ Full documentation in the `documentations/` folder:
 - `ARCHITECTURE.md` — Repository layout and native code
 - `RELEASE.md` — CI/CD pipeline and secrets
 - `CONTRIBUTING.md` — Code style and PR conventions
+
+## Nagram Extera customizations status
+
+Recent work:
+- Auto-versioning: `versionName = MAJOR.MINOR.<commitCount>-<shortSha>` (in `TMessagesProj/build.gradle`); CI release workflow mirrors this in artifact names.
+- Changelogs: live in `documentations/changelogs/` (no longer packaged in APK). Gradle task `:TMessagesProj:generateChangelogStub` creates `changelog-<versionName>-<versionCode>.md` automatically before each build.
+- About → Changelog: fetches list from GitHub Contents API + raw, renders Markdown (headings, bold/italic, inline code, bullets, hr) inline via `NekoAboutActivity.MarkdownRenderer`.
+- Default custom title: `NaConfig.customTitle` defaults to `Nagram Extera` (was `Nagram X`); 13 locale `CustomTitleHint` strings updated.
+- CI: `release.yml` has `concurrency.cancel-in-progress: true` and pushes to `main` automatically build/release.
+
+New configuration flags (in `NaConfig.kt`, exposed in Settings → Appearance → "Blur Intensity" section, and Settings → Chat → "Menu and Buttons"):
+- `RecentSidebarFollowTopBar` (Bool, default true) — Recent chats sidebar uses Telegram top bar colors (light/dark aware)
+- `RecentSidebarBlur` (Bool, default true) — Apply translucent overlay to sidebar
+- `BlurIntensity` (Int 0..100, default 70) — Slider via picker in Appearance settings
+- `NavBarBlur`, `ChatInputBlur`, `FloatingPanelBlur` (Bool) — Bottom NavBar / chat input / floating panel below top bar
+- `MessageMenuScrollable` (Bool) — Make crowded message menus scroll
+- `TopMessageMenuEnabled` (Bool) — Reserve a top action bar above message menu for the most-used items
+- `MessageMenuMaxItems` (Int) — Max visible items before scrolling kicks in
+
+Liquid Glass priority: when `LiteMode.FLAG_LIQUID_GLASS` is enabled, blur effects on sidebar / chat input / floating panel are skipped so Liquid Glass styling takes precedence (currently honored in `RecentDialogsSidebarView.recomputePanelColors`; same gate must be added inside chat-input/floating-panel renderers when their blur is wired up).
+
+Settings reorganization: top-level categories in `NekoSettingsActivity` re-ordered to General → Appearance → Chat → Translator → AyuGram Features → Passcode → Experimental.
+
+Files touched in this round:
+- `TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/NaConfig.kt` (new flags)
+- `TMessagesProj/src/main/res/values/strings_nax.xml` (English strings for new flags + new category headers)
+- `TMessagesProj/src/main/java/tw/nekomimi/nekogram/settings/NekoChatSettingsActivity.java` (Top/Scrollable Message Menu rows)
+- `TMessagesProj/src/main/java/tw/nekomimi/nekogram/settings/NekoAppearanceSettingsActivity.java` (new "Blur Effects" section)
+- `TMessagesProj/src/main/java/tw/nekomimi/nekogram/settings/NekoSettingsActivity.java` (top-level reorder)
+- `TMessagesProj/src/main/java/org/telegram/ui/Components/RecentDialogsSidebarView.java` (`recomputePanelColors` + `updateColors`, honors top-bar follow / blur / intensity / Liquid Glass)
+
+Pending wiring (config flags & UI exist; rendering hooks need follow-up edits):
+- NavBar blur — actual bottom navigation drawing not yet hooked to `NavBarBlur`/`BlurIntensity`. Search target: `MainTabsActivity` / `GlassTabsView`.
+- Chat input blur — `ChatActivityEnterView` background draw not yet hooked.
+- Floating panel below top bar (pinned message etc.) — drawing not yet hooked.
+- Message menu — `MessageMenuScrollable`, `TopMessageMenuEnabled`, `MessageMenuMaxItems` exist as flags + settings UI; the popup construction in `ChatActivity` (around line 32274, `ActionBarPopupWindow.ActionBarPopupWindowLayout`) needs to honor these. The popup already creates a `ScrollView` by default unless `FLAG_DONT_USE_SCROLLVIEW` is set, so the simplest hook is to clamp the popup max height to `MessageMenuMaxItems * row height`.
+- Recent chats UI redesign — color/blur is parametrised; a richer visual redesign (avatar size, accent stripe, unread pill style) is still TODO.

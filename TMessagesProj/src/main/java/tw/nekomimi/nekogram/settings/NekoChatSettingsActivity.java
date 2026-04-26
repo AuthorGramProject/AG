@@ -421,6 +421,11 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
         });
         builder.create().show();
     }));
+    private final AbstractConfigCell topMessageMenuRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getTopMessageMenuEnabled(), getString(R.string.TopMessageMenuEnabledInfo)));
+    private final AbstractConfigCell scrollableMessageMenuRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getMessageMenuScrollable(), getString(R.string.MessageMenuScrollableInfo)));
+    private final AbstractConfigCell messageMenuMaxItemsRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getMessageMenuMaxItems(), new String[]{
+            "5", "6", "7", "8", "10", "12", "15"
+    }, null));
     private final AbstractConfigCell dividerMenuAndButtons = cellGroup.appendCell(new ConfigCellDivider());
 
     // Interactions

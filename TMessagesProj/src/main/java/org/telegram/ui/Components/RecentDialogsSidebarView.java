@@ -31,6 +31,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.Emoji;
+import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
@@ -46,6 +47,7 @@ import java.util.LinkedList;
 
 import tw.nekomimi.nekogram.BackButtonMenuRecent;
 import tw.nekomimi.nekogram.ChatHistoryUtils;
+import xyz.nextalone.nagram.NaConfig;
 
 public class RecentDialogsSidebarView extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
 
@@ -61,8 +63,8 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
 
     private final int currentAccount;
     private final Theme.ResourcesProvider resourcesProvider;
-    private final int panelColor;
-    private final int pressedColor;
+    private int panelColor;
+    private int pressedColor;
     private final FrameLayout panelView;
     private final RecyclerListView listView;
     private final ImageView toggleButton;
@@ -87,8 +89,7 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
         setClipChildren(false);
         setClipToPadding(false);
 
-        panelColor = Theme.getColor(Theme.key_actionBarDefault, resourcesProvider);
-        pressedColor = ColorUtils.blendARGB(panelColor, Theme.getColor(Theme.key_actionBarDefaultIcon, resourcesProvider), 0.15f);
+        recomputePanelColors();
 
         panelView = new FrameLayout(context);
         panelView.setBackgroundColor(panelColor);
@@ -254,6 +255,39 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
         super.onAttachedToWindow();
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.updateInterfaces);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.dialogsNeedReload);
+        updateColors();
+    }
+
+    private void recomputePanelColors() {
+        int base;
+        if (NaConfig.INSTANCE.getRecentSidebarFollowTopBar().Bool()) {
+            base = Theme.getColor(Theme.key_actionBarDefault, resourcesProvider);
+        } else {
+            base = Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider);
+        }
+        // Apply blur "intensity" via alpha when blur is on AND Liquid Glass is NOT taking over.
+        // Liquid Glass is treated as the priority styling per user request.
+        boolean liquidGlass = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
+        if (NaConfig.INSTANCE.getRecentSidebarBlur().Bool() && !liquidGlass) {
+            int intensity = Math.max(0, Math.min(100, NaConfig.INSTANCE.getBlurIntensity().Int()));
+            // Map 0..100 -> alpha 80..255. 0 = very translucent, 100 = nearly opaque.
+            int alpha = 80 + (int) ((255 - 80) * (intensity / 100f));
+            base = ColorUtils.setAlphaComponent(base, alpha);
+        }
+        panelColor = base;
+        pressedColor = ColorUtils.blendARGB(panelColor | 0xFF000000, Theme.getColor(Theme.key_actionBarDefaultIcon, resourcesProvider), 0.15f);
+    }
+
+    /**
+     * Re-applies panel colors and blur according to NaConfig flags.
+     * Call after toggling Recent Sidebar / blur settings or after a theme change.
+     */
+    public void updateColors() {
+        recomputePanelColors();
+        if (panelView != null) {
+            panelView.setBackgroundColor(panelColor);
+        }
+        invalidate();
     }
 
     @Override

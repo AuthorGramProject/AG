@@ -91,11 +91,13 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
     protected void updateRows() {
         super.updateRows();
 
+        // Reorganized top-level categories (Nagram Extera):
+        // General -> Appearance -> Chat -> Translator -> AyuGram Features -> Passcode -> Experimental
         generalRow = addRow();
         appearanceRow = addRow();
-        ayuMomentsRow = addRow();
-        translatorRow = addRow();
         chatRow = addRow();
+        translatorRow = addRow();
+        ayuMomentsRow = addRow();
         if (!PasscodeHelper.isSettingsHidden()) {
             passcodeRow = addRow();
         } else {
