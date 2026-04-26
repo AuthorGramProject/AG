@@ -100,7 +100,7 @@ object MessageMenuHelper {
         // Ensure the popup uses a ScrollView when the remaining list is tall.
         // ///added from NagramExtera
         if (NaConfig.messageMenuScrollable.Bool()) {
-            popupLayout.setMaxHeight(AndroidUtilities.dp((NaConfig.messageMenuMaxItems.Int().coerceAtLeast(3)) * 48 + 16))
+            popupLayout.setMaxHeight(AndroidUtilities.dp(((NaConfig.messageMenuMaxItems.Int().coerceAtLeast(3)) * 48 + 16).toFloat()))
         }
     }
 }
