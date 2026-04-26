@@ -189,12 +189,22 @@ jobs:
         id: meta
         run: |
           set -euo pipefail
+
+          # --- Nagram Extera versioning (fully automatic) -------------------
+          # versionCode: strictly monotonic commit count across full history.
+          # versionName: <APP_VERSION_NAME>-<short-sha>  (clean tree on CI).
+          # BUILD_TIMESTAMP: Unix epoch seconds, baked into BuildConfig.
+          # ------------------------------------------------------------------
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
           VERSION_CODE=$(git rev-list --count HEAD)
-          VERSION_NAME_BASE=$(grep -E '^APP_VERSION_NAME=' gradle.properties | cut -d= -f2)
-          VERSION_NAME="${VERSION_NAME_BASE}-${SHORT_SHA}"
+          EXTERA_BASE=$(grep -E '^APP_VERSION_NAME=' gradle.properties | cut -d= -f2)
+          TG_VERSION=$(grep -E '^TELEGRAM_VERSION_NAME=' gradle.properties | cut -d= -f2)
+          VERSION_NAME="${EXTERA_BASE}-${SHORT_SHA}"
           BUILD_TIMESTAMP=$(date +%s)
           ARTIFACT_NAME="NagramExtera-Release-${VERSION_NAME}-${BUILD_TIMESTAMP}"
+
+          echo "Nagram Extera : ${VERSION_NAME} (code ${VERSION_CODE})"
+          echo "Telegram base : ${TG_VERSION}"
 
           {
             echo "short_sha=${SHORT_SHA}"
