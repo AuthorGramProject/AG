@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="MessageMenuScrollable">스크롤 가능한 메시지 메뉴</string>
+    <string name="MessageMenuScrollableInfo">메시지 메뉴 항목이 많을 때 화면을 가득 채우는 대신 스크롤할 수 있게 합니다.</string>
+    <string name="TopMessageMenuEnabled">상단 메시지 메뉴</string>
+    <string name="TopMessageMenuEnabledInfo">자주 사용하는 동작(답장, 복사, 전달, 편집, 삭제)을 메시지 메뉴 위의 작업 표시줄로 이동합니다.</string>
+    <string name="MessageMenuMaxItems">최대 표시 항목</string>
+    <string name="MessageMenuMaxItemsInfo">스크롤이 활성화되기 전에 표시되는 메시지 메뉴 항목 수입니다.</string>
+    <string name="BlurLiquidGlassInfo">Liquid Glass가 활성화되면 수동 블러 알파가 비활성화되고 채팅 화면은 Liquid Glass 스타일을 따릅니다.</string>
+    <string name="SettingsCategoryGeneral">일반</string>
+    <string name="SettingsCategoryAppearance">모양</string>
+    <string name="SettingsCategoryAyuFeatures">AyuGram 기능</string>
+    <string name="SettingsCategoryTranslator">번역</string>
+    <string name="SettingsCategoryExperimental">실험적</string>
+</resources>

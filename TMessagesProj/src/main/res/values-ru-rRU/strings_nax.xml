@@ -467,4 +467,10 @@
     <string name="TopMessageMenuEnabledInfo">Переместите наиболее используемые действия (Ответ, Копировать, Переслать, Редактировать, Удалить) в верхнюю панель действий над меню сообщения.</string>
     <string name="MessageMenuMaxItems">Макс. видимых элементов</string>
     <string name="MessageMenuMaxItemsInfo">Количество пунктов меню сообщения, отображаемых до активации прокрутки.</string>
+    <string name="BlurLiquidGlassInfo">Когда включен Liquid Glass, ручной alpha blur отключается, а поверхности чата следуют стилю Liquid Glass.</string>
+    <string name="SettingsCategoryGeneral">Общие</string>
+    <string name="SettingsCategoryAppearance">Внешний вид</string>
+    <string name="SettingsCategoryAyuFeatures">Функции AyuGram</string>
+    <string name="SettingsCategoryTranslator">Переводчик</string>
+    <string name="SettingsCategoryExperimental">Экспериментальные</string>
 </resources>

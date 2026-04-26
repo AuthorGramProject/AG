@@ -20,6 +20,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBar;
@@ -181,6 +182,8 @@ public class NekoAppearanceSettingsActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell dividerFolder = cellGroup.appendCell(new ConfigCellDivider());
     private final AbstractConfigCell headerBlurOptions = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.BlurOptions)));
     private final AbstractConfigCell forceBlurInChatRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.forceBlurInChat));
+    // ///added from NagramExtera
+    private final AbstractConfigCell blurLiquidGlassInfoRow = cellGroup.appendCell(new ConfigCellCustom("BlurLiquidGlassInfo", CellGroup.ITEM_TYPE_TEXT, false));
     private final AbstractConfigCell headerChatBlur = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.ChatBlurAlphaValue)));
     private final AbstractConfigCell chatBlurAlphaValueRow = cellGroup.appendCell(new ConfigCellCustom("ChatBlurAlphaValue", ConfigCellCustom.CUSTOM_ITEM_CharBlurAlpha, NekoConfig.forceBlurInChat.Bool()));
 
@@ -227,6 +230,8 @@ public class NekoAppearanceSettingsActivity extends BaseNekoXSettingsActivity {
         listAdapter = new ListAdapter(context);
         listView.setAdapter(listAdapter);
         setupDefaultListeners();
+        // ///added from NagramExtera
+        updateBlurControlsState();
 
         cellGroup.callBackSettingsChanged = (key, newValue) -> {
             if (key.equals(NekoConfig.actionBarDecoration.getKey())
@@ -247,11 +252,7 @@ public class NekoAppearanceSettingsActivity extends BaseNekoXSettingsActivity {
                     || key.equals(NekoConfig.navigationDrawerEnabled.getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.forceBlurInChat.getKey())) {
-                boolean enabled = (Boolean) newValue;
-                if (chatBlurAlphaSeekbar != null) {
-                    chatBlurAlphaSeekbar.setEnabled(enabled);
-                }
-                ((ConfigCellCustom) chatBlurAlphaValueRow).setEnabled(enabled);
+                updateBlurControlsState();
             } else if (key.equals(NaConfig.INSTANCE.getSwitchStyle().getKey()) || key.equals(NaConfig.INSTANCE.getSliderStyle().getKey())) {
                 if (listView.getLayoutManager() != null) {
                     recyclerViewState = listView.getLayoutManager().onSaveInstanceState();
@@ -372,6 +373,17 @@ public class NekoAppearanceSettingsActivity extends BaseNekoXSettingsActivity {
         }
     }
 
+    // ///added from NagramExtera
+    private void updateBlurControlsState() {
+        // Liquid Glass style must take precedence over legacy blur alpha override.
+        final boolean liquidGlass = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
+        final boolean enabled = NekoConfig.forceBlurInChat.Bool() && !liquidGlass;
+        if (chatBlurAlphaSeekbar != null) {
+            chatBlurAlphaSeekbar.setEnabled(enabled);
+        }
+        ((ConfigCellCustom) chatBlurAlphaValueRow).setEnabled(enabled);
+    }
+
     private class ListAdapter extends BaseListAdapter {
 
         public ListAdapter(Context context) {
@@ -384,6 +396,9 @@ public class NekoAppearanceSettingsActivity extends BaseNekoXSettingsActivity {
             if (row == avatarCornersInfoRow) {
                 TextInfoPrivacyCell textInfoPrivacyCell = (TextInfoPrivacyCell) holder.itemView;
                 textInfoPrivacyCell.setText(getString(R.string.SingleCornerRadiusInfo));
+            } else if (row == blurLiquidGlassInfoRow) {
+                TextInfoPrivacyCell textInfoPrivacyCell = (TextInfoPrivacyCell) holder.itemView;
+                textInfoPrivacyCell.setText(getString(R.string.BlurLiquidGlassInfo));
             }
         }
 
@@ -396,7 +411,7 @@ public class NekoAppearanceSettingsActivity extends BaseNekoXSettingsActivity {
                 );
                 case ConfigCellCustom.CUSTOM_ITEM_CharBlurAlpha -> {
                     chatBlurAlphaSeekbar = new ChatBlurAlphaSeekBar(mContext);
-                    chatBlurAlphaSeekbar.setEnabled(NekoConfig.forceBlurInChat.Bool());
+                    updateBlurControlsState();
                     yield chatBlurAlphaSeekbar;
                 }
                 default -> null;

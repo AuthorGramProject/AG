@@ -18300,7 +18300,11 @@ public class ChatActivity extends BaseFragment implements
 
             final boolean isThemeLight = themeDelegate != null && !themeDelegate.isDark();
             int blurAlpha = isThemeLight ? 216 : ACTION_BAR_BLUR_ALPHA;
-            if (NekoConfig.forceBlurInChat.Bool()) blurAlpha = NekoConfig.chatBlueAlphaValue.Int();
+            // ///added from NagramExtera
+            // When Liquid Glass is active, ignore legacy blur alpha override.
+            if (NekoConfig.forceBlurInChat.Bool() && !LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS)) {
+                blurAlpha = NekoConfig.chatBlueAlphaValue.Int();
+            }
             final BlurredBackgroundSource blurSource = glassBackgroundSourceFrostedRenderNode;
             if (blurSource != null && blurAlpha < 255) {
                 canvas.save();

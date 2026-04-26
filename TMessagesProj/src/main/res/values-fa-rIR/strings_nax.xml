@@ -241,4 +241,10 @@
     <string name="TopMessageMenuEnabledInfo">اقدامات پر استفاده (پاسخ، کپی، ارسال، ویرایش، حذف) را به نوار اقدام بالای منوی پیام منتقل کنید.</string>
     <string name="MessageMenuMaxItems">حداکثر آیتم‌های قابل مشاهده</string>
     <string name="MessageMenuMaxItemsInfo">تعداد آیتم‌های منوی پیام نشان داده شده قبل از فعال شدن پیمایش.</string>
+    <string name="BlurLiquidGlassInfo">وقتی Liquid Glass فعال باشد، آلفای تاری دستی غیرفعال می‌شود و سطوح چت از سبک Liquid Glass پیروی می‌کنند.</string>
+    <string name="SettingsCategoryGeneral">عمومی</string>
+    <string name="SettingsCategoryAppearance">ظاهر</string>
+    <string name="SettingsCategoryAyuFeatures">ویژگی‌های AyuGram</string>
+    <string name="SettingsCategoryTranslator">مترجم</string>
+    <string name="SettingsCategoryExperimental">آزمایشی</string>
 </resources>

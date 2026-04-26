@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="MessageMenuScrollable">Scrollbares Nachrichtenmenü</string>
+    <string name="MessageMenuScrollableInfo">Wenn das Nachrichtenmenü viele Einträge hat, kann es gescrollt werden, statt den ganzen Bildschirm zu füllen.</string>
+    <string name="TopMessageMenuEnabled">Oberes Nachrichtenmenü</string>
+    <string name="TopMessageMenuEnabledInfo">Verschiebt häufig genutzte Aktionen (Antworten, Kopieren, Weiterleiten, Bearbeiten, Löschen) in eine Aktionsleiste über dem Nachrichtenmenü.</string>
+    <string name="MessageMenuMaxItems">Max. sichtbare Einträge</string>
+    <string name="MessageMenuMaxItemsInfo">Anzahl der Nachrichtenmenüeinträge, die angezeigt werden, bevor das Scrollen aktiviert wird.</string>
+    <string name="BlurLiquidGlassInfo">Wenn Liquid Glass aktiviert ist, wird die manuelle Blur-Alpha deaktiviert und Chatflächen folgen dem Liquid-Glass-Stil.</string>
+    <string name="SettingsCategoryGeneral">Allgemein</string>
+    <string name="SettingsCategoryAppearance">Aussehen</string>
+    <string name="SettingsCategoryAyuFeatures">AyuGram-Funktionen</string>
+    <string name="SettingsCategoryTranslator">Übersetzer</string>
+    <string name="SettingsCategoryExperimental">Experimentell</string>
+</resources>

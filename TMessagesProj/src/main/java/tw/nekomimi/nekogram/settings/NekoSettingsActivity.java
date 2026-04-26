@@ -405,17 +405,22 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
                     if (position == chatRow) {
                         textCell.setTextAndIcon(getString(R.string.Chat), R.drawable.msg_discussion, true);
                     } else if (position == generalRow) {
-                        textCell.setTextAndIcon(getString(R.string.General), R.drawable.msg_media, true);
+                        // ///added from NagramExtera
+                        textCell.setTextAndIcon(getString(R.string.SettingsCategoryGeneral), R.drawable.msg_media, true);
                     } else if (position == appearanceRow) {
-                        textCell.setTextAndIcon(getString(R.string.Appearance), R.drawable.msg_theme, true);
+                        // ///added from NagramExtera
+                        textCell.setTextAndIcon(getString(R.string.SettingsCategoryAppearance), R.drawable.msg_theme, true);
                     } else if (position == ayuMomentsRow) {
-                        textCell.setTextAndIcon(getString(R.string.AyuMoments), R.drawable.heart_angle_solar, true);
+                        // ///added from NagramExtera
+                        textCell.setTextAndIcon(getString(R.string.SettingsCategoryAyuFeatures), R.drawable.heart_angle_solar, true);
                     } else if (position == translatorRow) {
-                        textCell.setTextAndIcon(getString(R.string.TranslatorSettings), R.drawable.ic_translate, true);
+                        // ///added from NagramExtera
+                        textCell.setTextAndIcon(getString(R.string.SettingsCategoryTranslator), R.drawable.ic_translate, true);
                     } else if (position == passcodeRow) {
                         textCell.setTextAndIcon(getString(R.string.PasscodeNeko), R.drawable.msg_permissions, true);
                     } else if (position == experimentRow) {
-                        textCell.setTextAndIcon(getString(R.string.Experimental), R.drawable.msg_fave, true);
+                        // ///added from NagramExtera
+                        textCell.setTextAndIcon(getString(R.string.SettingsCategoryExperimental), R.drawable.msg_fave, true);
                     } else if (position == importSettingsRow) {
                         textCell.setTextAndIcon(getString(R.string.ImportSettings), R.drawable.msg_photo_settings_solar, true);
                     } else if (position == exportSettingsRow) {

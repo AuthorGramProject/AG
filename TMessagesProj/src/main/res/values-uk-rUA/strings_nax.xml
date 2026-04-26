@@ -333,4 +333,10 @@
     <string name="TopMessageMenuEnabledInfo">Перемістіть найчастіше використовувані дії (Відповісти, Копіювати, Переслати, Редагувати, Видалити) у верхню панель дій над меню повідомлення.</string>
     <string name="MessageMenuMaxItems">Макс. видимих елементів</string>
     <string name="MessageMenuMaxItemsInfo">Кількість пунктів меню повідомлення, показаних до активації прокручування.</string>
+    <string name="BlurLiquidGlassInfo">Коли Liquid Glass увімкнено, ручне налаштування alpha blur вимикається, а поверхні чату слідують стилю Liquid Glass.</string>
+    <string name="SettingsCategoryGeneral">Загальні</string>
+    <string name="SettingsCategoryAppearance">Зовнішній вигляд</string>
+    <string name="SettingsCategoryAyuFeatures">Функції AyuGram</string>
+    <string name="SettingsCategoryTranslator">Перекладач</string>
+    <string name="SettingsCategoryExperimental">Експериментальні</string>
 </resources>

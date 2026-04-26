@@ -3,17 +3,26 @@ package tw.nekomimi.nekogram.settings;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
+import android.text.TextUtils;
+import android.text.method.MovementMethod;
 import android.text.style.AbsoluteSizeSpan;
+import android.text.style.BackgroundColorSpan;
 import android.text.style.BulletSpan;
+import android.text.style.ForegroundColorSpan;
 import android.text.style.LeadingMarginSpan;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.text.style.TypefaceSpan;
+import android.text.style.URLSpan;
 import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,6 +37,8 @@ import org.telegram.messenger.browser.Browser;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.TextSettingsCell;
+import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.TextViewEffects;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -146,7 +157,9 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                 List<String> files = listChangelogFilesOnGitHub();
                 if (!files.isEmpty()) {
                     Collections.sort(files, Collections.reverseOrder(this::compareChangelogNames));
-                    filename = files.get(0);
+                    // Prefer the changelog matching the installed build code if present.
+                    // ///added from NagramExtera: stable selection across forks/branches
+                    filename = pickBestChangelogFile(files, BuildConfig.VERSION_CODE);
                     markdown = httpGet(GITHUB_RAW_BASE + filename);
                 }
             } catch (Exception ignored) {
@@ -167,7 +180,10 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                     builder.setMessage(AndroidUtilities.replaceTags(
                             getString(R.string.AppUpdateChangelogEmpty)));
                 } else {
-                    builder.setMessage(renderMarkdown(finalMarkdown));
+                    // Render markdown into a scrollable TextView so headings, lists,
+                    // monospace and links work without opening GitHub.
+                    // ///added from NagramExtera
+                    builder.setView(buildChangelogView(renderMarkdown(finalMarkdown)));
                 }
                 builder.setPositiveButton(getString(R.string.OK), null);
                 if (finalFilename != null) {
@@ -179,6 +195,43 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                 showDialog(builder.create());
             });
         }, "ChangelogFetcher").start();
+    }
+
+    // ///added from NagramExtera
+    private String pickBestChangelogFile(List<String> sortedDesc, int installedVersionCode) {
+        if (sortedDesc == null || sortedDesc.isEmpty()) {
+            return null;
+        }
+        // Files are already sorted descending by compareChangelogNames.
+        // First try exact match by trailing versionCode.
+        for (String name : sortedDesc) {
+            if (extractTrailingNumber(name) == installedVersionCode) {
+                return name;
+            }
+        }
+        return sortedDesc.get(0);
+    }
+
+    // ///added from NagramExtera
+    private View buildChangelogView(CharSequence rendered) {
+        Context ctx = getParentActivity();
+        FrameLayout container = new FrameLayout(ctx);
+
+        ScrollView scrollView = new ScrollView(ctx);
+        scrollView.setFillViewport(true);
+        container.addView(scrollView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, 0, 0, 0, 0, 0));
+
+        TextView textView = new TextViewEffects(ctx);
+        textView.setText(rendered);
+        textView.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+        textView.setLinkTextColor(Theme.getColor(Theme.key_dialogTextLink));
+        textView.setTextSize(14);
+        textView.setMovementMethod(new AndroidUtilities.LinkMovementMethodMy());
+        textView.setEllipsize(TextUtils.TruncateAt.END);
+        textView.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(12), AndroidUtilities.dp(16), AndroidUtilities.dp(12));
+
+        scrollView.addView(textView, new ScrollView.LayoutParams(ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
+        return container;
     }
 
     private List<String> listChangelogFilesOnGitHub() throws Exception {
@@ -253,16 +306,39 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
     /**
      * Lightweight Markdown → Spannable converter for changelog content.
      * Supports headings (#, ##, ###), bold (**), italic (*), inline code (`),
-     * unordered list bullets (- / *), and horizontal rules (---).
+     * unordered list bullets (- / *), horizontal rules (---), links ([t](u)),
+     * and fenced code blocks (```).
      * This is intentionally narrow in scope — full GFM is not needed here.
      */
     private CharSequence renderMarkdown(String src) {
         SpannableStringBuilder out = new SpannableStringBuilder();
         String[] lines = src.replace("\r\n", "\n").split("\n");
         int defaultText = AndroidUtilities.dp(14);
+        boolean inCodeFence = false;
 
         for (String raw : lines) {
             String line = raw;
+
+            // Fenced code blocks
+            if (line.trim().startsWith("```")) {
+                inCodeFence = !inCodeFence;
+                if (!inCodeFence) {
+                    out.append("\n");
+                }
+                continue;
+            }
+            if (inCodeFence) {
+                int start = out.length();
+                out.append(line).append("\n");
+                int end = out.length();
+                out.setSpan(new TypefaceSpan("monospace"), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                out.setSpan(new RelativeSizeSpan(0.95f), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                int bg = Theme.getColor(Theme.key_dialogBackground);
+                int codeBg = blendWith(bg, Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3), 0.12f);
+                out.setSpan(new BackgroundColorSpan(codeBg), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                out.setSpan(new LeadingMarginSpan.Standard(AndroidUtilities.dp(12)), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                continue;
+            }
 
             // Horizontal rule
             if (line.trim().equals("---") || line.trim().equals("***")) {
@@ -324,11 +400,13 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
 
     /** Apply inline Markdown (bold/italic/code) while appending to {@code out}. */
     private void appendInline(SpannableStringBuilder out, String src) {
-        // Order matters: bold (**) before italic (*) so the longer marker wins.
+        // Order matters: links first, then bold (**), then italic (*), then code (`).
+        // ///added from NagramExtera
         Pattern p = Pattern.compile(
-                "\\*\\*(.+?)\\*\\*" +    // group 1: bold
-                "|\\*(.+?)\\*" +          // group 2: italic
-                "|`([^`]+?)`"             // group 3: inline code
+                "\\[([^\\]]+?)\\]\\(([^)\\s]+?)\\)" + // group 1-2: [text](url)
+                "|\\*\\*(.+?)\\*\\*" +                // group 3: bold
+                "|\\*(.+?)\\*" +                      // group 4: italic
+                "|`([^`]+?)`"                         // group 5: inline code
         );
         Matcher m = p.matcher(src);
         int cursor = 0;
@@ -337,16 +415,22 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                 out.append(src, cursor, m.start());
             }
             int spanStart = out.length();
-            if (m.group(1) != null) {
+            if (m.group(1) != null && m.group(2) != null) {
                 out.append(m.group(1));
-                out.setSpan(new StyleSpan(Typeface.BOLD), spanStart, out.length(),
+                out.setSpan(new URLSpan(m.group(2)), spanStart, out.length(),
                         Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            } else if (m.group(2) != null) {
-                out.append(m.group(2));
-                out.setSpan(new StyleSpan(Typeface.ITALIC), spanStart, out.length(),
-                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                out.setSpan(new ForegroundColorSpan(Theme.getColor(Theme.key_dialogTextLink)),
+                        spanStart, out.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             } else if (m.group(3) != null) {
                 out.append(m.group(3));
+                out.setSpan(new StyleSpan(Typeface.BOLD), spanStart, out.length(),
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            } else if (m.group(4) != null) {
+                out.append(m.group(4));
+                out.setSpan(new StyleSpan(Typeface.ITALIC), spanStart, out.length(),
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            } else if (m.group(5) != null) {
+                out.append(m.group(5));
                 out.setSpan(new TypefaceSpan("monospace"),
                         spanStart, out.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                 out.setSpan(new RelativeSizeSpan(0.95f), spanStart, out.length(),
@@ -357,6 +441,21 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         if (cursor < src.length()) {
             out.append(src, cursor, src.length());
         }
+    }
+
+    // ///added from NagramExtera
+    private static int blendWith(int baseColor, int overlayColor, float alpha) {
+        alpha = Math.max(0f, Math.min(1f, alpha));
+        int br = Color.red(baseColor);
+        int bg = Color.green(baseColor);
+        int bb = Color.blue(baseColor);
+        int or = Color.red(overlayColor);
+        int og = Color.green(overlayColor);
+        int ob = Color.blue(overlayColor);
+        int r = (int) (br * (1f - alpha) + or * alpha);
+        int g = (int) (bg * (1f - alpha) + og * alpha);
+        int b = (int) (bb * (1f - alpha) + ob * alpha);
+        return Color.rgb(r, g, b);
     }
 
     @Override

@@ -467,4 +467,10 @@
     <string name="TopMessageMenuEnabledInfo">最もよく使うアクション（返信、コピー、転送、編集、削除）をメッセージメニュー上部のアクションバーに移動します。</string>
     <string name="MessageMenuMaxItems">最大表示項目数</string>
     <string name="MessageMenuMaxItemsInfo">スクロールが有効になる前に表示されるメッセージメニュー項目の数。</string>
+    <string name="BlurLiquidGlassInfo">Liquid Glass が有効な場合、手動のぼかしアルファは無効になり、チャット画面は Liquid Glass スタイルに従います。</string>
+    <string name="SettingsCategoryGeneral">一般</string>
+    <string name="SettingsCategoryAppearance">外観</string>
+    <string name="SettingsCategoryAyuFeatures">AyuGram 機能</string>
+    <string name="SettingsCategoryTranslator">翻訳</string>
+    <string name="SettingsCategoryExperimental">実験的</string>
 </resources>

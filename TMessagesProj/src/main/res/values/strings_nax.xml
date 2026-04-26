@@ -447,6 +447,7 @@
     <string name="SingleCornerRadius">Unified corner radius</string>
     <string name="SingleCornerRadiusInfo">Topic groups will use the same avatar shape as chat messages.</string>
     <string name="BlurOptions">Blur Options</string>
+    <string name="BlurLiquidGlassInfo">When Liquid Glass is enabled, manual blur alpha is disabled and chat surfaces follow Liquid Glass styling.</string>
     <string name="AyuMoments">AyuGram Features</string>
     <string name="Changelog">Changelog</string>
     <string name="DisableShowRecentChats">Disable Show Recent Chats</string>

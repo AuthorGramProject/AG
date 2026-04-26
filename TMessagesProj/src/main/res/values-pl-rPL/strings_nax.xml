@@ -327,4 +327,10 @@
     <string name="TopMessageMenuEnabledInfo">Przenieś najczęściej używane akcje (Odpowiedz, Kopiuj, Prześlij, Edytuj, Usuń) na górny pasek akcji nad menu wiadomości.</string>
     <string name="MessageMenuMaxItems">Maks. widocznych elementów</string>
     <string name="MessageMenuMaxItemsInfo">Liczba elementów menu wiadomości wyświetlanych przed włączeniem przewijania.</string>
+    <string name="BlurLiquidGlassInfo">Gdy Liquid Glass jest włączony, ręczne ustawienie alpha rozmycia jest wyłączone, a powierzchnie czatu używają stylu Liquid Glass.</string>
+    <string name="SettingsCategoryGeneral">Ogólne</string>
+    <string name="SettingsCategoryAppearance">Wygląd</string>
+    <string name="SettingsCategoryAyuFeatures">Funkcje AyuGram</string>
+    <string name="SettingsCategoryTranslator">Tłumacz</string>
+    <string name="SettingsCategoryExperimental">Eksperymentalne</string>
 </resources>

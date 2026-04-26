@@ -272,4 +272,10 @@
     <string name="TopMessageMenuEnabledInfo">En çok kullanılan eylemleri (Yanıtla, Kopyala, İlet, Düzenle, Sil) mesaj menüsünün üstündeki bir eylem çubuğuna taşıyın.</string>
     <string name="MessageMenuMaxItems">Maks. Görünür Öğe</string>
     <string name="MessageMenuMaxItemsInfo">Kaydırma devreye girmeden önce gösterilen mesaj menüsü öğesi sayısı.</string>
+    <string name="BlurLiquidGlassInfo">Liquid Glass etkinken manuel blur alpha devre dışı kalır ve sohbet yüzeyleri Liquid Glass stilini izler.</string>
+    <string name="SettingsCategoryGeneral">Genel</string>
+    <string name="SettingsCategoryAppearance">Görünüm</string>
+    <string name="SettingsCategoryAyuFeatures">AyuGram Özellikleri</string>
+    <string name="SettingsCategoryTranslator">Çevirmen</string>
+    <string name="SettingsCategoryExperimental">Deneysel</string>
 </resources>

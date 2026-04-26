@@ -331,4 +331,10 @@
     <string name="TopMessageMenuEnabledInfo">Mova as ações mais usadas (Responder, Copiar, Encaminhar, Editar, Excluir) para uma barra de ação acima do menu de mensagem.</string>
     <string name="MessageMenuMaxItems">Máx. Itens Visíveis</string>
     <string name="MessageMenuMaxItemsInfo">Número de itens do menu de mensagem mostrados antes da rolagem ser ativada.</string>
+    <string name="BlurLiquidGlassInfo">Quando o Liquid Glass está ativado, o alpha de desfoque manual é desativado e as superfícies do chat seguem o estilo Liquid Glass.</string>
+    <string name="SettingsCategoryGeneral">Geral</string>
+    <string name="SettingsCategoryAppearance">Aparência</string>
+    <string name="SettingsCategoryAyuFeatures">Recursos do AyuGram</string>
+    <string name="SettingsCategoryTranslator">Tradutor</string>
+    <string name="SettingsCategoryExperimental">Experimental</string>
 </resources>

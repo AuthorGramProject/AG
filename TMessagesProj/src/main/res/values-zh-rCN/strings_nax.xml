@@ -460,4 +460,16 @@
     <string name="SendLockedCustomEmojiAsStickerInfo">仅支持 WebP/WebM 自定义 Emoji。仅支持 TGS 的 Emoji 不包含在内。</string>
     <string name="ShowFilteredMessagesMenuText">显示过滤消息</string>
     <string name="HideFilteredMessagesMenuText">隐藏过滤消息</string>
+    <string name="MessageMenuScrollable">消息菜单可滚动</string>
+    <string name="MessageMenuScrollableInfo">当消息菜单条目很多时，允许滚动而不是占满整个屏幕。</string>
+    <string name="TopMessageMenuEnabled">顶部消息菜单</string>
+    <string name="TopMessageMenuEnabledInfo">将常用操作（回复、复制、转发、编辑、删除）移动到消息菜单上方的操作栏。</string>
+    <string name="MessageMenuMaxItems">最大可见条目</string>
+    <string name="MessageMenuMaxItemsInfo">启用滚动前显示的消息菜单条目数量。</string>
+    <string name="BlurLiquidGlassInfo">启用 Liquid Glass 时，手动模糊 alpha 将被禁用，聊天界面将遵循 Liquid Glass 样式。</string>
+    <string name="SettingsCategoryGeneral">通用</string>
+    <string name="SettingsCategoryAppearance">外观</string>
+    <string name="SettingsCategoryAyuFeatures">AyuGram 功能</string>
+    <string name="SettingsCategoryTranslator">翻译</string>
+    <string name="SettingsCategoryExperimental">实验性</string>
 </resources>

@@ -41,6 +41,10 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
+import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
+import org.telegram.ui.Components.blur3.drawable.color.impl.BlurredBackgroundProviderImpl;
+import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceColor;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -55,10 +59,12 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
         void onDialogSelected(long dialogId);
     }
 
-    private static final int PANEL_WIDTH_DP = 60;
+    // ///added from NagramExtera
+    private static final int PANEL_WIDTH_DP = 68;
     private static final int HANDLE_WIDTH_DP = 26;
     private static final int HANDLE_HEIGHT_DP = 56;
-    private static final int ROW_HEIGHT_DP = 75;
+    // ///added from NagramExtera
+    private static final int ROW_HEIGHT_DP = 82;
     private static final int MAX_DIALOGS = 20;
 
     private final int currentAccount;
@@ -66,6 +72,12 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
     private int panelColor;
     private int pressedColor;
     private final FrameLayout panelView;
+    // ///added from NagramExtera
+    private final BlurredBackgroundSourceColor panelBackgroundSourceColor = new BlurredBackgroundSourceColor();
+    // ///added from NagramExtera
+    private final BlurredBackgroundDrawableViewFactory panelBackgroundFactory = new BlurredBackgroundDrawableViewFactory(panelBackgroundSourceColor);
+    // ///added from NagramExtera
+    private BlurredBackgroundDrawable panelBackgroundDrawable;
     private final RecyclerListView listView;
     private final ImageView toggleButton;
     private final Adapter adapter;
@@ -92,7 +104,15 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
         recomputePanelColors();
 
         panelView = new FrameLayout(context);
-        panelView.setBackgroundColor(panelColor);
+        // ///added from NagramExtera
+        panelBackgroundFactory.setLiquidGlassEffectAllowed(LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS));
+        panelBackgroundDrawable = panelBackgroundFactory
+                .create(panelView, false)
+                .setColorProvider(BlurredBackgroundProviderImpl.scrimMenuBackground(resourcesProvider))
+                .setPadding(AndroidUtilities.dp(6))
+                .setHasPadding(true)
+                .setRadius(AndroidUtilities.dp(12));
+        panelView.setBackground(panelBackgroundDrawable);
         addView(panelView, LayoutHelper.createFrame(PANEL_WIDTH_DP, LayoutHelper.MATCH_PARENT, Gravity.END | Gravity.TOP));
 
         listView = new RecyclerListView(context);
@@ -271,6 +291,8 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
             base = ColorUtils.setAlphaComponent(base, alpha);
         }
         panelColor = base;
+        // ///added from NagramExtera
+        panelBackgroundSourceColor.setColor(panelColor);
         pressedColor = ColorUtils.blendARGB(panelColor | 0xFF000000, Theme.getColor(Theme.key_actionBarDefaultIcon, resourcesProvider), 0.15f);
     }
 
@@ -280,8 +302,11 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
      */
     public void updateColors() {
         recomputePanelColors();
-        if (panelView != null) {
-            panelView.setBackgroundColor(panelColor);
+        // ///added from NagramExtera
+        panelBackgroundFactory.setLiquidGlassEffectAllowed(LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS));
+        if (panelView != null && panelBackgroundDrawable != null) {
+            panelBackgroundDrawable.invalidate();
+            panelView.invalidate();
         }
         invalidate();
     }
@@ -388,6 +413,10 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
         private final TextView nameTextView;
         private final AvatarDrawable avatarDrawable = new AvatarDrawable();
         private final RectF counterRect = new RectF();
+        // ///added from NagramExtera
+        private final RectF cardRect = new RectF();
+        // ///added from NagramExtera
+        private final Paint cardPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint counterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final TextPaint countPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
 
@@ -402,10 +431,11 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
             setLayoutParams(new RecyclerView.LayoutParams(AndroidUtilities.dp(PANEL_WIDTH_DP), AndroidUtilities.dp(ROW_HEIGHT_DP)));
             setClipChildren(false);
             setClipToPadding(false);
+            setWillNotDraw(false);
 
             imageView = new BackupImageView(context);
             imageView.setRoundRadius(AndroidUtilities.dp(20));
-            addView(imageView, LayoutHelper.createFrame(AVATAR_SIZE_DP, AVATAR_SIZE_DP, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 5, 0, 0));
+            addView(imageView, LayoutHelper.createFrame(AVATAR_SIZE_DP, AVATAR_SIZE_DP, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 8, 0, 0));
 
             nameTextView = new TextView(context) {
                 @Override
@@ -420,10 +450,22 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
             nameTextView.setLines(2);
             nameTextView.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
             nameTextView.setEllipsize(TextUtils.TruncateAt.END);
-            addView(nameTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.LEFT, 4, 46, 4, 0));
+            addView(nameTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.LEFT, 4, 50, 4, 0));
 
             countPaint.setTextSize(AndroidUtilities.dp(10));
             countPaint.setTypeface(AndroidUtilities.bold());
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            // Subtle rounded "chip" per row so the sidebar feels less flat/monotone.
+            // ///added from NagramExtera
+            int base = Theme.getColor(Theme.key_actionBarDefault, resourcesProvider);
+            int overlay = Theme.getColor(Theme.key_actionBarDefaultIcon, resourcesProvider);
+            cardPaint.setColor(ColorUtils.blendARGB(base, overlay, 0.06f));
+            cardRect.set(AndroidUtilities.dp(4), AndroidUtilities.dp(3), getMeasuredWidth() - AndroidUtilities.dp(4), getMeasuredHeight() - AndroidUtilities.dp(3));
+            canvas.drawRoundRect(cardRect, AndroidUtilities.dp(14), AndroidUtilities.dp(14), cardPaint);
         }
 
         @Override

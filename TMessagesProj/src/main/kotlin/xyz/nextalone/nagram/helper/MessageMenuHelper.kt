@@ -51,6 +51,7 @@ object MessageMenuHelper {
             if (text in labels) primary.add(item)
         }
         if (primary.isEmpty()) return
+        if (primary.size == 1) return
 
         val toolbar = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -95,5 +96,11 @@ object MessageMenuHelper {
             1,
             LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8)
         )
+
+        // Ensure the popup uses a ScrollView when the remaining list is tall.
+        // ///added from NagramExtera
+        if (NaConfig.messageMenuScrollable.Bool()) {
+            popupLayout.setMaxHeight(AndroidUtilities.dp((NaConfig.messageMenuMaxItems.Int().coerceAtLeast(3)) * 48 + 16))
+        }
     }
 }

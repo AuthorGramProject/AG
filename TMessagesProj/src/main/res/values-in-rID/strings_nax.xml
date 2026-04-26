@@ -331,4 +331,10 @@
     <string name="TopMessageMenuEnabledInfo">Pindahkan aksi paling sering dipakai (Balas, Salin, Teruskan, Edit, Hapus) ke action bar di atas menu pesan.</string>
     <string name="MessageMenuMaxItems">Maks Item Terlihat</string>
     <string name="MessageMenuMaxItemsInfo">Jumlah item menu pesan yang ditampilkan sebelum scroll aktif.</string>
+    <string name="BlurLiquidGlassInfo">Saat Liquid Glass aktif, pengaturan alpha blur manual dimatikan dan area chat mengikuti gaya Liquid Glass.</string>
+    <string name="SettingsCategoryGeneral">Umum</string>
+    <string name="SettingsCategoryAppearance">Tampilan</string>
+    <string name="SettingsCategoryAyuFeatures">Fitur AyuGram</string>
+    <string name="SettingsCategoryTranslator">Penerjemah</string>
+    <string name="SettingsCategoryExperimental">Eksperimental</string>
 </resources>

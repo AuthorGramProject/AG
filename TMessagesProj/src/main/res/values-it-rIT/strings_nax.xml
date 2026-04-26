@@ -335,4 +335,10 @@ Non possiamo aiutarti in questo caso; se hai problemi di accesso, contatta il Su
     <string name="TopMessageMenuEnabledInfo">Sposta le azioni più usate (Rispondi, Copia, Inoltra, Modifica, Elimina) in una barra di azione sopra il menu del messaggio.</string>
     <string name="MessageMenuMaxItems">Elementi Visibili Massimi</string>
     <string name="MessageMenuMaxItemsInfo">Numero di voci del menu messaggio mostrate prima dell\'attivazione dello scorrimento.</string>
+    <string name="BlurLiquidGlassInfo">Quando Liquid Glass è abilitato, l\'alpha della sfocatura manuale viene disattivato e le superfici della chat seguono lo stile Liquid Glass.</string>
+    <string name="SettingsCategoryGeneral">Generale</string>
+    <string name="SettingsCategoryAppearance">Aspetto</string>
+    <string name="SettingsCategoryAyuFeatures">Funzionalità AyuGram</string>
+    <string name="SettingsCategoryTranslator">Traduttore</string>
+    <string name="SettingsCategoryExperimental">Sperimentale</string>
 </resources>

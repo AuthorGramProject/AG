@@ -31,20 +31,22 @@ def gitOutput = { List<String> cmd ->
     } catch (ignored) { null }
 }
 
-// versionCode — CI passes VERSION_CODE (computed by the workflow step that
-// already ran "git rev-list --count HEAD" in plain bash).  For local builds
-// we call git via providers.exec (config-cache safe).  Falls back to
-// APP_VERSION_CODE when git is also unavailable (source-tarball builds).
+// versionCode — CI passes VERSION_CODE (computed by the workflow).
+// Local builds try git; when git is unavailable (e.g. Android Studio without git in PATH),
+// fall back to an epoch-minute counter so the value still auto-increments per build.
+def epochMinutes = (System.currentTimeMillis() / 60000L) as long
 def computedVersionCode = (
         System.getenv('VERSION_CODE')?.toInteger()
         ?: gitOutput(['git', 'rev-list', '--count', 'HEAD'])?.toInteger()
-        ?: APP_VERSION_CODE.toInteger()
+        ?: (epochMinutes % Integer.MAX_VALUE) as int
 )
 
-// Short SHA — CI passes the full COMMIT_ID env var; local builds ask git.
+// Short SHA — CI passes COMMIT_ID; local builds ask git; fallback to a stable
+// pseudo id derived from the version code so versionName is never stuck.
 def shortSha = (
         System.getenv('COMMIT_ID')?.take(7)
         ?: gitOutput(['git', 'rev-parse', '--short=7', 'HEAD'])
+        ?: ("t" + Integer.toString(computedVersionCode, 36)).take(7)
 )
 
 // Dirty-tree detection — skipped entirely on CI (always a clean checkout).
@@ -53,25 +55,21 @@ def isDirty = !System.getenv('CI') &&
         ((gitOutput(['git', 'status', '--porcelain'])?.length() ?: 0) > 0)
 
 // Auto-derive the patch component of the human-readable version from the
-// commit count.  This ensures the visible version (e.g. "1.0.42") changes
-// on every commit, not just the SHA suffix.  APP_VERSION_NAME is treated
-// as a MAJOR.MINOR prefix; only the first two segments are used.  When
-// git is unavailable (source-tarball build) we keep APP_VERSION_NAME as-is.
+// versionCode (commit count on CI, epoch-minutes fallback locally). This ensures
+// the visible version (e.g. "2.12.65") changes automatically on each build.
+// APP_VERSION_NAME is treated as a MAJOR.MINOR prefix; only the first two
+// segments are used.
 def baseSegments = APP_VERSION_NAME.tokenize('.')
 def baseMajorMinor = baseSegments.size() >= 2
         ? "${baseSegments[0]}.${baseSegments[1]}"
         : APP_VERSION_NAME
-def autoBaseVersion = (shortSha != null)
-        ? "${baseMajorMinor}.${computedVersionCode}"
-        : APP_VERSION_NAME
+def autoBaseVersion = "${baseMajorMinor}.${computedVersionCode}"
 
 // Full version name:
-//   <auto-base>-<sha>       — CI / clean local tree   (e.g. 1.0.42-abc1234)
+//   <auto-base>-<sha>       — CI / clean local tree   (e.g. 2.12.65-abc1234)
 //   <auto-base>-dev+<sha>   — dirty local working tree
-//   <APP_VERSION_NAME>      — git unavailable (source-tarball fallback)
-def verName = shortSha
-        ? (isDirty ? "${autoBaseVersion}-dev+${shortSha}" : "${autoBaseVersion}-${shortSha}")
-        : APP_VERSION_NAME
+//   <auto-base>-<pseudo>    — when git is unavailable locally
+def verName = isDirty ? "${autoBaseVersion}-dev+${shortSha}" : "${autoBaseVersion}-${shortSha}"
 
 def verCode = computedVersionCode
 
@@ -92,6 +90,8 @@ def changelogDir = new File(rootDirCC, "documentations/changelogs")
 def changelogFile = new File(changelogDir, "changelog-${verName}-${verCode}.md")
 def changelogVerName = verName
 def changelogVerCode = verCode
+def changelogIndexFile = new File(changelogDir, "CHANGELOG.md")
+def commitMessageFile = new File(changelogDir, "COMMIT_MESSAGE.txt")
 
 tasks.register("generateChangelogStub") {
     description = "Create a stub changelog file for the current build if missing."
@@ -123,8 +123,89 @@ _Build code: ${changelogVerCode}_
     }
 }
 
+tasks.register("generateChangelogIndex") {
+    description = "Generate a full aggregated CHANGELOG.md from changelog-*.md files."
+    group = "build"
+    outputs.file(changelogIndexFile)
+    doLast {
+        if (!changelogDir.exists()) {
+            changelogDir.mkdirs()
+        }
+
+        // Collect all versioned changelog files and sort by trailing version code ascending.
+        def files = changelogDir.listFiles()?.findAll { f ->
+            f.isFile() && f.name.toLowerCase().startsWith("changelog-") && f.name.toLowerCase().endsWith(".md")
+        } ?: []
+
+        def extractTrailingNumber = { String name ->
+            def trimmed = name.toLowerCase().endsWith(".md") ? name.substring(0, name.length() - 3) : name
+            def m = (trimmed =~ /(\\d+)$/)
+            if (m.find()) {
+                try { return Long.parseLong(m.group(1)) } catch (ignored) { }
+            }
+            return -1L
+        }
+
+        files.sort { a, b ->
+            long ca = extractTrailingNumber(a.name)
+            long cb = extractTrailingNumber(b.name)
+            if (ca != cb) return ca <=> cb
+            return a.name.toLowerCase() <=> b.name.toLowerCase()
+        }
+
+        def sb = new StringBuilder()
+        sb.append("# Changelog\n\n")
+        sb.append("All notable changes to this project will be documented in this file.\n\n")
+        sb.append("## [Unreleased]\n\n")
+        sb.append("- _(changes go into the per-build changelog files: changelog-<versionName>-<versionCode>.md)_\n\n")
+
+        // Append each per-build changelog as a release section in reverse chronological order.
+        def releases = files.reverse()
+        releases.each { f ->
+            def content = f.getText("UTF-8")?.trim()
+            if (content == null || content.isEmpty()) return
+
+            // Derive a display version from the filename when possible.
+            // Format: changelog-<verName>-<verCode>.md
+            def base = f.name.substring(0, f.name.length() - 3)
+            def display = base.startsWith("changelog-") ? base.substring("changelog-".length()) : base
+
+            sb.append("## [").append(display).append("]\n\n")
+            sb.append(content).append("\n\n")
+        }
+
+        changelogIndexFile.text = sb.toString()
+    }
+}
+
+tasks.register("generateCommitMessageTemplate") {
+    description = "Generate a suggested commit message template for the current build."
+    group = "build"
+    outputs.file(commitMessageFile)
+    doLast {
+        if (!changelogDir.exists()) {
+            changelogDir.mkdirs()
+        }
+        def msg = """feat(nagram-extera): ${changelogVerName} (${changelogVerCode})
+
+- Auto versioning + release workflow versionCode bump per run.
+- GitHub changelog fetch + in-app Markdown rendering.
+- Security/build hygiene (no hardcoded keys, cleartext off, debug keystore).
+- UI blur/Liquid Glass precedence + recent chats sidebar refresh.
+- Message menu scrollable + optional top action bar + settings toggles.
+- Settings categories cleanup + localization sweep.
+- CI/release workflows concurrency cancel-in-progress.
+"""
+        commitMessageFile.text = msg
+    }
+}
+
 afterEvaluate {
-    tasks.matching { it.name == "preBuild" }.configureEach { dependsOn("generateChangelogStub") }
+    tasks.matching { it.name == "preBuild" }.configureEach {
+        dependsOn("generateChangelogStub")
+        dependsOn("generateChangelogIndex")
+        dependsOn("generateCommitMessageTemplate")
+    }
 }
 
 // Upstream Telegram reference — for display only (About screen).
@@ -202,20 +283,38 @@ android {
         versionCode verCode
 
         // obtain your own keys at https://core.telegram.org/api/obtaining_api_id
-        def appId = '6'
-        def appHash = 'eb06d4abfb49dc3eeb1aeb98ae0f581e'
+        def appId = System.getenv('TELEGRAM_APP_ID') ?: ''
+        def appHash = System.getenv('TELEGRAM_APP_HASH') ?: ''
 
         if (properties != null) {
-            appId = properties.getProperty('TELEGRAM_APP_ID') ?: System.getenv('TELEGRAM_APP_ID') ?: appId
-            appHash = properties.getProperty('TELEGRAM_APP_HASH') ?: System.getenv('TELEGRAM_APP_HASH') ?: appHash
+            appId = properties.getProperty('TELEGRAM_APP_ID') ?: appId
+            appHash = properties.getProperty('TELEGRAM_APP_HASH') ?: appHash
+        }
+
+        // Fail fast for non-debug builds if the developer did not provide keys.
+        // This prevents accidentally shipping the upstream default credentials.
+        if (appId == null || appId.toString().isBlank() || appHash == null || appHash.toString().isBlank()) {
+            def isDebugLike = gradle.startParameter.taskNames.any { n ->
+                n.toLowerCase().contains("debug") || n.toLowerCase().contains("assembledebug")
+            }
+            if (!isDebugLike) {
+                throw new GradleException("Missing TELEGRAM_APP_ID / TELEGRAM_APP_HASH. Provide them in local.properties or environment variables for release/staging builds.")
+            }
         }
 
         buildConfigField 'String', 'BUILD_VERSION_STRING', '"' + verName + '"'
         buildConfigField 'String', 'OFFICIAL_VERSION', '"' + officialVer + '"'
         buildConfigField 'int', 'OFFICIAL_VERSION_CODE', officialCode + ''
-        buildConfigField 'int', 'APP_ID', appId
+        buildConfigField 'int', 'APP_ID', (appId?.toString()?.isInteger() ? appId : "0")
         buildConfigField 'String', 'APP_HASH', '"' + appHash + '"'
         buildConfigField 'long', 'BUILD_TIMESTAMP', buildTimestamp + 'L'
+
+        // Google Maps API key comes from local.properties/env to avoid hardcoding secrets.
+        def mapsKey = System.getenv('MAPS_API_KEY') ?: ''
+        if (properties != null) {
+            mapsKey = properties.getProperty('MAPS_API_KEY') ?: mapsKey
+        }
+        manifestPlaceholders += [ MAPS_API_KEY: (mapsKey ?: "") ]
 
         externalNativeBuild {
             cmake {
@@ -252,6 +351,13 @@ android {
     }
 
     signingConfigs {
+        debug {
+            // Use the standard Android debug keystore by default.
+            storeFile file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
         release {
             storeFile project.file('release.keystore')
             storePassword keystorePwd
@@ -266,7 +372,7 @@ android {
             debuggable = true
             jniDebuggable = false
             multiDexEnabled = true
-            signingConfig = signingConfigs.release
+            signingConfig = signingConfigs.debug
         }
 
         staging {

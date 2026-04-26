@@ -138,12 +138,15 @@ jobs:
           set -euo pipefail
 
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
-          VERSION_CODE=$(git rev-list --count HEAD)
+          # Use a strictly increasing value per workflow run so every rebuild
+          # produces a new versionCode even when there are no new commits.
+          # This also avoids relying on git history depth rules for monotonicity.
+          VERSION_CODE=${{ github.run_number }}
           EXTERA_BASE=$(grep -E '^APP_VERSION_NAME=' gradle.properties | cut -d= -f2)
           TG_VERSION=$(grep -E '^TELEGRAM_VERSION_NAME=' gradle.properties | cut -d= -f2)
 
           # Mirror the auto-versioning rule from TMessagesProj/build.gradle:
-          #   versionName = <MAJOR>.<MINOR>.<commitCount>-<shortSha>
+          #   versionName = <MAJOR>.<MINOR>.<versionCode>-<shortSha>
           # so the artifact name stays in lock-step with the APK's versionName.
           MAJOR_MINOR=$(echo "$EXTERA_BASE" | awk -F. '{ if (NF>=2) printf "%s.%s", $1, $2; else printf "%s", $0 }')
           VERSION_NAME="${MAJOR_MINOR}.${VERSION_CODE}-${SHORT_SHA}"

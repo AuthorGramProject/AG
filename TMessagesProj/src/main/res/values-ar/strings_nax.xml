@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="MessageMenuScrollable">قائمة الرسائل قابلة للتمرير</string>
+    <string name="MessageMenuScrollableInfo">عندما تحتوي قائمة الرسائل على الكثير من العناصر، اسمح بالتمرير بدلًا من ملء الشاشة.</string>
+    <string name="TopMessageMenuEnabled">قائمة رسائل علوية</string>
+    <string name="TopMessageMenuEnabledInfo">ينقل الإجراءات الأكثر استخدامًا (رد، نسخ، إعادة توجيه، تعديل، حذف) إلى شريط إجراءات أعلى قائمة الرسائل.</string>
+    <string name="MessageMenuMaxItems">الحد الأقصى للعناصر المرئية</string>
+    <string name="MessageMenuMaxItemsInfo">عدد عناصر قائمة الرسائل المعروضة قبل تفعيل التمرير.</string>
+    <string name="BlurLiquidGlassInfo">عند تفعيل Liquid Glass، يتم تعطيل شفافية (ألفا) الضبابية اليدوية وتتبع أسطح الدردشة نمط Liquid Glass.</string>
+    <string name="SettingsCategoryGeneral">عام</string>
+    <string name="SettingsCategoryAppearance">المظهر</string>
+    <string name="SettingsCategoryAyuFeatures">ميزات AyuGram</string>
+    <string name="SettingsCategoryTranslator">المترجم</string>
+    <string name="SettingsCategoryExperimental">تجريبي</string>
+</resources>

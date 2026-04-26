@@ -63,6 +63,8 @@ import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.INavigationLayout;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Cells.ChatActionCell;
+import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.Cells.SharedPhotoVideoCell2;
 import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.UserCell;
@@ -82,6 +84,8 @@ import org.telegram.ui.Stories.StoriesController;
 import org.telegram.ui.Stories.recorder.HintView2;
 
 import java.util.HashSet;
+
+import xyz.nextalone.nagram.NaConfig;
 
 public class ItemOptions {
 
@@ -1214,6 +1218,22 @@ public class ItemOptions {
 
         if (getItemsCount() <= 0) {
             return this;
+        }
+
+        // If the message menu becomes too crowded, cap its height so it scrolls
+        // instead of covering the whole screen.
+        // ///added from NagramExtera
+        if (maxHeight <= 0 && scrimView != null &&
+                (scrimView instanceof ChatMessageCell || scrimView instanceof ChatActionCell) &&
+                NaConfig.INSTANCE.getMessageMenuScrollable().Bool()) {
+            int maxItems = NaConfig.INSTANCE.getMessageMenuMaxItems().Int();
+            if (maxItems <= 0) {
+                maxItems = 8;
+            }
+            final int approxRowHeight = dp(48);
+            final int desired = approxRowHeight * maxItems + dp(16);
+            // Keep some headroom for insets and avoid over-restricting on tablets.
+            setMaxHeight(Math.min(desired, (int) (AndroidUtilities.displaySize.y * 0.75f)));
         }
 
         setupSelectors();
