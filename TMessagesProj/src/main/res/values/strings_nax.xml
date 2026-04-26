@@ -495,6 +495,10 @@
     <string name="ChatInputBlurInfo">Make the chat message input field translucent with blur.</string>
     <string name="FloatingPanelBlur">Floating Panel Blur</string>
     <string name="FloatingPanelBlurInfo">Apply blur to the floating panel under Telegram\'s top bar (pinned message, etc.).</string>
+    <string name="RecentAppsBlur">Recent Apps Blur</string>
+    <string name="RecentAppsBlurInfo">Hide chat content with a blurred screenshot in the system Recent Apps preview.</string>
+    <string name="LiquidGlass">Liquid Glass</string>
+    <string name="LiquidGlassInfo">Use Apple-style Liquid Glass surfaces for translucent UI. Overrides the individual blur toggles below.</string>
     <string name="LiquidGlassOverridesBlur">When Liquid Glass is enabled, these elements use Liquid Glass styling instead of blur.</string>
     <!-- Message menu density -->
     <string name="MessageMenuScrollable">Scrollable Message Menu</string>

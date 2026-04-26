@@ -8435,6 +8435,11 @@ public class ChatActivity extends BaseFragment implements
         };
         chatActivityEnterView.setVisibility(View.VISIBLE);
         chatActivityEnterView.getEditField().adaptiveCreateLinkDialog = true;
+        // Nagram Extera: chat-input blur (Liquid Glass overrides this).
+        xyz.nextalone.nagram.helper.BlurHelper.applyBlur(
+                chatActivityEnterView,
+                NaConfig.INSTANCE.getChatInputBlur().Bool()
+        );
         if (chatMode == MODE_EDIT_BUSINESS_LINK) {
             chatActivityEnterView.setDelegate(new ChatActivityEnterView.ChatActivityEnterViewDelegate() {
                 @Override
@@ -10432,6 +10437,11 @@ public class ChatActivity extends BaseFragment implements
         };
         invalidateChatListViewTopPadding();
         topChatPanelView.setClickable(true);
+        // Nagram Extera: floating panel blur (Liquid Glass overrides this).
+        xyz.nextalone.nagram.helper.BlurHelper.applyBlur(
+                topChatPanelView,
+                NaConfig.INSTANCE.getFloatingPanelBlur().Bool()
+        );
         topPanelLayout.addView(topChatPanelView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 44));
         topPanelLayout.setPriority(topChatPanelView, 2);
         topPanelLayout.setDebugName(topChatPanelView, "top chat panel view");
@@ -33504,6 +33514,9 @@ public class ChatActivity extends BaseFragment implements
             if (reactionsLayout != null) {
                 reactionsLayout.setParentLayout(scrimPopupContainerLayout);
             }
+            // Nagram Extera: lift Reply/Copy/Forward/Edit/Delete to a top toolbar.
+            xyz.nextalone.nagram.helper.MessageMenuHelper.applyTopActionBar(
+                    popupLayout, scrimPopupWindowItems, themeDelegate);
             scrimPopupWindow = new ActionBarPopupWindow(scrimPopupContainerLayout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT) {
                 @Override
                 public void dismiss() {

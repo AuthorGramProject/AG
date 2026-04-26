@@ -1651,6 +1651,19 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val recentAppsBlur =
+        addConfig(
+            "RecentAppsBlur",
+            ConfigItem.configTypeBool,
+            false
+        )
+    // Liquid Glass: when enabled, takes precedence over individual blur effects
+    val liquidGlass =
+        addConfig(
+            "LiquidGlass",
+            ConfigItem.configTypeBool,
+            false
+        )
     // Message menu density controls
     val messageMenuScrollable =
         addConfig(
