@@ -33,9 +33,9 @@ that does its own bookkeeping.
 | | |
 |---|---|
 | **Source code** | <https://github.com/D1ZZY4/NagramXF-Extera> |
-| **Official channel** | [@NagramExteraOfficial](https://t.me/NagramExteraOfficial) — announcements & changelog |
-| **Release channel** | [@NagramExteraCloud](https://t.me/NagramExteraCloud) — alternative APK distribution outside of GitHub Releases |
-| **Community group** | [@NagramExteraCommunity](https://t.me/NagramExteraCommunity) — discussion, support, bug reports |
+| **Official channel** | [NagramExteraOfficial](https://t.me/NagramExteraOfficial) — announcements & changelog |
+| **Release channel** | [NagramExteraCloud](https://t.me/NagramExteraCloud) — alternative APK distribution outside of GitHub Releases |
+| **Community group** | [NagramExteraCommunity](https://t.me/NagramExteraCommunity) — discussion, support, bug reports |
 
 ## Highlights
 
