@@ -230,9 +230,8 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
                 add(new ConfigCellTextCheckIcon(NekoConfig.showReport, getString(R.string.ReportChat), R.drawable.msg_report));
                 add(new ConfigCellTextCheckIcon(NekoConfig.showAdminActions, getString(R.string.EditAdminRights), R.drawable.profile_admin));
                 add(new ConfigCellTextCheckIcon(NekoConfig.showChangePermissions, getString(R.string.ChangePermissions), R.drawable.msg_permissions));
-                add(new ConfigCellTextCheckIcon(NekoConfig.showMessageDetails, getString(R.string.MessageDetails), R.drawable.msg_info));
+                add(new ConfigCellTextCheckIcon(NekoConfig.showMessageDetails, getString(R.string.MessageDetails), R.drawable.msg_info, true));
                 // ///added from NagramExtera
-                add(new ConfigCellDivider());
                 add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getMessageMenuScrollable(), getString(R.string.MessageMenuScrollable), R.drawable.msg_list));
                 add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getTopMessageMenuEnabled(), getString(R.string.TopMessageMenuEnabled), R.drawable.msg_select));
             }}))

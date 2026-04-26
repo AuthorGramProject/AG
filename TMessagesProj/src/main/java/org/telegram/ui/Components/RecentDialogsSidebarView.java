@@ -305,7 +305,7 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
         // ///added from NagramExtera
         panelBackgroundFactory.setLiquidGlassEffectAllowed(LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS));
         if (panelView != null && panelBackgroundDrawable != null) {
-            panelBackgroundDrawable.invalidate();
+            panelBackgroundDrawable.invalidateSelf();
             panelView.invalidate();
         }
         invalidate();
