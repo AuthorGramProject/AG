@@ -84,27 +84,41 @@ def verCode = computedVersionCode
 // The file lives outside the APK (assets are no longer used for changelogs);
 // the About screen fetches the latest changelog directly from GitHub.
 // ---------------------------------------------------------------------------
-def changelogDir = new File(rootProject.projectDir, "documentations/changelogs")
+// Capture all Gradle-script values at configuration time into plain locals so
+// the doLast{} closure remains compatible with the Gradle configuration cache
+// (which forbids accessing 'rootProject', 'project', etc. at execution time).
+def rootDirCC = rootProject.projectDir
+def changelogDir = new File(rootDirCC, "documentations/changelogs")
 def changelogFile = new File(changelogDir, "changelog-${verName}-${verCode}.md")
+def changelogVerName = verName
+def changelogVerCode = verCode
 
 tasks.register("generateChangelogStub") {
     description = "Create a stub changelog file for the current build if missing."
     group = "build"
+    // Make the task itself cache-friendly: declare the output so Gradle can
+    // skip it when up-to-date, and avoid touching project/rootProject inside
+    // doLast{}.
+    outputs.file(changelogFile)
+    outputs.upToDateWhen { changelogFile.exists() }
     doLast {
         if (!changelogDir.exists()) {
             changelogDir.mkdirs()
         }
         if (!changelogFile.exists()) {
-            def stub = """# Nagram Extera ${verName}
+            def stub = """# Nagram Extera ${changelogVerName}
 
-_Build code: ${verCode}_
+_Build code: ${changelogVerCode}_
 
 ## What's New
 
 - _(add release notes here before tagging this build)_
 """
             changelogFile.text = stub
-            println("Generated changelog stub: ${changelogFile.relativePath(rootProject.projectDir)}")
+            // Compute the path relative to the captured root dir without
+            // touching any Gradle script objects at execution time.
+            def relPath = rootDirCC.toPath().relativize(changelogFile.toPath()).toString()
+            println("Generated changelog stub: ${relPath}")
         }
     }
 }
