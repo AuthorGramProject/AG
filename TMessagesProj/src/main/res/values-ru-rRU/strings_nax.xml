@@ -4,7 +4,7 @@
     <string name="NagramExteraGroup">Группа Nagram Extera</string>
     <string name="AyuGramChannel">Канал AyuGram</string>
     <string name="ExteraGramChannel">Канал exteraGram</string>
-    <string name="XChannel">Канал Nagram X</string>
+    <string name="XChannel">Канал Nagram Extera</string>
     <string name="EnableSaveDeletedMessages">Сохранять удалённые сообщения</string>
     <string name="DeletedMessage">удалено</string>
     <string name="EnableSaveEditsHistory">Сохранять историю изменений</string>
@@ -343,8 +343,8 @@
     <string name="BackAnimationSpring">Spring</string>
     <string name="BackAnimationPredictive">Предиктивная</string>
     <string name="AddToFilter">Добавить в фильтр</string>
-    <string name="UnifiedPushNeverReceivedNotifications">С момента запуска Nagram X вы не получали уведомлений с помощью UnifiedPush.</string>
-    <string name="UnifiedPushLastReceivedNotification">Последнее уведомление, полученное с помощью UnifiedPush, было %1$d секунд назад.\n\nС момента запуска Nagram X вы получили %2$d уведомлений.</string>
+    <string name="UnifiedPushNeverReceivedNotifications">С момента запуска Nagram Extera вы не получали уведомлений с помощью UnifiedPush.</string>
+    <string name="UnifiedPushLastReceivedNotification">Последнее уведомление, полученное с помощью UnifiedPush, было %1$d секунд назад.\n\nС момента запуска Nagram Extera вы получили %2$d уведомлений.</string>
     <string name="UnifiedPushCurrentEndpoint">Текущая конечная точка UnifiedPush: %1$s</string>
     <string name="PlayOnce">Играть один раз</string>
     <string name="StorageSettings">Хранилище</string>
@@ -390,7 +390,7 @@
     <string name="AyuAttachments">Сохраненные вложения</string>
     <string name="AyuDatabase">База данных</string>
     <string name="TelegramLocalDatabase">База данных Telegram</string>
-    <string name="NagramXForkChannel">Канал Nagram XF</string>
+    <string name="NagramXForkChannel">Канал Nagram ExteraF</string>
     <string name="DeletedMarkText">Метка удалённого</string>
     <string name="DeletedMarkNothing">Нет</string>
     <string name="DeletedMarkTrashBin">Корзина</string>

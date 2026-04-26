@@ -4,7 +4,7 @@
     <string name="NagramExteraGroup">Nagram Extera グループ</string>
     <string name="AyuGramChannel">AyuGram チャンネル</string>
     <string name="ExteraGramChannel">exteraGram チャンネル</string>
-    <string name="XChannel">Nagram X チャンネル</string>
+    <string name="XChannel">Nagram Extera チャンネル</string>
     <string name="EnableSaveDeletedMessages">削除済みメッセージを保存</string>
     <string name="DeletedMessage">削除済み</string>
     <string name="EnableSaveEditsHistory">編集履歴を保存</string>
@@ -336,8 +336,8 @@
     <string name="BackAnimationSpring">Spring</string>
     <string name="BackAnimationPredictive">予測型</string>
     <string name="AddToFilter">フィルターに追加</string>
-    <string name="UnifiedPushNeverReceivedNotifications">Nagram X の起動以降、UnifiedPush 経由で通知を受信したことはありません。</string>
-    <string name="UnifiedPushLastReceivedNotification">UnifiedPush で最後に受信した通知は %1$d 秒前です。\n\nNagram X の起動以降、 %2$d 件の通知を受信しました。</string>
+    <string name="UnifiedPushNeverReceivedNotifications">Nagram Extera の起動以降、UnifiedPush 経由で通知を受信したことはありません。</string>
+    <string name="UnifiedPushLastReceivedNotification">UnifiedPush で最後に受信した通知は %1$d 秒前です。\n\nNagram Extera の起動以降、 %2$d 件の通知を受信しました。</string>
     <string name="UnifiedPushCurrentEndpoint">現在の UnifiedPush エンドポイントは：%1$s</string>
     <string name="PlayOnce">ワンショット</string>
     <string name="StorageSettings">ストレージ</string>
@@ -345,7 +345,7 @@
     <string name="PasscodeShowMessagePreviewWhenLockedAbout">パスコードロックが有効な場合でも通知内容を表示します。</string>
     <string name="StickerSavedHint">ステッカーを保存しました。</string>
     <string name="StickerCopied">ステッカーをコピーしました。</string>
-    <string name="NagramXForkChannel">Nagram XF チャンネル</string>
+    <string name="NagramXForkChannel">Nagram ExteraF チャンネル</string>
     <string name="DeletedMarkText">削除済みマーク</string>
     <string name="DeletedMarkNothing">なし</string>
     <string name="DeletedMarkTrashBin">ごみ箱</string>

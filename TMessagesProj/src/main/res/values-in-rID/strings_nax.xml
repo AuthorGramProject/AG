@@ -4,7 +4,7 @@
     <string name="NagramExteraGroup">Grup Nagram Extera</string>
     <string name="AyuGramChannel">Saluran AyuGram</string>
     <string name="ExteraGramChannel">Saluran exteraGram</string>
-    <string name="XChannel">Saluran Nagram X</string>
+    <string name="XChannel">Saluran Nagram Extera</string>
     <string name="EnableSaveDeletedMessages">Simpan Pesan yang Dihapus</string>
     <string name="DeletedMessage">dihapus</string>
     <string name="EnableSaveEditsHistory">Simpan Riwayat Suntingan</string>
@@ -315,8 +315,8 @@
     <string name="BackAnimationSpring">Musim Semi</string>
     <string name="BackAnimationPredictive">Perkiraan</string>
     <string name="AddToFilter">Tambah ke Penyaring</string>
-    <string name="UnifiedPushNeverReceivedNotifications">Anda tidak pernah menerima pemberitahuan dengan UnifiedPush sejak Nagram X dimulai.</string>
-    <string name="UnifiedPushLastReceivedNotification">Pemberitahuan terakhir yang diterima dengan UnifiedPush adalah %1$d detik yang lalu.\n\nAnda menerima %2$d pemberitahuan sejak Nagram X dimulai.</string>
+    <string name="UnifiedPushNeverReceivedNotifications">Anda tidak pernah menerima pemberitahuan dengan UnifiedPush sejak Nagram Extera dimulai.</string>
+    <string name="UnifiedPushLastReceivedNotification">Pemberitahuan terakhir yang diterima dengan UnifiedPush adalah %1$d detik yang lalu.\n\nAnda menerima %2$d pemberitahuan sejak Nagram Extera dimulai.</string>
     <string name="UnifiedPushCurrentEndpoint">Titik akhir UnifiedPush saat ini adalah: %1$s</string>
     <string name="PlayOnce">Putar sekali</string>
     <string name="StorageSettings">Penyimpanan</string>

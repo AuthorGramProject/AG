@@ -4,7 +4,7 @@
     <string name="NagramExteraGroup">Grupa Nagram Extera</string>
     <string name="AyuGramChannel">Kanał AyuGram</string>
     <string name="ExteraGramChannel">Kanał exteraGram</string>
-    <string name="XChannel">Kanał Nagram X</string>
+    <string name="XChannel">Kanał Nagram Extera</string>
     <string name="EnableSaveDeletedMessages">Zapisz usunięte wiadomości</string>
     <string name="DeletedMessage">usunięte</string>
     <string name="EnableSaveEditsHistory">Zapisz historię zmian</string>
@@ -315,8 +315,8 @@
     <string name="BackAnimationSpring">Wiosna</string>
     <string name="BackAnimationPredictive">Proroczy</string>
     <string name="AddToFilter">Dodaj do filtra</string>
-    <string name="UnifiedPushNeverReceivedNotifications">Od momentu uruchomienia Nagram X nie otrzymałeś żadnych powiadomień za pomocą UnifiedPush.</string>
-    <string name="UnifiedPushLastReceivedNotification">Ostatnie powiadomienie otrzymane za pomocą UnifiedPush zostało otrzymane %1$d sekund temu.\n\nOtrzymałeś %2$d powiadomień od momentu uruchomienia Nagram X.</string>
+    <string name="UnifiedPushNeverReceivedNotifications">Od momentu uruchomienia Nagram Extera nie otrzymałeś żadnych powiadomień za pomocą UnifiedPush.</string>
+    <string name="UnifiedPushLastReceivedNotification">Ostatnie powiadomienie otrzymane za pomocą UnifiedPush zostało otrzymane %1$d sekund temu.\n\nOtrzymałeś %2$d powiadomień od momentu uruchomienia Nagram Extera.</string>
     <string name="UnifiedPushCurrentEndpoint">Aktualny punkt końcowy UnifiedPush to: %1$s</string>
     <string name="PlayOnce">Zagraj raz</string>
     <string name="StorageSettings">Pamięć</string>

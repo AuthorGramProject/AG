@@ -4,7 +4,7 @@
     <string name="NagramExteraGroup">Nagram Extera 群組</string>
     <string name="AyuGramChannel">AyuGram 頻道</string>
     <string name="ExteraGramChannel">exteraGram 頻道</string>
-    <string name="XChannel">Nagram X 頻道</string>
+    <string name="XChannel">Nagram Extera 頻道</string>
     <string name="EnableSaveDeletedMessages">儲存已刪除訊息</string>
     <string name="DeletedMessage">已刪除</string>
     <string name="EnableSaveEditsHistory">儲存編輯歷史</string>
@@ -338,8 +338,8 @@
     <string name="BackAnimationSpring">Spring</string>
     <string name="BackAnimationPredictive">預測</string>
     <string name="AddToFilter">新增過濾器</string>
-    <string name="UnifiedPushNeverReceivedNotifications">自 Nagram X 啟動後，您從未收到 UnifiedPush 的通知。</string>
-    <string name="UnifiedPushLastReceivedNotification">最後一次透過 UnifiedPush 接收到的通知是 %1$d 秒前。\n\n自 Nagram X 啟動以來，您已收到 %2$d 條通知。</string>
+    <string name="UnifiedPushNeverReceivedNotifications">自 Nagram Extera 啟動後，您從未收到 UnifiedPush 的通知。</string>
+    <string name="UnifiedPushLastReceivedNotification">最後一次透過 UnifiedPush 接收到的通知是 %1$d 秒前。\n\n自 Nagram Extera 啟動以來，您已收到 %2$d 條通知。</string>
     <string name="UnifiedPushCurrentEndpoint">目前的 UnifiedPush 端點是：%1$s</string>
     <string name="PlayOnce">播放一次</string>
     <string name="StorageSettings">儲存</string>
@@ -356,7 +356,7 @@
     <string name="PeekOnlineUnavailable">無法取得精確在線狀態。</string>
     <string name="PeekOnlineRestoreFailed">無法還原「最後上線」隱私設定。</string>
     <string name="ShowRecentChatsSidebar">顯示最近聊天側邊欄</string>
-    <string name="NagramXForkChannel">Nagram XF 頻道</string>
+    <string name="NagramXForkChannel">Nagram ExteraF 頻道</string>
     <string name="DeletedMarkText">已刪除標識</string>
     <string name="DeletedMarkNothing">無</string>
     <string name="DeletedMarkTrashBin">垃圾桶</string>
