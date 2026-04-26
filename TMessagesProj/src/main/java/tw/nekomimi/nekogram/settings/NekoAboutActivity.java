@@ -38,7 +38,7 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.LayoutHelper;
-import org.telegram.ui.Components.TextViewEffects;
+import org.telegram.ui.Components.EffectsTextView;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -221,7 +221,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         scrollView.setFillViewport(true);
         container.addView(scrollView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, 0, 0, 0, 0, 0));
 
-        TextView textView = new TextViewEffects(ctx);
+        TextView textView = new EffectsTextView(ctx);
         textView.setText(rendered);
         textView.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
         textView.setLinkTextColor(Theme.getColor(Theme.key_dialogTextLink));
