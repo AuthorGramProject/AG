@@ -92,23 +92,39 @@ next section.
 
 ## 6. Automatic versioning
 
-There is **no manual version bumping** in this project. The build derives
-both numbers at configuration time:
+**Nothing is bumped manually.** All version numbers are derived at build time
+from git metadata. The single source of truth for the *base* version is
+`APP_VERSION_NAME` in `gradle.properties`; everything else is automatic.
 
-- **`versionCode`** = `git rev-list --count HEAD`. Strictly monotonic and
-  deterministic per checkout. Falls back to `APP_VERSION_CODE` from
-  `gradle.properties` when git is unavailable (source tarballs).
-- **`versionName`** = `${APP_VERSION_NAME}-${shortSha}` on CI, or
-  `${APP_VERSION_NAME}-dev+${shortSha}` for local working trees with
-  uncommitted changes. `APP_VERSION_NAME` lives in `gradle.properties` and
-  tracks the upstream Telegram version.
-- **`BUILD_TIMESTAMP`** = `BUILD_TIMESTAMP` env var on CI, or
-  `System.currentTimeMillis() / 1000` locally. Surfaces in crash reports and
-  the in-app About screen.
+| Field | Source | Example |
+|---|---|---|
+| `versionCode` | `git rev-list --count HEAD` (strictly monotonic); falls back to `APP_VERSION_CODE` when git is absent | `42` |
+| `versionName` (CI / clean) | `${APP_VERSION_NAME}-${shortSha}` | `1.0.0-a1b2c3d` |
+| `versionName` (local dirty) | `${APP_VERSION_NAME}-dev+${shortSha}` | `1.0.0-dev+a1b2c3d` |
+| `BUILD_TIMESTAMP` | `BUILD_TIMESTAMP` env var on CI; otherwise `System.currentTimeMillis()/1000` | `1714123456` |
 
-If you need a stable, manually-controlled version, override the values via
-the env vars `BUILD_TIMESTAMP` and `COMMIT_ID` and the gradle properties
-`APP_VERSION_NAME` / `APP_VERSION_CODE`.
+### Nagram Extera vs. upstream Telegram versioning
+
+`APP_VERSION_NAME` / `APP_VERSION_CODE` are **Nagram Extera** versions and
+start at `1.0.0` / `1`. They are completely independent of the upstream
+Telegram release cycle.
+
+The upstream Telegram version is tracked separately in `TELEGRAM_VERSION_NAME`
+/ `TELEGRAM_VERSION_CODE` for informational purposes only (shown in the
+About screen as "Telegram version"). It **never** drives versionName or
+versionCode.
+
+### Bumping the base version
+
+To tag a new named release (e.g. `1.1.0`), change only this line in
+`gradle.properties`:
+
+```properties
+APP_VERSION_NAME=1.1.0
+```
+
+Commit the change. The next CI run will pick it up automatically. No other
+file needs editing.
 
 ## 7. Common issues
 

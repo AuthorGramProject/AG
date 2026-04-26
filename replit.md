@@ -29,6 +29,21 @@ NagramExtera/
 └── settings.gradle         # Project name and module registration
 ```
 
+## Versioning (Fully Automatic)
+
+| Field | Source | Example |
+|---|---|---|
+| `versionCode` | `git rev-list --count HEAD` (strictly monotonic); fallback: `APP_VERSION_CODE` | `42` |
+| `versionName` (CI/clean) | `APP_VERSION_NAME + "-" + shortSha` | `1.0.0-a1b2c3d` |
+| `versionName` (local dirty) | `APP_VERSION_NAME + "-dev+" + shortSha` | `1.0.0-dev+a1b2c3d` |
+| `BUILD_TIMESTAMP` | CI env var or wall-clock at build time | `1714123456` |
+
+**To bump the Nagram Extera version**, edit only one line in `gradle.properties`:
+```properties
+APP_VERSION_NAME=1.1.0
+```
+Everything else (versionCode, SHA suffix, timestamp) is computed automatically. The upstream Telegram version is tracked separately in `TELEGRAM_VERSION_NAME` / `TELEGRAM_VERSION_CODE` for informational display only.
+
 ## Important Notes for Replit
 
 This is a **native Android application** and **cannot run as a web server**. Building requires:

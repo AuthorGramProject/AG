@@ -32,14 +32,20 @@ Set them in **Settings → Secrets and variables → Actions** in your fork.
 
 ## Versioning
 
-Both the `versionCode` and the `versionName` are computed at build time from
-git metadata. There is **nothing to bump manually** between releases. The
-canonical rules (also documented in [`BUILDING.md`](BUILDING.md)):
+Both `versionCode` and `versionName` are computed fully automatically from git
+metadata. There is **nothing to bump manually** between releases. Full rules
+are in [`BUILDING.md § 6`](BUILDING.md#6-automatic-versioning); the summary:
 
-- `versionCode = git rev-list --count HEAD`.
-- `versionName = ${APP_VERSION_NAME}-${shortSha}` on CI.
-- `BUILD_TIMESTAMP` is exported as a Unix epoch second by the workflow and
-  baked into `BuildConfig`.
+| Field | Rule |
+|---|---|
+| `versionCode` | `git rev-list --count HEAD` — strictly monotonic |
+| `versionName` | `${APP_VERSION_NAME}-${shortSha}` on CI (clean tree) |
+| `BUILD_TIMESTAMP` | Unix epoch seconds exported by the workflow |
+
+`APP_VERSION_NAME` in `gradle.properties` is the **Nagram Extera** base
+version (starts at `1.0.0`). It is entirely independent from the upstream
+Telegram version, which lives in `TELEGRAM_VERSION_NAME` for informational
+display only.
 
 The CI checkout step uses `fetch-depth: 0` so the commit count is accurate.
 

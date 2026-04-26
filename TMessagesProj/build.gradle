@@ -7,13 +7,52 @@ plugins {
     id 'com.google.firebase.crashlytics'
 }
 
-def buildTimestamp = System.getenv('BUILD_TIMESTAMP') ?: '0'
-def commitId = System.getenv('COMMIT_ID')
-def verName = "${APP_VERSION_NAME}${commitId?.take(7) ? "-${commitId.take(7)}" : ''}"
-def verCode = 1243
+// ---------------------------------------------------------------------------
+// Automatic versioning — nothing below this block should ever be edited
+// manually.  All values are derived from git metadata at build time.
+// ---------------------------------------------------------------------------
 
-def officialVer = APP_VERSION_NAME
-def officialCode = APP_VERSION_CODE
+/** Run a shell command in the project root; return trimmed stdout or null. */
+def gitOutput = { String cmd ->
+    try {
+        def proc = cmd.execute([], rootProject.projectDir)
+        proc.waitFor()
+        proc.exitValue() == 0 ? proc.text.trim() : null
+    } catch (ignored) { null }
+}
+
+// versionCode — strictly-monotonic commit count from the full history.
+// Falls back to APP_VERSION_CODE (gradle.properties) only when git is absent
+// (e.g. a source-tarball build without a .git directory).
+def computedVersionCode = (gitOutput('git rev-list --count HEAD')?.toInteger()
+        ?: APP_VERSION_CODE.toInteger())
+
+// Short SHA — prefer the full 40-char SHA from CI (COMMIT_ID) for accuracy,
+// otherwise ask git directly.
+def shortSha = (System.getenv('COMMIT_ID')?.take(7)
+        ?: gitOutput('git rev-parse --short=7 HEAD'))
+
+// Dirty-tree detection: append "dev+" prefix so local test builds are
+// trivially distinguishable from clean CI builds.
+def isDirty = ((gitOutput('git status --porcelain')?.length() ?: 0) > 0)
+
+// Full version name: <base>-dev+<sha> locally (dirty), <base>-<sha> on CI.
+// Degrades gracefully to just <base> when git is unavailable.
+def verName = shortSha
+        ? (isDirty ? "${APP_VERSION_NAME}-dev+${shortSha}" : "${APP_VERSION_NAME}-${shortSha}")
+        : APP_VERSION_NAME
+
+def verCode = computedVersionCode
+
+// Upstream Telegram reference — for display only (About screen).
+def officialVer  = TELEGRAM_VERSION_NAME
+def officialCode = TELEGRAM_VERSION_CODE
+
+// Build timestamp — CI sets BUILD_TIMESTAMP; local builds use wall-clock time.
+def buildTimestamp = System.getenv('BUILD_TIMESTAMP')
+        ?: String.valueOf(System.currentTimeMillis() / 1000L as long)
+
+// ---------------------------------------------------------------------------
 
 def keystorePwd = null
 def alias = null
