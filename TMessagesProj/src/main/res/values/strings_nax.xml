@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="NagramX" translatable="false">Nagram X</string>
+    <string name="NagramExteraChannel">Nagram Extera Channel</string>
+    <string name="NagramExteraGroup">Nagram Extera Group</string>
+    <string name="AyuGramChannel">AyuGram Channel</string>
+    <string name="ExteraGramChannel">exteraGram Channel</string>
     <string name="XChannel">Nagram X Channel</string>
     <string name="NagramXForkChannel">Nagram XF Channel</string>
     <string name="EnableSaveDeletedMessages">Save Deleted Messages</string>
