@@ -1,24 +1,22 @@
 # ---------------------------------------------------------------------------
 # Nagram Extera - Release pipeline
 # ---------------------------------------------------------------------------
-# Builds a signed arm64-v8a release APK, archives it as a workflow artifact,
-# and (optionally) publishes it to the configured Telegram release channel.
+# Builds signed release APKs for any combination of ABIs and (optionally)
+# publishes the arm64-v8a build to the Telegram release channel.
 #
-# Performance posture
-#   * Single-ABI build (arm64-v8a) by default - no universal APK.
-#   * Gradle daemon ON, configuration-cache ON, build-cache ON, parallel ON.
-#   * setup-gradle handles dependency + build cache (no manual ~/.gradle cache).
-#   * ccache wraps the NDK toolchain and persists across runs.
-#   * Lint and unit tests are skipped for release builds (run them in PR CI).
-#   * Partial git clone (blobless) - fetched in full only for versionCode.
+# ── How to trigger ──────────────────────────────────────────────────────────
+#   push to `main`         → arm64-v8a built automatically + publish
+#   workflow_dispatch      → set each ABI flag to "y" to include it
 #
-# Triggers
-#   * push to `main`         - full build + publish
-#   * workflow_dispatch      - manual rebuild, with an `upload` toggle
+# ── ABI flags (workflow_dispatch only) ──────────────────────────────────────
+#   arm64_v8a   "y" → build arm64-v8a   (default on push)
+#   armeabi_v7a "y" → build armeabi-v7a
+#   x86_64      "y" → build x86_64
+#   universal   "y" → build universal (all ABIs in one APK)
 #
-# Skip tokens (in the head commit message)
-#   * `[skip upload]` → build-only, no publish
-#   * `[skip ci]`     → workflow does not run
+# ── Skip tokens (commit message) ────────────────────────────────────────────
+#   [skip upload]  → build only, no Telegram publish
+#   [skip ci]      → workflow does not run at all
 # ---------------------------------------------------------------------------
 
 name: Release Build
@@ -30,19 +28,35 @@ on:
     paths-ignore:
       - '**.md'
       - 'documentations/**'
+      - 'changelogs/**'
       - '.github/**'
       - '!.github/workflows/release.yml'
   workflow_dispatch:
     inputs:
-      upload:
-        description: 'Skip Upload: set to "y" to skip publishing this build.'
+      arm64_v8a:
+        description: 'Build arm64-v8a — set to "y" to build'
+        required: false
+        default: 'y'
+        type: string
+      armeabi_v7a:
+        description: 'Build armeabi-v7a — set to "y" to build'
         required: false
         default: ''
         type: string
-      native_target:
-        description: 'Native ABI to build (arm64-v8a, armeabi-v7a, x86_64).'
+      x86_64:
+        description: 'Build x86_64 — set to "y" to build'
         required: false
-        default: 'arm64-v8a'
+        default: ''
+        type: string
+      universal:
+        description: 'Build universal (all ABIs) — set to "y" to build'
+        required: false
+        default: ''
+        type: string
+      upload:
+        description: 'Skip upload — set to "y" to skip Telegram publish'
+        required: false
+        default: ''
         type: string
 
 concurrency:
@@ -58,7 +72,6 @@ defaults:
     shell: bash
 
 env:
-  # Latest pinned toolchain versions — bump in one place.
   JAVA_VERSION: '21'
   JAVA_DISTRIBUTION: 'temurin'
   PYTHON_VERSION: '3.13'
@@ -69,23 +82,93 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 1. Build
+  # 0. Determine which ABIs to build + compute shared build metadata
   # ---------------------------------------------------------------------------
-  build:
-    name: Gradle Build (release)
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+  setup:
+    name: Configure build matrix
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
 
     outputs:
-      build_timestamp: ${{ steps.meta.outputs.build_timestamp }}
+      matrix:          ${{ steps.matrix.outputs.matrix }}
       version_name:    ${{ steps.meta.outputs.version_name }}
       version_code:    ${{ steps.meta.outputs.version_code }}
       short_sha:       ${{ steps.meta.outputs.short_sha }}
-      artifact_name:   ${{ steps.meta.outputs.artifact_name }}
+      build_timestamp: ${{ steps.meta.outputs.build_timestamp }}
+
+    steps:
+      - name: Checkout (blobless full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          submodules: false
+          show-progress: false
+
+      - id: matrix
+        name: Resolve ABI list
+        run: |
+          set -euo pipefail
+          abis=()
+
+          # On push → always arm64-v8a; on dispatch → respect per-ABI flags
+          if [[ "${{ github.event_name }}" == "push" ]] || [[ "${{ github.event.inputs.arm64_v8a }}" == "y" ]]; then
+            abis+=("arm64-v8a")
+          fi
+          if [[ "${{ github.event.inputs.armeabi_v7a }}" == "y" ]]; then
+            abis+=("armeabi-v7a")
+          fi
+          if [[ "${{ github.event.inputs.x86_64 }}" == "y" ]]; then
+            abis+=("x86_64")
+          fi
+          if [[ "${{ github.event.inputs.universal }}" == "y" ]]; then
+            abis+=("universal")
+          fi
+
+          # Fallback: ensure at least arm64-v8a is always built
+          [[ ${#abis[@]} -gt 0 ]] || abis=("arm64-v8a")
+
+          json=$(printf '"%s"\n' "${abis[@]}" | jq -s -c '{abi: .}')
+          echo "matrix=$json" | tee -a "$GITHUB_OUTPUT"
+          echo "Will build: ${abis[*]}"
+
+      - id: meta
+        name: Compute build metadata
+        run: |
+          set -euo pipefail
+
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          VERSION_CODE=$(git rev-list --count HEAD)
+          EXTERA_BASE=$(grep -E '^APP_VERSION_NAME=' gradle.properties | cut -d= -f2)
+          TG_VERSION=$(grep -E '^TELEGRAM_VERSION_NAME=' gradle.properties | cut -d= -f2)
+          VERSION_NAME="${EXTERA_BASE}-${SHORT_SHA}"
+          BUILD_TIMESTAMP=$(date +%s)
+
+          echo "Nagram Extera : ${VERSION_NAME} (code ${VERSION_CODE})"
+          echo "Telegram base : ${TG_VERSION}"
+
+          {
+            echo "short_sha=${SHORT_SHA}"
+            echo "version_code=${VERSION_CODE}"
+            echo "version_name=${VERSION_NAME}"
+            echo "build_timestamp=${BUILD_TIMESTAMP}"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 1. Build — one job per requested ABI (matrix)
+  # ---------------------------------------------------------------------------
+  build:
+    name: Gradle Build (${{ matrix.abi }})
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
 
     env:
-      NATIVE_TARGET: ${{ github.event.inputs.native_target || 'arm64-v8a' }}
+      # "universal" → blank NATIVE_TARGET → build.gradle enables universalApk
+      NATIVE_TARGET: ${{ matrix.abi == 'universal' && '' || matrix.abi }}
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
       CCACHE_HARDLINK: "true"
       CCACHE_NOHASHDIR: "true"
@@ -94,10 +177,7 @@ jobs:
       GRADLE_OPTS: "-Dorg.gradle.welcome=never -Dorg.gradle.configureondemand=true -Dkotlin.incremental=true -Dkotlin.compiler.execution.strategy=in-process"
 
     steps:
-      # ---- Source ---------------------------------------------------------
-      # Blobless partial clone is much faster than a full clone but still
-      # exposes the entire commit graph, which is all `git rev-list --count`
-      # needs.
+      # ---- Source -----------------------------------------------------------
       - name: Checkout (blobless full history)
         uses: actions/checkout@v4
         with:
@@ -109,7 +189,7 @@ jobs:
       - name: Normalise wrapper permissions
         run: chmod +x gradlew
 
-      # ---- Toolchain ------------------------------------------------------
+      # ---- Toolchain --------------------------------------------------------
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
@@ -120,7 +200,7 @@ jobs:
       - name: Set up ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ccache-${{ runner.os }}-${{ env.NATIVE_TARGET }}
+          key: ccache-${{ runner.os }}-${{ matrix.abi }}
           max-size: 5G
           append-timestamp: false
 
@@ -142,7 +222,7 @@ jobs:
             platforms;${{ env.ANDROID_PLATFORM }}
             cmake;${{ env.ANDROID_CMAKE }}
 
-      # ---- Configuration --------------------------------------------------
+      # ---- Configuration ----------------------------------------------------
       - name: Wire Android SDK + tune Gradle for the runner
         run: |
           set -euo pipefail
@@ -152,7 +232,6 @@ jobs:
           CPU_COUNT=$(nproc)
           echo "Runner: ${MEMORY_GB} GB RAM, ${CPU_COUNT} vCPU"
 
-          # Reset and apply tuned values for the runner.
           sed -i \
             -e '/^org\.gradle\.jvmargs=/d' \
             -e '/^org\.gradle\.parallel=/d' \
@@ -184,48 +263,14 @@ jobs:
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > TMessagesProj/release.keystore
 
-      # ---- Pre-flight build metadata --------------------------------------
-      - name: Compute build metadata
-        id: meta
-        run: |
-          set -euo pipefail
-
-          # --- Nagram Extera versioning (fully automatic) -------------------
-          # versionCode: strictly monotonic commit count across full history.
-          # versionName: <APP_VERSION_NAME>-<short-sha>  (clean tree on CI).
-          # BUILD_TIMESTAMP: Unix epoch seconds, baked into BuildConfig.
-          # ------------------------------------------------------------------
-          SHORT_SHA=$(git rev-parse --short=7 HEAD)
-          VERSION_CODE=$(git rev-list --count HEAD)
-          EXTERA_BASE=$(grep -E '^APP_VERSION_NAME=' gradle.properties | cut -d= -f2)
-          TG_VERSION=$(grep -E '^TELEGRAM_VERSION_NAME=' gradle.properties | cut -d= -f2)
-          VERSION_NAME="${EXTERA_BASE}-${SHORT_SHA}"
-          BUILD_TIMESTAMP=$(date +%s)
-          ARTIFACT_NAME="NagramExtera-Release-${VERSION_NAME}-${BUILD_TIMESTAMP}"
-
-          echo "Nagram Extera : ${VERSION_NAME} (code ${VERSION_CODE})"
-          echo "Telegram base : ${TG_VERSION}"
-
-          {
-            echo "short_sha=${SHORT_SHA}"
-            echo "version_code=${VERSION_CODE}"
-            echo "version_name=${VERSION_NAME}"
-            echo "build_timestamp=${BUILD_TIMESTAMP}"
-            echo "artifact_name=${ARTIFACT_NAME}"
-          } | tee -a "$GITHUB_OUTPUT"
-
-      # ---- Build ----------------------------------------------------------
-      # Skip lint and tests in the release pipeline; they belong in PR CI.
-      # `--build-cache` reuses outputs from previous successful runs.
+      # ---- Build ------------------------------------------------------------
       - id: assemble
-        name: Assemble release APK
+        name: Assemble release APK (${{ matrix.abi }})
         env:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-          COMMIT_ID: ${{ github.sha }}
-          BUILD_TIMESTAMP: ${{ steps.meta.outputs.build_timestamp }}
-          # VERSION_CODE injected here so build.gradle never needs to spawn a
-          # git subprocess during configuration — required by Gradle config cache.
-          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+          COMMIT_ID:        ${{ github.sha }}
+          BUILD_TIMESTAMP:  ${{ needs.setup.outputs.build_timestamp }}
+          VERSION_CODE:     ${{ needs.setup.outputs.version_code }}
         run: |
           set -euo pipefail
           ./gradlew \
@@ -233,17 +278,25 @@ jobs:
             -x lint -x test \
             :TMessagesProj:assembleRelease
 
-          APK_PATH=$(find TMessagesProj/build/outputs/apk -type f -name "*${NATIVE_TARGET}*.apk" | head -n1)
+          # Locate the APK for this ABI
+          if [[ -z "${NATIVE_TARGET}" ]]; then
+            # universal build: pick the universal APK
+            APK_PATH=$(find TMessagesProj/build/outputs/apk -type f -name "*universal*.apk" | head -n1)
+          else
+            APK_PATH=$(find TMessagesProj/build/outputs/apk -type f -name "*${NATIVE_TARGET}*.apk" | head -n1)
+          fi
+
           if [ -z "$APK_PATH" ]; then
-            echo "::error::No APK matching ABI '${NATIVE_TARGET}' found under TMessagesProj/build/outputs/apk"
+            echo "::error::No APK found for ABI '${{ matrix.abi }}'"
             find TMessagesProj/build/outputs/apk -type f -ls || true
             exit 1
           fi
+
           APK_DIR=$(dirname "$APK_PATH")
-          echo "APK=$APK_DIR"             >> "$GITHUB_ENV"
-          echo "APK_FILE=$APK_PATH"       >> "$GITHUB_ENV"
-          echo "apk=$APK_DIR"             >> "$GITHUB_OUTPUT"
-          echo "apk_file=$APK_PATH"       >> "$GITHUB_OUTPUT"
+          echo "APK=$APK_DIR"       >> "$GITHUB_ENV"
+          echo "APK_FILE=$APK_PATH" >> "$GITHUB_ENV"
+          echo "apk=$APK_DIR"       >> "$GITHUB_OUTPUT"
+          echo "apk_file=$APK_PATH" >> "$GITHUB_OUTPUT"
           echo "Built: $APK_PATH ($(stat -c%s "$APK_PATH") bytes)"
 
       - name: Generate APK checksums
@@ -253,17 +306,17 @@ jobs:
           echo "--- SHA256 ---"
           cat "$APK/SHA256SUMS"
 
-      # ---- Artifacts ------------------------------------------------------
-      - name: Upload release artifact
+      # ---- Artifacts --------------------------------------------------------
+      - name: Upload release artifact (${{ matrix.abi }})
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.meta.outputs.artifact_name }}
+          name: NagramExtera-${{ needs.setup.outputs.version_name }}-${{ matrix.abi }}
           path: ${{ steps.assemble.outputs.apk }}
-          compression-level: 0   # APKs are already compressed; skip the work.
+          compression-level: 0
           retention-days: 30
           if-no-files-found: error
 
-      # ---- Diagnostics on failure ----------------------------------------
+      # ---- Diagnostics on failure ------------------------------------------
       - name: Collect build logs on failure
         if: failure()
         run: |
@@ -274,7 +327,7 @@ jobs:
           find . -type d -name "logs"    -path "*/build/*" -exec cp -r {} build-logs/ \; 2>/dev/null
           find . -type f -name "*.log"   -path "*/build/*" -exec cp    {} build-logs/ \; 2>/dev/null
           find ~/.gradle/daemon -type f -name "*.out.log" -exec cp {} build-logs/ \; 2>/dev/null
-          ARCHIVE="build-logs-${{ github.run_id }}.zip"
+          ARCHIVE="build-logs-${{ github.run_id }}-${{ matrix.abi }}.zip"
           ( cd build-logs && zip -qr "../$ARCHIVE" . ) || true
           ls -lh "$ARCHIVE" || true
 
@@ -282,17 +335,17 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs-${{ github.run_id }}
-          path: build-logs-${{ github.run_id }}.zip
+          name: build-logs-${{ github.run_id }}-${{ matrix.abi }}
+          path: build-logs-${{ github.run_id }}-${{ matrix.abi }}.zip
           retention-days: 14
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
-  # 2. Publish to Telegram (release channel)
+  # 2. Publish to Telegram (arm64-v8a build, release channel)
   # ---------------------------------------------------------------------------
   upload:
     name: Publish to Telegram
-    needs: build
+    needs: [setup, build]
     if: |
       success()
       && github.event.inputs.upload != 'y'
@@ -308,11 +361,12 @@ jobs:
           filter: blob:none
           show-progress: false
 
-      - name: Download release artifact
+      - name: Download all release artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: false
+          pattern: 'NagramExtera-*'
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v6
@@ -320,17 +374,22 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
-      - name: Resolve APK path
+      - name: Resolve APK path (prefer arm64-v8a)
         id: locate
         run: |
           set -euo pipefail
+          # Prefer arm64-v8a; fall back to first available APK
           APK=$(find artifacts -type f -name "*arm64-v8a*.apk" | head -n1)
           if [ -z "$APK" ]; then
-            echo "::error::No arm64-v8a APK found in downloaded artifacts."
+            APK=$(find artifacts -type f -name "*.apk" | head -n1)
+          fi
+          if [ -z "$APK" ]; then
+            echo "::error::No APK found in downloaded artifacts."
             find artifacts -type f -ls
             exit 1
           fi
           echo "apk=$APK" | tee -a "$GITHUB_OUTPUT"
+          echo "Publishing: $APK"
 
       - name: Send to Telegram
         env:
@@ -339,9 +398,9 @@ jobs:
           COMMIT_ID:       ${{ github.sha }}
           COMMIT_URL:      ${{ github.event.head_commit.url }}
           COMMIT_MESSAGE:  ${{ github.event.head_commit.message }}
-          BUILD_TIMESTAMP: ${{ needs.build.outputs.build_timestamp }}
-          VERSION_NAME:    ${{ needs.build.outputs.version_name }}
-          VERSION_CODE:    ${{ needs.build.outputs.version_code }}
+          BUILD_TIMESTAMP: ${{ needs.setup.outputs.build_timestamp }}
+          VERSION_NAME:    ${{ needs.setup.outputs.version_name }}
+          VERSION_CODE:    ${{ needs.setup.outputs.version_code }}
         run: |
           set -euo pipefail
           export mini64="${{ steps.locate.outputs.apk }}"
@@ -369,13 +428,14 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Download log archive
+      - name: Download log archives
         uses: actions/download-artifact@v4
         with:
-          name: build-logs-${{ github.run_id }}
           path: logs
+          pattern: 'build-logs-*'
+          merge-multiple: true
 
-      - name: Send log archive to Telegram
+      - name: Send log archives to Telegram
         env:
           TG_BOT_TOKEN:   ${{ secrets.HELPER_BOT_TOKEN }}
           TG_CHAT_ID:     ${{ secrets.HELPER_BOT_TARGET }}
@@ -388,19 +448,16 @@ jobs:
             echo "Telegram secrets not configured; skipping log upload."
             exit 0
           fi
-          ARCHIVE=$(find logs -type f -name "*.zip" | head -n1)
-          if [ -z "$ARCHIVE" ]; then
-            echo "No log archive found."
-            exit 0
-          fi
-          {
-            printf 'Nagram Extera build failed\n'
-            printf 'Commit:  %s\n'  "${COMMIT_ID}"
-            printf 'Run:     %s\n'  "${RUN_URL}"
-            printf 'Message: %s\n'  "${COMMIT_MESSAGE}"
-          } > caption.txt
-          curl -sSf -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" \
-            -F chat_id="${TG_CHAT_ID}" \
-            -F caption="$(cat caption.txt)" \
-            -F document=@"${ARCHIVE}"
-
+          find logs -type f -name "*.zip" | while read -r ARCHIVE; do
+            {
+              printf 'Nagram Extera build failed\n'
+              printf 'Commit:  %s\n'  "${COMMIT_ID}"
+              printf 'Run:     %s\n'  "${RUN_URL}"
+              printf 'Message: %s\n'  "${COMMIT_MESSAGE}"
+            } > caption.txt
+            curl -sSf -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" \
+              -F chat_id="${TG_CHAT_ID}" \
+              -F caption="$(cat caption.txt)" \
+              -F document=@"${ARCHIVE}" || true
+          done
+          
