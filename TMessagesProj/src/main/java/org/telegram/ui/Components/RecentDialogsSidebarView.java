@@ -47,7 +47,7 @@ import java.util.LinkedList;
 
 import tw.nekomimi.nekogram.BackButtonMenuRecent;
 import tw.nekomimi.nekogram.ChatHistoryUtils;
-import xyz.nextalone.nagram.NaConfig;
+import tw.nekomimi.nekogram.NekoConfig;
 
 public class RecentDialogsSidebarView extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
 
@@ -259,19 +259,15 @@ public class RecentDialogsSidebarView extends FrameLayout implements Notificatio
     }
 
     private void recomputePanelColors() {
-        int base;
-        if (NaConfig.INSTANCE.getRecentSidebarFollowTopBar().Bool()) {
-            base = Theme.getColor(Theme.key_actionBarDefault, resourcesProvider);
-        } else {
-            base = Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider);
-        }
-        // Apply blur "intensity" via alpha when blur is on AND Liquid Glass is NOT taking over.
-        // Liquid Glass is treated as the priority styling per user request.
+        // Match Telegram's top bar so the sidebar feels native.
+        int base = Theme.getColor(Theme.key_actionBarDefault, resourcesProvider);
+        // Use the existing Telegram blur option (NekoX "Blur Options"):
+        //   toggle  -> NekoConfig.forceBlurInChat
+        //   alpha   -> NekoConfig.chatBlueAlphaValue (0..255)
+        // Liquid Glass takes precedence and disables this overlay.
         boolean liquidGlass = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
-        if (NaConfig.INSTANCE.getRecentSidebarBlur().Bool() && !liquidGlass) {
-            int intensity = Math.max(0, Math.min(100, NaConfig.INSTANCE.getBlurIntensity().Int()));
-            // Map 0..100 -> alpha 80..255. 0 = very translucent, 100 = nearly opaque.
-            int alpha = 80 + (int) ((255 - 80) * (intensity / 100f));
+        if (NekoConfig.forceBlurInChat.Bool() && !liquidGlass) {
+            int alpha = Math.max(0, Math.min(255, NekoConfig.chatBlueAlphaValue.Int()));
             base = ColorUtils.setAlphaComponent(base, alpha);
         }
         panelColor = base;

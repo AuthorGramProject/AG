@@ -480,26 +480,6 @@
     <string name="HideFilteredMessagesMenuText">Hide Filtered</string>
 
     <!-- Nagram Extera additions -->
-    <!-- Recent chats sidebar -->
-    <string name="RecentSidebarFollowTopBar">Match Top Bar Style</string>
-    <string name="RecentSidebarFollowTopBarInfo">Use the same colors and theme (light/dark) as Telegram\'s top bar.</string>
-    <string name="RecentSidebarBlur">Blur Background</string>
-    <string name="RecentSidebarBlurInfo">Apply a blur effect behind the recent chats sidebar.</string>
-    <!-- Blur intensity (shared) -->
-    <string name="BlurIntensity">Blur Intensity</string>
-    <string name="BlurIntensityInfo">Higher values mean a more opaque blur. Affects sidebar, NavBar, chat input and floating panels.</string>
-    <!-- NavBar / chat input blur -->
-    <string name="NavBarBlur">NavBar Blur</string>
-    <string name="NavBarBlurInfo">Add a blurred translucent background to the bottom navigation bar.</string>
-    <string name="ChatInputBlur">Chat Input Blur</string>
-    <string name="ChatInputBlurInfo">Make the chat message input field translucent with blur.</string>
-    <string name="FloatingPanelBlur">Floating Panel Blur</string>
-    <string name="FloatingPanelBlurInfo">Apply blur to the floating panel under Telegram\'s top bar (pinned message, etc.).</string>
-    <string name="RecentAppsBlur">Recent Apps Blur</string>
-    <string name="RecentAppsBlurInfo">Hide chat content with a blurred screenshot in the system Recent Apps preview.</string>
-    <string name="LiquidGlass">Liquid Glass</string>
-    <string name="LiquidGlassInfo">Use Apple-style Liquid Glass surfaces for translucent UI. Overrides the individual blur toggles below.</string>
-    <string name="LiquidGlassOverridesBlur">When Liquid Glass is enabled, these elements use Liquid Glass styling instead of blur.</string>
     <!-- Message menu density -->
     <string name="MessageMenuScrollable">Scrollable Message Menu</string>
     <string name="MessageMenuScrollableInfo">When the message menu has many entries, allow it to scroll instead of filling the screen.</string>

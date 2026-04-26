@@ -7595,10 +7595,6 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     protected void onResume() {
         super.onResume();
         isResumed = true;
-        // Nagram Extera: re-apply navigation bar / recents-screenshot blur
-        // each resume so it survives theme and config changes.
-        xyz.nextalone.nagram.helper.BlurHelper.applyNavBarBlur(getWindow());
-        xyz.nextalone.nagram.helper.BlurHelper.applyRecentAppsBlur(getWindow());
         pipActivityHandler.onResume();
         if (onResumeStaticCallback != null) {
             onResumeStaticCallback.run();

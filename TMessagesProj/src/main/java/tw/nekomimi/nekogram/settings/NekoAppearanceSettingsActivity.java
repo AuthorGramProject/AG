@@ -114,20 +114,6 @@ public class NekoAppearanceSettingsActivity extends BaseNekoXSettingsActivity {
     }, null));
     private final AbstractConfigCell dividerAppearance = cellGroup.appendCell(new ConfigCellDivider());
 
-    // Blur Effects (Nagram Extera)
-    private final AbstractConfigCell headerBlurEffects = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.BlurIntensity)));
-    private final AbstractConfigCell liquidGlassRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getLiquidGlass(), getString(R.string.LiquidGlassInfo)));
-    private final AbstractConfigCell recentSidebarFollowTopBarRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getRecentSidebarFollowTopBar(), getString(R.string.RecentSidebarFollowTopBarInfo)));
-    private final AbstractConfigCell recentSidebarBlurRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getRecentSidebarBlur(), getString(R.string.RecentSidebarBlurInfo)));
-    private final AbstractConfigCell navBarBlurRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getNavBarBlur(), getString(R.string.NavBarBlurInfo)));
-    private final AbstractConfigCell chatInputBlurRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getChatInputBlur(), getString(R.string.ChatInputBlurInfo)));
-    private final AbstractConfigCell floatingPanelBlurRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getFloatingPanelBlur(), getString(R.string.FloatingPanelBlurInfo)));
-    private final AbstractConfigCell recentAppsBlurRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getRecentAppsBlur(), getString(R.string.RecentAppsBlurInfo)));
-    private final AbstractConfigCell blurIntensityRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getBlurIntensity(), new String[]{
-            "0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"
-    }, null));
-    private final AbstractConfigCell dividerBlurEffects = cellGroup.appendCell(new ConfigCellDivider());
-
     private final AbstractConfigCell avatarCornersPreviewRow = cellGroup.appendCell(new ConfigCellCustom("AvatarCorners", ConfigCellCustom.CUSTOM_ITEM_AvatarCorners, false));
     private final AbstractConfigCell singleCornerRadiusRow = cellGroup.appendCell(
             new ConfigCellTextCheck(
@@ -258,13 +244,7 @@ public class NekoAppearanceSettingsActivity extends BaseNekoXSettingsActivity {
                     || key.equals(NaConfig.INSTANCE.getIgnoreUnreadCount().getKey())
                     || key.equals(NaConfig.INSTANCE.getDisableDialogsFloatingButton().getKey())
                     || key.equals(NaConfig.INSTANCE.getDisableBotOpenButton().getKey())
-                    || key.equals(NekoConfig.navigationDrawerEnabled.getKey())
-                    || key.equals(NaConfig.INSTANCE.getLiquidGlass().getKey())
-                    || key.equals(NaConfig.INSTANCE.getNavBarBlur().getKey())
-                    || key.equals(NaConfig.INSTANCE.getChatInputBlur().getKey())
-                    || key.equals(NaConfig.INSTANCE.getFloatingPanelBlur().getKey())
-                    || key.equals(NaConfig.INSTANCE.getRecentAppsBlur().getKey())
-                    || key.equals(NaConfig.INSTANCE.getTopMessageMenuEnabled().getKey())) {
+                    || key.equals(NekoConfig.navigationDrawerEnabled.getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.forceBlurInChat.getKey())) {
                 boolean enabled = (Boolean) newValue;

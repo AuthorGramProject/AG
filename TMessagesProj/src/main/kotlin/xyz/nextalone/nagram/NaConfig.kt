@@ -1613,57 +1613,6 @@ object NaConfig {
         )
 
     // ===== Nagram Extera additions =====
-    // Recent chats sidebar styling: follow Telegram top bar (light/dark/blur)
-    val recentSidebarFollowTopBar =
-        addConfig(
-            "RecentSidebarFollowTopBar",
-            ConfigItem.configTypeBool,
-            true
-        )
-    val recentSidebarBlur =
-        addConfig(
-            "RecentSidebarBlur",
-            ConfigItem.configTypeBool,
-            true
-        )
-    // 0..100 perceived intensity; mapped to alpha in renderer
-    val blurIntensity =
-        addConfig(
-            "BlurIntensity",
-            ConfigItem.configTypeInt,
-            70
-        )
-    val navBarBlur =
-        addConfig(
-            "NavBarBlur",
-            ConfigItem.configTypeBool,
-            false
-        )
-    val chatInputBlur =
-        addConfig(
-            "ChatInputBlur",
-            ConfigItem.configTypeBool,
-            false
-        )
-    val floatingPanelBlur =
-        addConfig(
-            "FloatingPanelBlur",
-            ConfigItem.configTypeBool,
-            false
-        )
-    val recentAppsBlur =
-        addConfig(
-            "RecentAppsBlur",
-            ConfigItem.configTypeBool,
-            false
-        )
-    // Liquid Glass: when enabled, takes precedence over individual blur effects
-    val liquidGlass =
-        addConfig(
-            "LiquidGlass",
-            ConfigItem.configTypeBool,
-            false
-        )
     // Message menu density controls
     val messageMenuScrollable =
         addConfig(
