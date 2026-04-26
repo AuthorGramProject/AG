@@ -617,6 +617,11 @@ public class ChatHistoryActivity extends BaseFragment {
         icons.add(R.drawable.msg_delete);
         actions.add(() -> showClearHistoryDialog());
 
+        // Add link to disable recent chats setting
+        items.add(getString(R.string.DisableShowRecentChats));
+        icons.add(R.drawable.msg_settings);
+        actions.add(() -> org.telegram.messenger.browser.Browser.openUrl(getParentActivity(), "https://t.me/nasettings/chat?r=ShowRecentChatsSidebar"));
+
         // Create and show dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
         builder.setTitle(getString(R.string.Settings));

@@ -356,7 +356,7 @@
     <string name="ReplaceBlockedMyInfo">Заменить информацию о пользователях, которые меня заблокировали</string>
     <string name="ReplaceBlockedMyInfoDescription">Отображать пользователей, которые вас заблокировали, с помощью серого аватара-заглушки.</string>
     <string name="UserAvatarsInMessagePreview">Аватары пользователей в предварительном просмотре сообщений</string>
-    <string name="MainTabsCustomize">Нижняя панель</string>
+    <string name="MainTabsCustomize">Настройка навигации</string>
     <string name="MainTabsCustomizeDesc">Нажмите на вкладку, чтобы отобразить или скрыть её. Удерживайте и перетаскивайте, чтобы изменить порядок.</string>
     <string name="MainTabsShowTitles">Показать заголовки вкладок</string>
     <string name="FoldersAtBottom">Переместить папки вниз</string>
@@ -402,7 +402,7 @@
     <string name="MainTabsCustomizeDrawerLocked">При включённой боковой панели на главной вкладка «Чаты» закрепляется слева.</string>
     <string name="HomeDrawer">Боковая панель на главной</string>
     <string name="DrawerElements">Элементы бокового меню</string>
-    <string name="MainTabsDisplayMode">Режим отображения нижней панели</string>
+    <string name="MainTabsDisplayMode">Режим навигации</string>
     <string name="MainTabsDisplayModeShow">Показать</string>
     <string name="MainTabsDisplayModeHide">Скрыть</string>
     <string name="MainTabsDisplayModeFloating">Плавающий</string>

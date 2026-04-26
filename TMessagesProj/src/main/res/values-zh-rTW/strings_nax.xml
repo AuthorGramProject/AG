@@ -373,13 +373,13 @@
     <string name="HideHomeSearchField">隱藏主頁搜索框</string>
     <string name="ReplaceBlockedMyInfo">替換屏蔽我的用戶信息</string>
     <string name="ReplaceBlockedMyInfoDescription">對已將你屏蔽的用戶，使用灰色頭像占位圖進行顯示。</string>
-    <string name="MainTabsCustomize">自定義底邊欄</string>
+    <string name="MainTabsCustomize">自定義導覽</string>
     <string name="MainTabsCustomizeDesc">點按標簽可顯示或隱藏。長按并拖動可調整順序。</string>
     <string name="MainTabsCustomizeDrawerLocked">開啟主頁側邊欄后，聊天會固定在最左側。</string>
     <string name="HomeDrawer">主頁側邊欄</string>
     <string name="DrawerElements">側邊欄菜單</string>
     <string name="MainTabsShowTitles">顯示標簽名稱</string>
-    <string name="MainTabsDisplayMode">底欄顯示效果</string>
+    <string name="MainTabsDisplayMode">導覽列模式</string>
     <string name="MainTabsDisplayModeShow">顯示</string>
     <string name="MainTabsDisplayModeHide">隱藏</string>
     <string name="MainTabsDisplayModeFloating">浮動</string>

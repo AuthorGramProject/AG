@@ -237,13 +237,13 @@
     <string name="ResetChatNameOverrides">重置聊天名称覆盖</string>
     <string name="ResetChatNameNotification">聊天名称覆盖已清除。</string>
     <string name="LeftBottomButtonAction">左侧按钮操作</string>
-    <string name="MainTabsCustomize">自定义底边栏</string>
+    <string name="MainTabsCustomize">自定义导航栏</string>
     <string name="MainTabsCustomizeDesc">点按标签可显示或隐藏。长按并拖动可调整顺序。</string>
     <string name="MainTabsCustomizeDrawerLocked">开启主页侧边栏后，聊天会固定在最左侧。</string>
     <string name="HomeDrawer">主页侧边栏</string>
     <string name="DrawerElements">侧边栏菜单</string>
     <string name="MainTabsShowTitles">显示标签名称</string>
-    <string name="MainTabsDisplayMode">底栏显示效果</string>
+    <string name="MainTabsDisplayMode">导航栏模式</string>
     <string name="MainTabsDisplayModeShow">显示</string>
     <string name="MainTabsDisplayModeHide">隐藏</string>
     <string name="MainTabsDisplayModeFloating">浮动</string>

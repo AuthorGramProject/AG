@@ -460,4 +460,3 @@ jobs:
               -F caption="$(cat caption.txt)" \
               -F document=@"${ARCHIVE}" || true
           done
-          

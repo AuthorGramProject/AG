@@ -364,13 +364,13 @@
     <string name="ReplaceBlockedMyInfoDescription">あなたをブロックしたユーザーを、灰色のプレースホルダーアバターで表示します。</string>
     <string name="AppWillRestartInSeconds">アプリは %1$d 秒後に再起動します。</string>
     <string name="RemoveMessageTail">メッセージのしっぽを削除</string>
-    <string name="MainTabsCustomize">下部タブをカスタマイズ</string>
+    <string name="MainTabsCustomize">ナビゲーションをカスタマイズ</string>
     <string name="MainTabsCustomizeDesc">タブをタップすると表示と非表示を切り替えます。長押ししてドラッグすると並び替えられます。</string>
     <string name="MainTabsCustomizeDrawerLocked">ホームドロワーを有効にすると、チャットは一番左に固定されます。</string>
     <string name="HomeDrawer">ホームドロワー</string>
     <string name="DrawerElements">ドロワー項目</string>
     <string name="MainTabsShowTitles">タブ名を表示</string>
-    <string name="MainTabsDisplayMode">下部バーの表示モード</string>
+    <string name="MainTabsDisplayMode">ナビバーのモード</string>
     <string name="MainTabsDisplayModeShow">表示</string>
     <string name="MainTabsDisplayModeHide">非表示</string>
     <string name="MainTabsDisplayModeFloating">フローティング</string>

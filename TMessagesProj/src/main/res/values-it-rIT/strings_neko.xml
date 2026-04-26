@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="NekoSettings">N-Impostazioni</string>
+    <string name="NekoSettings">Na-Impostazioni</string>
     <string name="IPv6">Preferisci IPv6</string>
     <string name="MessageMenu">Menu dei messaggi</string>
     <string name="HidePhone">Nascondi numero di telefono</string>

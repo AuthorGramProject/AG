@@ -168,7 +168,7 @@
     <string name="RestartApp">Restart App</string>
     <string name="AppWillRestartInSeconds">App will restart in %1$d seconds.</string>
     <string name="ResetSettings">Reset Settings</string>
-    <string name="ResetSettingsAlert">Are you sure you want to reset all N-Settings?</string>
+    <string name="ResetSettingsAlert">Are you sure you want to reset all Na-Settings?</string>
     <string name="DontAutoPlayNextVoice">Don\'t Auto Play Next Voice Message</string>
     <string name="SaveToChatSubfolder">Save Attachments by Chat Name</string>
     <string name="MessageColoredBackground">Colorful Message Backgrounds</string>
@@ -252,13 +252,13 @@
     <string name="ResetChatNameOverrides">Reset Chat Name Overrides</string>
     <string name="ResetChatNameNotification">Chat name overrides cleared.</string>
     <string name="LeftBottomButtonAction">Left Button Action</string>
-    <string name="MainTabsCustomize">Customize Bottom Tabs</string>
+    <string name="MainTabsCustomize">Customize Navigation</string>
     <string name="MainTabsCustomizeDesc">Tap a tab to show or hide it. Long-press and drag to reorder.</string>
     <string name="MainTabsCustomizeDrawerLocked">When Home Drawer is enabled, Chats is pinned to the far left.</string>
     <string name="HomeDrawer">Home Drawer</string>
     <string name="DrawerElements">Drawer Elements</string>
     <string name="MainTabsShowTitles">Show Tab Titles</string>
-    <string name="MainTabsDisplayMode">Bottom Bar Display Mode</string>
+    <string name="MainTabsDisplayMode">NavBar Mode</string>
     <string name="MainTabsDisplayModeShow">Show</string>
     <string name="MainTabsDisplayModeHide">Hide</string>
     <string name="MainTabsDisplayModeFloating">Floating</string>
@@ -447,7 +447,9 @@
     <string name="SingleCornerRadius">Unified corner radius</string>
     <string name="SingleCornerRadiusInfo">Topic groups will use the same avatar shape as chat messages.</string>
     <string name="BlurOptions">Blur Options</string>
-    <string name="AyuMoments" translatable="false">AyuMoments</string>
+    <string name="AyuMoments">AyuGram Features</string>
+    <string name="Changelog">Changelog</string>
+    <string name="DisableShowRecentChats">Disable Show Recent Chats</string>
     <string name="SaveAttachmentsCardTitle">Save Attachments</string>
     <string name="SaveAttachmentsCardSubtitle">Configure chats and limits</string>
     <string name="MaximumMediaSizeCellular">Media size limit (cellular data)</string>

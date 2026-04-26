@@ -8,11 +8,18 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.browser.Browser;
+import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.TextSettingsCell;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.Collections;
 
 import tw.nekomimi.nekogram.DatacenterActivity;
 
@@ -31,6 +38,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
     private int exteragramChannelRow;
     private int divider3Row;
     private int translationRow;
+    private int changelogRow;
     private int datacenterStatusRow;
 
     @Override
@@ -50,6 +58,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         exteragramChannelRow = addRow();
         divider3Row = addRow();
         translationRow = addRow();
+        changelogRow = addRow();
         datacenterStatusRow = addRow();
     }
 
@@ -80,8 +89,35 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
             MessagesController.getInstance(currentAccount).openByUserName("exteraGram", NekoAboutActivity.this, 1);
         } else if (position == translationRow) {
             Browser.openUrl(getParentActivity(), "https://crowdin.com/project/NagramX");
+        } else if (position == changelogRow) {
+            showChangelogDialog();
         } else if (position == datacenterStatusRow) {
             presentFragment(new DatacenterActivity(0));
+        }
+    }
+
+    private void showChangelogDialog() {
+        try {
+            String[] files = getParentActivity().getAssets().list("changelogs");
+            if (files == null || files.length == 0) return;
+            Arrays.sort(files, Collections.reverseOrder());
+            String latestFile = files[0];
+
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(getParentActivity().getAssets().open("changelogs/" + latestFile)));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            reader.close();
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle(getString(R.string.Changelog));
+            builder.setMessage(sb.toString().trim());
+            builder.setPositiveButton(getString(R.string.OK), null);
+            showDialog(builder.create());
+        } catch (Exception ignored) {
         }
     }
 
@@ -120,9 +156,11 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                 } else if (position == ayugramChannelRow) {
                     textCell.setTextAndValue(getString(R.string.AyuGramChannel), "@AyuGram4A", true);
                 } else if (position == exteragramChannelRow) {
-                    textCell.setTextAndValue(getString(R.string.ExteraGramChannel), "@exteraGram", false);
+                    textCell.setTextAndValue(getString(R.string.ExteraGramChannel), "@exteraGram", true);
                 } else if (position == translationRow) {
                     textCell.setTextAndValue(getString(R.string.TransSite), "Crowdin", true);
+                } else if (position == changelogRow) {
+                    textCell.setTextAndValue(getString(R.string.Changelog), "v" + BuildConfig.VERSION_NAME, true);
                 } else if (position == datacenterStatusRow) {
                     textCell.setText(getString(R.string.DatacenterStatus), false);
                 }
