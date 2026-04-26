@@ -22,9 +22,9 @@ args = "Start application"
 name = "Start application"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "./gradlew tasks --group=build 2>&1 || echo 'Gradle task listing complete'"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "./gradlew --version && echo '---' && echo 'Gradle is ready. This is a native Android app; APK builds require the Android SDK/NDK and run on CI or a local Android dev machine. See replit.md for build instructions.'"
