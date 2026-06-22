@@ -14,8 +14,8 @@ import java.util.HashMap;
 public class CloudStorageHelper extends AccountInstance {
 
     private static final CloudStorageHelper[] Instance = new CloudStorageHelper[UserConfig.MAX_ACCOUNT_COUNT];
-    private static final long WEBVIEW_BOT_ID = 1433866570L;
-    private static final String WEBVIEW_BOT = "NextAloneBot";
+    private static final long WEBVIEW_BOT_ID = 0L; // removed third-party bot
+    private static final String WEBVIEW_BOT = ""; // removed third-party bot
 
     private final Gson gson = new Gson();
 
