@@ -20,7 +20,6 @@ import org.telegram.ui.ProfileActivity;
 
 import kotlin.Unit;
 import tw.nekomimi.nekogram.DatacenterActivity;
-import tw.nekomimi.nekogram.helpers.remote.UpdateHelper;
 import tw.nekomimi.nekogram.ui.BottomBuilder;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
@@ -30,7 +29,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
 
     private int infoHeaderRow;
     private int versionRow;
-    private int updatesRow;
     private int toggleLogsRow;
     private int sendLogsRow;
     private int clearLogsRow;
@@ -56,7 +54,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
 
         infoHeaderRow = addRow();
         versionRow = addRow();
-        updatesRow = addRow();
         toggleLogsRow = addRow();
         if (BuildVars.LOGS_ENABLED) {
             sendLogsRow = addRow();
@@ -81,18 +78,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         return getString(R.string.About);
     }
 
-    private String getUpdateChannelDetail() {
-        switch (NaConfig.INSTANCE.getAutoUpdateChannel().Int()) {
-            case UpdateHelper.UPDATE_OFF:
-                return getString(R.string.AutoCheckUpdateOFF);
-            case UpdateHelper.UPDATE_CHANNEL_RELEASE:
-                return getString(R.string.AutoCheckUpdateRelease);
-            case UpdateHelper.UPDATE_CHANNEL_BETA:
-                return getString(R.string.AutoCheckUpdateBeta);
-            default:
-                return getString(R.string.AutoCheckUpdateOFF);
-        }
-    }
 
     private String getSimpleVersion() {
         String versionName = BuildConfig.VERSION_NAME.split("-")[0];
@@ -103,8 +88,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
     protected void onItemClick(View view, int position, float x, float y) {
         if (position == versionRow) {
             Browser.openUrl(getParentActivity(), URL_MAIN_SITE);
-        } else if (position == updatesRow) {
-            showUpdatesDialog();
         } else if (position == toggleLogsRow) {
             boolean wasLogsEnabled = BuildVars.LOGS_ENABLED;
             AndroidUtil.toggleLogs();
@@ -163,61 +146,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         rowCount -= 2;
     }
 
-    private void showUpdatesDialog() {
-        BottomBuilder builder = new BottomBuilder(getParentActivity());
-        builder.addTitle(getString(R.string.CheckUpdate));
-        builder.addItem(getString(R.string.CheckUpdate), R.drawable.msg_retry, (it) -> {
-            Browser.openUrl(getParentActivity(), "tg://update");
-            return Unit.INSTANCE;
-        });
-        builder.addItem(getString(R.string.AutoCheckUpdateSwitch) + " - " + getUpdateChannelDetail(), R.drawable.sync_outline_28, (it) -> {
-            showUpdateChannelDialog();
-            return Unit.INSTANCE;
-        });
-        builder.show();
-    }
 
-    private void showUpdateChannelDialog() {
-        BottomBuilder switchBuilder = new BottomBuilder(getParentActivity());
-        switchBuilder.addTitle(getString(R.string.AutoCheckUpdateSwitch));
-        switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateOFF), NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UpdateHelper.UPDATE_OFF, (radioButtonCell) -> {
-            NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_OFF);
-            switchBuilder.doRadioCheck(radioButtonCell);
-            AndroidUtilities.runOnUIThread(() -> {
-                switchBuilder.dismiss();
-                UpdateHelper.cleanAppUpdate();
-                if (listAdapter != null) {
-                    listAdapter.notifyItemChanged(updatesRow);
-                }
-            }, 500);
-            return Unit.INSTANCE;
-        });
-        switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateRelease), NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UpdateHelper.UPDATE_CHANNEL_RELEASE, (radioButtonCell) -> {
-            NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_CHANNEL_RELEASE);
-            switchBuilder.doRadioCheck(radioButtonCell);
-            AndroidUtilities.runOnUIThread(() -> {
-                switchBuilder.dismiss();
-                Browser.openUrl(getParentActivity(), "tg://update");
-                if (listAdapter != null) {
-                    listAdapter.notifyItemChanged(updatesRow);
-                }
-            }, 500);
-            return Unit.INSTANCE;
-        });
-        switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateBeta), NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UpdateHelper.UPDATE_CHANNEL_BETA, (radioButtonCell) -> {
-            NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_CHANNEL_BETA);
-            switchBuilder.doRadioCheck(radioButtonCell);
-            AndroidUtilities.runOnUIThread(() -> {
-                switchBuilder.dismiss();
-                Browser.openUrl(getParentActivity(), "tg://update");
-                if (listAdapter != null) {
-                    listAdapter.notifyItemChanged(updatesRow);
-                }
-            }, 500);
-            return Unit.INSTANCE;
-        });
-        showDialog(switchBuilder.create());
-    }
 
     @Override
     protected BaseListAdapter createAdapter(Context context) {
@@ -246,9 +175,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                     if (position == versionRow) {
                         detailCell.setMultilineDetail(true);
                         detailCell.setTextAndValue(getSimpleVersion(), getString(R.string.NaxAboutDesc), false);
-                    } else if (position == updatesRow) {
-                        detailCell.setMultilineDetail(false);
-                        detailCell.setTextAndValueAndIcon(getString(R.string.CheckUpdate), getUpdateChannelDetail(), R.drawable.msg_retry, true);
                     }
                     break;
                 case TYPE_TEXT:
@@ -278,7 +204,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         public int getItemViewType(int position) {
             if (position == infoHeaderRow || position == linksHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == versionRow || position == updatesRow) {
+            } else if (position == versionRow) {
                 return TYPE_DETAIL_SETTINGS;
             } else if (position == infoShadowRow || position == linksShadowRow) {
                 return TYPE_SHADOW;
