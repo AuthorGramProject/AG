@@ -16107,6 +16107,9 @@ public class ChatActivity extends BaseFragment implements
 
                 replyingMessageObject = messageObjectToReply;
                 replyingQuote = quote;
+                if (replyingQuote == null && xyz.nextalone.nagram.NaConfig.INSTANCE.getQuoteReply().Bool() && messageObjectToReply != null) {
+                    replyingQuote = ReplyQuote.from(messageObjectToReply);
+                }
                 if (replyingQuote != null && !replyingQuote.isValid()) {
                     replyingQuote = null;
                 }

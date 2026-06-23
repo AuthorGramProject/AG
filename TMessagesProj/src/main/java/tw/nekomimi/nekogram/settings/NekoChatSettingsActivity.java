@@ -143,6 +143,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     private final AbstractConfigCell headerMessages = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.MessagesChartTitle)));
     private final AbstractConfigCell messagePreviewRow = cellGroup.appendCell(new ConfigCellCustom("MessagePreview", ConfigCellCustom.CUSTOM_ITEM_MessagePreview, false));
     private final AbstractConfigCell showTimeHintRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowTimeHint()));
+    private final AbstractConfigCell quoteReplyRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getQuoteReply()));
     private final AbstractConfigCell messageColoredBackgroundRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getMessageColoredBackground(), null));
     private final AbstractConfigCell removeMessageTailRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getRemoveMessageTail()));
     private final AbstractConfigCell useEditedIconRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getUseEditedIcon()));
@@ -190,7 +191,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     }, null));
     private final AbstractConfigCell markdownParserRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getMarkdownParser(), new String[]{
             getString(R.string.Official),
-            "Nekogram",
+            "AuthorGram",
     }, null));
     private final AbstractConfigCell dividerChats = cellGroup.appendCell(new ConfigCellDivider());
 

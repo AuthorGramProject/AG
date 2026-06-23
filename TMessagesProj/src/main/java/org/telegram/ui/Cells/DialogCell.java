@@ -604,6 +604,16 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     private int mentionWidth;
     private StaticLayout mentionLayout;
 
+    // AuthorGram: декоративний бейдж розробника
+    private static final java.util.Set<Long> AUTHOR_BADGE_IDS = new java.util.HashSet<>();
+    static {
+        AUTHOR_BADGE_IDS.add(6316376597L);
+        AUTHOR_BADGE_IDS.add(2021861896L);
+        AUTHOR_BADGE_IDS.add(2815463434L);
+    }
+    private Drawable authorBadgeDrawable;
+    private boolean drawAuthorBadge;
+
     private boolean drawVerified;
     private boolean drawBotVerified;
     private boolean drawPremium;
@@ -1276,7 +1286,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     }
                 }
             } else {
-                drawVerified = !forbidVerified && customDialog.verified;
+                drawAuthorBadge = !forbidVerified && AUTHOR_BADGE_IDS.contains(currentDialogId);
+                drawVerified = !drawAuthorBadge && !forbidVerified && customDialog.verified;
                 if (useForceThreeLines || SharedConfig.useThreeLinesLayout) {
                     if (!LocaleController.isRTL) {
                         nameLeft = dp(messagePaddingStart + 6);
@@ -1404,7 +1415,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             emojiStatus.set(DialogObject.getEmojiStatusDocumentId(chat.emoji_status), false);
                             emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(chat.emoji_status), false);
                         } else {
-                            drawVerified = !forbidVerified && chat.verified;
+                            drawAuthorBadge = !forbidVerified && AUTHOR_BADGE_IDS.contains(chat.id);
+                            drawVerified = !drawAuthorBadge && !forbidVerified && chat.verified;
                             drawBotVerified = !forbidVerified && chat.bot_verification_icon != 0;
                         }
                     } else if (user != null) {
@@ -1416,7 +1428,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             drawScam = 2;
                             Theme.dialogs_fakeDrawable.checkText();
                         } else {
-                            drawVerified = !forbidVerified && user.verified;
+                            drawAuthorBadge = !forbidVerified && AUTHOR_BADGE_IDS.contains(user.id);
+                            drawVerified = !drawAuthorBadge && !forbidVerified && user.verified;
                             drawBotVerified = !forbidVerified && !UserObject.isUserSelf(user) && user.bot_verification_icon != 0;
                         }
                         drawPremium = MessagesController.getInstance(currentAccount).isPremiumUser(user) && UserConfig.getInstance(currentAccount).clientUserId != user.id && user.id != 0;
@@ -2261,6 +2274,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             if (LocaleController.isRTL) {
                 nameLeft += w;
             }
+        } else if (drawAuthorBadge) {
+            int w = dp(6) + dp(18);
         } else if (drawVerified) {
             int w = dp(6) + Theme.dialogs_verifiedDrawable.getIntrinsicWidth();
             nameWidth -= w;
@@ -4429,7 +4444,19 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 }
 
             }
-            if (drawVerified) {
+            if (drawAuthorBadge) {
+                float y = dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 13.5f : 16.5f);
+                if ((!(useForceThreeLines || SharedConfig.useThreeLinesLayout) || isForumCell()) && hasTags()) {
+                    y -= dp(9);
+                }
+                if (authorBadgeDrawable == null) {
+                    authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
+                }
+                int size = dp(18);
+                int left = nameMuteLeft - dp(1);
+                authorBadgeDrawable.setBounds(left, (int) y, left + size, (int) y + size);
+                authorBadgeDrawable.draw(canvas);
+            } else if (drawVerified) {
                 float y = dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 13.5f : 16.5f);
                 if ((!(useForceThreeLines || SharedConfig.useThreeLinesLayout) || isForumCell()) && hasTags()) {
                     y -= dp(9);
@@ -5533,7 +5560,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 sb.append(". ");
             }
         }
-        if (drawVerified) {
+        if (drawAuthorBadge || drawVerified) {
             sb.append(getString(R.string.AccDescrVerified));
             sb.append(". ");
         }

@@ -403,6 +403,15 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[] emojiStatusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[2];
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[] botVerificationDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[2];
     private final Drawable[] verifiedCheckDrawable = new Drawable[2];
+    // AuthorGram: декоративний бейдж розробника
+    private static final java.util.Set<Long> AUTHOR_BADGE_IDS = new java.util.HashSet<>();
+    static {
+        AUTHOR_BADGE_IDS.add(6316376597L);
+        AUTHOR_BADGE_IDS.add(2021861896L);
+        AUTHOR_BADGE_IDS.add(2815463434L);
+    }
+    private Drawable authorBadgeDrawable;
+
     private final CrossfadeDrawable[] verifiedCrossfadeDrawable = new CrossfadeDrawable[2];
     private final CrossfadeDrawable[] premiumCrossfadeDrawable = new CrossfadeDrawable[2];
     private ScamDrawable scamDrawable;
@@ -11445,6 +11454,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return lockIconDrawable;
     }
 
+    // AuthorGram: метод для отримання бейджа розробника
+    private Drawable getAuthorBadgeDrawable() {
+        if (authorBadgeDrawable == null) {
+            authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
+        }
+        return authorBadgeDrawable;
+    }
+
     private Drawable getVerifiedCrossfadeDrawable(int a) {
         if (verifiedCrossfadeDrawable[a] == null) {
             verifiedDrawable[a] = Theme.profile_verifiedDrawable.getConstantState().newDrawable().mutate();
@@ -11831,6 +11848,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (user.scam || user.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(user.scam ? 0 : 1));
                         nameTextViewRightDrawable2ContentDescription = LocaleController.getString(R.string.ScamMessage);
+                    } else if (AUTHOR_BADGE_IDS.contains(user.id)) {
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable());
+                        nameTextViewRightDrawable2ContentDescription = "Author";
                     } else if (user.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
                         nameTextViewRightDrawable2ContentDescription = LocaleController.getString(R.string.AccDescrVerified);
@@ -11865,6 +11885,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } else if (a == 1) {
                     if (user.scam || user.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(user.scam ? 0 : 1));
+                    } else if (AUTHOR_BADGE_IDS.contains(user.id)) {
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable());
                     } else if (user.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
                     } else {
@@ -12167,6 +12189,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (chat.scam || chat.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(chat.scam ? 0 : 1));
                         nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.ScamMessage);
+                    } else if (AUTHOR_BADGE_IDS.contains(chat.id)) {
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable());
+                        nameTextViewRightDrawableContentDescription = "Author";
                     } else if (chat.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
                         nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.AccDescrVerified);
@@ -12196,6 +12221,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } else if (!copyFromChatActivity) {
                     if (chat.scam || chat.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(chat.scam ? 0 : 1));
+                    } else if (AUTHOR_BADGE_IDS.contains(chat.id)) {
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable());
                     } else if (chat.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
                     } else if (getMessagesController().isDialogMuted(-chatId, topicId)) {

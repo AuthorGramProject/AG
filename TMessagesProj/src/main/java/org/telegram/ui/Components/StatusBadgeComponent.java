@@ -10,10 +10,23 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.Premium.PremiumGradient;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class StatusBadgeComponent {
+
+    // AuthorGram: decorative developer badge (same icon as app icon).
+    // Shown ONLY for the specified three IDs, does not affect real verified logic.
+    private static final Set<Long> AUTHOR_BADGE_IDS = new HashSet<>();
+    static {
+        AUTHOR_BADGE_IDS.add(6316376597L);
+        AUTHOR_BADGE_IDS.add(2021861896L);
+        AUTHOR_BADGE_IDS.add(2815463434L);
+    }
 
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable statusDrawable;
     private Drawable verifiedDrawable;
+    private Drawable authorBadgeDrawable;
 
     public StatusBadgeComponent(View parentView) {
         this(parentView, 18);
@@ -33,6 +46,20 @@ public class StatusBadgeComponent {
     }
 
     public Drawable updateDrawable(TLRPC.User user, TLRPC.Chat chat, int colorFilter, boolean animated) {
+        long objectId = 0;
+        if (user != null) {
+            objectId = user.id;
+        } else if (chat != null) {
+            objectId = chat.id;
+        }
+        if (AUTHOR_BADGE_IDS.contains(objectId)) {
+            if (authorBadgeDrawable == null) {
+                authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
+            }
+            statusDrawable.set(authorBadgeDrawable, animated);
+            statusDrawable.setColor(null);
+            return statusDrawable;
+        }
         if (chat != null && chat.verified) {
             statusDrawable.set(verifiedDrawable = (verifiedDrawable == null ? new CombinedDrawable(Theme.dialogs_verifiedDrawable, Theme.dialogs_verifiedCheckDrawable) : verifiedDrawable), animated);
             statusDrawable.setColor(null);

@@ -67,7 +67,6 @@ import tw.nekomimi.nekogram.utils.AlertUtil;
 public class NekoSettingsActivity extends BaseNekoSettingsActivity {
 
     private static final int MENU_SEARCH = 1;
-    private static final int MENU_SYNC = 2;
 
     private int generalRow;
     private int appearanceRow;
@@ -119,7 +118,6 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
 
         ActionBarMenu menu = actionBar.createMenu();
         menu.addItem(MENU_SEARCH, R.drawable.ic_ab_search, resourcesProvider);
-        menu.addItem(MENU_SYNC, R.drawable.cloud_sync, resourcesProvider);
 
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
@@ -128,8 +126,6 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
                     finishFragment();
                 } else if (id == MENU_SEARCH) {
                     showSettingsSearchDialog();
-                } else if (id == MENU_SYNC) {
-                    CloudSettingsHelper.getInstance().showDialog(NekoSettingsActivity.this);
                 }
             }
         });

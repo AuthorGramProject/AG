@@ -529,6 +529,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val quoteReply =
+        addConfig(
+            "QuoteReply",
+            ConfigItem.configTypeBool,
+            false
+        )
     val avatarCorners =
         addConfig(
             "avatarCorners",

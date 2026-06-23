@@ -1784,6 +1784,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     private Object currentNameStatus;
     private long currentNameBotVerificationId;
     private String nameStatusSlug;
+    // AuthorGram: декоративний бейдж розробника
+    private static final java.util.Set<Long> AUTHOR_BADGE_IDS = new java.util.HashSet<>();
+    static {
+        AUTHOR_BADGE_IDS.add(6316376597L);
+        AUTHOR_BADGE_IDS.add(2021861896L);
+        AUTHOR_BADGE_IDS.add(2815463434L);
+    }
+    private Drawable authorBadgeDrawable;
+
     public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable currentNameStatusDrawable;
     public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable currentNameEmojiStatusDrawable;
 
@@ -19119,14 +19128,25 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             } catch (Exception e) {
                 FileLog.e(e);
             }
-            if (currentNameStatusDrawable == null && currentNameStatus != null) {
+            // AuthorGram: перевірка на бейдж розробника
+            long objectId = 0;
+            if (currentUser != null) objectId = currentUser.id;
+            else if (currentChat != null) objectId = currentChat.id;
+            boolean isAuthorBadge = AUTHOR_BADGE_IDS.contains(objectId);
+            
+            if (currentNameStatusDrawable == null && (currentNameStatus != null || isAuthorBadge)) {
                 currentNameStatusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(this, true, dp(20));
                 if (attachedToWindow) {
                     currentNameStatusDrawable.attach();
                 }
             }
             if (currentNameStatusDrawable != null) {
-                if (currentNameStatus == null) {
+                if (isAuthorBadge) {
+                    if (authorBadgeDrawable == null) {
+                        authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
+                    }
+                    currentNameStatusDrawable.set(authorBadgeDrawable, false);
+                } else if (currentNameStatus == null) {
                     currentNameStatusDrawable.set((Drawable) null, false);
                 } else if (currentNameStatus instanceof Long) {
                     currentNameStatusDrawable.set((long) currentNameStatus, false);
