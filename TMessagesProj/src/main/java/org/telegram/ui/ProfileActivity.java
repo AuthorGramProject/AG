@@ -403,6 +403,15 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[] emojiStatusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[2];
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[] botVerificationDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[2];
     private final Drawable[] verifiedCheckDrawable = new Drawable[2];
+    // AuthorGram: декоративний бейдж розробника
+    private static final java.util.Set<Long> AUTHOR_BADGE_IDS = new java.util.HashSet<>();
+    static {
+        AUTHOR_BADGE_IDS.add(6316376597L);
+        AUTHOR_BADGE_IDS.add(2021861896L);
+        AUTHOR_BADGE_IDS.add(2815463434L);
+    }
+    private Drawable authorBadgeDrawable;
+
     private final CrossfadeDrawable[] verifiedCrossfadeDrawable = new CrossfadeDrawable[2];
     private final CrossfadeDrawable[] premiumCrossfadeDrawable = new CrossfadeDrawable[2];
     private ScamDrawable scamDrawable;
@@ -11443,6 +11452,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             lockIconDrawable = Theme.chat_lockIconDrawable.getConstantState().newDrawable().mutate();
         }
         return lockIconDrawable;
+    }
+
+    // AuthorGram: метод для отримання бейджа розробника
+    private Drawable getAuthorBadgeDrawable() {
+        if (authorBadgeDrawable == null) {
+            authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
+        }
+        return authorBadgeDrawable;
     }
 
     private Drawable getVerifiedCrossfadeDrawable(int a) {

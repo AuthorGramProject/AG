@@ -1784,6 +1784,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     private Object currentNameStatus;
     private long currentNameBotVerificationId;
     private String nameStatusSlug;
+    // AuthorGram: декоративний бейдж розробника
+    private static final java.util.Set<Long> AUTHOR_BADGE_IDS = new java.util.HashSet<>();
+    static {
+        AUTHOR_BADGE_IDS.add(6316376597L);
+        AUTHOR_BADGE_IDS.add(2021861896L);
+        AUTHOR_BADGE_IDS.add(2815463434L);
+    }
+    private Drawable authorBadgeDrawable;
+
     public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable currentNameStatusDrawable;
     public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable currentNameEmojiStatusDrawable;
 

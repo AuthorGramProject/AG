@@ -4454,7 +4454,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 }
                 int size = dp(18);
                 int left = nameMuteLeft - dp(1);
-                authorBadgeDrawable.setBounds(left, y, left + size, y + size);
+                authorBadgeDrawable.setBounds(left, (int) y, left + size, (int) y + size);
                 authorBadgeDrawable.draw(canvas);
             } else if (drawVerified) {
                 float y = dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 13.5f : 16.5f);
