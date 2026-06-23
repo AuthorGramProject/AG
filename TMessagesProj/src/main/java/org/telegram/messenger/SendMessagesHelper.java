@@ -4270,9 +4270,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 : replyToMsg;
         if (pseudoReplySource != null
                 && pseudoReplySource.messageOwner != null
-                && (NaConfig.INSTANCE.getQuoteReply().Bool()
-                    || (AyuMessageUtils.isUnrepliable(pseudoReplySource)
-                        && (Math.abs(pseudoReplySource.getDialogId()) != Math.abs(peer) || pseudoReplySource.messageOwner.ayuDeleted)))) {
+                && AyuMessageUtils.isUnrepliable(pseudoReplySource)
+                && (Math.abs(pseudoReplySource.getDialogId()) != Math.abs(peer) || pseudoReplySource.messageOwner.ayuDeleted)) {
             if (entities == null) {
                 entities = new ArrayList<>();
             }
