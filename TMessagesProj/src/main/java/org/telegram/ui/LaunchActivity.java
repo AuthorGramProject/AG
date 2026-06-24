@@ -449,15 +449,6 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // AuthorGram: перевірка екрану блокування
-        SharedPreferences prefs = getSharedPreferences("authorgram_prefs", MODE_PRIVATE);
-        boolean isUnlocked = prefs.getBoolean("authorgram_unlocked", false);
-        if (!isUnlocked) {
-            Intent lockIntent = new Intent(this, AuthorgramLockScreen.class);
-            startActivity(lockIntent);
-            finish();
-            return;
-        }
         isActive = true;
         activeInstanceCount++;
         if (BuildVars.DEBUG_VERSION) {
