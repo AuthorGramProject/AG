@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.os.CountDownTimer;
 import android.util.TypedValue;
@@ -12,8 +13,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.ScrollView;
+import android.widget.TextView;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -37,7 +38,6 @@ public class AuthorgramAccessChecker {
     private static final int COLOR_TEXT = Color.parseColor("#F5E6D3");
     private static final int COLOR_TEXT_DIM = Color.parseColor("#8B7355");
     private static final int COLOR_ERROR = Color.parseColor("#FF6B6B");
-    private static final int COLOR_SUCCESS = Color.parseColor("#4CAF50");
 
     private static Set<Long> allowedIds = null;
 
@@ -45,13 +45,27 @@ public class AuthorgramAccessChecker {
     public static void checkAndEnforceAccess(Activity activity) {
         loadAllowedIds();
 
+        // Логування для діагностики
+        FileLog.d("AuthorgramAccessChecker", "Loaded " + (allowedIds != null ? allowedIds.size() : 0) + " allowed IDs");
+        if (allowedIds != null) {
+            for (Long id : allowedIds) {
+                FileLog.d("AuthorgramAccessChecker", "  Allowed ID: " + id);
+            }
+        }
+
         List<Long> unauthorizedIds = new ArrayList<>();
         for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
             if (!UserConfig.getInstance(i).isClientActivated()) continue;
             long userId = UserConfig.getInstance(i).getClientUserId();
             if (userId == 0) continue;
+            
+            FileLog.d("AuthorgramAccessChecker", "Checking account " + i + " with user ID: " + userId);
+            
             if (!isAllowed(userId)) {
                 unauthorizedIds.add(userId);
+                FileLog.d("AuthorgramAccessChecker", "  -> UNAUTHORIZED");
+            } else {
+                FileLog.d("AuthorgramAccessChecker", "  -> OK");
             }
         }
 
@@ -64,7 +78,6 @@ public class AuthorgramAccessChecker {
 
     // Повноекранний MD3 діалог
     private static void showFullScreenAccessDeniedDialog(Activity activity, List<Long> unauthorizedIds) {
-        // Головний контейнер (ScrollView для прокрутки)
         ScrollView scrollView = new ScrollView(activity);
         scrollView.setBackgroundColor(COLOR_BG);
         scrollView.setFillViewport(true);
@@ -80,7 +93,7 @@ public class AuthorgramAccessChecker {
         );
         rootParams.gravity = Gravity.CENTER;
 
-        // Іконка замка (велика)
+        // Іконка замка
         TextView lockIcon = new TextView(activity);
         lockIcon.setText("🔒");
         lockIcon.setTextSize(TypedValue.COMPLEX_UNIT_SP, 72);
@@ -201,7 +214,7 @@ public class AuthorgramAccessChecker {
 
         root.addView(card, cardParams);
 
-        // Таймер (великий, центральний)
+        // Таймер
         TextView timerText = new TextView(activity);
         timerText.setText("10");
         timerText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64);
@@ -215,7 +228,6 @@ public class AuthorgramAccessChecker {
         timerParams.bottomMargin = dp(8);
         root.addView(timerText, timerParams);
 
-        // Підпис під таймером
         TextView timerLabel = new TextView(activity);
         timerLabel.setText("Додаток буде закрито через");
         timerLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
@@ -228,12 +240,13 @@ public class AuthorgramAccessChecker {
         labelParams.bottomMargin = dp(20);
         root.addView(timerLabel, labelParams);
 
-        // Прогрес-бар
+        // Прогрес-бар (виправлено колір)
         ProgressBar progressBar = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(10000);
         progressBar.setProgress(10000);
-        progressBar.getProgressDrawable().setColorFilter(
-            COLOR_ACCENT, android.graphics.PorterDuff.Mode.SRC_IN);
+        // Виправлення: використовуємо PorterDuff.Mode.SRC_ATOP замість SRC_IN
+        progressBar.getProgressDrawable().setColorFilter(COLOR_ACCENT, PorterDuff.Mode.SRC_ATOP);
+        progressBar.getIndeterminateDrawable().setColorFilter(COLOR_ACCENT, PorterDuff.Mode.SRC_ATOP);
         LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             dp(6)
@@ -252,7 +265,7 @@ public class AuthorgramAccessChecker {
         div2Params.bottomMargin = dp(24);
         root.addView(divider2, div2Params);
 
-        // Контакти автора
+        // Контакти
         TextView contactTitle = new TextView(activity);
         contactTitle.setText("Для отримання доступу:");
         contactTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
@@ -279,7 +292,6 @@ public class AuthorgramAccessChecker {
 
         scrollView.addView(root, rootParams);
 
-        // Створення повноекранного AlertDialog
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
         builder.setView(scrollView);
         builder.setCancelable(false);
@@ -298,7 +310,6 @@ public class AuthorgramAccessChecker {
             );
         }
 
-        // Відлік 10 секунд
         CountDownTimer countdown = new CountDownTimer(10000, 100) {
             @Override
             public void onTick(long millisUntilFinished) {
@@ -306,7 +317,6 @@ public class AuthorgramAccessChecker {
                 timerText.setText(String.valueOf(seconds));
                 progressBar.setProgress((int) millisUntilFinished);
                 
-                // Анімація пульсації для таймера
                 float scale = 1.0f + (0.1f * (seconds % 2));
                 timerText.setScaleX(scale);
                 timerText.setScaleY(scale);
@@ -318,7 +328,6 @@ public class AuthorgramAccessChecker {
                 progressBar.setProgress(0);
                 timerText.setTextColor(COLOR_ERROR);
                 
-                // Logout всіх неавторизованих акаунтів
                 new Thread(() -> {
                     for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
                         if (!UserConfig.getInstance(i).isClientActivated()) continue;
@@ -351,12 +360,11 @@ public class AuthorgramAccessChecker {
         return AndroidUtilities.dp(value);
     }
 
-    // Перевірка по ID
     public static boolean isAllowed(long userId) {
         return allowedIds != null && allowedIds.contains(userId);
     }
 
-    // Завантаження списку — завжди робимо HTTP запит
+    // Виправлений парсинг з надійним очищенням
     public static void loadAllowedIds() {
         SharedPreferences prefs = ApplicationLoader.applicationContext.getSharedPreferences(PREFS_NAME, 0);
         String savedIds = prefs.getString(KEY_ALLOWED_IDS, "");
@@ -415,6 +423,7 @@ public class AuthorgramAccessChecker {
             }
 
         } catch (Exception e) {
+            FileLog.e("AuthorgramAccessChecker", "Error loading allow.txt: " + e.getMessage());
             if (!savedIds.isEmpty()) {
                 allowedIds = parseIds(savedIds);
             } else {
@@ -423,14 +432,32 @@ public class AuthorgramAccessChecker {
         }
     }
 
+    // Надійний парсинг з очищенням BOM, \r, пробілів
     private static Set<Long> parseIds(String text) {
         Set<Long> ids = new HashSet<>();
+        if (text == null || text.isEmpty()) return ids;
+        
+        // Видаляємо BOM (Byte Order Mark) якщо є
+        if (text.startsWith("\uFEFF")) {
+            text = text.substring(1);
+        }
+        
         for (String line : text.split("\n")) {
-            String trimmed = line.trim();
-            if (!trimmed.isEmpty()) {
-                try {
-                    ids.add(Long.parseLong(trimmed));
-                } catch (NumberFormatException ignored) {}
+            // Видаляємо \r, пробіли, табуляції з обох кінців
+            String trimmed = line.trim().replace("\r", "").replaceAll("\\s+", "");
+            if (trimmed.isEmpty()) continue;
+            
+            // Видаляємо всі нецифрові символи (захист від сміття)
+            String digitsOnly = trimmed.replaceAll("[^0-9]", "");
+            if (digitsOnly.isEmpty()) continue;
+            
+            try {
+                long id = Long.parseLong(digitsOnly);
+                if (id > 0) {
+                    ids.add(id);
+                }
+            } catch (NumberFormatException ignored) {
+                FileLog.e("AuthorgramAccessChecker", "Failed to parse ID: " + trimmed);
             }
         }
         return ids;
