@@ -2,7 +2,6 @@ package org.telegram.messenger;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
@@ -16,31 +15,25 @@ import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class AuthorgramAccessChecker {
-    private static final String ALLOW_URL = "https://authorche.top/allow.txt";
-    private static final String PREFS_NAME = "authorgram_access";
-    private static final String KEY_ALLOWED_IDS = "allowed_ids";
 
-    // Обчислення хешу URL для виявлення змін
-    private static int getUrlHash(String url) {
-        return url.hashCode();
-    }
-
-    private static final long[] FALLBACK_IDS = {
+    // Жорстко прописаний список дозволених ID
+    private static final Set<Long> ALLOWED_IDS = new HashSet<>(Arrays.asList(
         6316376597L,
+        6802848305L,
         1661748225L,
-        953860978L
-    };
-    
+        953860978L,
+        8342524351L,
+        1257662278L
+    ));
+
+    // MD3 кольори (золото/бежевий тайлван стиль)
     private static final int COLOR_BG = Color.parseColor("#1A1614");
     private static final int COLOR_CARD = Color.parseColor("#2A2420");
     private static final int COLOR_ACCENT = Color.parseColor("#D4AF37");
@@ -49,14 +42,14 @@ public class AuthorgramAccessChecker {
     private static final int COLOR_ERROR = Color.parseColor("#FF6B6B");
 
     public static void checkAndEnforceAccess(Activity activity) {
-        Set<Long> allowedIds = loadAllowedIds();
         List<Long> unauthorizedIds = new ArrayList<>();
         
         for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
             if (!UserConfig.getInstance(i).isClientActivated()) continue;
             long userId = UserConfig.getInstance(i).getClientUserId();
             if (userId == 0) continue;
-            if (!allowedIds.contains(userId)) {
+            
+            if (!ALLOWED_IDS.contains(userId)) {
                 unauthorizedIds.add(userId);
             }
         }
@@ -66,66 +59,6 @@ public class AuthorgramAccessChecker {
                 showFullScreenAccessDeniedDialog(activity, unauthorizedIds);
             });
         }
-    }
-
-    private static Set<Long> loadAllowedIds() {
-        SharedPreferences prefs = ApplicationLoader.applicationContext.getSharedPreferences(PREFS_NAME, 0);
-        
-        // Завжди намагаємося завантажити свіжий файл
-        try {
-            URL url = new URL(ALLOW_URL);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-            
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line).append("\n");
-            }
-            reader.close();
-            conn.disconnect();
-            
-            String content = sb.toString();
-            // Зберігаємо в кеш при успіху
-            prefs.edit().putString(KEY_ALLOWED_IDS, content).apply();
-            return parseIds(content);
-            
-        } catch (Exception e) {
-            // Якщо мережі немає — беремо з кешу
-            String cached = prefs.getString(KEY_ALLOWED_IDS, "");
-            if (!cached.isEmpty()) {
-                return parseIds(cached);
-            }
-            // Якщо кешу немає — використовуємо вбудований список
-            Set<Long> fallback = new HashSet<>();
-            for (long id : FALLBACK_IDS) {
-                fallback.add(id);
-            }
-            return fallback;
-        }
-    }
-
-    private static Set<Long> parseIds(String text) {
-        Set<Long> ids = new HashSet<>();
-        if (text == null || text.isEmpty()) return ids;
-        
-        if (text.startsWith("\uFEFF")) {
-            text = text.substring(1);
-        }
-        
-        for (String line : text.split("\n")) {
-            String trimmed = line.trim().replace("\r", "").replaceAll("\\s+", "");
-            if (trimmed.isEmpty()) continue;
-            String digitsOnly = trimmed.replaceAll("[^0-9]", "");
-            if (digitsOnly.isEmpty()) continue;
-            try {
-                long id = Long.parseLong(digitsOnly);
-                if (id > 0) ids.add(id);
-            } catch (NumberFormatException ignored) {}
-        }
-        return ids;
     }
 
     private static void showFullScreenAccessDeniedDialog(Activity activity, List<Long> unauthorizedIds) {
@@ -144,6 +77,7 @@ public class AuthorgramAccessChecker {
         );
         rootParams.gravity = Gravity.CENTER;
 
+        // Іконка замка
         TextView lockIcon = new TextView(activity);
         lockIcon.setText("🔒");
         lockIcon.setTextSize(TypedValue.COMPLEX_UNIT_SP, 72);
@@ -155,6 +89,7 @@ public class AuthorgramAccessChecker {
         iconParams.bottomMargin = dp(24);
         root.addView(lockIcon, iconParams);
 
+        // Заголовок
         TextView title = new TextView(activity);
         title.setText("Доступ не придбано");
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
@@ -168,6 +103,7 @@ public class AuthorgramAccessChecker {
         titleParams.bottomMargin = dp(12);
         root.addView(title, titleParams);
 
+        // Підзаголовок
         TextView subtitle = new TextView(activity);
         subtitle.setText("AuthorGram — приватний доступ");
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
@@ -180,6 +116,7 @@ public class AuthorgramAccessChecker {
         subtitleParams.bottomMargin = dp(32);
         root.addView(subtitle, subtitleParams);
 
+        // Картка з описом
         LinearLayout card = new LinearLayout(activity);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackgroundColor(COLOR_CARD);
@@ -200,6 +137,7 @@ public class AuthorgramAccessChecker {
         desc.setPadding(0, 0, 0, dp(16));
         card.addView(desc);
 
+        // Роздільник
         View divider1 = new View(activity);
         divider1.setBackgroundColor(COLOR_ACCENT);
         divider1.setAlpha(0.3f);
@@ -210,6 +148,7 @@ public class AuthorgramAccessChecker {
         div1Params.bottomMargin = dp(16);
         card.addView(divider1, div1Params);
 
+        // Список ID
         LinearLayout idList = new LinearLayout(activity);
         idList.setOrientation(LinearLayout.VERTICAL);
         idList.setPadding(0, 0, 0, dp(8));
@@ -259,6 +198,7 @@ public class AuthorgramAccessChecker {
 
         root.addView(card, cardParams);
 
+        // Таймер
         TextView timerText = new TextView(activity);
         timerText.setText("10");
         timerText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64);
@@ -284,6 +224,7 @@ public class AuthorgramAccessChecker {
         labelParams.bottomMargin = dp(20);
         root.addView(timerLabel, labelParams);
 
+        // Прогрес-бар
         ProgressBar progressBar = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(10000);
         progressBar.setProgress(10000);
@@ -296,6 +237,7 @@ public class AuthorgramAccessChecker {
         progressParams.bottomMargin = dp(32);
         root.addView(progressBar, progressParams);
 
+        // Роздільник
         View divider2 = new View(activity);
         divider2.setBackgroundColor(COLOR_TEXT_DIM);
         divider2.setAlpha(0.2f);
@@ -306,6 +248,7 @@ public class AuthorgramAccessChecker {
         div2Params.bottomMargin = dp(24);
         root.addView(divider2, div2Params);
 
+        // Контакти
         TextView contactTitle = new TextView(activity);
         contactTitle.setText("Для отримання доступу:");
         contactTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
