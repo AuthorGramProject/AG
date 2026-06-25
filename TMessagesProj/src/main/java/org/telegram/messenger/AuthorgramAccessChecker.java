@@ -77,9 +77,8 @@ public class AuthorgramAccessChecker {
         );
         rootParams.gravity = Gravity.CENTER;
 
-        // Іконка замка
         TextView lockIcon = new TextView(activity);
-        lockIcon.setText("🔒");
+        lockIcon.setText("");
         lockIcon.setTextSize(TypedValue.COMPLEX_UNIT_SP, 72);
         lockIcon.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
@@ -89,7 +88,6 @@ public class AuthorgramAccessChecker {
         iconParams.bottomMargin = dp(24);
         root.addView(lockIcon, iconParams);
 
-        // Заголовок
         TextView title = new TextView(activity);
         title.setText("Доступ не придбано");
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
@@ -103,7 +101,6 @@ public class AuthorgramAccessChecker {
         titleParams.bottomMargin = dp(12);
         root.addView(title, titleParams);
 
-        // Підзаголовок
         TextView subtitle = new TextView(activity);
         subtitle.setText("AuthorGram — приватний доступ");
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
@@ -116,7 +113,6 @@ public class AuthorgramAccessChecker {
         subtitleParams.bottomMargin = dp(32);
         root.addView(subtitle, subtitleParams);
 
-        // Картка з описом
         LinearLayout card = new LinearLayout(activity);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackgroundColor(COLOR_CARD);
@@ -137,7 +133,6 @@ public class AuthorgramAccessChecker {
         desc.setPadding(0, 0, 0, dp(16));
         card.addView(desc);
 
-        // Роздільник
         View divider1 = new View(activity);
         divider1.setBackgroundColor(COLOR_ACCENT);
         divider1.setAlpha(0.3f);
@@ -148,7 +143,6 @@ public class AuthorgramAccessChecker {
         div1Params.bottomMargin = dp(16);
         card.addView(divider1, div1Params);
 
-        // Список ID
         LinearLayout idList = new LinearLayout(activity);
         idList.setOrientation(LinearLayout.VERTICAL);
         idList.setPadding(0, 0, 0, dp(8));
@@ -198,7 +192,6 @@ public class AuthorgramAccessChecker {
 
         root.addView(card, cardParams);
 
-        // Таймер
         TextView timerText = new TextView(activity);
         timerText.setText("10");
         timerText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64);
@@ -224,7 +217,6 @@ public class AuthorgramAccessChecker {
         labelParams.bottomMargin = dp(20);
         root.addView(timerLabel, labelParams);
 
-        // Прогрес-бар
         ProgressBar progressBar = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(10000);
         progressBar.setProgress(10000);
@@ -237,7 +229,6 @@ public class AuthorgramAccessChecker {
         progressParams.bottomMargin = dp(32);
         root.addView(progressBar, progressParams);
 
-        // Роздільник
         View divider2 = new View(activity);
         divider2.setBackgroundColor(COLOR_TEXT_DIM);
         divider2.setAlpha(0.2f);
@@ -248,7 +239,6 @@ public class AuthorgramAccessChecker {
         div2Params.bottomMargin = dp(24);
         root.addView(divider2, div2Params);
 
-        // Контакти
         TextView contactTitle = new TextView(activity);
         contactTitle.setText("Для отримання доступу:");
         contactTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
@@ -319,8 +309,7 @@ public class AuthorgramAccessChecker {
                         if (unauthorizedIds.contains(userId)) {
                             try {
                                 MessagesController.getInstance(i).performLogout(2);
-                            } catch (Exception e) {
-                                // Ігноруємо помилки логауту
+                            } catch (Exception ignored) {
                             }
                         }
                     }
