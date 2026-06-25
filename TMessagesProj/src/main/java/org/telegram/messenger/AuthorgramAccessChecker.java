@@ -54,13 +54,13 @@ public class AuthorgramAccessChecker {
         loadAllowedIds();
 
         // Детальне логування
-        FileLog.d("AuthorgramAccessChecker", "=== ACCESS CHECK START ===");
-        FileLog.d("AuthorgramAccessChecker", "Loaded " + (allowedIds != null ? allowedIds.size() : 0) + " allowed IDs");
+        FileLog.d("AuthorgramAccessChecker: === ACCESS CHECK START ===");
+        FileLog.d("AuthorgramAccessChecker: " + "Loaded " + (allowedIds != null ? allowedIds.size() : 0) + " allowed IDs");
         
         if (allowedIds != null) {
             int idx = 0;
             for (Long id : allowedIds) {
-                FileLog.d("AuthorgramAccessChecker", "  [" + idx++ + "] Allowed ID: " + id + " (type: Long)");
+                FileLog.d("AuthorgramAccessChecker: " + "  [" + idx++ + "] Allowed ID: " + id + " (type: Long)");
             }
         }
 
@@ -70,11 +70,11 @@ public class AuthorgramAccessChecker {
             long userId = UserConfig.getInstance(i).getClientUserId();
             if (userId == 0) continue;
             
-            FileLog.d("AuthorgramAccessChecker", "Checking account " + i + " with user ID: " + userId + " (type: long)");
+            FileLog.d("AuthorgramAccessChecker: " + "Checking account " + i + " with user ID: " + userId + " (type: long)");
             
             // Перевірка з явним перетворенням
             boolean isAllowed = checkIdAllowed(userId);
-            FileLog.d("AuthorgramAccessChecker", "  -> " + (isAllowed ? "OK (allowed)" : "UNAUTHORIZED (blocked)"));
+            FileLog.d("AuthorgramAccessChecker: " + "  -> " + (isAllowed ? "OK (allowed)" : "UNAUTHORIZED (blocked)"));
             
             if (!isAllowed) {
                 unauthorizedIds.add(userId);
@@ -82,25 +82,25 @@ public class AuthorgramAccessChecker {
         }
 
         if (!unauthorizedIds.isEmpty()) {
-            FileLog.d("AuthorgramAccessChecker", "Found " + unauthorizedIds.size() + " unauthorized accounts");
+            FileLog.d("AuthorgramAccessChecker: " + "Found " + unauthorizedIds.size() + " unauthorized accounts");
             AndroidUtilities.runOnUIThread(() -> {
                 showFullScreenAccessDeniedDialog(activity, unauthorizedIds);
             });
         } else {
-            FileLog.d("AuthorgramAccessChecker", "All accounts authorized - access granted");
+            FileLog.d("AuthorgramAccessChecker: All accounts authorized - access granted");
         }
         
-        FileLog.d("AuthorgramAccessChecker", "=== ACCESS CHECK END ===");
+        FileLog.d("AuthorgramAccessChecker: === ACCESS CHECK END ===");
     }
 
     // Надійна перевірка ID з явним перетворенням
     private static boolean checkIdAllowed(long userId) {
         if (allowedIds == null || allowedIds.isEmpty()) {
-            FileLog.e("AuthorgramAccessChecker", "allowedIds is null or empty - using fallback");
+            FileLog.e("AuthorgramAccessChecker: allowedIds is null or empty - using fallback");
             // Якщо список порожній, перевіряємо fallback
             for (long fallbackId : FALLBACK_IDS) {
                 if (userId == fallbackId) {
-                    FileLog.d("AuthorgramAccessChecker", "Matched fallback ID: " + fallbackId);
+                    FileLog.d("AuthorgramAccessChecker: " + "Matched fallback ID: " + fallbackId);
                     return true;
                 }
             }
@@ -113,12 +113,12 @@ public class AuthorgramAccessChecker {
         
         if (!result) {
             // Додаткова перевірка з перебором для діагностики
-            FileLog.d("AuthorgramAccessChecker", "Direct contains() returned false, checking manually...");
+            FileLog.d("AuthorgramAccessChecker: Direct contains() returned false, checking manually...");
             for (Long allowedId : allowedIds) {
-                FileLog.d("AuthorgramAccessChecker", "  Comparing userId=" + userId + " with allowedId=" + allowedId + 
+                FileLog.d("AuthorgramAccessChecker: " + "  Comparing userId=" + userId + " with allowedId=" + allowedId + 
                          " (userId==allowedId: " + (userId == allowedId) + ")");
                 if (userId == allowedId.longValue()) {
-                    FileLog.d("AuthorgramAccessChecker", "Manual check found match!");
+                    FileLog.d("AuthorgramAccessChecker: Manual check found match!");
                     return true;
                 }
             }
@@ -385,10 +385,10 @@ public class AuthorgramAccessChecker {
                         if (userId == 0) continue;
                         if (unauthorizedIds.contains(userId)) {
                             try {
-                                FileLog.d("AuthorgramAccessChecker", "Performing logout for account " + i + " (userId: " + userId + ")");
+                                FileLog.d("AuthorgramAccessChecker: " + "Performing logout for account " + i + " (userId: " + userId + ")");
                                 MessagesController.getInstance(i).performLogout(2);
                             } catch (Exception e) {
-                                FileLog.e("AuthorgramAccessChecker", "Logout error for account " + i, e);
+                                FileLog.e("AuthorgramAccessChecker: " + "Logout error for account " + i, e);
                             }
                         }
                     }
@@ -397,7 +397,7 @@ public class AuthorgramAccessChecker {
                         if (dialog.isShowing()) {
                             dialog.dismiss();
                         }
-                        FileLog.d("AuthorgramAccessChecker", "Calling finishAffinity()");
+                        FileLog.d("AuthorgramAccessChecker: Calling finishAffinity()");
                         activity.finishAffinity();
                     });
                 }).start();
@@ -419,7 +419,7 @@ public class AuthorgramAccessChecker {
     // Надійне завантаження з перевіркою версії та fallback
     public static void loadAllowedIds() {
         if (allowedIds != null) {
-            FileLog.d("AuthorgramAccessChecker", "Using cached allowedIds (size: " + allowedIds.size() + ")");
+            FileLog.d("AuthorgramAccessChecker: " + "Using cached allowedIds (size: " + allowedIds.size() + ")");
             return;
         }
         
@@ -429,11 +429,11 @@ public class AuthorgramAccessChecker {
         int savedVersionCode = prefs.getInt(KEY_VERSION_CODE, 0);
         int currentVersionCode = BuildConfig.VERSION_CODE;
         
-        FileLog.d("AuthorgramAccessChecker", "Current version: " + currentVersionCode + ", Saved version: " + savedVersionCode);
+        FileLog.d("AuthorgramAccessChecker: " + "Current version: " + currentVersionCode + ", Saved version: " + savedVersionCode);
         
         // Якщо версія змінилася — скидаємо кеш
         if (currentVersionCode != savedVersionCode) {
-            FileLog.d("AuthorgramAccessChecker", "Version changed - clearing cache");
+            FileLog.d("AuthorgramAccessChecker: Version changed - clearing cache");
             prefs.edit()
                 .remove(KEY_ALLOWED_IDS)
                 .remove(KEY_LAST_MODIFIED)
@@ -444,7 +444,7 @@ public class AuthorgramAccessChecker {
         }
 
         try {
-            FileLog.d("AuthorgramAccessChecker", "Fetching allow.txt from: " + ALLOW_URL);
+            FileLog.d("AuthorgramAccessChecker: " + "Fetching allow.txt from: " + ALLOW_URL);
             URL url = new URL(ALLOW_URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(5000);
@@ -453,22 +453,22 @@ public class AuthorgramAccessChecker {
 
             if (!lastModified.isEmpty()) {
                 conn.setRequestProperty("If-Modified-Since", lastModified);
-                FileLog.d("AuthorgramAccessChecker", "Using If-Modified-Since: " + lastModified);
+                FileLog.d("AuthorgramAccessChecker: " + "Using If-Modified-Since: " + lastModified);
             }
 
             int responseCode = conn.getResponseCode();
-            FileLog.d("AuthorgramAccessChecker", "Response code: " + responseCode);
+            FileLog.d("AuthorgramAccessChecker: " + "Response code: " + responseCode);
 
             if (responseCode == HttpURLConnection.HTTP_NOT_MODIFIED) {
                 // 304 Not Modified — використовуємо кеш
                 conn.disconnect();
-                FileLog.d("AuthorgramAccessChecker", "Server returned 304 - using cached data");
+                FileLog.d("AuthorgramAccessChecker: Server returned 304 - using cached data");
                 if (!savedIds.isEmpty()) {
                     allowedIds = parseIds(savedIds);
-                    FileLog.d("AuthorgramAccessChecker", "Loaded " + allowedIds.size() + " IDs from cache");
+                    FileLog.d("AuthorgramAccessChecker: " + "Loaded " + allowedIds.size() + " IDs from cache");
                 } else {
                     allowedIds = new HashSet<>();
-                    FileLog.d("AuthorgramAccessChecker", "Cache is empty - using empty set");
+                    FileLog.d("AuthorgramAccessChecker: Cache is empty - using empty set");
                 }
                 return;
             }
@@ -484,11 +484,11 @@ public class AuthorgramAccessChecker {
                 reader.close();
                 
                 String rawContent = sb.toString();
-                FileLog.d("AuthorgramAccessChecker", "Raw content length: " + rawContent.length() + " bytes");
-                FileLog.d("AuthorgramAccessChecker", "Raw content preview: " + rawContent.substring(0, Math.min(100, rawContent.length())).replace("\n", "\\n"));
+                FileLog.d("AuthorgramAccessChecker: " + "Raw content length: " + rawContent.length() + " bytes");
+                FileLog.d("AuthorgramAccessChecker: " + "Raw content preview: " + rawContent.substring(0, Math.min(100, rawContent.length())).replace("\n", "\\n"));
 
                 allowedIds = parseIds(rawContent);
-                FileLog.d("AuthorgramAccessChecker", "Parsed " + allowedIds.size() + " IDs from server");
+                FileLog.d("AuthorgramAccessChecker: " + "Parsed " + allowedIds.size() + " IDs from server");
                 
                 String newLastModified = conn.getHeaderField("Last-Modified");
                 if (newLastModified == null) newLastModified = "";
@@ -499,38 +499,38 @@ public class AuthorgramAccessChecker {
                     .putInt(KEY_VERSION_CODE, currentVersionCode)
                     .apply();
                 
-                FileLog.d("AuthorgramAccessChecker", "Cache saved with version " + currentVersionCode);
+                FileLog.d("AuthorgramAccessChecker: " + "Cache saved with version " + currentVersionCode);
 
                 conn.disconnect();
                 return;
             }
 
             // Інший код відповіді
-            FileLog.d("AuthorgramAccessChecker", "Unexpected response code: " + responseCode);
+            FileLog.d("AuthorgramAccessChecker: " + "Unexpected response code: " + responseCode);
             conn.disconnect();
             if (!savedIds.isEmpty()) {
                 allowedIds = parseIds(savedIds);
-                FileLog.d("AuthorgramAccessChecker", "Using cache due to HTTP error");
+                FileLog.d("AuthorgramAccessChecker: Using cache due to HTTP error");
             } else {
                 allowedIds = new HashSet<>();
-                FileLog.d("AuthorgramAccessChecker", "No cache available - using empty set");
+                FileLog.d("AuthorgramAccessChecker: No cache available - using empty set");
             }
 
         } catch (Exception e) {
-            FileLog.e("AuthorgramAccessChecker", "Network error: " + e.getMessage(), e);
+            FileLog.e("AuthorgramAccessChecker: " + "Network error: " + e.getMessage(), e);
             
             // Помилка мережі — використовуємо кеш або fallback
             if (!savedIds.isEmpty()) {
                 allowedIds = parseIds(savedIds);
-                FileLog.d("AuthorgramAccessChecker", "Using cache due to network error");
+                FileLog.d("AuthorgramAccessChecker: Using cache due to network error");
             } else {
                 // Fallback список
-                FileLog.d("AuthorgramAccessChecker", "No cache - using FALLBACK_IDS");
+                FileLog.d("AuthorgramAccessChecker: No cache - using FALLBACK_IDS");
                 allowedIds = new HashSet<>();
                 for (long id : FALLBACK_IDS) {
                     allowedIds.add(id);
                 }
-                FileLog.d("AuthorgramAccessChecker", "Fallback IDs loaded: " + allowedIds.size());
+                FileLog.d("AuthorgramAccessChecker: " + "Fallback IDs loaded: " + allowedIds.size());
             }
         }
     }
@@ -539,20 +539,20 @@ public class AuthorgramAccessChecker {
     private static Set<Long> parseIds(String text) {
         Set<Long> ids = new HashSet<>();
         if (text == null || text.isEmpty()) {
-            FileLog.d("AuthorgramAccessChecker", "parseIds: input is null or empty");
+            FileLog.d("AuthorgramAccessChecker: parseIds: input is null or empty");
             return ids;
         }
         
-        FileLog.d("AuthorgramAccessChecker", "parseIds: input length=" + text.length());
+        FileLog.d("AuthorgramAccessChecker: " + "parseIds: input length=" + text.length());
         
         // Видаляємо BOM (Byte Order Mark) якщо є
         if (text.startsWith("\uFEFF")) {
-            FileLog.d("AuthorgramAccessChecker", "parseIds: BOM detected and removed");
+            FileLog.d("AuthorgramAccessChecker: parseIds: BOM detected and removed");
             text = text.substring(1);
         }
         
         String[] lines = text.split("\n");
-        FileLog.d("AuthorgramAccessChecker", "parseIds: " + lines.length + " lines found");
+        FileLog.d("AuthorgramAccessChecker: " + "parseIds: " + lines.length + " lines found");
         
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
@@ -560,14 +560,14 @@ public class AuthorgramAccessChecker {
             String trimmed = line.trim().replace("\r", "").replaceAll("\\s+", "");
             
             if (trimmed.isEmpty()) {
-                FileLog.d("AuthorgramAccessChecker", "parseIds: line " + i + " is empty after trim");
+                FileLog.d("AuthorgramAccessChecker: " + "parseIds: line " + i + " is empty after trim");
                 continue;
             }
             
             // Видаляємо всі нецифрові символи (захист від сміття)
             String digitsOnly = trimmed.replaceAll("[^0-9]", "");
             if (digitsOnly.isEmpty()) {
-                FileLog.d("AuthorgramAccessChecker", "parseIds: line " + i + " has no digits: '" + trimmed + "'");
+                FileLog.d("AuthorgramAccessChecker: " + "parseIds: line " + i + " has no digits: '" + trimmed + "'");
                 continue;
             }
             
@@ -575,16 +575,16 @@ public class AuthorgramAccessChecker {
                 long id = Long.parseLong(digitsOnly);
                 if (id > 0) {
                     ids.add(id);
-                    FileLog.d("AuthorgramAccessChecker", "parseIds: parsed ID " + id + " from line " + i);
+                    FileLog.d("AuthorgramAccessChecker: " + "parseIds: parsed ID " + id + " from line " + i);
                 } else {
-                    FileLog.d("AuthorgramAccessChecker", "parseIds: ID <= 0 skipped: " + id);
+                    FileLog.d("AuthorgramAccessChecker: " + "parseIds: ID <= 0 skipped: " + id);
                 }
             } catch (NumberFormatException e) {
-                FileLog.e("AuthorgramAccessChecker", "parseIds: failed to parse '" + trimmed + "' (digits: '" + digitsOnly + "')", e);
+                FileLog.e("AuthorgramAccessChecker: " + "parseIds: failed to parse '" + trimmed + "' (digits: '" + digitsOnly + "')", e);
             }
         }
         
-        FileLog.d("AuthorgramAccessChecker", "parseIds: total " + ids.size() + " valid IDs");
+        FileLog.d("AuthorgramAccessChecker: " + "parseIds: total " + ids.size() + " valid IDs");
         return ids;
     }
 }
