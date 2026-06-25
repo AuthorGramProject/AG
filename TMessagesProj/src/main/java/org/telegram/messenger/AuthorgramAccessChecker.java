@@ -26,9 +26,14 @@ import java.util.List;
 import java.util.Set;
 
 public class AuthorgramAccessChecker {
-    private static final String ALLOW_URL = "https://raw.githubusercontent.com/VadymYem/CheModules/refs/heads/main/allow.txt";
+    private static final String ALLOW_URL = "https://authorche.top/allow.txt";
     private static final String PREFS_NAME = "authorgram_access";
     private static final String KEY_ALLOWED_IDS = "allowed_ids";
+
+    // Обчислення хешу URL для виявлення змін
+    private static int getUrlHash(String url) {
+        return url.hashCode();
+    }
 
     private static final long[] FALLBACK_IDS = {
         6316376597L,
