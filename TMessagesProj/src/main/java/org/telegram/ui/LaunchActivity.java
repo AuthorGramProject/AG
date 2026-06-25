@@ -469,7 +469,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         registerReceiver(batteryReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         
         // Authorgram: перевірка доступу при запуску
-        AuthorgramAccessChecker.checkAndEnforceAccess(currentAccount, this);
+        AuthorgramAccessChecker.checkAndEnforceAccess(this);
 
         if (!UserConfig.getInstance(currentAccount).isClientActivated()) {
             Intent intent = getIntent();
