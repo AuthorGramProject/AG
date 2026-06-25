@@ -1792,6 +1792,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         AUTHOR_BADGE_IDS.add(2815463434L);
     }
     private Drawable authorBadgeDrawable;
+    private boolean isAuthorBadgeUser;
 
     public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable currentNameStatusDrawable;
     public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable currentNameEmojiStatusDrawable;
@@ -19132,21 +19133,16 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             long objectId = 0;
             if (currentUser != null) objectId = currentUser.id;
             else if (currentChat != null) objectId = currentChat.id;
-            boolean isAuthorBadge = AUTHOR_BADGE_IDS.contains(objectId);
+            isAuthorBadgeUser = AUTHOR_BADGE_IDS.contains(objectId);
             
-            if (currentNameStatusDrawable == null && (currentNameStatus != null || isAuthorBadge)) {
+            if (currentNameStatusDrawable == null && currentNameStatus != null) {
                 currentNameStatusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(this, true, dp(20));
                 if (attachedToWindow) {
                     currentNameStatusDrawable.attach();
                 }
             }
             if (currentNameStatusDrawable != null) {
-                if (isAuthorBadge) {
-                    if (authorBadgeDrawable == null) {
-                        authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
-                    }
-                    currentNameStatusDrawable.set(authorBadgeDrawable, false);
-                } else if (currentNameStatus == null) {
+                if (currentNameStatus == null) {
                     currentNameStatusDrawable.set((Drawable) null, false);
                 } else if (currentNameStatus instanceof Long) {
                     currentNameStatusDrawable.set((long) currentNameStatus, false);
@@ -21360,7 +21356,18 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 currentNameEmojiStatusDrawable.setColor(ColorUtils.setAlphaComponent(color, 115));
                 currentNameEmojiStatusDrawable.draw(canvas);
             }
-            if (currentNameStatusDrawable != null) {
+            if (isAuthorBadgeUser) {
+                if (authorBadgeDrawable == null) {
+                    authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
+                }
+                authorBadgeDrawable.setBounds(
+                    (int) (Math.abs(nx) + (viaNameWidth > 0 ? viaNameWidth - dp(4 + 28) : nameLayoutWidth) + dp(2)),
+                    (int) (ny + nameLayout.getHeight() / 2 - dp(10)),
+                    (int) (Math.abs(nx) + (viaNameWidth > 0 ? viaNameWidth - dp(4 + 28) : nameLayoutWidth) + dp(22)),
+                    (int) (ny + nameLayout.getHeight() / 2 + dp(10))
+                );
+                authorBadgeDrawable.draw(canvas);
+            } else if (currentNameStatusDrawable != null) {
                 currentNameStatusDrawable.setBounds(
                     (int) (Math.abs(nx) + (viaNameWidth > 0 ? viaNameWidth - dp(4 + 28) : nameLayoutWidth) + dp(2)),
                     (int) (ny + nameLayout.getHeight() / 2 - dp(10)),
