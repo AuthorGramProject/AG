@@ -95,6 +95,7 @@ public class DataSettingsActivity extends BaseFragment {
     private int autoplayVideoRow = -1;
     private int autoplaySectionRow = -1;
     private int callsSectionRow;
+    private int dataSaverModeRow;
     @Keep
     private int useLessDataForCallsRow;
     private int quickRepliesRow = -1;
@@ -193,6 +194,7 @@ public class DataSettingsActivity extends BaseFragment {
 
         enableCacheStreamRow = -1;//rowCount++;
         callsSectionRow = rowCount++;
+        dataSaverModeRow = rowCount++;
         useLessDataForCallsRow = rowCount++;
 //        quickRepliesRow = rowCount++;
         callsSection2Row = rowCount++;
@@ -430,6 +432,12 @@ public class DataSettingsActivity extends BaseFragment {
                 }
             } else if (position == storageUsageRow) {
                 presentFragment(new CacheControlActivity());
+            } else if (position == dataSaverModeRow) {
+                boolean newValue = NekoConfig.dataSaverMode.toggleConfigBool();
+                DownloadController.getInstance(currentAccount).applyDataSaverMode(newValue);
+                if (view instanceof TextCheckCell) {
+                    ((TextCheckCell) view).setChecked(newValue);
+                }
             } else if (position == useLessDataForCallsRow) {
                 final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
                 int selected = 0;
@@ -752,7 +760,9 @@ public class DataSettingsActivity extends BaseFragment {
                 }
                 case 3: {
                     TextCheckCell checkCell = (TextCheckCell) holder.itemView;
-                    if (position == enableStreamRow) {
+                    if (position == dataSaverModeRow) {
+                        checkCell.setTextAndCheck(LocaleController.getString(R.string.DataSaverMode), NekoConfig.dataSaverMode.Bool(), true);
+                    } else if (position == enableStreamRow) {
                         checkCell.setTextAndCheck(LocaleController.getString(R.string.EnableStreaming), SharedConfig.streamMedia, enableAllStreamRow != -1);
                     } else if (position == enableCacheStreamRow) {
                         //checkCell.setTextAndCheck(LocaleController.getString(R.string.CacheStreamFile), SharedConfig.saveStreamMedia, true);
@@ -932,7 +942,7 @@ public class DataSettingsActivity extends BaseFragment {
                 return 0;
             } else if (position == mediaDownloadSectionRow || position == streamSectionRow || position == callsSectionRow || position == usageSectionRow || position == proxySectionRow || position == autoplayHeaderRow || position == saveToGallerySectionRow) {
                 return 2;
-            } else if (position == enableCacheStreamRow || position == enableStreamRow || position == enableAllStreamRow || position == enableMkvRow || position == autoplayGifsRow || position == autoplayVideoRow) {
+            } else if (position == enableCacheStreamRow || position == enableStreamRow || position == enableAllStreamRow || position == enableMkvRow || position == autoplayGifsRow || position == autoplayVideoRow || position == dataSaverModeRow) {
                 return 3;
             } else if (position == enableAllStreamInfoRow) {
                 return 4;

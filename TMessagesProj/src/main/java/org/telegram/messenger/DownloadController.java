@@ -1827,4 +1827,30 @@ public class DownloadController extends BaseController implements NotificationCe
         }
         return preset.preloadStories;
     }
+
+    public void applyDataSaverMode(boolean enabled) {
+        SharedPreferences preferences = MessagesController.getMainSettings(currentAccount);
+        SharedPreferences.Editor editor = preferences.edit();
+        if (enabled) {
+            mobilePreset.set(lowPreset);
+            wifiPreset.set(lowPreset);
+            roamingPreset.set(lowPreset);
+            mobilePreset.lessCallData = true;
+            wifiPreset.lessCallData = true;
+            roamingPreset.lessCallData = true;
+        } else {
+            mobilePreset.set(mediumPreset);
+            wifiPreset.set(highPreset);
+            roamingPreset.set(lowPreset);
+        }
+        editor.putString("mobilePreset", mobilePreset.toString());
+        editor.putString("wifiPreset", wifiPreset.toString());
+        editor.putString("roamingPreset", roamingPreset.toString());
+        editor.commit();
+        checkAutodownloadSettings();
+        for (int a = 0; a < 3; a++) {
+            savePresetToServer(a);
+        }
+    }
+
 }
