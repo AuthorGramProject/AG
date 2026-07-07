@@ -73,6 +73,7 @@ public class DataSettingsActivity extends BaseFragment {
    private ArrayList<File> storageDirs;
 
     private int mediaDownloadSectionRow;
+    private int dataSaverModeRow;
     private int mobileRow;
     private int roamingRow;
     private int wifiRow;
@@ -95,7 +96,6 @@ public class DataSettingsActivity extends BaseFragment {
     private int autoplayVideoRow = -1;
     private int autoplaySectionRow = -1;
     private int callsSectionRow;
-    private int dataSaverModeRow;
     @Keep
     private int useLessDataForCallsRow;
     private int quickRepliesRow = -1;
@@ -147,6 +147,7 @@ public class DataSettingsActivity extends BaseFragment {
         }
         usageSection2Row = rowCount++;
         mediaDownloadSectionRow = rowCount++;
+        dataSaverModeRow = rowCount++;
         mobileRow = rowCount++;
         wifiRow = rowCount++;
         roamingRow = rowCount++;
@@ -194,7 +195,6 @@ public class DataSettingsActivity extends BaseFragment {
 
         enableCacheStreamRow = -1;//rowCount++;
         callsSectionRow = rowCount++;
-        dataSaverModeRow = rowCount++;
         useLessDataForCallsRow = rowCount++;
 //        quickRepliesRow = rowCount++;
         callsSection2Row = rowCount++;
