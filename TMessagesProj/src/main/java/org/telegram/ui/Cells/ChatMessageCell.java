@@ -102,6 +102,7 @@ import androidx.core.math.MathUtils;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.AppGlobalConfig;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BotForumHelper;
 import org.telegram.messenger.BotInlineKeyboard;
@@ -18566,16 +18567,58 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             timeString = LocaleController.formatSmallDateChat(currentMessageObject.realDate) + ", " + LocaleController.getInstance().getFormatterDay().format((long) (currentMessageObject.realDate) * 1000);
         } else if (currentMessageObject.isRepostPreview) {
             timeString = LocaleController.formatSmallDateChat(messageObject.messageOwner.date) + ", " + LocaleController.getInstance().getFormatterDay().format((long) (messageObject.messageOwner.date) * 1000);
+        } else if (
+                edited
+                        && !showAyuDeletedMark
+                        && AppGlobalConfig.getInstance(
+                                currentAccount
+                        ).messagePrimaryEditedDate.get()
+        ) {
+            timeString =
+                    LocaleController.formatPmEditedDate(
+                            messageObject.messageOwner.edit_date
+                    );
         } else if (edited && !showAyuDeletedMark) {
-            timeString = TimeStringHelper.createEditedString(currentMessageObject, translated, showBookmarkInTime, senderNameColor);
+            timeString =
+                    TimeStringHelper.createEditedString(
+                            currentMessageObject,
+                            translated,
+                            showBookmarkInTime,
+                            senderNameColor
+                    );
         } else if (!edited && showAyuDeletedMark) {
-            timeString = TimeStringHelper.createDeletedString(currentMessageObject, edited, translated, showBookmarkInTime, senderNameColor);
+            timeString =
+                    TimeStringHelper.createDeletedString(
+                            currentMessageObject,
+                            edited,
+                            translated,
+                            showBookmarkInTime,
+                            senderNameColor
+                    );
         } else if (edited && showAyuDeletedMark) {
-            timeString = TimeStringHelper.createDeletedString(currentMessageObject, edited, translated, showBookmarkInTime, senderNameColor);
+            timeString =
+                    TimeStringHelper.createDeletedString(
+                            currentMessageObject,
+                            edited,
+                            translated,
+                            showBookmarkInTime,
+                            senderNameColor
+                    );
         } else if (translated) {
-            timeString = TimeStringHelper.createTranslatedString(currentMessageObject, false, showBookmarkInTime, senderNameColor);
+            timeString =
+                    TimeStringHelper.createTranslatedString(
+                            currentMessageObject,
+                            false,
+                            showBookmarkInTime,
+                            senderNameColor
+                    );
         } else if (showBookmarkInTime) {
-            timeString = TimeStringHelper.createBookmarkedString(currentMessageObject, senderNameColor);
+            timeString =
+                    TimeStringHelper.createBookmarkedString(
+                            currentMessageObject,
+                            senderNameColor
+                    );
+
         } else if (currentMessageObject.isSaved && currentMessageObject.messageOwner.fwd_from != null && (currentMessageObject.messageOwner.fwd_from.date != 0 || currentMessageObject.messageOwner.fwd_from.saved_date != 0)) {
             int date = currentMessageObject.messageOwner.fwd_from.saved_date;
             if (date == 0) {
