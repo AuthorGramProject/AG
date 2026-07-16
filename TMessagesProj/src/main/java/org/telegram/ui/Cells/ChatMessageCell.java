@@ -18509,6 +18509,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             translated = captionMessage != null && captionMessage.isTranslated();
         }
         if (messageObject.scheduled || messageObject.isLiveLocation() || messageObject.isPoll() || messageObject.messageOwner.edit_hide || messageObject.getDialogId() == 777000 || messageObject.messageOwner.via_bot_id != 0 || messageObject.messageOwner.via_bot_name != null || author != null && author.bot) {
+
             edited = false;
             ayuDeleted = ayuDeletedVal && !(currentChat instanceof TLRPC.TL_chat && author != null && author.bot); // ensure we're not in PM with bot, as it can screw experience
         } else if (currentPosition == null || currentMessagesGroup == null || currentMessagesGroup.messages.isEmpty()) {

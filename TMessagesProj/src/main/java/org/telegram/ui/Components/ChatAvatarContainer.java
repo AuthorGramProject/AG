@@ -587,6 +587,7 @@ public class ChatAvatarContainer extends FrameLayout implements NotificationCent
         }
     }
 
+
     public void setOverrideSubtitleColor(Integer overrideSubtitleColor) {
         this.overrideSubtitleColor = overrideSubtitleColor;
     }
@@ -781,11 +782,64 @@ public class ChatAvatarContainer extends FrameLayout implements NotificationCent
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int padding = isCentered() ? dp(isPreviewMode() ? 35 : 10) : 0;
-        int width = MeasureSpec.getSize(widthMeasureSpec) + (isCentered() ? 0 : titleTextView.getPaddingRight());
-        int availableWidth = width - dp(((avatarImageView.getVisibility() == VISIBLE || isCentered()) ? 54 : 0) + 16);
-        avatarImageView.measure(MeasureSpec.makeMeasureSpec(dp(avatarSizeInDp), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(dp(avatarSizeInDp), MeasureSpec.EXACTLY));
-        titleTextView.measure(MeasureSpec.makeMeasureSpec(availableWidth - padding, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(dp(24 + 8) + titleTextView.getPaddingRight(), MeasureSpec.AT_MOST));
+        int padding =
+                isCentered()
+                        ? dp(
+                                isPreviewMode()
+                                        ? 35
+                                        : 10
+                        )
+                        : 0;
+
+        int width =
+                MeasureSpec.getSize(
+                        widthMeasureSpec
+                )
+                        + (
+                                isCentered()
+                                        ? 0
+                                        : titleTextView.getPaddingRight()
+                        );
+
+        int availableWidth =
+                width
+                        - dp(
+                                (
+                                        (
+                                                avatarImageView.getVisibility() == VISIBLE
+                                                        || isCentered()
+                                        )
+                                                ? 54
+                                                : 0
+                                )
+                                        + 16
+                        );
+
+        avatarImageView.measure(
+                MeasureSpec.makeMeasureSpec(
+                        dp(avatarSizeInDp) - 2,
+                        MeasureSpec.EXACTLY
+                ),
+                MeasureSpec.makeMeasureSpec(
+                        dp(avatarSizeInDp) - 2,
+                        MeasureSpec.EXACTLY
+                )
+        );
+
+        titleTextView.measure(
+                MeasureSpec.makeMeasureSpec(
+                        Math.max(
+                                0,
+                                availableWidth - padding
+                        ),
+                        MeasureSpec.AT_MOST
+                ),
+                MeasureSpec.makeMeasureSpec(
+                        dp(24 + 8),
+                        MeasureSpec.AT_MOST
+                )
+        );
+
         if (subtitleTextView != null) {
             subtitleTextView.measure(MeasureSpec.makeMeasureSpec(availableWidth - padding, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(dp(20), MeasureSpec.AT_MOST));
         } else if (animatedSubtitleTextView != null) {
@@ -871,24 +925,81 @@ public class ChatAvatarContainer extends FrameLayout implements NotificationCent
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-        int actionBarHeight = ActionBar.getCurrentActionBarHeight();
-        int viewTop = (actionBarHeight - dp(avatarSizeInDp)) / 2 + (Build.VERSION.SDK_INT >= 21 && occupyStatusBar ? AndroidUtilities.statusBarHeight : 0);
-        int subtitleTop = viewTop + dp(glassMode ? 23.66f : 24);
+        final int actionBarHeight =
+                ActionBar.getCurrentActionBarHeight();
 
-        int avatarLeft = leftPadding;
-        int avatarRight = leftPadding + dp(avatarSizeInDp);
+        final int viewTop =
+                (
+                        actionBarHeight
+                                - avatarImageView.getMeasuredHeight()
+                                - 2
+                ) / 2
+                        + (
+                                occupyStatusBar
+                                        ? AndroidUtilities.statusBarHeight
+                                        : 0
+                        );
+
+        final int subtitleTop =
+                viewTop
+                        + dp(
+                                glassMode
+                                        ? 23.66f
+                                        : 24
+                        );
+
+        int avatarLeft =
+                1 + leftPadding;
 
         if (isCentered()) {
-            avatarLeft = getWidth() - leftPadding - dp(avatarSizeInDp);
-            avatarRight = avatarLeft + dp(avatarSizeInDp);
+            avatarLeft =
+                    getWidth()
+                            - leftPadding
+                            - avatarImageView.getMeasuredWidth()
+                            - 1;
         }
 
-        avatarImageView.layout(avatarLeft, viewTop + 1, avatarRight, viewTop + 1 + dp(avatarSizeInDp));
+        avatarImageView.layout(
+                avatarLeft,
+                1 + viewTop,
+                avatarLeft
+                        + avatarImageView.getMeasuredWidth(),
+                1
+                        + viewTop
+                        + avatarImageView.getMeasuredHeight()
+        );
 
-        int l = leftPadding + (avatarImageView.getVisibility() == VISIBLE && !isCentered() ? dp(glassMode ? 48.66f : 54) : 0) + (isCentered() ? 0 : rightAvatarPadding);
+        int l =
+                leftPadding
+                        + (
+                                avatarImageView.getVisibility() == VISIBLE
+                                        && !isCentered()
+                                        ? dp(
+                                                glassMode
+                                                        ? 49.66f
+                                                        : 55
+                                        )
+                                        : (
+                                                isCentered()
+                                                        ? 0
+                                                        : dp(
+                                                                glassMode
+                                                                        ? 13
+                                                                        : 1
+                                                        )
+                                        )
+                        )
+                        + rightAvatarPadding;
 
-        if (isPreviewMode() && isCentered()) {
-            l += dp(AndroidUtilities.isTablet() ? 80 : 72) / 2;
+        if (isPreviewMode()
+                && isCentered()) {
+
+            l +=
+                    dp(
+                            AndroidUtilities.isTablet()
+                                    ? 80
+                                    : 72
+                    ) / 2;
         }
 
         SimpleTextView titleTextLargerCopyView = this.titleTextLargerCopyView.get();
