@@ -386,6 +386,10 @@ public class NotificationCenter {
     // AI Chat
     public static final int servicesUpdated = totalEvents++;
 
+    public static final int communityPendingRequestsUpdate = totalEvents++;
+    public static final int communitySwitchedCollapsed = totalEvents++;
+
+
     public static boolean alreadyLogged;
 
     // custom

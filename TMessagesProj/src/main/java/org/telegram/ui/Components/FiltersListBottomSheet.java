@@ -105,6 +105,7 @@ public class FiltersListBottomSheet extends BottomSheet implements NotificationC
                 setPadding(backgroundPaddingLeft, AndroidUtilities.statusBarHeight, backgroundPaddingLeft, 0);
                 ignoreLayout = false;
                 int contentSize = dp(48) + dp(48) * adapter.getItemCount() + backgroundPaddingTop + AndroidUtilities.statusBarHeight;
+
                 int padding = contentSize < (height / 5 * 3.2) ? 0 : (height / 5 * 2);
                 if (padding != 0 && contentSize < height) {
                     padding -= (height - contentSize);
@@ -150,6 +151,7 @@ public class FiltersListBottomSheet extends BottomSheet implements NotificationC
                         top -= diff;
                         height += diff;
                         radProgress = 1.0f - Math.min(1.0f, (diff * 2) / (float) AndroidUtilities.statusBarHeight);
+
                     }
                     if (top + backgroundPaddingTop < AndroidUtilities.statusBarHeight) {
                         statusBarHeight = Math.min(AndroidUtilities.statusBarHeight, AndroidUtilities.statusBarHeight - top - backgroundPaddingTop);
@@ -163,7 +165,7 @@ public class FiltersListBottomSheet extends BottomSheet implements NotificationC
                     height = getMeasuredHeight();
                 }
 
-                shadowDrawable.setBounds(0, top, getMeasuredWidth(), height);
+                shadowDrawable.setBounds(0, top, getMeasuredWidth(), getMeasuredHeight());
                 shadowDrawable.draw(canvas);
 
                 if (radProgress != 1.0f) {
