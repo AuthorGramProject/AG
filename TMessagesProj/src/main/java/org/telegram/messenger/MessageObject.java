@@ -1867,6 +1867,13 @@ public class MessageObject {
     public MessageObject(int accountNum, TLRPC.Message message, String formattedMessage, String name, String userName, boolean localMessage, boolean isChannel, boolean supergroup, boolean edit) {
         localType = localMessage ? 2 : 1;
         currentAccount = accountNum;
+
+        // AUTHORGRAM_STEP4_MESSAGEOBJECT_DECRYPT
+        org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(
+                accountNum,
+                message
+        );
+
         localName = name;
         localUserName = userName;
         messageText = formattedMessage;

@@ -1237,6 +1237,14 @@ public class ChatAvatarContainer extends FrameLayout implements NotificationCent
         if (parentFragment == null) {
             return;
         }
+
+        // AUTHORGRAM_STEP4_PROTECTED_SUBTITLE
+        if (parentFragment.isAuthorGramProtectedChat()) {
+            setSubtitle(
+                    parentFragment.getAuthorGramProtectedSubtitle()
+            );
+            return;
+        }
         if (parentFragment.getChatMode() == ChatActivity.MODE_EDIT_BUSINESS_LINK) {
             setSubtitle(BusinessLinksController.stripHttps(parentFragment.businessLink.link));
             return;

@@ -27,7 +27,8 @@ public class MessageCustomParamsHelper {
             message.translatedPoll == null &&
             message.translatedText == null &&
             message.errorAllowedPriceStars == 0 &&
-            message.errorNewPriceStars == 0
+            message.errorNewPriceStars == 0 &&
+            !message.authorGramEncrypted
         );
     }
 
@@ -45,6 +46,7 @@ public class MessageCustomParamsHelper {
         toMessage.translatedText = fromMessage.translatedText;
         toMessage.errorAllowedPriceStars = fromMessage.errorAllowedPriceStars;
         toMessage.errorNewPriceStars = fromMessage.errorNewPriceStars;
+        toMessage.authorGramEncrypted = fromMessage.authorGramEncrypted;
         toMessage.translatedVoiceTranscription = fromMessage.translatedVoiceTranscription;
         toMessage.summarizedOpen = fromMessage.summarizedOpen;
         toMessage.summaryText = fromMessage.summaryText;
@@ -87,6 +89,7 @@ public class MessageCustomParamsHelper {
     private static class Params_v1 extends TLObject {
 
         private final static int VERSION = 1;
+        private final static int FLAG_AUTHORGRAM_ENCRYPTED = 1 << 29;
         final TLRPC.Message message;
         int flags = 0;
 
@@ -109,6 +112,9 @@ public class MessageCustomParamsHelper {
             flags = setFlag(flags, FLAG_10, message.summaryText != null);
             flags = setFlag(flags, FLAG_11, message.translatedSummaryText != null);
             flags = setFlag(flags, FLAG_12, message.translatedSummaryLanguage != null);
+            flags = message.authorGramEncrypted
+                    ? (flags | FLAG_AUTHORGRAM_ENCRYPTED)
+                    : (flags & ~FLAG_AUTHORGRAM_ENCRYPTED);
         }
 
         @Override
@@ -116,6 +122,9 @@ public class MessageCustomParamsHelper {
             stream.writeInt32(VERSION);
             flags = message.voiceTranscriptionForce ? (flags | 2) : (flags &~ 2);
             flags = message.summarizedOpen ? (flags | 512) : (flags &~ 512);
+            flags = message.authorGramEncrypted
+                    ? (flags | FLAG_AUTHORGRAM_ENCRYPTED)
+                    : (flags & ~FLAG_AUTHORGRAM_ENCRYPTED);
             stream.writeInt32(flags);
             if ((flags & 1) != 0) {
                 stream.writeString(message.voiceTranscription);
@@ -163,6 +172,8 @@ public class MessageCustomParamsHelper {
         @Override
         public void readParams(InputSerializedData stream, boolean exception) {
             flags = stream.readInt32(true);
+            message.authorGramEncrypted =
+                    (flags & FLAG_AUTHORGRAM_ENCRYPTED) != 0;
             if ((flags & 1) != 0) {
                 message.voiceTranscription = stream.readString(exception);
             }

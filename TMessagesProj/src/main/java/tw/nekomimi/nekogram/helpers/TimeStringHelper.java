@@ -50,6 +50,8 @@ public class TimeStringHelper {
     public static Drawable arrowDrawable;
     public static SpannableStringBuilder forwardsSpan;
     public static Drawable forwardsDrawable;
+    public static SpannableStringBuilder authorGramEncryptedSpan;
+    public static Drawable authorGramEncryptedDrawable;
     public ChatActivity.ThemeDelegate themeDelegate;
     private static int cachedDeletedStyle = Integer.MIN_VALUE;
     private static int cachedDeletedColor = Integer.MIN_VALUE;
@@ -146,6 +148,77 @@ public class TimeStringHelper {
             deletedSpan.setSpan(span, 0, 1, 0);
         }
     }
+
+    // AUTHORGRAM_STEP4_1_AYU_EYE
+    private static void ensureAuthorGramEncryptedSpan() {
+
+        if (authorGramEncryptedSpan != null
+                && authorGramEncryptedDrawable != null) {
+
+            return;
+        }
+
+        authorGramEncryptedDrawable =
+                Objects.requireNonNull(
+                        ContextCompat.getDrawable(
+                                ApplicationLoader.applicationContext,
+                                R.drawable.ayu_eye_crossed
+                        )
+                ).mutate();
+
+        authorGramEncryptedSpan =
+                new SpannableStringBuilder(
+                        "\u200B"
+                );
+
+        ColoredImageSpan span =
+                new ColoredImageSpan(
+                        authorGramEncryptedDrawable,
+                        true
+                );
+
+        /*
+         * Exactly the same horizontal adjustment used by
+         * AyuMoments DeletedIconStyle = crossed eye.
+         */
+        span.setTranslateX(
+                AndroidUtilities.dp(-1)
+        );
+
+        authorGramEncryptedSpan.setSpan(
+                span,
+                0,
+                1,
+                0
+        );
+    }
+
+    public static CharSequence createAuthorGramEncryptedString(
+            CharSequence base
+    ) {
+
+        ensureAuthorGramEncryptedSpan();
+
+        SpannableStringBuilder result =
+                new SpannableStringBuilder();
+
+        result.append(
+                authorGramEncryptedSpan
+        );
+
+        result.append(
+                "  "
+        );
+
+        if (base != null) {
+            result.append(
+                    base
+            );
+        }
+
+        return result;
+    }
+
 
     public static CharSequence createBookmarkedString(MessageObject messageObject, int senderNameColor) {
         createSpan();

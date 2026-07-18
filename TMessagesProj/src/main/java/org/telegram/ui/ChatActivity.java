@@ -562,6 +562,10 @@ public class ChatActivity extends BaseFragment implements
     private ActionBarMenuItem.Item toTheMessage;
     private ActionBarMenuItem.Item hideTitleItem;
     private ActionBarMenuItem.Item bookmarksItem;
+
+    // AUTHORGRAM_STEP4_UI_FIELDS
+    private static final int AUTHORGRAM_CRYPTO_TOGGLE = 0x6A470001;
+    private ActionBarMenuItem.Item authorGramCryptoItem;
     private ClippingImageView animatingImageView;
     private ThanosEffect chatListThanosEffect;
     private ChatListViewPaddingsAnimator chatListViewPaddingsAnimator;
@@ -4047,6 +4051,23 @@ public class ChatActivity extends BaseFragment implements
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(final int id) {
+
+                // AUTHORGRAM_STEP4_TOGGLE_CLICK
+                if (id == AUTHORGRAM_CRYPTO_TOGGLE) {
+                    if (!canUseAuthorGramProtection()) {
+                        return;
+                    }
+
+                    org.telegram.messenger.authorgram.AuthorGramChatState.toggle(
+                            currentAccount,
+                            dialog_id
+                    );
+
+                    refreshAuthorGramProtectionUi();
+
+                    return;
+                }
+
                 if (id == -1) {
                     if (isInPollAddOptionMode()) {
                         pollAddOptionModeClose();
@@ -4750,6 +4771,17 @@ public class ChatActivity extends BaseFragment implements
                 avatarContainer.setAvatarOptionsMenuItem(headerItem);
             }
             headerItem.setForceHidden(isTitleCentered());
+
+            // AUTHORGRAM_STEP4_MENU_ITEM
+            if (canUseAuthorGramProtection()) {
+                authorGramCryptoItem =
+                        headerItem.lazilyAddSubItem(
+                                AUTHORGRAM_CRYPTO_TOGGLE,
+                                R.drawable.msg_secret,
+                                getAuthorGramToggleText()
+                        );
+            }
+
 
             if (currentUser != null && currentUser.self && chatMode != MODE_SAVED) {
                 savedChatsItem = headerItem.lazilyAddSubItem(view_as_topics, R.drawable.msg_topics, LocaleController.getString(R.string.SavedViewAsChats));
@@ -16107,7 +16139,7 @@ public class ChatActivity extends BaseFragment implements
 
                 replyingMessageObject = messageObjectToReply;
                 replyingQuote = quote;
-                if (replyingQuote == null && xyz.nextalone.nagram.NaConfig.INSTANCE.getQuoteReply().Bool() && messageObjectToReply != null) {
+                if (replyingQuote == null && xyz.nextalone.nagram.NaConfig.INSTANCE.getQuoteReply().Bool() && !isAuthorGramProtectedChat() && messageObjectToReply != null) {
                     replyingQuote = ReplyQuote.from(messageObjectToReply);
                 }
                 if (replyingQuote != null && !replyingQuote.isValid()) {
@@ -20793,6 +20825,109 @@ public class ChatActivity extends BaseFragment implements
         }
     }
 
+
+    // AUTHORGRAM_STEP4_CHAT_HELPERS
+
+    /**
+     * AuthorGram protection is stored per account + per dialog.
+     *
+     * The toggle controls outgoing encryption and protected-chat UI.
+     * Incoming 🛡AG: payload recognition is independent of this value.
+     */
+    public boolean isAuthorGramProtectedChat() {
+        return currentEncryptedChat == null
+                && dialog_id != 0
+                && org.telegram.messenger.authorgram.AuthorGramChatState.isEnabled(
+                        currentAccount,
+                        dialog_id
+                );
+    }
+
+    /**
+     * AuthorGram is available in:
+     *
+     * - private user chats
+     * - normal groups
+     * - supergroups
+     *
+     * Native Telegram Secret Chats keep their own encryption.
+     * Broadcast-only channels are excluded.
+     */
+    private boolean canUseAuthorGramProtection() {
+        if (currentEncryptedChat != null
+                || dialog_id == 0
+                || chatMode != 0) {
+
+            return false;
+        }
+
+        if (currentUser != null) {
+            return !currentUser.self
+                    && !UserObject.isReplyUser(currentUser);
+        }
+
+        if (currentChat != null) {
+            return !ChatObject.isChannelAndNotMegaGroup(
+                    currentChat
+            );
+        }
+
+        return false;
+    }
+
+    public CharSequence getAuthorGramProtectedSubtitle() {
+        String language =
+                java.util.Locale.getDefault()
+                        .getLanguage();
+
+        if ("uk".equalsIgnoreCase(language)) {
+            return "Захищено за допомогою AuthorGram";
+        }
+
+        return "Protected by AuthorGram";
+    }
+
+    private String getAuthorGramToggleText() {
+        boolean enabled =
+                org.telegram.messenger.authorgram.AuthorGramChatState.isEnabled(
+                        currentAccount,
+                        dialog_id
+                );
+
+        String language =
+                java.util.Locale.getDefault()
+                        .getLanguage();
+
+        if ("uk".equalsIgnoreCase(language)) {
+            return enabled
+                    ? "Захист AuthorGram: увімкнено"
+                    : "Захист AuthorGram: вимкнено";
+        }
+
+        return enabled
+                ? "AuthorGram protection: on"
+                : "AuthorGram protection: off";
+    }
+
+    private void refreshAuthorGramProtectionUi() {
+        if (authorGramCryptoItem != null) {
+            authorGramCryptoItem.setText(
+                    getAuthorGramToggleText()
+            );
+            authorGramCryptoItem.setIcon(
+                    R.drawable.msg_secret
+            );
+        }
+
+        updateTitle(false);
+        updateTitleIcons();
+
+        if (avatarContainer != null) {
+            avatarContainer.updateSubtitle(false);
+            avatarContainer.invalidate();
+        }
+    }
+
     public void updateTitle(boolean animated) {
         if (avatarContainer == null) {
             return;
@@ -20973,8 +21108,24 @@ public class ChatActivity extends BaseFragment implements
             rightIcon = getThemedDrawable(Theme.key_drawable_muteIconDrawable);
         }
         Drawable leftIcon = null;
-        if (currentEncryptedChat != null) {
-            leftIcon = getThemedDrawable(Theme.key_drawable_lockIconDrawable);
+        if (isAuthorGramProtectedChat()) {
+            leftIcon = getThemedDrawable(
+                    Theme.key_drawable_lockIconDrawable
+            );
+
+            if (leftIcon != null) {
+                leftIcon = leftIcon.mutate();
+                leftIcon.setTint(
+                        0xff4CAF50
+                );
+            }
+
+        } else if (currentEncryptedChat != null) {
+
+            leftIcon = getThemedDrawable(
+                    Theme.key_drawable_lockIconDrawable
+            );
+
         } else if (currentChat != null) {
             leftIcon = avatarContainer.getBotVerificationDrawable(DialogObject.getBotVerificationIcon(currentChat), false);
         } else if (currentUser != null && !UserObject.isUserSelf(currentUser)) {

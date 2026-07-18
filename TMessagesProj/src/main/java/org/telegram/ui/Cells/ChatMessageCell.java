@@ -1355,6 +1355,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
 
     private boolean timePressed;
 
+
     private float timeAlpha = 1.0f;
     private float actionAlpha = 1.0f;
     private float controlsAlpha = 1.0f;
@@ -18528,6 +18529,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             }
         }
         boolean showAyuDeletedMark = ayuDeleted && shouldShowAyuDeletedMark(currentMessageObject);
+        boolean showAuthorGramEncrypted =
+                org.telegram.messenger.authorgram.AuthorGramMessageMeta.isKnownEncrypted(
+                        currentAccount,
+                        currentMessageObject
+                );
         // bookmark start
         boolean showBookmarkInTime = false;
         int senderNameColor = 0;
@@ -18587,6 +18593,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             }
             ((SpannableStringBuilder) timeString).append(" | ").append(String.valueOf(messageObject.messageOwner.id));
         }
+        if (showAuthorGramEncrypted) {
+            timeString =
+                    TimeStringHelper.createAuthorGramEncryptedString(
+                            timeString
+                    );
+        }
+
         currentTimeString = new SpannableStringBuilder(timeString);
         if (signString != null) {
             if (messageObject.messageOwner.via_business_bot_id != 0) {
@@ -18646,6 +18659,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             }
             if (showBookmarkInTime && TimeStringHelper.bookmarkDrawable != null) {
                 timeTextWidth = timeWidth += TimeStringHelper.bookmarkDrawable.getIntrinsicWidth();
+            }
+            if (showAuthorGramEncrypted && TimeStringHelper.authorGramEncryptedDrawable != null) {
+                timeTextWidth = timeWidth += TimeStringHelper.authorGramEncryptedDrawable.getIntrinsicWidth();
             }
         }
         if (currentMessageObject.scheduled && currentMessageObject.messageOwner.date == 0x7FFFFFFE || currentMessageObject.notime) {
@@ -24506,6 +24522,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 }
             }
         }
+
     }
 
     public float getTimeX() {
@@ -29603,4 +29620,6 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
         return text;
     }
+
+
 }

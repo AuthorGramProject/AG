@@ -32,7 +32,7 @@ public final class AuthorGramChatState {
      * Native Telegram Secret Chats are excluded separately by
      * AuthorGramCryptoInterceptor.
      */
-    private static final boolean DEFAULT_ENABLED = true;
+    private static final boolean DEFAULT_ENABLED = false;
 
     private AuthorGramChatState() {
     }

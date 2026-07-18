@@ -7,20 +7,20 @@ import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 
 /**
- * Isolated AuthorGram text interceptor.
+ * AuthorGram text interceptor.
  *
- * Local MessageObject:
- *     plaintext
+ * IMPORTANT:
  *
- * Telegram request:
- *     🛡AG:<encrypted payload>
+ * The per-chat toggle controls OUTGOING encryption only.
  *
- * Incoming Telegram message:
- *     ciphertext
- *         ↓
- *     authenticated AES-GCM decrypt
- *         ↓
- *     plaintext before normal UI/storage processing
+ * Incoming AuthorGram payload recognition and decryption is always
+ * marker-driven and therefore independent of the toggle.
+ *
+ * Wire format:
+ *
+ *     🛡AG:Base64(IV || AES-GCM ciphertext || authentication tag)
+ *
+ * The first 12 decoded bytes are always the public GCM IV.
  */
 public final class AuthorGramCryptoInterceptor {
 
@@ -28,21 +28,22 @@ public final class AuthorGramCryptoInterceptor {
     }
 
     /**
-     * Called immediately before Telegram sends the final request.
+     * Intercepts the final Telegram network request.
      *
-     * true:
-     *     request can continue
+     * AuthorGram only encrypts outgoing plaintext when protection
+     * is enabled specifically for this dialog.
      *
-     * false:
-     *     encryption was required but failed;
-     *     caller must abort the network send to prevent plaintext leak
+     * false means encryption was required but failed. The caller
+     * must abort sending so plaintext can never leak accidentally.
      */
     public static boolean prepareOutgoingRequest(
             int account,
             TLObject request,
             MessageObject messageObject
     ) {
-        if (request == null || messageObject == null) {
+        if (request == null ||
+                messageObject == null) {
+
             return true;
         }
 
@@ -50,13 +51,15 @@ public final class AuthorGramCryptoInterceptor {
                 messageObject.getDialogId();
 
         /*
-         * Never interfere with Telegram's own native
-         * Secret Chat implementation.
+         * Native Telegram Secret Chats use Telegram's own protocol.
          */
         if (DialogObject.isEncryptedDialog(dialogId)) {
             return true;
         }
 
+        /*
+         * Toggle controls SEND only.
+         */
         if (!AuthorGramChatState.isEnabled(
                 account,
                 dialogId
@@ -64,59 +67,97 @@ public final class AuthorGramCryptoInterceptor {
             return true;
         }
 
-        /*
-         * Normal outgoing text message.
-         */
         if (request instanceof
                 TLRPC.TL_messages_sendMessage) {
 
             TLRPC.TL_messages_sendMessage sendRequest =
                     (TLRPC.TL_messages_sendMessage) request;
 
-            return encryptOutgoingText(
-                    sendRequest.message,
-                    encrypted ->
-                            sendRequest.message = encrypted
-            );
+            boolean success =
+                    encryptOutgoingText(
+                            sendRequest.message,
+                            encrypted ->
+                                    sendRequest.message =
+                                            encrypted
+                    );
+
+            if (success &&
+                    AuthorGramCrypto.isAuthorGramPayload(
+                            sendRequest.message
+                    )) {
+
+                /*
+                 * Plaintext entity offsets and metadata must never
+                 * accompany the encrypted wire payload.
+                 *
+                 * Telegram's serializer recalculates the entities
+                 * flag from this nullable field.
+                 */
+                sendRequest.entities = null;
+
+                AuthorGramMessageMeta.markOutgoing(
+                        account,
+                        messageObject
+                );
+            }
+
+            return success;
         }
 
-        /*
-         * Edited text message.
-         *
-         * This keeps edited AuthorGram messages encrypted
-         * on Telegram as well.
-         */
         if (request instanceof
                 TLRPC.TL_messages_editMessage) {
 
             TLRPC.TL_messages_editMessage editRequest =
                     (TLRPC.TL_messages_editMessage) request;
 
-            return encryptOutgoingText(
-                    editRequest.message,
-                    encrypted ->
-                            editRequest.message = encrypted
-            );
+            boolean success =
+                    encryptOutgoingText(
+                            editRequest.message,
+                            encrypted ->
+                                    editRequest.message =
+                                            encrypted
+                    );
+
+            if (success &&
+                    AuthorGramCrypto.isAuthorGramPayload(
+                            editRequest.message
+                    )) {
+
+                /*
+                 * Edited plaintext entities are invalid once the
+                 * edited message body has been encrypted.
+                 */
+                editRequest.entities = null;
+
+                AuthorGramMessageMeta.markOutgoing(
+                        account,
+                        messageObject
+                );
+            }
+
+            return success;
         }
 
         /*
-         * Step 3 intentionally does not encrypt:
-         *
-         * - file bytes
-         * - media captions
-         * - grouped media
-         *
-         * Those receive their dedicated pipeline later.
+         * File bytes and media captions are handled in the
+         * dedicated AuthorGram file/media phase.
          */
         return true;
     }
 
     /**
-     * Called as soon as an incoming TLRPC.Message is extracted
-     * from a Telegram Update.
+     * Marker-driven incoming decryption.
      *
-     * Incoming decryption is marker-driven and does NOT depend
-     * on the local toggle state.
+     * This method intentionally does NOT check AuthorGramChatState.
+     *
+     * Toggle ON:
+     *     outgoing messages are encrypted.
+     *
+     * Toggle OFF:
+     *     outgoing messages are plaintext.
+     *
+     * In BOTH states:
+     *     every valid 🛡AG: payload is automatically decrypted.
      */
     public static boolean decryptIncomingMessage(
             int account,
@@ -136,12 +177,13 @@ public final class AuthorGramCryptoInterceptor {
                         message.message
                 );
 
-        /*
-         * Authentication failure:
-         *
-         * leave the original ciphertext untouched.
-         */
         if (plaintext == null) {
+            /*
+             * Invalid Base64, malformed IV or failed AES-GCM tag.
+             *
+             * Never replace the original payload if authentication
+             * did not succeed.
+             */
             FileLog.e(
                     "AuthorGram: incoming AES-GCM authentication failed"
             );
@@ -149,39 +191,36 @@ public final class AuthorGramCryptoInterceptor {
             return false;
         }
 
-        message.message = plaintext;
+        /*
+         * Replace server ciphertext with authenticated plaintext
+         * before the normal Telegram/Nagram UI and storage pipeline.
+         */
+        message.message =
+                plaintext;
 
         /*
-         * Telegram entities were calculated for the wire-level
-         * ciphertext, not for the decrypted plaintext.
-         *
-         * Keeping those old offsets can produce incorrect formatting
-         * or out-of-range spans in the UI.
-         *
-         * Formatting-preserving encrypted payloads can be added in a
-         * later protocol version.
+         * Server entities refer to offsets inside ciphertext.
+         * They are invalid after replacing the text with plaintext.
          */
         if (message.entities != null) {
             message.entities.clear();
         }
 
         /*
-         * An authenticated AuthorGram message proves this dialog is
-         * participating in the AuthorGram protocol.
+         * Remember locally that this specific plaintext message came
+         * from an authenticated AuthorGram encrypted payload.
          */
-        long dialogId =
-                MessageObject.getDialogId(message);
+        AuthorGramMessageMeta.markDecrypted(
+                account,
+                message
+        );
 
-        if (dialogId != 0 &&
-                !DialogObject.isEncryptedDialog(dialogId)) {
-
-            AuthorGramChatState.setEnabled(
-                    account,
-                    dialogId,
-                    true
-            );
-        }
-
+        /*
+         * IMPORTANT:
+         *
+         * Receiving an encrypted message does NOT automatically
+         * enable outgoing AuthorGram encryption for this chat.
+         */
         return true;
     }
 
@@ -196,10 +235,7 @@ public final class AuthorGramCryptoInterceptor {
         }
 
         /*
-         * File-reference retries and delayed requests can re-enter
-         * the final send method.
-         *
-         * Never encrypt an AuthorGram payload twice.
+         * Protect retries from double encryption.
          */
         if (AuthorGramCrypto.isAuthorGramPayload(
                 plaintext
@@ -208,14 +244,13 @@ public final class AuthorGramCryptoInterceptor {
         }
 
         String encrypted =
-                AuthorGramCrypto.encryptText(plaintext);
+                AuthorGramCrypto.encryptText(
+                        plaintext
+                );
 
         if (encrypted == null) {
             /*
              * Fail closed.
-             *
-             * Returning false prevents the caller from sending the
-             * original plaintext to Telegram.
              */
             FileLog.e(
                     "AuthorGram: outgoing AES-GCM encryption failed"
@@ -224,12 +259,16 @@ public final class AuthorGramCryptoInterceptor {
             return false;
         }
 
-        consumer.accept(encrypted);
+        consumer.accept(
+                encrypted
+        );
 
         return true;
     }
 
     private interface EncryptedTextConsumer {
-        void accept(String encryptedText);
+        void accept(
+                String encryptedText
+        );
     }
 }

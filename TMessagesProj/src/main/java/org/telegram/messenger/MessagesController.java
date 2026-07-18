@@ -11871,6 +11871,17 @@ public class MessagesController extends BaseController implements NotificationCe
 
     public void processLoadedMessages(TLRPC.messages_Messages messagesRes, int resCount, long dialogId, long mergeDialogId, int count, int max_id, int offset_date, boolean isCache, int classGuid,
                                       int first_unread, int last_message_id, int unread_count, int last_date, int load_type, boolean isEnd, int mode, long threadMessageId, int loadIndex, boolean queryFromServer, int mentionsCount, boolean needProcess, boolean isTopic, Timer loaderLogger) {
+
+        // AUTHORGRAM_STEP4_HISTORY_DECRYPT
+        if (messagesRes != null && messagesRes.messages != null) {
+            for (int authorGramIndex = 0; authorGramIndex < messagesRes.messages.size(); authorGramIndex++) {
+                org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(
+                        currentAccount,
+                        messagesRes.messages.get(authorGramIndex)
+                );
+            }
+        }
+
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("processLoadedMessages size " + messagesRes.messages.size() + " in chat " + dialogId + " topic_id " + threadMessageId + " count " + count + " max_id " + max_id + " cache " + isCache + " guid " + classGuid + " load_type " + load_type + " last_message_id " + last_message_id + " index " + loadIndex + " firstUnread " + first_unread + " unread_count " + unread_count + " last_date " + last_date + " queryFromServer " + queryFromServer + " isTopic " + isTopic + " mode " + mode);
         }
