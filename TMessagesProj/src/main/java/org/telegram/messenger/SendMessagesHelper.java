@@ -10278,7 +10278,29 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         accountInstance.getMessagesStorage().getStorageQueue().postRunnable(() -> Utilities.stageQueue.postRunnable(() -> AndroidUtilities.runOnUIThread(() -> {
             CharSequence textFinal = getTrimmedString(text);
             if (textFinal != null && textFinal.length() != 0) {
-                int count = (int) Math.ceil(textFinal.length() / 4096.0f);
+                // AUTHORGRAM_STEP5_FALLBACK_SPLIT
+                ArrayList<CharSequence> authorGramEncryptedParts = null;
+
+                if (!DialogObject.isEncryptedDialog(dialogId)
+                        && org.telegram.messenger.authorgram.AuthorGramChatState.isEnabled(
+                                accountInstance.getCurrentAccount(),
+                                dialogId
+                        )) {
+
+                    authorGramEncryptedParts =
+                            org.telegram.messenger.authorgram.AuthorGramMessageSplitter.split(
+                                    textFinal,
+                                    accountInstance.getMessagesController().maxMessageLength
+                            );
+                }
+
+                int count =
+                        authorGramEncryptedParts != null
+                                ? authorGramEncryptedParts.size()
+                                : (int) Math.ceil(
+                                        textFinal.length()
+                                                / 4096.0f
+                                );
                 MessageObject replyToMsg = null;
                 if (topicId != 0) {
                     TLRPC.TL_forumTopic topic = accountInstance.getMessagesController().getTopicsController().findTopic(-dialogId, topicId);
@@ -10288,7 +10310,18 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     }
                 }
                 for (int a = 0; a < count; a++) {
-                    final CharSequence[] mess = new CharSequence[] { textFinal.subSequence(a * 4096, Math.min((a + 1) * 4096, textFinal.length())) };
+                    final CharSequence[] mess =
+                            new CharSequence[] {
+                                    authorGramEncryptedParts != null
+                                            ? authorGramEncryptedParts.get(a)
+                                            : textFinal.subSequence(
+                                                    a * 4096,
+                                                    Math.min(
+                                                            (a + 1) * 4096,
+                                                            textFinal.length()
+                                                    )
+                                            )
+                            };
                     final ArrayList<TLRPC.MessageEntity> entities = accountInstance.getMediaDataController().getEntities(mess, true);
                     final SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(mess[0].toString(), dialogId, replyToMsg, replyToMsg, null, true, null, null, null, notify, scheduleDate, scheduleRepeatPeriod, null, false);
                     params.entities = entities;

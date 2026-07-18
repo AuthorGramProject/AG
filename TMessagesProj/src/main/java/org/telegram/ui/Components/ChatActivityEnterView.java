@@ -8459,12 +8459,30 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         }
         boolean supportsNewEntities = supportsSendingNewEntities();
         int maxLength = accountInstance.getMessagesController().maxMessageLength;
+
+        boolean authorGramProtectedSplit = false;
+        // AUTHORGRAM_STEP5_SAFE_COMPOSER_LIMIT
+        if (!DialogObject.isEncryptedDialog(dialog_id)
+                && org.telegram.messenger.authorgram.AuthorGramChatState.isEnabled(
+                        currentAccount,
+                        dialog_id
+                )) {
+
+            authorGramProtectedSplit = true;
+
+            maxLength =
+                    org.telegram.messenger.authorgram.AuthorGramMessageSplitter
+                            .getSafePlaintextCharLimit(
+                                    maxLength
+                            );
+        }
         if (text.length() != 0) {
             if (delegate != null && parentFragment != null && (scheduleDate != 0) == parentFragment.isInScheduleMode()) {
                 delegate.prepareMessageSending();
             }
             int end;
             int start = 0;
+            int authorGramPartIndex = 0;
             do {
                 int whitespaceIndex = -1;
                 int dotIndex = -1;
@@ -8499,6 +8517,31 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                     end = dotIndex;
                 } else if (whitespaceIndex > 0) {
                     end = whitespaceIndex;
+                }
+
+                // AUTHORGRAM_STEP5_2_SAFE_BOUNDARY
+                boolean authorGramNaturalBoundary =
+                        tabIndex > 0
+                                || enterIndex > 0
+                                || dotIndex > 0
+                                || whitespaceIndex > 0;
+
+                /*
+                 * Never split a supplementary Unicode character
+                 * between its UTF-16 high and low surrogate.
+                 */
+                if (authorGramProtectedSplit
+                        && !authorGramNaturalBoundary
+                        && end > start
+                        && end < text.length()
+                        && Character.isHighSurrogate(
+                                text.charAt(end - 1)
+                        )
+                        && Character.isLowSurrogate(
+                                text.charAt(end)
+                        )) {
+
+                    end--;
                 }
 
                 CharSequence part = text.subSequence(start, end);
@@ -8537,7 +8580,37 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 if (replyToTopMsg == null && replyingTopMessage != null) {
                     replyToTopMsg = replyingTopMessage;
                 }
-                SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(message[0].toString(), dialog_id, replyingMessageObject, replyToTopMsg, messageWebPage, messageWebPageSearch, entities, null, null, notify, scheduleDate, scheduleRepeatPeriod, sendAnimationData, updateStickersOrder);
+                /*
+                 * A long protected message is sent as multiple
+                 * independent encrypted Telegram messages.
+                 *
+                 * Keep the user's actual reply only on the first
+                 * part. replyToTopMsg remains untouched so forum
+                 * topic/thread routing continues to work.
+                 */
+                MessageObject authorGramReplyForPart =
+                        !authorGramProtectedSplit
+                                || authorGramPartIndex == 0
+                                ? replyingMessageObject
+                                : null;
+
+                SendMessagesHelper.SendMessageParams params =
+                        SendMessagesHelper.SendMessageParams.of(
+                                message[0].toString(),
+                                dialog_id,
+                                authorGramReplyForPart,
+                                replyToTopMsg,
+                                messageWebPage,
+                                messageWebPageSearch,
+                                entities,
+                                null,
+                                null,
+                                notify,
+                                scheduleDate,
+                                scheduleRepeatPeriod,
+                                sendAnimationData,
+                                updateStickersOrder
+                        );
                 params.canSendGames = withGame;
                 params.canUsePangu = canUsePangu;
                 params.quick_reply_shortcut = parentFragment != null ? parentFragment.quickReplyShortcut : null;
@@ -8571,7 +8644,22 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                     parentFragment.fallbackFieldPanel();
                 }
                 SendMessagesHelper.getInstance(currentAccount).sendMessage(params);
-                start = end + 1;
+                // AUTHORGRAM_STEP5_1_PART_INCREMENT
+                authorGramPartIndex++;
+                /*
+                 * Telegram's normal natural-boundary splitter skips
+                 * the separator character.
+                 *
+                 * At an AuthorGram hard limit there is no separator,
+                 * therefore continue exactly at end or one plaintext
+                 * character would disappear between encrypted parts.
+                 */
+                start =
+                        authorGramProtectedSplit
+                                && !authorGramNaturalBoundary
+                                ? end
+                                : end + 1;
+
             } while (end != text.length());
             return true;
         }

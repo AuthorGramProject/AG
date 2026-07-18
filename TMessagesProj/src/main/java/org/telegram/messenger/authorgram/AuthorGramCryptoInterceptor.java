@@ -86,12 +86,18 @@ public final class AuthorGramCryptoInterceptor {
                             sendRequest.message
                     )) {
 
+                // AUTHORGRAM_STEP5_SANITIZE_REPLY_CALL
+                sanitizeEncryptedReply(
+                        sendRequest.reply_to
+                );
+
+
                 /*
                  * Plaintext entity offsets and metadata must never
                  * accompany the encrypted wire payload.
                  *
-                 * Telegram's serializer recalculates the entities
-                 * flag from this nullable field.
+                 * The entity list and its request flag are both
+                 * cleared explicitly below.
                  */
                 if (sendRequest.entities != null) {
                     sendRequest.entities.clear();
@@ -229,6 +235,43 @@ public final class AuthorGramCryptoInterceptor {
          */
         return true;
     }
+
+    // AUTHORGRAM_STEP5_REPLY_SANITIZER
+    private static void sanitizeEncryptedReply(
+            TLRPC.InputReplyTo replyTo
+    ) {
+        if (!(replyTo instanceof
+                TLRPC.TL_inputReplyToMessage)) {
+
+            return;
+        }
+
+        /*
+         * Keep the actual reply relationship:
+         *
+         *     reply_to_msg_id
+         *
+         * but never send a plaintext quote extracted from the
+         * encrypted message body.
+         */
+        replyTo.flags &=
+                ~(
+                        TLObject.FLAG_2
+                                | TLObject.FLAG_3
+                                | TLObject.FLAG_4
+                );
+
+        replyTo.quote_text =
+                null;
+
+        if (replyTo.quote_entities != null) {
+            replyTo.quote_entities.clear();
+        }
+
+        replyTo.quote_offset =
+                0;
+    }
+
 
     private static boolean encryptOutgoingText(
             String plaintext,
