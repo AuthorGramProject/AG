@@ -93,7 +93,10 @@ public final class AuthorGramCryptoInterceptor {
                  * Telegram's serializer recalculates the entities
                  * flag from this nullable field.
                  */
-                sendRequest.entities = null;
+                if (sendRequest.entities != null) {
+                    sendRequest.entities.clear();
+                }
+                sendRequest.flags &= ~8;
 
                 AuthorGramMessageMeta.markOutgoing(
                         account,
@@ -127,7 +130,10 @@ public final class AuthorGramCryptoInterceptor {
                  * Edited plaintext entities are invalid once the
                  * edited message body has been encrypted.
                  */
-                editRequest.entities = null;
+                if (editRequest.entities != null) {
+                    editRequest.entities.clear();
+                }
+                editRequest.flags &= ~8;
 
                 AuthorGramMessageMeta.markOutgoing(
                         account,
