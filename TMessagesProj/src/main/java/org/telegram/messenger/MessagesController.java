@@ -15041,6 +15041,8 @@ public class MessagesController extends BaseController implements NotificationCe
                 for (TLRPC.Update update : response.updates) {
                     if (update instanceof TL_update.TL_updateNewMessage) {
                         TLRPC.Message message = ((TL_update.TL_updateNewMessage) update).message;
+                        // AUTHORGRAM_STEP3_INCOMING
+                        org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(currentAccount, message);
                         if (message.action instanceof TLRPC.TL_messageActionNoForwardsRequest) {
                             status = TOGGLE_NO_FORWARDS_RESULT_PENDING;
                             break;
@@ -15758,12 +15760,16 @@ public class MessagesController extends BaseController implements NotificationCe
                     TLRPC.Update update = updates.updates.get(a);
                     if (update instanceof TL_update.TL_updateNewChannelMessage) {
                         TLRPC.Message message = ((TL_update.TL_updateNewChannelMessage) update).message;
+                        // AUTHORGRAM_STEP3_INCOMING
+                        org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(currentAccount, message);
                         if (message.action instanceof TLRPC.TL_messageActionChatEditPhoto && message.action.photo instanceof TLRPC.TL_photo) {
                             photo = message.action.photo;
                             break;
                         }
                     } else if (update instanceof TL_update.TL_updateNewMessage) {
                         TLRPC.Message message = ((TL_update.TL_updateNewMessage) update).message;
+                        // AUTHORGRAM_STEP3_INCOMING
+                        org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(currentAccount, message);
                         if (message.action instanceof TLRPC.TL_messageActionChatEditPhoto && message.action.photo instanceof TLRPC.TL_photo) {
                             photo = message.action.photo;
                             break;
@@ -17772,6 +17778,8 @@ public class MessagesController extends BaseController implements NotificationCe
                     TLRPC.Update update = updates.updates.get(a);
                     if (update instanceof TL_update.TL_updateNewChannelMessage) {
                         TLRPC.Message message = ((TL_update.TL_updateNewChannelMessage) update).message;
+                        // AUTHORGRAM_STEP3_INCOMING
+                        org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(currentAccount, message);
                         long channelId = message.peer_id.channel_id;
                         if (minChannels.indexOfKey(channelId) >= 0) {
                             if (BuildVars.LOGS_ENABLED) {
@@ -18170,10 +18178,16 @@ public class MessagesController extends BaseController implements NotificationCe
                 TLRPC.Message message;
                 if (baseUpdate instanceof TL_update.TL_updateNewMessage) {
                     message = ((TL_update.TL_updateNewMessage) baseUpdate).message;
+                    // AUTHORGRAM_STEP3_INCOMING
+                    org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(currentAccount, message);
                 } else if (baseUpdate instanceof TL_update.TL_updateNewScheduledMessage) {
                     message = ((TL_update.TL_updateNewScheduledMessage) baseUpdate).message;
+                    // AUTHORGRAM_STEP3_INCOMING
+                    org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(currentAccount, message);
                 } else {
                     message = ((TL_update.TL_updateNewChannelMessage) baseUpdate).message;
+                    // AUTHORGRAM_STEP3_INCOMING
+                    org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(currentAccount, message);
                     if (BuildVars.LOGS_ENABLED) {
                         FileLog.d(baseUpdate + " channelId = " + message.peer_id.channel_id + " message_id = " + message.id);
                     }
@@ -19094,6 +19108,8 @@ public class MessagesController extends BaseController implements NotificationCe
                 TLRPC.Message message;
                 if (baseUpdate instanceof TL_update.TL_updateEditChannelMessage) {
                     message = ((TL_update.TL_updateEditChannelMessage) baseUpdate).message;
+                    // AUTHORGRAM_STEP3_INCOMING
+                    org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(currentAccount, message);
                     TLRPC.Chat chat = chatsDict.get(message.peer_id.channel_id);
                     if (chat == null) {
                         chat = getChat(message.peer_id.channel_id);
@@ -19104,6 +19120,8 @@ public class MessagesController extends BaseController implements NotificationCe
                     }
                 } else {
                     message = ((TL_update.TL_updateEditMessage) baseUpdate).message;
+                    // AUTHORGRAM_STEP3_INCOMING
+                    org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(currentAccount, message);
                     if (message.dialog_id == clientUserId) {
                         message.unread = false;
                         message.media_unread = false;
