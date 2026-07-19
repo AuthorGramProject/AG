@@ -4576,18 +4576,6 @@ public class ChatActivity extends BaseFragment implements
         }
         avatarContainer = new ChatAvatarContainer(context, this, currentEncryptedChat != null, themeDelegate) {
             @Override
-            protected boolean onAvatarClick() {
-                if (currentUser != null && currentUser.linked_community_id != 0) {
-                    showDialog(new CommunitySheet(ChatActivity.this, currentUser.linked_community_id));
-                    return true;
-                } else if (currentChat != null && currentChat.linked_community_id != 0) {
-                    showDialog(new CommunitySheet(ChatActivity.this, currentChat.linked_community_id));
-                    return true;
-                }
-                return false;
-            }
-
-            @Override
             protected boolean useAnimatedSubtitle() {
                 return chatMode == MODE_SAVED;
             }
@@ -4604,19 +4592,65 @@ public class ChatActivity extends BaseFragment implements
 
             @Override
             protected boolean onAvatarClick() {
+                /*
+                 * Telegram 12.9 linked Community behavior.
+                 */
+                if (currentUser != null
+                        && currentUser.linked_community_id != 0) {
+
+                    showDialog(
+                            new CommunitySheet(
+                                    ChatActivity.this,
+                                    currentUser.linked_community_id
+                            )
+                    );
+
+                    return true;
+
+                } else if (currentChat != null
+                        && currentChat.linked_community_id != 0) {
+
+                    showDialog(
+                            new CommunitySheet(
+                                    ChatActivity.this,
+                                    currentChat.linked_community_id
+                            )
+                    );
+
+                    return true;
+                }
+
+                /*
+                 * Nagram centered-title behavior.
+                 */
                 if (isTitleCentered()) {
-                    if (editTextItem != null && editTextItem.getView() != null && editTextItem.getView().getVisibility() == VISIBLE) {
-                        editTextItem.getView().performClick();
+                    if (editTextItem != null
+                            && editTextItem.getView() != null
+                            && editTextItem.getView().getVisibility()
+                                    == VISIBLE) {
+
+                        editTextItem
+                                .getView()
+                                .performClick();
+
                         return true;
                     }
 
-                    if (attachItem != null && attachItem.getView() != null && attachItem.getView().getVisibility() == VISIBLE) {
-                        attachItem.getView().performClick();
+                    if (attachItem != null
+                            && attachItem.getView() != null
+                            && attachItem.getView().getVisibility()
+                                    == VISIBLE) {
+
+                        attachItem
+                                .getView()
+                                .performClick();
+
                         return true;
                     }
 
                     if (headerItem != null) {
                         headerItem.performClick();
+
                         return true;
                     }
                 }

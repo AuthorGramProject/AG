@@ -24,6 +24,7 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextPaint;
 import android.text.TextUtils;
@@ -1141,38 +1142,6 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
         }
 
         return (int) width;
-    }
-
-    public void showTimeItem(boolean animated) {
-        if (timeItem == null
-                || timeItem.getTag() != null
-                || avatarImageView.getVisibility() != View.VISIBLE) {
-
-            return;
-        }
-
-        timeItem.clearAnimation();
-        timeItem.setVisibility(VISIBLE);
-        timeItem.setTag(1);
-
-        if (animated) {
-            timeItem.animate()
-                    .setDuration(180)
-                    .alpha(1.0f)
-                    .scaleX(1.0f)
-                    .scaleY(1.0f)
-                    .setListener(null)
-                    .setUpdateListener(
-                            v -> invalidate()
-                    )
-                    .start();
-
-        } else {
-
-            timeItem.setAlpha(1.0f);
-            timeItem.setScaleY(1.0f);
-            timeItem.setScaleX(1.0f);
-        }
     }
 
     public void setCommunityItemVisible(

@@ -672,6 +672,13 @@ public class ActionBarMenu extends LinearLayout {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
+    private View widthAnchorView;
+
+
+    public void setWidthAnchorView(View widthAnchorView) {
+        this.widthAnchorView = widthAnchorView;
+    }
+
     public int getItemsWidth() {
         float mLeft = Float.POSITIVE_INFINITY;
         float mRight = Float.NEGATIVE_INFINITY;
@@ -689,6 +696,10 @@ public class ActionBarMenu extends LinearLayout {
             }
         }
 
+        if (widthAnchorView != null) {
+            mLeft = widthAnchorView.getX();
+            mRight = getWidth() + dp(5);
+        }
         return found ? (int)(mRight - mLeft) : 0;
     }
 

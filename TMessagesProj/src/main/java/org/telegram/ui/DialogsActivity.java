@@ -8,6 +8,7 @@
 
 package org.telegram.ui;
 
+import org.telegram.messenger.BuildConfig;
 import static org.telegram.messenger.AndroidUtilities.dp;
 import static org.telegram.messenger.AndroidUtilities.dpf2;
 import static org.telegram.messenger.AndroidUtilities.lerp;
