@@ -23,6 +23,8 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.Color;
+
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
@@ -83,6 +85,7 @@ public class DrawerLayoutContainer extends FrameLayout {
     private final Paint backgroundPaint = new Paint();
 
     private int behindKeyboardColor;
+
 
     private boolean hasCutout;
 
@@ -734,6 +737,7 @@ public class DrawerLayoutContainer extends FrameLayout {
         return result;
     }
 
+
     @Override
     protected void onDraw(@NonNull Canvas canvas) {
         if (lastWindowInsetsCompat == null) {
@@ -745,7 +749,6 @@ public class DrawerLayoutContainer extends FrameLayout {
             | WindowInsetsCompat.Type.displayCutout());
 
         if (insets.bottom > 0) {
-            backgroundPaint.setColor(behindKeyboardColor);
             canvas.drawRect(
                 0,
                 getMeasuredHeight() - insets.bottom,
@@ -756,14 +759,13 @@ public class DrawerLayoutContainer extends FrameLayout {
         }
 
         if (hasCutout) {
-            backgroundPaint.setColor(0xff000000);
-            int left = insets.left;
+            final int left = insets.left;
             if (left != 0) {
-                canvas.drawRect(0, 0, left, getMeasuredHeight(), backgroundPaint);
+                canvas.drawRect(0, 0, left, getMeasuredHeight(), Theme.fillingPaint(Color.BLACK));
             }
-            int right = insets.right;
+            final int right = insets.right;
             if (right != 0) {
-                canvas.drawRect(right, 0, getMeasuredWidth(), getMeasuredHeight(), backgroundPaint);
+                canvas.drawRect(right, 0, getMeasuredWidth(), getMeasuredHeight(), Theme.fillingPaint(Color.BLACK));
             }
         }
     }

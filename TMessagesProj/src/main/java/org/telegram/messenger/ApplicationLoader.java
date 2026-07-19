@@ -321,6 +321,9 @@ public class ApplicationLoader extends Application {
         applicationLoaderInstance = this;
         try {
             applicationContext = getApplicationContext();
+
+            // AUTHORGRAM_APPLY_DEFAULT_SETTINGS
+            org.telegram.messenger.authorgram.AuthorGramDefaults.apply(applicationContext);
         } catch (Throwable ignore) {
 
         }
