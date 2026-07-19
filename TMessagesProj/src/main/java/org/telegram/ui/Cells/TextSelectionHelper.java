@@ -1673,7 +1673,6 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                     );
                 }
 
-                }
                 return true;
             }
 

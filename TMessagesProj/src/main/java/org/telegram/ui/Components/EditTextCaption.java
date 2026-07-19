@@ -496,6 +496,7 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
             editText.setLayoutParams(layoutParams);
         }
         editText.setSelection(0, editText.getText().length());
+    }
 
     // Toggle an inline style over the current selection, mirroring a formatting button: if the style
     // already fully covers the selection it's removed, otherwise it's added. Mono is kept mutually
