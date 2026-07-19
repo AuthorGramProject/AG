@@ -7611,8 +7611,6 @@ public class MediaDataController extends BaseController {
             );
         }
 
-        }
-
         // trim again in case some whitespace inside tags
         while (cs.length() > 0 && (cs.charAt(0) == '\n' || cs.charAt(0) == ' ')) {
             cs = cs.subSequence(1, cs.length());
