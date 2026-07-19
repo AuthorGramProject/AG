@@ -1947,6 +1947,21 @@ public class MessageObject {
         this.searchType = searchType;
 
         currentAccount = accountNum;
+
+        /*
+         * AUTHORGRAM_FINAL_CANONICAL_MESSAGEOBJECT_DECRYPT
+         *
+         * Every normal Telegram/Nagram MessageObject overload funnels
+         * through this constructor. Decrypt before messageOwner and
+         * reply UI state are initialized so dialog previews, replies,
+         * cache reloads and less common message paths all receive
+         * authenticated plaintext instead of the AG wire payload.
+         */
+        org.telegram.messenger.authorgram.AuthorGramCryptoInterceptor.decryptIncomingMessage(
+                accountNum,
+                message
+        );
+
         messageOwner = message;
         replyMessageObject = replyToMessage;
         eventId = eid;
