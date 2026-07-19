@@ -1113,9 +1113,6 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
         } else if (itemId == R.id.menu_date) {
             makeSelectedDate();
             return true;
-        } else if (itemId == R.id.menu_translate) {
-            translateSelected();
-            return true;
         }
         return false;
     }
