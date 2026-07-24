@@ -51,6 +51,9 @@ jobs:
             git push origin HEAD:${{ github.event.pull_request.head.ref }}
             exit "$STATUS"
           fi
+          # Workflow files are maintained through the GitHub API. Keeping them
+          # out of bot commits avoids GitHub App workflow-scope rejections.
+          git restore --source=HEAD --staged --worktree .github/workflows || true
           rm -f authorgram_agent_patch.log "$SCRIPT"
           git diff --check
 
