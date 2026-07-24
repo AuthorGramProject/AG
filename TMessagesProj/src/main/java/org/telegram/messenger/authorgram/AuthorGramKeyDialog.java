@@ -189,8 +189,13 @@ public final class AuthorGramKeyDialog {
                 .setTitle(LocaleController.getString(R.string.AuthorGramRemoveKey))
                 .setMessage(LocaleController.getString(R.string.AuthorGramRemoveKeyWarning))
                 .setPositiveButton(LocaleController.getString(R.string.Remove), (dialog, which) -> {
-                    AuthorGramChatKeyStore.clearCustomKeys(account, dialogId);
-                    toast(activity, R.string.AuthorGramKeyRemoved);
+                    boolean removed = AuthorGramChatKeyStore.clearCustomKeys(account, dialogId);
+                    toast(
+                            activity,
+                            removed
+                                    ? R.string.AuthorGramKeyRemoved
+                                    : R.string.AuthorGramKeyOperationFailed
+                    );
                 })
                 .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
                 .show();
