@@ -34,7 +34,10 @@ jobs:
         run: |
           set -uo pipefail
           SCRIPT=.github/authorgram_agent_patch.py
-          test -f "$SCRIPT"
+          if [ ! -f "$SCRIPT" ]; then
+            echo "No patch script; nothing to apply"
+            exit 0
+          fi
           set +e
           python3 "$SCRIPT" > authorgram_agent_patch.log 2>&1
           STATUS=$?
