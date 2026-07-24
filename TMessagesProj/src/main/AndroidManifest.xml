@@ -23,7 +23,6 @@
     <uses-feature android:name="android.hardware.LOCATION" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.proximity" android:required="false" />
 
-    <uses-permission android:name="android.permission.READ_CLIPBOARD"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -320,12 +319,12 @@
         <activity
             android:name="org.telegram.messenger.OpenChatReceiver"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
-            android:exported="true">
+            android:exported="false">
         </activity>
         <activity
             android:name="org.telegram.messenger.OpenAttachedMenuBotReceiver"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
-            android:exported="true">
+            android:exported="false">
         </activity>
         <activity
             android:name="org.telegram.ui.PopupNotificationActivity"
@@ -395,6 +394,7 @@
         <service
             android:name=".AuthenticatorService"
             android:exported="true"
+            android:permission="android.permission.BIND_ACCOUNT_AUTHENTICATOR"
             android:foregroundServiceType="dataSync"
         >
             <intent-filter>
@@ -407,6 +407,7 @@
         <service
             android:name=".ContactsSyncAdapterService"
             android:exported="true"
+            android:permission="android.permission.BIND_SYNC_ADAPTER"
             android:foregroundServiceType="dataSync"
         >
             <intent-filter>
@@ -427,13 +428,13 @@
         <service
             android:name=".BringAppForegroundService"
             android:enabled="true"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="mediaPlayback"
         />
         <service
             android:name=".NotificationsService"
             android:enabled="true"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="dataSync"
         />
         <service
@@ -444,25 +445,25 @@
         <service
             android:name=".VideoEncodingService"
             android:enabled="true"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="dataSync"
         />
         <service
             android:name="org.telegram.ui.Stories.recorder.StoryUploadingService"
             android:enabled="true"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="dataSync"
         />
         <service
             android:name=".ImportingService"
             android:enabled="true"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="dataSync"
         />
         <service
             android:name=".LocationSharingService"
             android:enabled="true"
-            android:exported="true"
+            android:exported="false"
             android:foregroundServiceType="location|dataSync"
         />
         <service
@@ -473,13 +474,14 @@
         />
         <service
             android:name=".MusicPlayerService"
-            android:exported="true"
+            android:exported="false"
             android:enabled="true"
             android:foregroundServiceType="mediaPlayback"
         />
         <service
             android:name=".MusicBrowserService"
             android:exported="true"
+            android:permission="android.permission.BIND_MEDIA_BROWSER_SERVICE"
             android:foregroundServiceType="mediaPlayback"
         >
             <intent-filter>
