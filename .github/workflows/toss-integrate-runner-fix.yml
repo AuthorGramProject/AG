@@ -24,13 +24,16 @@ jobs:
           set +e
           python3 - <<'PY' > toss-integration.log 2>&1
           from pathlib import Path
-          import textwrap
 
           workflow = Path('.github/workflows/toss-integrate-common.yml').read_text(encoding='utf-8')
           marker = "          python3 - <<'PY'\n"
           start = workflow.index(marker) + len(marker)
           end = workflow.index("\n          PY\n", start)
-          payload = textwrap.dedent(workflow[start:end])
+          raw_payload = workflow[start:end]
+          payload = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in raw_payload.splitlines()
+          )
           payload = payload.replace(
               "SOURCE = 'origin/agent/security-hardening-final'",
               "SOURCE = 'origin/main'",
