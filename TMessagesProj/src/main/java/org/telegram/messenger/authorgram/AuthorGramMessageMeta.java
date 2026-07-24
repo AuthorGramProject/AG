@@ -52,37 +52,14 @@ public final class AuthorGramMessageMeta {
         }
 
         /*
-         * Canonical state.
+         * Canonical state. MessageCustomParamsHelper persists this
+         * field together with the local Telegram message.
          *
-         * MessageCustomParamsHelper persists this field together
-         * with the local Telegram message.
+         * Older AuthorGram builds also wrote one SharedPreferences
+         * entry per message. New writes intentionally stop here so
+         * that the legacy sidecar can no longer grow without bound.
          */
-        message.authorGramEncrypted =
-                true;
-
-        long dialogId =
-                MessageObject.getDialogId(message);
-
-        if (dialogId == 0 ||
-                message.id == 0) {
-
-            return;
-        }
-
-        /*
-         * Legacy sidecar retained for already existing installs.
-         */
-        preferences()
-                .edit()
-                .putBoolean(
-                        buildKey(
-                                account,
-                                dialogId,
-                                message.id
-                        ),
-                        true
-                )
-                .apply();
+        message.authorGramEncrypted = true;
     }
 
     public static void markOutgoing(
@@ -96,42 +73,15 @@ public final class AuthorGramMessageMeta {
         }
 
         /*
-         * Set only from the outgoing crypto interceptor after
-         * a real AuthorGram payload has been created.
+         * Set only from the outgoing crypto interceptor after a real
+         * AuthorGram payload has been created. Media/file requests
+         * that are not encrypted by the text interceptor therefore
+         * never receive this flag.
          *
-         * Media/file requests that are not encrypted by the text
-         * interceptor therefore never receive this flag.
+         * The canonical custom parameter is persisted by Telegram;
+         * no new per-message preference entry is created.
          */
-        messageObject.messageOwner
-                .authorGramEncrypted =
-                true;
-
-        long dialogId =
-                messageObject.getDialogId();
-
-        int messageId =
-                messageObject.getId();
-
-        if (dialogId == 0 ||
-                messageId == 0) {
-
-            return;
-        }
-
-        /*
-         * Legacy compatibility for messages created by older builds.
-         */
-        preferences()
-                .edit()
-                .putBoolean(
-                        buildKey(
-                                account,
-                                dialogId,
-                                messageId
-                        ),
-                        true
-                )
-                .apply();
+        messageObject.messageOwner.authorGramEncrypted = true;
     }
 
     public static boolean isKnownEncrypted(
@@ -147,44 +97,31 @@ public final class AuthorGramMessageMeta {
         /*
          * Primary source of truth.
          */
-        if (messageObject.messageOwner
-                .authorGramEncrypted) {
-
+        if (messageObject.messageOwner.authorGramEncrypted) {
             return true;
         }
 
-        long dialogId =
-                messageObject.getDialogId();
+        long dialogId = messageObject.getDialogId();
+        int messageId = messageObject.getId();
 
-        int messageId =
-                messageObject.getId();
-
-        if (dialogId == 0 ||
-                messageId == 0) {
-
+        if (dialogId == 0 || messageId == 0) {
             return false;
         }
 
         /*
-         * Legacy migration path.
+         * Read-only legacy migration path.
          *
          * Old AuthorGram versions stored only a sidecar preference.
          * Once found, promote it into the canonical in-memory field.
+         * The sidecar is no longer extended by current builds.
          */
-        boolean legacyEncrypted =
-                preferences().getBoolean(
-                        buildKey(
-                                account,
-                                dialogId,
-                                messageId
-                        ),
-                        false
-                );
+        boolean legacyEncrypted = preferences().getBoolean(
+                buildKey(account, dialogId, messageId),
+                false
+        );
 
         if (legacyEncrypted) {
-            messageObject.messageOwner
-                    .authorGramEncrypted =
-                    true;
+            messageObject.messageOwner.authorGramEncrypted = true;
         }
 
         return legacyEncrypted;

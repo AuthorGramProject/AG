@@ -3,9 +3,13 @@ package org.telegram.messenger.authorgram;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipData;
+import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.os.Build;
+import android.os.PersistableBundle;
 import android.text.InputType;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -111,6 +115,10 @@ public final class AuthorGramKeyDialog {
                         | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         );
         input.setHint(LocaleController.getString(R.string.AuthorGramKeyInputHint));
+        input.setFilterTouchesWhenObscured(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            input.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
 
         FrameLayout container = new FrameLayout(activity);
         int padding = AndroidUtilities.dp(20);
@@ -162,7 +170,13 @@ public final class AuthorGramKeyDialog {
                             Context.CLIPBOARD_SERVICE
                     );
                     if (clipboard != null) {
-                        clipboard.setPrimaryClip(ClipData.newPlainText("AuthorGram key", key));
+                        ClipData clip = ClipData.newPlainText("AuthorGram key", key);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            PersistableBundle extras = new PersistableBundle();
+                            extras.putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true);
+                            clip.getDescription().setExtras(extras);
+                        }
+                        clipboard.setPrimaryClip(clip);
                         toast(activity, R.string.TextCopied);
                     }
                 })
@@ -175,8 +189,13 @@ public final class AuthorGramKeyDialog {
                 .setTitle(LocaleController.getString(R.string.AuthorGramRemoveKey))
                 .setMessage(LocaleController.getString(R.string.AuthorGramRemoveKeyWarning))
                 .setPositiveButton(LocaleController.getString(R.string.Remove), (dialog, which) -> {
-                    AuthorGramChatKeyStore.clearCustomKeys(account, dialogId);
-                    toast(activity, R.string.AuthorGramKeyRemoved);
+                    boolean removed = AuthorGramChatKeyStore.clearCustomKeys(account, dialogId);
+                    toast(
+                            activity,
+                            removed
+                                    ? R.string.AuthorGramKeyRemoved
+                                    : R.string.AuthorGramKeyOperationFailed
+                    );
                 })
                 .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
                 .show();

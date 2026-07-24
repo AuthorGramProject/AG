@@ -34,6 +34,7 @@ public final class AuthorGramCrypto {
     private static final int IV_LENGTH_BYTES = 12;
     private static final int GCM_TAG_LENGTH_BITS = 128;
     private static final int GCM_TAG_LENGTH_BYTES = 16;
+    private static final int MAX_ENCODED_PAYLOAD_CHARS = 65_536;
 
     /**
      * Single AuthorGram AES-256 key.
@@ -73,6 +74,9 @@ public final class AuthorGramCrypto {
 
         if (isAuthorGramPayload(plaintext)) {
             return plaintext;
+        }
+        if (!AuthorGramBuildIntegrity.canUseSystemKey()) {
+            return null;
         }
 
         try {
@@ -144,7 +148,8 @@ public final class AuthorGramCrypto {
      * null      — malformed payload or GCM authentication failed
      */
     public static String decryptTextOrNull(String payload) {
-        if (!isAuthorGramPayload(payload)) {
+        if (!isAuthorGramPayload(payload)
+                || !AuthorGramBuildIntegrity.canUseSystemKey()) {
             return null;
         }
 
@@ -152,7 +157,8 @@ public final class AuthorGramCrypto {
             String encoded =
                     payload.substring(MARKER.length());
 
-            if (encoded.isEmpty()) {
+            if (encoded.isEmpty()
+                    || encoded.length() > MAX_ENCODED_PAYLOAD_CHARS) {
                 return null;
             }
 

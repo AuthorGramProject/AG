@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
 
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
@@ -74,16 +75,20 @@ public final class AuthorGramChatKeyStore {
         }
     }
 
-    public static synchronized void clearCustomKeys(int account, long dialogId) {
+    public static synchronized boolean clearCustomKeys(int account, long dialogId) {
         if (dialogId == 0 || isSystemKeyLocked(dialogId)) {
-            return;
+            return false;
         }
         SharedPreferences.Editor editor = preferences().edit()
                 .remove(currentName(account, dialogId));
         for (int index = 0; index < HISTORY_LIMIT; index++) {
             editor.remove(historyName(account, dialogId, index));
         }
-        editor.apply();
+        boolean committed = editor.commit();
+        if (!committed) {
+            FileLog.e("AuthorGram: unable to remove custom chat keys");
+        }
+        return committed;
     }
 
     static synchronized byte[] getCurrentKey(int account, long dialogId) {
@@ -93,6 +98,7 @@ public final class AuthorGramChatKeyStore {
         try {
             return currentKey(account, dialogId);
         } catch (GeneralSecurityException exception) {
+            FileLog.e("AuthorGram: unable to unwrap the current custom chat key", exception);
             return null;
         }
     }
@@ -137,7 +143,10 @@ public final class AuthorGramChatKeyStore {
             }
             editor.putString(historyName(account, dialogId, 0), previous);
         }
-        editor.putString(currentName, wrapped).apply();
+        editor.putString(currentName, wrapped);
+        if (!editor.commit()) {
+            throw new GeneralSecurityException("Unable to persist AuthorGram chat key");
+        }
     }
 
     private static byte[] currentKey(int account, long dialogId)
