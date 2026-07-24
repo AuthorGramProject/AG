@@ -604,5 +604,6 @@
   "TMessagesProj/src/main/res/values/ic_launcher_nagram_round_blue_background.xml",
   "TMessagesProj_AppTests/src/androidTest/kotlin/org/telegram/tgnet/model/generated/TlGen_account_WebBrowserSettings.kt",
   "TMessagesProj_AppTests/src/androidTest/kotlin/org/telegram/tgnet/model/generated/TlGen_bots_AccessSettings.kt",
+  "authorgram_audit/authorgram_relevant_paths.json",
   "settings.gradle"
 ]
