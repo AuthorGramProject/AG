@@ -49,15 +49,15 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter imple
     private DrawerProfileCell profileCell;
     private SideMenultItemAnimator itemAnimator;
 
-    public static int nkbtnSettings = 1001;
-    public static int nkbtnQrLogin = 1002;
-    public static int nkbtnArchivedChats = 1003;
-    public static int nkbtnRestartApp = 1004;
-    public static int nkbtnGhostMode = 1006;
-    public static int nkbtnBrowser = 1007;
-    public static int nkbtnBookmarks = 1008;
-    public static int nkbtnRecentChats = 1009;
-    public static int nkbtnSessions = 1010;
+    public static int agbtnSettings = 1001;
+    public static int agbtnQrLogin = 1002;
+    public static int agbtnArchivedChats = 1003;
+    public static int agbtnRestartApp = 1004;
+    public static int agbtnGhostMode = 1006;
+    public static int agbtnBrowser = 1007;
+    public static int agbtnBookmarks = 1008;
+    public static int agbtnRecentChats = 1009;
+    public static int agbtnSessions = 1010;
     public DrawerLayoutAdapter(Context context, SideMenultItemAnimator animator, DrawerLayoutContainer drawerLayoutContainer) {
         mContext = context;
         itemAnimator = animator;
@@ -258,7 +258,7 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter imple
         boolean showGhostInDrawer = NekoConfig.showGhostInDrawer.Bool();
         if (showGhostInDrawer) {
             items.add(new Item(
-                    nkbtnGhostMode,
+                    agbtnGhostMode,
                     NekoConfig.isGhostModeActive()
                             ? LocaleController.getString(R.string.DisableGhostMode)
                             : LocaleController.getString(R.string.EnableGhostMode),
@@ -284,7 +284,7 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter imple
         boolean showArchivedChats = NaConfig.INSTANCE.getDrawerItemArchivedChats().Bool();
         boolean showDivider = false;
         if (showGhostInDrawer && showArchivedChats) {
-            items.add(new Item(nkbtnArchivedChats, LocaleController.getString(R.string.ArchivedChats), R.drawable.msg_archive));
+            items.add(new Item(agbtnArchivedChats, LocaleController.getString(R.string.ArchivedChats), R.drawable.msg_archive));
         }
         if (!showGhostInDrawer && (showMyProfile || showSetEmojiStatus)) {
             showDivider = true;
@@ -293,7 +293,7 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter imple
             if (showDivider) {
                 items.add(null);
             }
-            items.add(new Item(nkbtnArchivedChats, LocaleController.getString(R.string.ArchivedChats), R.drawable.msg_archive));
+            items.add(new Item(agbtnArchivedChats, LocaleController.getString(R.string.ArchivedChats), R.drawable.msg_archive));
             showDivider = true;
         }
         if (showDivider) {
@@ -312,13 +312,13 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter imple
             items.add(new Item(10, LocaleController.getString(R.string.Calls), callsIcon));
         }
         if (NaConfig.INSTANCE.getDrawerItemRecentChats().Bool()) {
-            items.add(new Item(nkbtnRecentChats, LocaleController.getString(R.string.RecentChats), recentChatsIcon));
+            items.add(new Item(agbtnRecentChats, LocaleController.getString(R.string.RecentChats), recentChatsIcon));
         }
         if (NaConfig.INSTANCE.getDrawerItemSaved().Bool()) {
             items.add(new Item(11, LocaleController.getString(R.string.SavedMessages), savedIcon));
         }
         if (NaConfig.INSTANCE.getShowAddToBookmark().Bool()) {
-            items.add(new Item(nkbtnBookmarks, LocaleController.getString(R.string.BookmarksManager), R.drawable.msg_fave));
+            items.add(new Item(agbtnBookmarks, LocaleController.getString(R.string.BookmarksManager), R.drawable.msg_fave));
         }
         if (NaConfig.INSTANCE.getDrawerItemSettings().Bool()) {
             items.add(new Item(8, LocaleController.getString(R.string.Settings), settingsIcon));
@@ -349,20 +349,20 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter imple
             items.add(null);
         }
         if (showAGSettings) {
-            items.add(new Item(nkbtnSettings, LocaleController.getString(R.string.AGSettings), R.drawable.ag_settings));
+            items.add(new Item(agbtnSettings, LocaleController.getString(R.string.AGSettings), R.drawable.ag_settings));
         }
         if (showBrowser) {
-            items.add(new Item(nkbtnBrowser, LocaleController.getString(R.string.InappBrowser), R.drawable.web_browser));
+            items.add(new Item(agbtnBrowser, LocaleController.getString(R.string.InappBrowser), R.drawable.web_browser));
         }
         if (showQrLogin) {
-            items.add(new Item(nkbtnQrLogin, LocaleController.getString(R.string.ImportLogin), R.drawable.msg_qrcode));
+            items.add(new Item(agbtnQrLogin, LocaleController.getString(R.string.ImportLogin), R.drawable.msg_qrcode));
         }
         if (showSessions) {
-            items.add(new Item(nkbtnSessions, LocaleController.getString(R.string.Devices), R.drawable.msg2_devices));
+            items.add(new Item(agbtnSessions, LocaleController.getString(R.string.Devices), R.drawable.msg2_devices));
         }
         if (showRestartApp) {
             items.add(null);
-            items.add(new Item(nkbtnRestartApp, LocaleController.getString(R.string.RestartApp), R.drawable.msg_retry));
+            items.add(new Item(agbtnRestartApp, LocaleController.getString(R.string.RestartApp), R.drawable.msg_retry));
         }
     }
 

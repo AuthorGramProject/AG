@@ -462,36 +462,36 @@ public class ChatActivity extends BaseFragment implements
     private final static int nkheaderbtn_hide_title = 2029;
 
     // shared with actionbar
-    private final static int nkbtn_translate = 2008;
-    private final static int nkbtn_hide = 2009;
-    private final static int nkbtn_savemessage = 2010;
-    private final static int nkbtn_forward_noquote = 2011;
-    private final static int nkbtn_sharemessage = 2030;
+    private final static int agbtn_translate = 2008;
+    private final static int agbtn_hide = 2009;
+    private final static int agbtn_savemessage = 2010;
+    private final static int agbtn_forward_noquote = 2011;
+    private final static int agbtn_sharemessage = 2030;
 
     // chat click menu buttons
-    private final static int nkbtn_detail = 2012;
-    private final static int nkbtn_deldlcache = 2013;
-    private final static int nkbtn_view_history = 2014;
-    private final static int nkbtn_repeat = 2015;
-    private final static int nkbtn_stickerdl = 2016;
-    private final static int nkbtn_unpin = 2017;
-    private final static int nkbtn_view_in_chat = 2018;
-    private final static int nkbtn_editAdmin = 2019;
-    private final static int nkbtn_editPermission = 2020;
-    private final static int nkbtn_copy_link_in_pm = 2025;
-    private final static int nkbtn_repeatascopy = 2028;
-    private final static int nkbtn_setReminder = 2029;
-    private final static int nkbtn_reply_private = 2033;
-    private final static int nkbtn_translate_llm = 2034;
-    private final static int nkbtn_forward_nocaption = 2035;
-    private final static int nkbtn_translateVoice = 2037;
-    private final static int nkbtn_transcriptionRetry = 2038;
-    private final static int nkbtn_bookmark = 2039;
-    private final static int nkbtn_bookmarks_manager = 2040;
-    private final static int nkbtn_report = 2041;
-    private final static int nkbtn_ai_chat = 2042;
-    private final static int nkbtn_clearDeleted = 2100;
-    private final static int nkbtn_viewDeleted = 2101;
+    private final static int agbtn_detail = 2012;
+    private final static int agbtn_deldlcache = 2013;
+    private final static int agbtn_view_history = 2014;
+    private final static int agbtn_repeat = 2015;
+    private final static int agbtn_stickerdl = 2016;
+    private final static int agbtn_unpin = 2017;
+    private final static int agbtn_view_in_chat = 2018;
+    private final static int agbtn_editAdmin = 2019;
+    private final static int agbtn_editPermission = 2020;
+    private final static int agbtn_copy_link_in_pm = 2025;
+    private final static int agbtn_repeatascopy = 2028;
+    private final static int agbtn_setReminder = 2029;
+    private final static int agbtn_reply_private = 2033;
+    private final static int agbtn_translate_llm = 2034;
+    private final static int agbtn_forward_nocaption = 2035;
+    private final static int agbtn_translateVoice = 2037;
+    private final static int agbtn_transcriptionRetry = 2038;
+    private final static int agbtn_bookmark = 2039;
+    private final static int agbtn_bookmarks_manager = 2040;
+    private final static int agbtn_report = 2041;
+    private final static int agbtn_ai_chat = 2042;
+    private final static int agbtn_clearDeleted = 2100;
+    private final static int agbtn_viewDeleted = 2101;
 
     public int shareAlertDebugMode = DEBUG_SHARE_ALERT_MODE_NORMAL;
     public boolean shareAlertDebugTopicsSlowMotion;
@@ -2186,13 +2186,13 @@ public class ChatActivity extends BaseFragment implements
                         processSelectedOption(OPTION_REPLY);
                         break;
                     case DoubleTap.DOUBLE_TAP_ACTION_SAVE:
-                        processSelectedOption(nkbtn_savemessage);
+                        processSelectedOption(agbtn_savemessage);
                         break;
                     case DoubleTap.DOUBLE_TAP_ACTION_REPEAT:
-                        processSelectedOption(nkbtn_repeat);
+                        processSelectedOption(agbtn_repeat);
                         break;
                     case DoubleTap.DOUBLE_TAP_ACTION_REPEAT_AS_COPY:
-                        processSelectedOption(nkbtn_repeatascopy);
+                        processSelectedOption(agbtn_repeatascopy);
                         break;
                     case DoubleTap.DOUBLE_TAP_ACTION_EDIT:
                         if (messageObject.isTodo()) {
@@ -4167,8 +4167,8 @@ public class ChatActivity extends BaseFragment implements
                     }
                     createDeleteMessagesAlert(null, null);
                 } else if (id == forward) {
-                    noForwardQuote = id == nkbtn_forward_noquote;
-                    noForwardCaption = id == nkbtn_forward_nocaption;
+                    noForwardQuote = id == agbtn_forward_noquote;
+                    noForwardCaption = id == agbtn_forward_nocaption;
                     if (messagePreviewParams != null) {
                         messagePreviewParams.setHideForwardSendersName(noForwardQuote);
                         messagePreviewParams.hideCaption = noForwardCaption;
@@ -4514,7 +4514,7 @@ public class ChatActivity extends BaseFragment implements
                 } else if (id == 889) {
                     sendDebugRichMessage();
                 } else {
-                    nkbtn_onclick_actionbar(id);
+                    agbtn_onclick_actionbar(id);
                 }
             }
         });
@@ -4762,7 +4762,7 @@ public class ChatActivity extends BaseFragment implements
         menu.setCenteredTitle(isTitleCentered());
 
         if (isThreadChat() && threadMessageId != 0 && !isTopic) {
-            viewInChatItem = menu.addItem(nkbtn_view_in_chat, R.drawable.msg_viewreplies);
+            viewInChatItem = menu.addItem(agbtn_view_in_chat, R.drawable.msg_viewreplies);
         }
         if (chatMode == MODE_QUICK_REPLIES && !QuickRepliesController.isSpecial(quickReplyShortcut)) {
             menu.addItem(edit_quick_reply, R.drawable.group_edit).setContentDescription(LocaleController.getString(R.string.Edit));
@@ -5038,8 +5038,8 @@ public class ChatActivity extends BaseFragment implements
             if (NaConfig.INSTANCE.getChatMenuItemToBeginning().Bool()) headerItem.lazilyAddSubItem(to_the_beginning, R.drawable.ic_upward, getString(R.string.ToTheBeginning));
             if (NaConfig.INSTANCE.getChatMenuItemGoToMessage().Bool()) headerItem.lazilyAddSubItem(to_the_message, R.drawable.msg_go_up, getString(R.string.ToTheMessage));
             if (NaConfig.INSTANCE.getShowAddToBookmark().Bool()) {
-                bookmarksItem = headerItem.lazilyAddSubItem(nkbtn_bookmarks_manager, R.drawable.msg_fave, getString(R.string.BookmarksManager));
-                headerItem.setSubItemShown(nkbtn_bookmarks_manager, BookmarksHelper.getBookmarkedMessageIds(currentAccount, dialog_id).length > 0);
+                bookmarksItem = headerItem.lazilyAddSubItem(agbtn_bookmarks_manager, R.drawable.msg_fave, getString(R.string.BookmarksManager));
+                headerItem.setSubItemShown(agbtn_bookmarks_manager, BookmarksHelper.getBookmarkedMessageIds(currentAccount, dialog_id).length > 0);
             }
             hideTitleItem = NaConfig.INSTANCE.getChatMenuItemHideTitle().Bool() ? headerItem.lazilyAddSubItem(nkheaderbtn_hide_title, R.drawable.hide_title, getString(R.string.HideTitle)) : null;
             if (muteItem == null) {
@@ -11297,23 +11297,23 @@ public class ChatActivity extends BaseFragment implements
         actionModeViews.add(actionModeOtherItem = actionMode.addItemWithWidth(nkactionbarbtn_action_mode_other, R.drawable.ic_ab_other, AndroidUtilities.dp(54), LocaleController.getString(R.string.MessageMenu)));
 
         if (currentEncryptedChat == null && !noforward) {
-            actionModeOtherItem.addSubItem(nkbtn_forward_noquote, R.drawable.msg_forward_noquote, LocaleController.getString(R.string.NoQuoteForward));
+            actionModeOtherItem.addSubItem(agbtn_forward_noquote, R.drawable.msg_forward_noquote, LocaleController.getString(R.string.NoQuoteForward));
         }
-        actionModeOtherItem.addSubItem(nkbtn_translate, LlmConfig.llmIsDefaultProvider() ? R.drawable.magic_stick : R.drawable.ic_translate, LocaleController.getString(R.string.Translate));
-        actionModeOtherItem.addSubItem(nkbtn_sharemessage, R.drawable.msg_shareout, LocaleController.getString(R.string.ShareMessages));
-        actionModeOtherItem.addSubItem(nkbtn_unpin, R.drawable.msg_unpin, LocaleController.getString(R.string.UnpinMessage));
+        actionModeOtherItem.addSubItem(agbtn_translate, LlmConfig.llmIsDefaultProvider() ? R.drawable.magic_stick : R.drawable.ic_translate, LocaleController.getString(R.string.Translate));
+        actionModeOtherItem.addSubItem(agbtn_sharemessage, R.drawable.msg_shareout, LocaleController.getString(R.string.ShareMessages));
+        actionModeOtherItem.addSubItem(agbtn_unpin, R.drawable.msg_unpin, LocaleController.getString(R.string.UnpinMessage));
         if (!noforward) {
-            actionModeOtherItem.addSubItem(nkbtn_savemessage, R.drawable.menu_saved, LocaleController.getString(R.string.AddToSavedMessages));
-        }
-        if (!noforward) {
-            actionModeOtherItem.addSubItem(nkbtn_repeat, R.drawable.msg_repeat, LocaleController.getString(R.string.Repeat));
+            actionModeOtherItem.addSubItem(agbtn_savemessage, R.drawable.menu_saved, LocaleController.getString(R.string.AddToSavedMessages));
         }
         if (!noforward) {
-            actionModeOtherItem.addSubItem(nkbtn_repeatascopy, R.drawable.msg_repeat, LocaleController.getString(R.string.RepeatAsCopy));
+            actionModeOtherItem.addSubItem(agbtn_repeat, R.drawable.msg_repeat, LocaleController.getString(R.string.Repeat));
         }
-        actionModeOtherItem.addSubItem(nkbtn_hide, R.drawable.msg_disable, LocaleController.getString(R.string.Hide));
-        actionModeOtherItem.addSubItem(nkbtn_report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
-        actionModeOtherItem.addSubItem(nkbtn_detail,R.drawable.msg_info,LocaleController.getString(R.string.MessageDetails));
+        if (!noforward) {
+            actionModeOtherItem.addSubItem(agbtn_repeatascopy, R.drawable.msg_repeat, LocaleController.getString(R.string.RepeatAsCopy));
+        }
+        actionModeOtherItem.addSubItem(agbtn_hide, R.drawable.msg_disable, LocaleController.getString(R.string.Hide));
+        actionModeOtherItem.addSubItem(agbtn_report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
+        actionModeOtherItem.addSubItem(agbtn_detail,R.drawable.msg_info,LocaleController.getString(R.string.MessageDetails));
 
         actionMode.setItemVisibility(nkactionbarbtn_reply, ChatObject.canSendMessages(currentChat) && (selectedMessagesIds[0].size() + selectedMessagesIds[1].size() == 1) && NaConfig.INSTANCE.getActionBarButtonReply().Bool() ? View.VISIBLE : View.GONE);
         actionMode.setItemVisibility(edit, canEditMessagesCount == 1 && (selectedMessagesIds[0].size() + selectedMessagesIds[1].size() == 1) && NaConfig.INSTANCE.getActionBarButtonEdit().Bool() ? View.VISIBLE : View.GONE);
@@ -20591,11 +20591,11 @@ public class ChatActivity extends BaseFragment implements
                 ActionBarMenuSubItem RepeatAsCopyItem = null;
                 ActionBarMenuSubItem reportItem = null;
                 if (actionModeOtherItem != null) {
-                    saveMessageItem = actionModeOtherItem.getSubItem(nkbtn_savemessage);
-                    forwardNoQuoteItem = actionModeOtherItem.getSubItem(nkbtn_forward_noquote);
-                    repeatItem = actionModeOtherItem.getSubItem(nkbtn_repeat);
-                    RepeatAsCopyItem = actionModeOtherItem.getSubItem(nkbtn_repeatascopy);
-                    reportItem = actionModeOtherItem.getSubItem(nkbtn_report);
+                    saveMessageItem = actionModeOtherItem.getSubItem(agbtn_savemessage);
+                    forwardNoQuoteItem = actionModeOtherItem.getSubItem(agbtn_forward_noquote);
+                    repeatItem = actionModeOtherItem.getSubItem(agbtn_repeat);
+                    RepeatAsCopyItem = actionModeOtherItem.getSubItem(agbtn_repeatascopy);
+                    reportItem = actionModeOtherItem.getSubItem(agbtn_report);
                 }
 
                 boolean hasSelectedAyuDeletedMessage = hasSelectedAyuDeletedMessage();
@@ -20789,7 +20789,7 @@ public class ChatActivity extends BaseFragment implements
                 }
 
                 if (actionModeOtherItem != null) {
-                    actionModeOtherItem.setSubItemVisibility(nkbtn_sharemessage, selectedMessagesCanCopyIds[0].size() + selectedMessagesCanCopyIds[1].size() > 0);
+                    actionModeOtherItem.setSubItemVisibility(agbtn_sharemessage, selectedMessagesCanCopyIds[0].size() + selectedMessagesCanCopyIds[1].size() > 0);
                 }
 
                 boolean allowPin = false;
@@ -20809,7 +20809,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 if (actionModeOtherItem != null) {
-                    actionModeOtherItem.setSubItemVisibility(nkbtn_unpin, allowPin);
+                    actionModeOtherItem.setSubItemVisibility(agbtn_unpin, allowPin);
                 }
 
                 if (shareItem != null) {
@@ -20843,7 +20843,7 @@ public class ChatActivity extends BaseFragment implements
                 }
 
                 if (actionModeOtherItem != null) {
-                    actionModeOtherItem.setSubItemVisibility(nkbtn_translate, !isTranslatingDialog(messageObject));
+                    actionModeOtherItem.setSubItemVisibility(agbtn_translate, !isTranslatingDialog(messageObject));
                 }
             }
         }
@@ -33304,7 +33304,7 @@ public class ChatActivity extends BaseFragment implements
             final boolean isReactionsAvailableFinal = !suggestEdit && isReactionsAvailable;
 
             int flags = 0;
-            if (isReactionsViewAvailable || showMessageSeen || showSponsorInfo || options.contains(OPTION_REPLY) || options.contains(OPTION_COPY) || options.contains(OPTION_COPY_PHOTO) || options.contains(OPTION_FORWARD) || options.contains(nkbtn_translate)) {
+            if (isReactionsViewAvailable || showMessageSeen || showSponsorInfo || options.contains(OPTION_REPLY) || options.contains(OPTION_COPY) || options.contains(OPTION_COPY_PHOTO) || options.contains(OPTION_FORWARD) || options.contains(agbtn_translate)) {
                 flags |= ActionBarPopupWindow.ActionBarPopupWindowLayout.FLAG_USE_SWIPEBACK;
             }
 
@@ -34304,7 +34304,7 @@ public class ChatActivity extends BaseFragment implements
                             return true;
                         });
                     }
-                    if (option == nkbtn_translate && !NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool()) {
+                    if (option == agbtn_translate && !NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool()) {
                         MessageObject msg = getMessageForTranslate();
                         if (msg != null && !msg.isTranslated()) {
                             var translatePopupWrapper = new TranslatePopupWrapper(this, popupLayout.getSwipeBack(), this::processSelectedOption, getResourceProvider());
@@ -34759,7 +34759,7 @@ public class ChatActivity extends BaseFragment implements
             item.setVisibility(View.VISIBLE);
         }
         if (chatMode != MODE_SCHEDULED && actionModeOtherItem != null && NaConfig.INSTANCE.getShowNoQuoteForward().Bool()) {
-            actionModeOtherItem.showSubItem(nkbtn_forward_noquote);
+            actionModeOtherItem.showSubItem(agbtn_forward_noquote);
         }
         actionMode.setItemVisibility(delete, View.VISIBLE);
         actionsButtonsLayout.bringToFront();
@@ -36867,7 +36867,7 @@ public class ChatActivity extends BaseFragment implements
                 break;
             }
             default: {
-                nkbtn_onclick(option);
+                agbtn_onclick(option);
                 break;
             }
         }
@@ -36924,9 +36924,9 @@ public class ChatActivity extends BaseFragment implements
 
     private int processSelectedOptionLongClick(ActionBarMenuSubItem cell, int option) {
         switch (option) {
-            case nkbtn_translateVoice:
-            case nkbtn_translate_llm:
-            case nkbtn_translate: {
+            case agbtn_translateVoice:
+            case agbtn_translate_llm:
+            case agbtn_translate: {
                 MessageObject msg = getMessageForTranslate();
                 if (msg != null && msg.isTranslated() && !msg.isVoice()) {
                     return 0;
@@ -36937,23 +36937,23 @@ public class ChatActivity extends BaseFragment implements
                         scrimPopupWindow = null;
                         scrimPopupWindowItems = null;
                     }
-                    if (option == nkbtn_translateVoice) {
+                    if (option == agbtn_translateVoice) {
                         TranscribeButton.retryOrTranslateVoiceTranscription(selectedObject, false, locale);
                     } else {
                         if (handleTranslateDuringAutoTrans(TranslatorKt.getLocale2code(locale))) {
                             return Unit.INSTANCE;
                         }
-                        MessageTransKt.translateMessages(this, locale, option == nkbtn_translate ? 0 : Translator.providerLLMTranslator);
+                        MessageTransKt.translateMessages(this, locale, option == agbtn_translate ? 0 : Translator.providerLLMTranslator);
                     }
                     return Unit.INSTANCE;
                 });
                 return 1;
             }
-            case nkbtn_repeat: {
+            case agbtn_repeat: {
                 repeatMessage(true, false);
                 return 2;
             }
-            case nkbtn_repeatascopy: {
+            case agbtn_repeatascopy: {
                 repeatMessage(true, true);
                 return 2;
             }
@@ -47141,13 +47141,13 @@ public class ChatActivity extends BaseFragment implements
         int lastBottom;
     }
 
-    private void nkbtn_onclick_actionbar(int id) {
+    private void agbtn_onclick_actionbar(int id) {
         createUndoView();
         // from ActionBar & Header ( without text_* )
         // should hide shit action bar after done
-        if (id == nkbtn_forward_noquote || id == nkbtn_forward_nocaption) {
-            noForwardQuote = id == nkbtn_forward_noquote;
-            noForwardCaption = id == nkbtn_forward_nocaption;
+        if (id == agbtn_forward_noquote || id == agbtn_forward_nocaption) {
+            noForwardQuote = id == agbtn_forward_noquote;
+            noForwardCaption = id == agbtn_forward_nocaption;
             if (messagePreviewParams != null) {
                 messagePreviewParams.setHideForwardSendersName(noForwardQuote);
                 messagePreviewParams.hideCaption = noForwardCaption;
@@ -47167,19 +47167,19 @@ public class ChatActivity extends BaseFragment implements
             if (messageObject != null && (messageObject.messageOwner.id > 0 || messageObject.messageOwner.id < 0 && currentEncryptedChat != null)) {
                 showFieldPanelForReply(messageObject);
             }
-        } else if (id == nkbtn_translate) {
+        } else if (id == agbtn_translate) {
             MessageTransKt.translateMessages(ChatActivity.this, getSelectedMessages());
-        } else if (id == nkbtn_unpin) {
+        } else if (id == agbtn_unpin) {
             for (MessageObject selectedMessage : getSelectedMessages()) {
                 if (selectedMessage.messageOwner.pinned) {
                     unpinMessage(selectedMessage);
                 }
             }
-        } else if (id == nkbtn_savemessage) {
+        } else if (id == agbtn_savemessage) {
             ArrayList<MessageObject> messages = getSelectedMessages();
             forwardMessages(messages, false, false, true, 0, UserConfig.getInstance(currentAccount).getClientUserId(), 0);
             undoView.showWithAction(getUserConfig().getClientUserId(), UndoView.ACTION_FWD_MESSAGES, messages.size());
-        } else if (id == nkbtn_hide) {
+        } else if (id == agbtn_hide) {
             ArrayList<MessageObject> messages = getSelectedMessages();
             for (MessageObject message : messages) {
                 message.messageOwner.hide = true;
@@ -47245,7 +47245,7 @@ public class ChatActivity extends BaseFragment implements
             updateVisibleRows();
         } else if (id == nkheaderbtn_zibi) {
             getMessageHelper().createDeleteHistoryAlert(ChatActivity.this, currentChat, forumTopic, mergeDialogId, themeDelegate);
-        } else if (id == nkbtn_clearDeleted) {
+        } else if (id == agbtn_clearDeleted) {
             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
             builder.setTitle(LocaleController.getString(R.string.ClearDeleted));
             builder.setMessage(LocaleController.getString(R.string.ClearDeletedAlertMessage));
@@ -47266,9 +47266,9 @@ public class ChatActivity extends BaseFragment implements
             if (button != null) {
                 button.setTextColor(Theme.getColor(Theme.key_dialogTextRed));
             }
-        } else if (id == nkbtn_viewDeleted) {
+        } else if (id == agbtn_viewDeleted) {
             presentFragment(new AyuViewDeleted(dialog_id));
-        } else if (id == nkbtn_bookmarks_manager) {
+        } else if (id == agbtn_bookmarks_manager) {
             presentFragment(new BookmarksActivity(dialog_id));
         } else if (id == nkheaderbtn_upgrade) {
             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
@@ -47295,7 +47295,7 @@ public class ChatActivity extends BaseFragment implements
                 return;
             }
             presentFragment(new ChatActivity(args));
-        } else if (id == nkbtn_view_in_chat) {
+        } else if (id == agbtn_view_in_chat) {
             if (chatInfo == null || threadMessageId == 0)
                 return;
             Bundle args = new Bundle();
@@ -47304,10 +47304,10 @@ public class ChatActivity extends BaseFragment implements
             if (!getMessagesController().checkCanOpenChat(args, ChatActivity.this))
                 return;
             presentFragment(new ChatActivity(args), true);
-        } else if (id == nkbtn_repeat) {
+        } else if (id == agbtn_repeat) {
             repeatMessage(false, false);
             clearSelectionMode();
-        } else if (id == nkbtn_repeatascopy) {
+        } else if (id == agbtn_repeatascopy) {
             repeatMessage(false, true);
             clearSelectionMode();
         } else if (id == nkheaderbtn_hide_title) {
@@ -47319,13 +47319,13 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
             if (hideTitleItem != null) hideTitleItem.setVisibility(android.view.View.GONE);
-        } else if (id == nkbtn_detail) {
+        } else if (id == agbtn_detail) {
             ArrayList<MessageObject> messageObjects = getSelectedMessages();
             if (!messageObjects.isEmpty()) {
                 MessageObject.GroupedMessages messageGroup = getValidGroupedMessage(messageObjects.get(0));
                 presentFragment(new MessageDetailsActivity(messageObjects.get(0), messageGroup));
             }
-        } else if (id == nkbtn_sharemessage) {
+        } else if (id == agbtn_sharemessage) {
             var selected = getSelectedMessages();
             if (selected.isEmpty()) return;
             var builder = new StringBuilder();
@@ -47353,7 +47353,7 @@ public class ChatActivity extends BaseFragment implements
             presentFragment(new ChannelAdminLogActivity(currentChat));
         } else if (id == shortcuts_statistics) {
             presentFragment(StatisticActivity.create(currentChat, false));
-        } else if (id == nkbtn_report) {
+        } else if (id == agbtn_report) {
             getSelectedMessages1().stream().findFirst().ifPresent(obj -> {
                 selectedObject = obj;
                 processSelectedOption(OPTION_REPORT_CHAT);
@@ -47362,22 +47362,22 @@ public class ChatActivity extends BaseFragment implements
         }
     }
 
-    private void nkbtn_onclick(int id) {
+    private void agbtn_onclick(int id) {
         // from "items"
         createUndoView();
         switch (id) {
-            case nkbtn_repeat: {
+            case agbtn_repeat: {
                 repeatMessage(false,false);
                 break;
             }
-            case nkbtn_repeatascopy: {
+            case agbtn_repeatascopy: {
                 repeatMessage(false, true);
                 break;
             }
-            case nkbtn_forward_nocaption:
-            case nkbtn_forward_noquote: {
-                noForwardQuote = id == nkbtn_forward_noquote;
-                noForwardCaption = id == nkbtn_forward_nocaption;
+            case agbtn_forward_nocaption:
+            case agbtn_forward_noquote: {
+                noForwardQuote = id == agbtn_forward_noquote;
+                noForwardCaption = id == agbtn_forward_nocaption;
                 if (messagePreviewParams != null) {
                     messagePreviewParams.setHideForwardSendersName(noForwardQuote);
                     messagePreviewParams.hideCaption = noForwardCaption;
@@ -47387,7 +47387,7 @@ public class ChatActivity extends BaseFragment implements
                 openForward(false);
                 break;
             }
-            case nkbtn_deldlcache: {
+            case agbtn_deldlcache: {
                 if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE) && getParentActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     getParentActivity().requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
                     selectedObject = null;
@@ -47406,7 +47406,7 @@ public class ChatActivity extends BaseFragment implements
                 });
                 break;
             }
-            case nkbtn_savemessage: {
+            case agbtn_savemessage: {
                 ArrayList<MessageObject> messages = new ArrayList<>();
                 if (selectedObjectGroup != null) {
                     messages.addAll(selectedObjectGroup.messages);
@@ -47417,7 +47417,7 @@ public class ChatActivity extends BaseFragment implements
                 undoView.showWithAction(getUserConfig().getClientUserId(), UndoView.ACTION_FWD_MESSAGES, messages.size());
                 break;
             }
-            case nkbtn_bookmark: {
+            case agbtn_bookmark: {
                 if (selectedObject == null) {
                     return;
                 }
@@ -47449,12 +47449,12 @@ public class ChatActivity extends BaseFragment implements
                     BulletinFactory.of(this).createSimpleBulletin(drawable, text).show();
                     updateVisibleRows();
                     if (headerItem != null && bookmarksItem != null) {
-                        headerItem.setSubItemShown(nkbtn_bookmarks_manager, BookmarksHelper.getBookmarkedMessageIds(currentAccount, dialog_id).length > 0);
+                        headerItem.setSubItemShown(agbtn_bookmarks_manager, BookmarksHelper.getBookmarkedMessageIds(currentAccount, dialog_id).length > 0);
                     }
                 }
                 break;
             }
-            case nkbtn_sharemessage: {
+            case agbtn_sharemessage: {
                 MessageObject messageObject = null;
                 if (selectedObjectGroup != null) {
                     if (!TextUtils.isEmpty(selectedObjectGroup.messages.get(0).messageOwner.message)) {
@@ -47477,11 +47477,11 @@ public class ChatActivity extends BaseFragment implements
                 }
                 break;
             }
-            case nkbtn_ai_chat: {
+            case agbtn_ai_chat: {
                 handleAiChat(selectedObject, selectedObjectGroup);
                 break;
             }
-            case nkbtn_stickerdl: {
+            case agbtn_stickerdl: {
                 if ((Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE) && getParentActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     getParentActivity().requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
                     selectedObject = null;
@@ -47496,24 +47496,24 @@ public class ChatActivity extends BaseFragment implements
                 });
                 break;
             }
-            case nkbtn_translate_llm:
-            case nkbtn_translate:
+            case agbtn_translate_llm:
+            case agbtn_translate:
                 if (handleTranslateDuringAutoTrans(null)) {
                     return;
                 }
-                MessageTransKt.translateMessages(this, id == nkbtn_translate_llm ? Translator.providerLLMTranslator : 0);
+                MessageTransKt.translateMessages(this, id == agbtn_translate_llm ? Translator.providerLLMTranslator : 0);
                 break;
-            case nkbtn_translateVoice:
+            case agbtn_translateVoice:
                 TranscribeButton.retryOrTranslateVoiceTranscription(selectedObject, false, null);
                 break;
-            case nkbtn_transcriptionRetry:
+            case agbtn_transcriptionRetry:
                 TranscribeButton.retryOrTranslateVoiceTranscription(selectedObject, true, null);
                 break;
-            case nkbtn_detail: {
+            case agbtn_detail: {
                 presentFragment(new MessageDetailsActivity(selectedObject, selectedObjectGroup));
                 break;
             }
-            case nkbtn_view_history: {
+            case agbtn_view_history: {
                 // same as "search_from_user_id"
                 TLRPC.Peer peer = selectedObject.messageOwner.from_id;
                 if ((threadMessageId == 0 || isTopic) && !UserObject.isReplyUser(currentUser)) {
@@ -47535,21 +47535,21 @@ public class ChatActivity extends BaseFragment implements
                 showMessagesSearchListView(true);
                 break;
             }
-            case nkbtn_editAdmin: {
+            case agbtn_editAdmin: {
                 if (selectedParticipant == null) {
                     break;
                 }
                 doAdminActions(0);
                 break;
             }
-            case nkbtn_editPermission: {
+            case agbtn_editPermission: {
                 if (selectedParticipant == null) {
                     break;
                 }
                 doAdminActions(1);
                 break;
             }
-            case nkbtn_hide: {
+            case agbtn_hide: {
                 if (selectedObjectGroup != null) {
                     for (MessageObject object : selectedObjectGroup.messages) {
                         object.messageOwner.hide = true;
@@ -47562,7 +47562,7 @@ public class ChatActivity extends BaseFragment implements
                 break;
 
             }
-            case nkbtn_view_in_chat: {
+            case agbtn_view_in_chat: {
                 if (selectedObject == null)
                     return;
                 Bundle args = new Bundle();
@@ -47574,7 +47574,7 @@ public class ChatActivity extends BaseFragment implements
                 break;
 
             }
-            case nkbtn_copy_link_in_pm: {
+            case agbtn_copy_link_in_pm: {
                 try {
                     String link_message = "tg://openmessage?user_id=" + currentUser.id + "&message_id=" + selectedObject.messageOwner.id;
                     ClipboardManager clipboard = (ClipboardManager) ApplicationLoader.applicationContext.getSystemService(Context.CLIPBOARD_SERVICE);
@@ -47586,7 +47586,7 @@ public class ChatActivity extends BaseFragment implements
                 break;
 
             }
-            case nkbtn_setReminder: {
+            case agbtn_setReminder: {
                 ArrayList<MessageObject> messages =  new ArrayList<>();
                 if (selectedObjectGroup != null) {
                     messages.addAll(selectedObjectGroup.messages);
@@ -47599,7 +47599,7 @@ public class ChatActivity extends BaseFragment implements
                 }, themeDelegate);
                 break;
             }
-            case nkbtn_reply_private: {
+            case agbtn_reply_private: {
                 Bundle args = new Bundle();
                 args.putLong("user_id", selectedObject.messageOwner.from_id.user_id);
 
@@ -49538,7 +49538,7 @@ public class ChatActivity extends BaseFragment implements
             boolean allowViewHistory = currentChat != null && chatMode == 0 && !currentChat.broadcast && !(threadMessageObjects != null && threadMessageObjects.contains(message));
             if (allowViewHistory && NekoConfig.showViewHistory.Bool()) {
                 items.add(LocaleController.getString(R.string.ViewHistory));
-                options.add(nkbtn_view_history);
+                options.add(agbtn_view_history);
                 icons.add(R.drawable.msg_recent);
             }
             // type == MESSAGE_TYPE_SERVICE END
@@ -49669,7 +49669,7 @@ public class ChatActivity extends BaseFragment implements
                         );
 
                         options.add(
-                                nkbtn_reply_private
+                                agbtn_reply_private
                         );
 
                         icons.add(
@@ -49692,7 +49692,7 @@ public class ChatActivity extends BaseFragment implements
                     options.add(OPTION_VIEW_REPLIES_OR_THREAD);
                     icons.add(R.drawable.msg_viewreplies);
                 } else if (isThreadChat() && chatMode != MODE_SCHEDULED && currentChat != null) {
-                    options.add(nkbtn_view_in_chat);
+                    options.add(agbtn_view_in_chat);
                     icons.add(R.drawable.msg_viewreplies);
                     items.add(LocaleController.getString(R.string.ViewInChat));
                 }
@@ -49795,7 +49795,7 @@ public class ChatActivity extends BaseFragment implements
                         );
 
                         options.add(
-                                nkbtn_copy_link_in_pm
+                                agbtn_copy_link_in_pm
                         );
 
                         icons.add(
@@ -49879,11 +49879,11 @@ public class ChatActivity extends BaseFragment implements
                         }
                         if (!TextUtils.isEmpty(selectedObject.getVoiceTranscription())) {
                             items.add(LlmConfig.isLLMTranslatorAvailable() ? getString(R.string.TranslateMessageLLM) : getString(R.string.Translate));
-                            options.add(nkbtn_translateVoice);
+                            options.add(agbtn_translateVoice);
                             icons.add(LlmConfig.isLLMTranslatorAvailable() ? R.drawable.magic_stick : R.drawable.msg_translate);
                             if (TranscribeHelper.useTranscribeAI(selectedObject.currentAccount)) {
                                 items.add(getString(R.string.Retry));
-                                options.add(nkbtn_transcriptionRetry);
+                                options.add(agbtn_transcriptionRetry);
                                 icons.add(R.drawable.msg_retry);
                             }
                         }
@@ -50037,7 +50037,7 @@ public class ChatActivity extends BaseFragment implements
                     } else {
                         if (!selectedObject.isAnimatedSticker()) {
                             items.add(LocaleController.getString(R.string.SaveToGallery));
-                            options.add(nkbtn_stickerdl);
+                            options.add(agbtn_stickerdl);
                             icons.add(R.drawable.msg_gallery);
                             allowCopyPhoto = true;
                             if (!GroupedIconsView.useGroupedIcons()) {
@@ -50088,7 +50088,7 @@ public class ChatActivity extends BaseFragment implements
                 } else if (type == MESSAGE_TYPE_STICKER_PACK_INSTALLED) {
                     if (!selectedObject.isAnimatedSticker()) {
                         items.add(LocaleController.getString(R.string.SaveToGallery));
-                        options.add(nkbtn_stickerdl);
+                        options.add(agbtn_stickerdl);
                         icons.add(R.drawable.msg_gallery);
                     }
                     TLRPC.Document document = selectedObject.getDocument();
@@ -50161,18 +50161,18 @@ public class ChatActivity extends BaseFragment implements
                     if (!selectedObject.needDrawBluredPreview() && !selectedObject.isLiveLocation() && selectedObject.type != 16) {
                         if (!noforwards && NaConfig.INSTANCE.getShowNoQuoteForward().Bool()) {
                             items.add(LocaleController.getString(R.string.NoQuoteForward));
-                            options.add(nkbtn_forward_noquote);
+                            options.add(agbtn_forward_noquote);
                             icons.add(R.drawable.msg_forward_noquote);
                         }
                     }
                     if (NaConfig.INSTANCE.getShowSetReminder().Bool()) {
                         items.add(LocaleController.getString(R.string.SetReminder));
-                        options.add(nkbtn_setReminder);
+                        options.add(agbtn_setReminder);
                         icons.add(R.drawable.msg_calendar2);
                     }
                     if (NekoConfig.showAddToSavedMessages.Bool() && !UserObject.isUserSelf(currentUser) && !noforwards && selectedObject.canForwardMessage()) {
                         items.add(getString(R.string.AddToSavedMessages));
-                        options.add(nkbtn_savemessage);
+                        options.add(agbtn_savemessage);
                         icons.add(R.drawable.msg_saved);
                     }
                     if (NaConfig.INSTANCE.getShowAddToBookmark().Bool() && selectedObject != null && !selectedObject.isAnyKindOfSticker()) {
@@ -50188,29 +50188,29 @@ public class ChatActivity extends BaseFragment implements
                             bookmarked = BookmarksHelper.isBookmarked(currentAccount, selectedObject.getDialogId(), selectedObject.getId());
                         }
                         items.add(getString(bookmarked ? R.string.RemoveBookmark : R.string.AddBookmark));
-                        options.add(nkbtn_bookmark);
+                        options.add(agbtn_bookmark);
                         icons.add(bookmarked ? R.drawable.msg_unfave : R.drawable.msg_fave);
                     }
                     boolean allowRepeat = currentUser != null || (currentChat != null && ChatObject.canSendMessages(currentChat));
                     if (allowRepeat && !noforwards && selectedObject.canForwardMessage() && NekoConfig.showRepeat.Bool()) {
                         items.add(LocaleController.getString(R.string.Repeat));
-                        options.add(nkbtn_repeat);
+                        options.add(agbtn_repeat);
                         icons.add(R.drawable.msg_repeat);
                     }
                     if (allowRepeat && !isAyuDeleted && !selectedObject.needDrawBluredPreview() && (NaConfig.INSTANCE.getShowRepeatAsCopy().Bool() || (NekoConfig.showRepeat.Bool() && noforwards))){
                         items.add(LocaleController.getString(R.string.RepeatAsCopy));
-                        options.add(nkbtn_repeatascopy);
+                        options.add(agbtn_repeatascopy);
                         icons.add(R.drawable.msg_repeat);
                     }
                     if (NekoConfig.showDeleteDownloadedFile.Bool() && getMessageHelper().messageObjectIsFile(type, selectedObject)) {
                         items.add(LocaleController.getString(R.string.DeleteDownloadedFile));
-                        options.add(nkbtn_deldlcache);
+                        options.add(agbtn_deldlcache);
                         icons.add(R.drawable.msg_clear);
                     }
                     boolean allowViewHistory = currentChat != null && chatMode == 0 && !currentChat.broadcast && !(threadMessageObjects != null && threadMessageObjects.contains(message));
                     if (allowViewHistory && NekoConfig.showViewHistory.Bool()) {
                         items.add(LocaleController.getString(R.string.ViewHistory));
-                        options.add(nkbtn_view_history);
+                        options.add(agbtn_view_history);
                         icons.add(R.drawable.msg_recent);
                     }
                     final MessageObject msg = getMessageForTranslate();
@@ -50232,30 +50232,30 @@ public class ChatActivity extends BaseFragment implements
                         boolean canUndoTranslate = (isTranslated && !summarizedOpen || isTranslatedSummary && summarizedOpen) && isOutgoingOrNotTranslatingDialog;
                         if (showTranslate && (isOutgoingOrNotTranslatingDialog || isLLMDefault)) {
                             items.add(canUndoTranslate ? getString(R.string.UndoTranslate) : getString(R.string.Translate));
-                            options.add(nkbtn_translate);
+                            options.add(agbtn_translate);
                             icons.add(isLLMDefault ? R.drawable.magic_stick : R.drawable.msg_translate);
                         }
                         boolean shouldShowLLM = !showTranslate || !isTranslated || !isOutgoingOrNotTranslatingDialog;
                         if (showTranslateLLM && shouldShowLLM) {
                             items.add(canUndoTranslate ? getString(R.string.UndoTranslate) : getString(R.string.TranslateMessageLLM));
-                            options.add(nkbtn_translate_llm);
+                            options.add(agbtn_translate_llm);
                             icons.add(R.drawable.magic_stick);
                         }
                     }
                     if (NekoConfig.showShareMessages.Bool() && msg != null) {
                         items.add(LocaleController.getString(R.string.ShareMessages));
-                        options.add(nkbtn_sharemessage);
+                        options.add(agbtn_sharemessage);
                         icons.add(R.drawable.msg_shareout);
                     }
                     if (AiController.canUseAI() && selectedObject != null) {
                         items.add(LocaleController.getString(R.string.AIChatGenerateFromMessage));
-                        options.add(nkbtn_ai_chat);
+                        options.add(agbtn_ai_chat);
                         icons.add(R.drawable.ai_chat);
                     }
                 }
                 if (NekoConfig.showMessageHide.Bool()) {
                     items.add(LocaleController.getString(R.string.Hide));
-                    options.add(nkbtn_hide);
+                    options.add(agbtn_hide);
                     icons.add(R.drawable.msg_disable);
                 }
                 boolean canViewStats = false;
@@ -50365,7 +50365,7 @@ public class ChatActivity extends BaseFragment implements
                     options.add(OPTION_VIEW_REPLIES_OR_THREAD);
                     icons.add(R.drawable.msg_viewreplies);
                 } else if (isThreadChat() && !isTopic && chatMode != MODE_SCHEDULED && currentChat != null) {
-                    options.add(nkbtn_view_in_chat);
+                    options.add(agbtn_view_in_chat);
                     icons.add(R.drawable.msg_viewreplies);
                     items.add(LocaleController.getString(R.string.ViewInChat));
                 }
@@ -50470,13 +50470,13 @@ public class ChatActivity extends BaseFragment implements
                     boolean canUndoTranslate = isTranslated && isOutgoingOrNotTranslatingDialog;
                     if (showTranslate && (isOutgoingOrNotTranslatingDialog || isLLMDefault)) {
                         items.add(canUndoTranslate ? getString(R.string.UndoTranslate) : getString(R.string.Translate));
-                        options.add(nkbtn_translate);
+                        options.add(agbtn_translate);
                         icons.add(isLLMDefault ? R.drawable.magic_stick : R.drawable.msg_translate);
                     }
                     boolean shouldShowLLM = !showTranslate || !isTranslated || !isOutgoingOrNotTranslatingDialog;
                     if (showTranslateLLM && shouldShowLLM) {
                         items.add(canUndoTranslate ? getString(R.string.UndoTranslate) : getString(R.string.TranslateMessageLLM));
-                        options.add(nkbtn_translate_llm);
+                        options.add(agbtn_translate_llm);
                         icons.add(R.drawable.magic_stick);
                     }
                 }
@@ -50517,13 +50517,13 @@ public class ChatActivity extends BaseFragment implements
                         if (canEditAdmin && NekoConfig.showAdminActions.Bool()) {
                             items.add(editingAdmin ? LocaleController.getString(R.string.EditAdminRights) : LocaleController.getString(R.string.SetAsAdmin));
                             icons.add(R.drawable.profile_admin);
-                            options.add(nkbtn_editAdmin);
+                            options.add(agbtn_editAdmin);
                             selectedParticipant = participant;
                         }
                         if (canRestrict && NekoConfig.showChangePermissions.Bool()) {
                             items.add(LocaleController.getString(R.string.ChangePermissions));
                             icons.add(R.drawable.msg_permissions);
-                            options.add(nkbtn_editPermission);
+                            options.add(agbtn_editPermission);
                             selectedParticipant = participant;
                         }
                     }
@@ -50532,7 +50532,7 @@ public class ChatActivity extends BaseFragment implements
         }
         if (NekoConfig.showMessageDetails.Bool()) {
             items.add(LocaleController.getString(R.string.MessageDetails));
-            options.add(nkbtn_detail);
+            options.add(agbtn_detail);
             icons.add(R.drawable.msg_info);
         }
         this.lastMessageMenuStatus = new MessageMenuStatus(allowCopy, allowCopyPhoto, allowCopyLink, allowCopyLinkPm, allowDelete, allowEdit, allowReply, allowReplyPm, allowForward);

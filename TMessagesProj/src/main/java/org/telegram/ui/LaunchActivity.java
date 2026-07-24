@@ -1629,11 +1629,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 if (attachMenuBot != null) {
                     BotWebViewSheet.deleteBot(currentAccount, attachMenuBot.bot_id, null);
                     return true;
-                } else if (id == DrawerLayoutAdapter.nkbtnGhostMode) {
+                } else if (id == DrawerLayoutAdapter.agbtnGhostMode) {
                     presentFragment(new GhostModeActivity());
                     drawerLayoutContainer.closeDrawer(false);
                     return true;
-                } else if (id == DrawerLayoutAdapter.nkbtnBrowser) {
+                } else if (id == DrawerLayoutAdapter.agbtnBrowser) {
                     presentFragment(new WebBrowserSettings(null));
                     drawerLayoutContainer.closeDrawer(false);
                     return true;
@@ -1905,18 +1905,18 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
             args.putBoolean("my_profile", true);
             presentFragment(new ProfileActivity(args, null));
-        } else if (id == DrawerLayoutAdapter.nkbtnBookmarks) {
+        } else if (id == DrawerLayoutAdapter.agbtnBookmarks) {
             presentFragment(new BookmarkManagerActivity());
             drawerLayoutContainer.closeDrawer(false);
-        } else if (id == DrawerLayoutAdapter.nkbtnRecentChats) {
+        } else if (id == DrawerLayoutAdapter.agbtnRecentChats) {
             presentFragment(new ChatHistoryActivity());
             drawerLayoutContainer.closeDrawer(false);
-        } else if (id == DrawerLayoutAdapter.nkbtnSettings) {
+        } else if (id == DrawerLayoutAdapter.agbtnSettings) {
             presentFragment(new AGSettingsActivity());
             drawerLayoutContainer.closeDrawer(false);
-        } else if (id == DrawerLayoutAdapter.nkbtnBrowser) {
+        } else if (id == DrawerLayoutAdapter.agbtnBrowser) {
             BrowserUtils.openBrowserHome(() -> drawerLayoutContainer.closeDrawer(true), true);
-        } else if (id == DrawerLayoutAdapter.nkbtnQrLogin) {
+        } else if (id == DrawerLayoutAdapter.agbtnQrLogin) {
             if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{Manifest.permission.CAMERA}, ActionIntroActivity.CAMERA_PERMISSION_REQUEST_CODE);
                 return;
@@ -1946,12 +1946,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 }
             });
             drawerLayoutContainer.closeDrawer(false);
-        } else if (id == DrawerLayoutAdapter.nkbtnArchivedChats) {
+        } else if (id == DrawerLayoutAdapter.agbtnArchivedChats) {
             Bundle args = new Bundle();
             args.putInt("folderId", 1);
             presentFragment(new DialogsActivity(args));
             drawerLayoutContainer.closeDrawer(false);
-        } else if (id == DrawerLayoutAdapter.nkbtnGhostMode) {
+        } else if (id == DrawerLayoutAdapter.agbtnGhostMode) {
             String message = NekoConfig.isGhostModeActive()
                     ? LocaleController.getString(R.string.GhostModeDisabled)
                     : LocaleController.getString(R.string.GhostModeEnabled);
@@ -1965,10 +1965,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 drawerLayoutAdapter.notifyDataSetChanged();
             }
             drawerLayoutContainer.closeDrawer(false);
-        } else if (id == DrawerLayoutAdapter.nkbtnSessions) {
+        } else if (id == DrawerLayoutAdapter.agbtnSessions) {
             presentFragment(new SessionsActivity(SessionsActivity.TYPE_DEVICES));
             drawerLayoutContainer.closeDrawer(false);
-        } else if (id == DrawerLayoutAdapter.nkbtnRestartApp) {
+        } else if (id == DrawerLayoutAdapter.agbtnRestartApp) {
             AppRestartHelper.triggerRebirth(ApplicationLoader.applicationContext, new Intent(ApplicationLoader.applicationContext, LaunchActivity.class));
         }
     }
@@ -2861,7 +2861,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                 conferenceSlug = path.replace("call/", "");
                                             } else if (path.startsWith("addemoji/")) {
                                                 emoji = path.replace("addemoji/", "");
-                                            } else if (path.startsWith("nasettings/")) {
+                                            } else if (path.startsWith("agsettings/")) {
                                                 AGSettingsRouter.processDeepLink(this, data, fragment -> {
                                                     AndroidUtilities.runOnUIThread(() -> presentFragment(fragment, false, false));
                                                     if (AndroidUtilities.isTablet()) {
@@ -3437,8 +3437,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                             FileLog.e(e);
                                         }
                                         checkAppUpdate(true, null, updateAlways);
-                                    } else if (url.startsWith("tg:neko") || url.startsWith("tg://neko")) {
-                                        url = url.replace("tg:neko", "tg://t.me/nasettings").replace("tg://neko", "tg://t.me/nasettings");
+                                    } else if (url.startsWith("tg:agsettings") || url.startsWith("tg://agsettings")) {
+                                        url = url.replace("tg:agsettings", "tg://t.me/agsettings").replace("tg://agsettings", "tg://t.me/agsettings");
                                         data = Uri.parse(url);
                                         AGSettingsRouter.processDeepLink(this, data, fragment -> {
                                             AndroidUtilities.runOnUIThread(() -> presentFragment(fragment, false, false));

@@ -2036,9 +2036,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     sendMessageParams.suggestionParams = suggestionParams;
                     sendMessageParams.caption = caption != null ? caption.toString() : null;
                     sendMessageParams.invert_media = invertMedia;
-                    sendMessageParams.hasMediaSpoilers = ContentPreviewViewer.nkbtn_hasMediaSpoilers;
+                    sendMessageParams.hasMediaSpoilers = ContentPreviewViewer.agbtn_hasMediaSpoilers;
                     sendMessage(sendMessageParams);
-                    ContentPreviewViewer.nkbtn_hasMediaSpoilers = false;
+                    ContentPreviewViewer.agbtn_hasMediaSpoilers = false;
                 });
             });
         } else {

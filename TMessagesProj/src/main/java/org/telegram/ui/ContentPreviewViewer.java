@@ -317,11 +317,11 @@ public class ContentPreviewViewer {
     public final static int CONTENT_TYPE_EMOJI = 2;
     public final static int CONTENT_TYPE_CUSTOM_STIKER = 3;
 
-    public static boolean nkbtn_hasMediaSpoilers;
+    public static boolean agbtn_hasMediaSpoilers;
 
-    private final static int nkbtn_stickerdl = 110;
-    private final static int nkbtn_sticker_copy = 111;
-    private final static int nkbtn_photo_spoiler = 113;
+    private final static int agbtn_stickerdl = 110;
+    private final static int agbtn_sticker_copy = 111;
+    private final static int agbtn_photo_spoiler = 113;
 
     private static TextPaint textPaint;
 
@@ -773,11 +773,11 @@ public class ContentPreviewViewer {
                     }
                     items.add(LocaleController.getString("SaveToGallery", R.string.SaveToGallery));
                     icons.add(R.drawable.msg_gallery);
-                    actions.add(nkbtn_stickerdl);
+                    actions.add(agbtn_stickerdl);
                     if (!MessageObject.isAnimatedStickerDocument(currentDocument) && !MessageObject.isAnimatedStickerDocument(currentDocument, true) && !MessageObject.isVideoSticker(currentDocument)) {
                         items.add(getString(R.string.CopySticker));
                         icons.add(R.drawable.msg_copy_photo);
-                        actions.add(nkbtn_sticker_copy);
+                        actions.add(agbtn_sticker_copy);
                     }
                 }
                 if (!MessageObject.isMaskDocument(currentDocument) && (inFavs || MediaDataController.getInstance(currentAccount).canAddStickerToFavorites() && MessageObject.isStickerHasSet(currentDocument))) {
@@ -858,14 +858,14 @@ public class ContentPreviewViewer {
                             MediaDataController.getInstance(currentAccount).addRecentSticker(MediaDataController.TYPE_IMAGE, parentObject, currentDocument, (int) (System.currentTimeMillis() / 1000), true);
                         } else if (actions.get(which) == 5) {
                             delegate.remove(importingSticker);
-                        } else if (actions.get(which) == nkbtn_stickerdl) {
+                        } else if (actions.get(which) == agbtn_stickerdl) {
                             MessageHelper.getInstance(currentAccount).saveStickerToGallery(parentActivity, currentDocument, uri -> {
                                 var fragment = LaunchActivity.getSafeLastFragment();
                                 if (BulletinFactory.canShowBulletin(fragment) && fragment instanceof ChatActivity chatActivity) {
                                     BulletinFactory.of(chatActivity).createSimpleBulletin(R.raw.ic_save_to_gallery, getString(R.string.StickerSavedHint)).show(true);
                                 }
                             });
-                        } else if (actions.get(which) == nkbtn_sticker_copy) {
+                        } else if (actions.get(which) == agbtn_sticker_copy) {
                             MessageHelper.getInstance(currentAccount).addStickerToClipboard(currentDocument, () -> {
                                 var fragment = LaunchActivity.getSafeLastFragment();
                                 if (BulletinFactory.canShowBulletin(fragment) && fragment instanceof ChatActivity chatActivity) {
@@ -1109,7 +1109,7 @@ public class ContentPreviewViewer {
                 if (delegate.needSend(currentContentType) && !delegate.isInScheduleMode()) {
                     items.add(LocaleController.getString(R.string.EnablePhotoSpoiler));
                     icons.add(R.drawable.msg_spoiler);
-                    actions.add(nkbtn_photo_spoiler);
+                    actions.add(agbtn_photo_spoiler);
                 }
                 if (delegate.canSchedule()) {
                     items.add(LocaleController.getString(R.string.Schedule));
@@ -1171,8 +1171,8 @@ public class ContentPreviewViewer {
                         AlertsCreator.createScheduleDatePickerDialog(parentActivity, stickerPreviewViewerDelegate.getDialogId(), (notify, scheduleDate, scheduleRepeatPeriod) -> stickerPreviewViewerDelegate.sendGif(document != null ? document : result, parent, notify, scheduleDate, scheduleRepeatPeriod), resourcesProvider);
                     } else if (actions.get(which) == 11) {
                         delegate.addCaptionToGif(currentDocument != null ? currentDocument : inlineResult, parentObject, true, 0, 0);
-                    } else if (actions.get(which) == nkbtn_photo_spoiler) {
-                        nkbtn_hasMediaSpoilers = true;
+                    } else if (actions.get(which) == agbtn_photo_spoiler) {
+                        agbtn_hasMediaSpoilers = true;
                         delegate.sendGif(currentDocument != null ? currentDocument : inlineResult, parentObject, true, 0, 0);
                     }
                     dismissPopupWindow();

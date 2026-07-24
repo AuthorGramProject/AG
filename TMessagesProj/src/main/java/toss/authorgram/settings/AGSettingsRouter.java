@@ -16,20 +16,6 @@ import java.util.Map;
 
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 
-import toss.authorgram.settings.BaseAGSettingsActivity;
-import toss.authorgram.settings.BaseAGXSettingsActivity;
-import toss.authorgram.settings.GhostModeActivity;
-import toss.authorgram.settings.MainTabsCustomizeActivity;
-import toss.authorgram.settings.AGAboutActivity;
-import toss.authorgram.settings.AGAppearanceSettingsActivity;
-import toss.authorgram.settings.AGPrivacySettingsActivity;
-import toss.authorgram.settings.AGChatSettingsActivity;
-import toss.authorgram.settings.AGEmojiSettingsActivity;
-import toss.authorgram.settings.AGExperimentalSettingsActivity;
-import toss.authorgram.settings.AGGeneralSettingsActivity;
-import toss.authorgram.settings.AGPasscodeSettingsActivity;
-import toss.authorgram.settings.AGSettingsActivity;
-import toss.authorgram.settings.AGTranslatorSettingsActivity;
 import toss.authorgram.filters.AGFiltersSettingsActivity;
 
 public class AGSettingsRouter {
@@ -65,8 +51,9 @@ public class AGSettingsRouter {
                 case "a":
                     fragment = agxFragment = new AGAppearanceSettingsActivity();
                     break;
-                case "ayuspy":
-                case "spy":
+                case "privacy":
+                case "security":
+                case "p":
                     fragment = agxFragment = new AGPrivacySettingsActivity();
                     break;
                 case "experimental":
@@ -146,7 +133,7 @@ public class AGSettingsRouter {
         fragments.add(new AGExperimentalSettingsActivity());
         fragments.add(new AGTranslatorSettingsActivity());
 
-        String n_title = getString(R.string.AGSettings);
+        String agTitle = getString(R.string.AGSettings);
         for (BaseAGXSettingsActivity fragment: fragments) {
             int uid = fragment.getBaseGuid();
             int drawable = fragment.getDrawable();
@@ -167,7 +154,7 @@ public class AGSettingsRouter {
                     AndroidUtilities.runOnUIThread(() -> fragment.scrollToRow(key, null));
                 };
                 AGSettingsSearchResult result = new AGSettingsSearchResult(
-                        guid, title, n_title, f_title, drawable, open
+                        guid, title, agTitle, f_title, drawable, open
                 );
                 items.add(result);
             }
