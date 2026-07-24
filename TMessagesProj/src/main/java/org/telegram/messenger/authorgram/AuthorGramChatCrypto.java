@@ -17,6 +17,7 @@ public final class AuthorGramChatCrypto {
     private static final int IV_BYTES = 12;
     private static final int TAG_BITS = 128;
     private static final int TAG_BYTES = 16;
+    private static final int MAX_ENCODED_PAYLOAD_CHARS = 65_536;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private AuthorGramChatCrypto() {
@@ -36,9 +37,10 @@ public final class AuthorGramChatCrypto {
         if (AuthorGramChatKeyStore.isSystemKeyLocked(dialogId)) {
             return AuthorGramCrypto.encryptText(plaintext);
         }
+        boolean customKeyConfigured = AuthorGramChatKeyStore.hasCustomKey(account, dialogId);
         byte[] customKey = AuthorGramChatKeyStore.getCurrentKey(account, dialogId);
         if (customKey == null) {
-            return AuthorGramCrypto.encryptText(plaintext);
+            return customKeyConfigured ? null : AuthorGramCrypto.encryptText(plaintext);
         }
         try {
             return encryptWithKey(plaintext, customKey);
@@ -97,7 +99,7 @@ public final class AuthorGramChatCrypto {
     private static String decryptWithKey(String payload, byte[] key) {
         try {
             String encoded = payload.substring(AuthorGramCrypto.MARKER.length());
-            if (encoded.isEmpty()) {
+            if (encoded.isEmpty() || encoded.length() > MAX_ENCODED_PAYLOAD_CHARS) {
                 return null;
             }
             byte[] packed = Base64.decode(encoded, Base64.DEFAULT);
