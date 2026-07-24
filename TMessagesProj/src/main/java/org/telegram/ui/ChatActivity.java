@@ -4060,12 +4060,14 @@ public class ChatActivity extends BaseFragment implements
 
                     return;
                 } else if (id == AUTHORGRAM_KEY_SETTINGS) {
-                if (id ==     org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(
-                if (id ==             getParentActivity(),
-                if (id ==             currentAccount,
-                if (id ==             dialog_id
-                if (id ==     );
-                if (id == }
+                    org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(
+                            getParentActivity(),
+                            currentAccount,
+                            dialog_id
+                    );
+
+                    return;
+                }
 
                 if (id == -1) {
                     if (isInPollAddOptionMode()) {
