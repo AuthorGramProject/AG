@@ -319,12 +319,12 @@
         <activity
             android:name="org.telegram.messenger.OpenChatReceiver"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
-            android:exported="false">
+            android:exported="true">
         </activity>
         <activity
             android:name="org.telegram.messenger.OpenAttachedMenuBotReceiver"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
-            android:exported="false">
+            android:exported="true">
         </activity>
         <activity
             android:name="org.telegram.ui.PopupNotificationActivity"
