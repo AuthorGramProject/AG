@@ -1,6 +1,6 @@
 package toss.authorgram.settings;
 
-/** Search index entry used by the public AGSettings screen. */
+/** Search index entry used by the public TOSS AGSettings screen. */
 @SuppressWarnings("ClassCanBeRecord")
 public class AGSettingsSearchResult {
 
