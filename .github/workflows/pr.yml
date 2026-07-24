@@ -1,15 +1,12 @@
-name: Pull request
+name: Main release validation
 
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-    paths-ignore:
-      - '**.md'
-      - '**.xml'
 
 jobs:
   build:
-    name: Gradle Build
+    name: Main Release Build
     runs-on: ubuntu-latest
     env:
       NATIVE_TARGET: "arm64-v8a"
@@ -28,29 +25,34 @@ jobs:
         with:
           packages: "build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36"
       - name: Configure Android SDK Path
+        run: echo "sdk.dir=${ANDROID_HOME}" >> local.properties
+      - name: Release Build
+        id: release_build
+        continue-on-error: true
         run: |
-          echo "sdk.dir=${ANDROID_HOME}" >> local.properties
-      - name: Modify Gradle JVM Args
-        run: |
-          MEMORY_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
-          MEMORY_GB=$((MEMORY_KB / 1024 / 1024))
-          echo "Detected memory size: ${MEMORY_GB}GB"
-          if [ $MEMORY_GB -ge 12 ]; then
-            sed -i '/^org\.gradle\.jvmargs=/d' gradle.properties
-            echo "org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=2G -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> gradle.properties
-          fi
-          cat gradle.properties
-      - name: Debug Build
-        run: |
+          set -o pipefail
           export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
-          export DEBUG_BUILD=true
-          sed -i 's/signingConfig = signingConfigs.release//g' TMessagesProj/build.gradle
-          ./gradlew TMessagesProj:assembleDebug
-
-          APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk')
-          APK=$(dirname $APK)
-          echo "APK=$APK" >> $GITHUB_ENV
-      - uses: actions/upload-artifact@v4
+          ./gradlew TMessagesProj:assembleRelease 2>&1 | tee release_build.log
+          STATUS=${PIPESTATUS[0]}
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          if [ "$STATUS" -eq 0 ]; then
+            APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk' | head -1)
+            APK=$(dirname "$APK")
+            echo "APK=$APK" >> "$GITHUB_ENV"
+          fi
+          exit "$STATUS"
+      - name: Upload release log
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: Debug
+          name: main-release-build-log
+          path: release_build.log
+      - name: Fail when release build failed
+        if: steps.release_build.outcome == 'failure'
+        run: exit 1
+      - name: Upload release APK
+        if: steps.release_build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Main-Release-APK
           path: ${{ env.APK }}
