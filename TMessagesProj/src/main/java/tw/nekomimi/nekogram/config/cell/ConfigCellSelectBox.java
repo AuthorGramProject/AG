@@ -13,7 +13,7 @@ import org.telegram.ui.Cells.TextSettingsCell;
 import kotlin.Unit;
 import tw.nekomimi.nekogram.config.CellGroup;
 import tw.nekomimi.nekogram.config.ConfigItem;
-import tw.nekomimi.nekogram.settings.BaseNekoXSettingsActivity;
+import toss.authorgram.settings.BaseAGXSettingsActivity;
 
 // TextSettingsCell, select from a list
 // Can be used without select list（custom）
@@ -81,9 +81,9 @@ public class ConfigCellSelectBox extends AbstractConfigCell implements WithBindC
             return;
         }
 
-        if (cellGroup.thisFragment instanceof BaseNekoXSettingsActivity activity) {
+        if (cellGroup.thisFragment instanceof BaseAGXSettingsActivity activity) {
             int current = bindConfig.Int();
-            activity.showSingleChoiceDialog(context, title, selectList, current, activity.getResourceProvider(), new BaseNekoXSettingsActivity.RunnableInt() {
+            activity.showSingleChoiceDialog(context, title, selectList, current, activity.getResourceProvider(), new BaseAGXSettingsActivity.RunnableInt() {
                 @Override
                 public void run(int index) {
                     bindConfig.setConfigInt(index);

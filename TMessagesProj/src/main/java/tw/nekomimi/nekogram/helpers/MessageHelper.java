@@ -86,7 +86,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
+import toss.authorgram.filters.AGFilter;
 import xyz.nextalone.nagram.NaConfig;
 
 public class MessageHelper extends BaseController {
@@ -996,19 +996,19 @@ public class MessageHelper extends BaseController {
         if (!NekoConfig.ignoreBlocked.Bool()) {
             return false;
         }
-        return getMessagesController().blockePeers.indexOfKey(senderId) >= 0 || AyuFilter.isCustomFilteredPeer(senderId);
+        return getMessagesController().blockePeers.indexOfKey(senderId) >= 0 || AGFilter.isCustomFilteredPeer(senderId);
     }
 
     public boolean isBlockedOrFiltered(TLRPC.Message message) {
         if (message == null) {
             return false;
         }
-        if (!AyuFilter.shouldHideFilteredMessages() && !AyuFilter.shouldHideIgnoredBlockedMessages()) {
+        if (!AGFilter.shouldHideFilteredMessages() && !AGFilter.shouldHideIgnoredBlockedMessages()) {
             return false;
         }
         long fromId = MessageObject.getFromChatId(message);
-        boolean blocked = AyuFilter.shouldHideIgnoredBlockedMessages() && (isBlockedUser(fromId) || AyuFilter.isBlockedChannel(fromId));
-        return blocked || AyuFilter.shouldHideFilteredMessage(new MessageObject(currentAccount, message, false, false), null);
+        boolean blocked = AGFilter.shouldHideIgnoredBlockedMessages() && (isBlockedUser(fromId) || AGFilter.isBlockedChannel(fromId));
+        return blocked || AGFilter.shouldHideFilteredMessage(new MessageObject(currentAccount, message, false, false), null);
     }
 
     public static void copyVideoFrameToClipboard(File videoFile, long positionMs, View bulletinContainer, Theme.ResourcesProvider resourcesProvider, Runnable fallbackAction) {

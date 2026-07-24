@@ -59,7 +59,7 @@
     <string name="HideAiEditor">Hide AI Editor</string>
     <string name="HideAiSummary">Hide AI Summary</string>
     <string name="AiHideHeader">Hide AI Features</string>
-    <string name="AyuGramMenu" translatable="false">AyuGram</string>
+    <string name="AyuGramMenu" translatable="false">AuthorGram</string>
     <string name="DeletedMarkText">Deleted Mark</string>
     <string name="DeletedMarkNothing">Nothing</string>
     <string name="DeletedMarkTrashBin">Trash Bin</string>
@@ -143,7 +143,7 @@
     <string name="SingleCornerRadius">Unified corner radius</string>
     <string name="SingleCornerRadiusInfo">Topic groups will use the same avatar shape as chat messages.</string>
     <string name="BlurOptions">Blur Options</string>
-    <string name="AyuMoments" translatable="false">AyuMoments</string>
+    <string name="AyuMoments" translatable="false">Privacy tools</string>
     <string name="AyuMomentsPreviewMessage">Do your best, leave the rest to fate</string>
     <string name="AyuSpySettings">Spy Settings</string>
     <string name="AyuMomentsCustomHeader">Custom</string>

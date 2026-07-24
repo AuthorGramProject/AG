@@ -147,7 +147,7 @@ import java.util.Objects;
 import java.util.Stack;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
+import toss.authorgram.filters.AGFilter;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
 import xyz.nextalone.nagram.NaConfig;
@@ -1951,7 +1951,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                                             if (message != null) {
                                                 message.spoilLoginCode();
                                             }
-                                            if (!NekoConfig.showSpoilersDirectly.Bool() || AyuFilter.shouldMaskMessage(message, null))
+                                            if (!NekoConfig.showSpoilersDirectly.Bool() || AGFilter.shouldMaskMessage(message, null))
                                                 MediaDataController.addTextStyleRuns(message, message.caption, msgBuilder, TextStyleSpan.FLAG_STYLE_SPOILER | TextStyleSpan.FLAG_STYLE_STRIKE);
                                             MediaDataController.addAnimatedEmojiSpans(message.messageOwner.entities, msgBuilder, currentMessagePaint == null ? null : currentMessagePaint.getFontMetricsInt());
                                         }
@@ -2042,7 +2042,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                                             if (message != null) {
                                                 message.spoilLoginCode();
                                             }
-                                            if (!NekoConfig.showSpoilersDirectly.Bool() || AyuFilter.shouldMaskMessage(message, null))
+                                            if (!NekoConfig.showSpoilersDirectly.Bool() || AGFilter.shouldMaskMessage(message, null))
                                                 MediaDataController.addTextStyleRuns(message, stringBuilder, TextStyleSpan.FLAG_STYLE_SPOILER | TextStyleSpan.FLAG_STYLE_STRIKE);
                                             if (message != null && message.messageOwner != null) {
                                                 MediaDataController.addAnimatedEmojiSpans(message.messageOwner.entities, stringBuilder, currentMessagePaint == null ? null : currentMessagePaint.getFontMetricsInt());
@@ -2838,7 +2838,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             }
             spoilersPool.addAll(spoilers);
             spoilers.clear();
-            if (!NekoConfig.showSpoilersDirectly.Bool() || AyuFilter.hasMaskedFilterSpan(messageLayout.getText()))
+            if (!NekoConfig.showSpoilersDirectly.Bool() || AGFilter.hasMaskedFilterSpan(messageLayout.getText()))
                 SpoilerEffect.addSpoilers(this, messageLayout, -2, -2, spoilersPool, spoilers);
         } catch (Exception e) {
             messageLayout = null;
@@ -3329,18 +3329,18 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         if (message != null) {
                             boolean blocked = false;
                             boolean replyBlocked = false;
-                            if (AyuFilter.shouldHideIgnoredBlockedMessages() && ChatObject.isMegagroup(MessagesController.getInstance(currentAccount).getChat(-dialog.id))) {
+                            if (AGFilter.shouldHideIgnoredBlockedMessages() && ChatObject.isMegagroup(MessagesController.getInstance(currentAccount).getChat(-dialog.id))) {
                                 blocked = MessagesController.getInstance(currentAccount).blockePeers.indexOfKey(message.getFromChatId()) >= 0;
-                                blocked = blocked || AyuFilter.isCustomFilteredPeer(message.getFromChatId());
-                                blocked = blocked || AyuFilter.isBlockedChannel(message.getFromChatId());
+                                blocked = blocked || AGFilter.isCustomFilteredPeer(message.getFromChatId());
+                                blocked = blocked || AGFilter.isBlockedChannel(message.getFromChatId());
                                 if (message.replyMessageObject != null) {
                                     long fromId = message.replyMessageObject.getFromChatId();
                                     replyBlocked = MessagesController.getInstance(currentAccount).blockePeers.indexOfKey(fromId) >= 0;
-                                    replyBlocked = replyBlocked || AyuFilter.isCustomFilteredPeer(fromId);
-                                    replyBlocked = replyBlocked || AyuFilter.isBlockedChannel(fromId);
+                                    replyBlocked = replyBlocked || AGFilter.isCustomFilteredPeer(fromId);
+                                    replyBlocked = replyBlocked || AGFilter.isBlockedChannel(fromId);
                                 }
                             }
-                            boolean filteredByRegex = AyuFilter.shouldHideFilteredMessages() && AyuFilter.isFiltered(message, null);
+                            boolean filteredByRegex = AGFilter.shouldHideFilteredMessages() && AGFilter.isFiltered(message, null);
                             if (blocked || replyBlocked || filteredByRegex) {
                                 message = filteredDummyMessages[currentAccount];
                                 groupMessages = null;
@@ -6183,7 +6183,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 if (message != null) {
                     message.spoilLoginCode();
                 }
-                if (!NekoConfig.showSpoilersDirectly.Bool() || AyuFilter.shouldMaskMessage(message, null))
+                if (!NekoConfig.showSpoilersDirectly.Bool() || AGFilter.shouldMaskMessage(message, null))
                     MediaDataController.addTextStyleRuns(message, mess, msgBuilder, TextStyleSpan.FLAG_STYLE_SPOILER | TextStyleSpan.FLAG_STYLE_STRIKE);
                 if (message != null && message.messageOwner != null) {
                     MediaDataController.addAnimatedEmojiSpans(message.messageOwner.entities, msgBuilder, currentMessagePaint == null ? null : currentMessagePaint.getFontMetricsInt());
@@ -6301,7 +6301,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             if (message != null) {
                 message.spoilLoginCode();
             }
-            if (!NekoConfig.showSpoilersDirectly.Bool() || AyuFilter.hasMaskedFilterSpan(mess))
+            if (!NekoConfig.showSpoilersDirectly.Bool() || AGFilter.hasMaskedFilterSpan(mess))
                 MediaDataController.addTextStyleRuns(message, (Spannable) mess, TextStyleSpan.FLAG_STYLE_SPOILER | TextStyleSpan.FLAG_STYLE_STRIKE);
             if (message != null && message.messageOwner != null) {
                 MediaDataController.addAnimatedEmojiSpans(message.messageOwner.entities, mess, currentMessagePaint == null ? null : currentMessagePaint.getFontMetricsInt());

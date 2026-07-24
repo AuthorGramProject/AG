@@ -155,7 +155,7 @@ import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.MainTabsHelper;
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 import tw.nekomimi.nekogram.helpers.remote.UpdateHelper;
-import tw.nekomimi.nekogram.settings.NekoSettingsActivity;
+import toss.authorgram.settings.AGSettingsActivity;
 import tw.nekomimi.nekogram.ui.BottomBuilder;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
 import xyz.nextalone.nagram.NaConfig;
@@ -944,7 +944,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 break;
             }
             case 100: {
-                presentFragment(new NekoSettingsActivity());
+                presentFragment(new AGSettingsActivity());
                 break;
             }
         }

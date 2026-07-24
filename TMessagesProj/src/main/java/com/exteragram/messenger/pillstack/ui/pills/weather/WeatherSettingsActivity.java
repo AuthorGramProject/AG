@@ -27,10 +27,10 @@ import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.LocationActivity;
 import org.telegram.ui.Stories.recorder.Weather;
 
-import tw.nekomimi.nekogram.settings.BaseNekoSettingsActivity;
+import toss.authorgram.settings.BaseAGSettingsActivity;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
 
-public class WeatherSettingsActivity extends BaseNekoSettingsActivity {
+public class WeatherSettingsActivity extends BaseAGSettingsActivity {
 
     private static final Gson GSON = new Gson();
 

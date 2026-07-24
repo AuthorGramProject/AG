@@ -34,10 +34,10 @@ import org.telegram.ui.Components.RecyclerListView;
 
 import java.util.Locale;
 
-import tw.nekomimi.nekogram.settings.BaseNekoSettingsActivity;
+import toss.authorgram.settings.BaseAGSettingsActivity;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
 
-public class DatacenterActivity extends BaseNekoSettingsActivity implements NotificationCenter.NotificationCenterDelegate {
+public class DatacenterActivity extends BaseAGSettingsActivity implements NotificationCenter.NotificationCenterDelegate {
 
     private final int dcToHighlight;
 

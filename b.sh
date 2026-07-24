@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_DIR="${1:-$HOME/authorgram-build}"
 RES_DIR="$REPO_DIR/TMessagesProj/src/main/res"
-VECTOR_FILE="$RES_DIR/drawable/ic_launcher_nagram_dark_blue_foreground.xml"
+VECTOR_FILE="$RES_DIR/drawable/ic_launcher_toss_dark_blue_foreground.xml"
 
 if [ ! -f "$VECTOR_FILE" ]; then
   echo "ПОМИЛКА: не знайдено $VECTOR_FILE"
@@ -32,4 +32,4 @@ find "$RES_DIR" -path "*mipmap-*" -iname "ic_launcher_foreground.png"
 echo ""
 echo "==> git diff для цього файлу:"
 cd "$REPO_DIR"
-git diff TMessagesProj/src/main/res/drawable/ic_launcher_nagram_dark_blue_foreground.xml
+git diff TMessagesProj/src/main/res/drawable/ic_launcher_toss_dark_blue_foreground.xml

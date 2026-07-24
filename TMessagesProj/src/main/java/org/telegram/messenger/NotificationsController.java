@@ -101,7 +101,7 @@ import com.radolyn.ayugram.utils.AyuMessageUtils;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.NekoXConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
+import toss.authorgram.filters.AGFilter;
 import xyz.nextalone.nagram.NaConfig;
 
 public class NotificationsController extends BaseController implements NotificationCenter.NotificationCenterDelegate {
@@ -1081,10 +1081,10 @@ public class NotificationsController extends BaseController implements Notificat
                     }
                     continue;
                 }
-                if (AyuFilter.shouldHideIgnoredBlockedMessages() && (getMessagesController().blockePeers.indexOfKey(messageObject.getFromChatId()) >= 0 || AyuFilter.isCustomFilteredPeer(messageObject.getFromChatId()))) {
+                if (AGFilter.shouldHideIgnoredBlockedMessages() && (getMessagesController().blockePeers.indexOfKey(messageObject.getFromChatId()) >= 0 || AGFilter.isCustomFilteredPeer(messageObject.getFromChatId()))) {
                     continue;
                 }
-                if (AyuFilter.shouldHideIgnoredBlockedMessages() && AyuFilter.isBlockedChannel(messageObject.getFromChatId())) {
+                if (AGFilter.shouldHideIgnoredBlockedMessages() && AGFilter.isBlockedChannel(messageObject.getFromChatId())) {
                     continue;
                 }
                 // Ghost Mode: Schedule Messages — suppress notifications for our own scheduled-delivery messages.
@@ -2475,13 +2475,13 @@ public class NotificationsController extends BaseController implements Notificat
             return null;
         }
         StringBuilder stringBuilder = new StringBuilder(text);
-        if (NekoConfig.showSpoilersDirectly.Bool() && !AyuFilter.shouldMaskMessage(messageObject, null)) {
+        if (NekoConfig.showSpoilersDirectly.Bool() && !AGFilter.shouldMaskMessage(messageObject, null)) {
             return stringBuilder.toString();
         }
         if (messageObject.didSpoilLoginCode()) {
             return stringBuilder.toString();
         }
-        ArrayList<TLRPC.MessageEntity> entities = AyuFilter.addSpoilerEntities(messageObject, messageObject.messageOwner.entities, text);
+        ArrayList<TLRPC.MessageEntity> entities = AGFilter.addSpoilerEntities(messageObject, messageObject.messageOwner.entities, text);
         if (entities == null) {
             return stringBuilder.toString();
         }
@@ -5286,10 +5286,10 @@ public class NotificationsController extends BaseController implements Notificat
                         FileLog.d("showExtraNotifications: ["+dialogId+"] continue; topic id is not equal: topicId=" + topicId + " messageTopicId=" + messageTopicId + "; selfId=" + getUserConfig().getClientUserId());
                         continue;
                     }
-                    if (AyuFilter.shouldHideIgnoredBlockedMessages() && (getMessagesController().blockePeers.indexOfKey(messageObject.getFromChatId()) >= 0 || AyuFilter.isCustomFilteredPeer(messageObject.getFromChatId()))) {
+                    if (AGFilter.shouldHideIgnoredBlockedMessages() && (getMessagesController().blockePeers.indexOfKey(messageObject.getFromChatId()) >= 0 || AGFilter.isCustomFilteredPeer(messageObject.getFromChatId()))) {
                         continue;
                     }
-                    if (AyuFilter.shouldHideIgnoredBlockedMessages() && AyuFilter.isBlockedChannel(messageObject.getFromChatId())) {
+                    if (AGFilter.shouldHideIgnoredBlockedMessages() && AGFilter.isBlockedChannel(messageObject.getFromChatId())) {
                         continue;
                     }
                     String message = getShortStringForMessage(messageObject, senderName, preview);
@@ -5836,7 +5836,7 @@ public class NotificationsController extends BaseController implements Notificat
 
     public static Person.Builder loadRoundAvatar(long dialogId, File avatar, Person.Builder personBuilder) {
         if (dialogId == UserObject.OAUTH) {
-            personBuilder.setIcon(IconCompat.createWithResource(ApplicationLoader.applicationContext, R.drawable.ic_launcher_nagram_dark_blue_foreground));
+            personBuilder.setIcon(IconCompat.createWithResource(ApplicationLoader.applicationContext, R.drawable.ic_launcher_toss_dark_blue_foreground));
             return personBuilder;
         }
         if (avatar != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -6322,7 +6322,7 @@ public class NotificationsController extends BaseController implements Notificat
             case 1:
                 return R.drawable.nagramx_notification;
             case 2:
-                return R.drawable.nagram_notification;
+                return R.drawable.toss_notification;
             case 3:
                 return R.drawable.neko_notification;
         }

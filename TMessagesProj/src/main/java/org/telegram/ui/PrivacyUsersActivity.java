@@ -50,8 +50,8 @@ import org.telegram.ui.Components.RecyclerListView;
 
 import java.util.ArrayList;
 
-import tw.nekomimi.nekogram.filters.AyuFilter;
-import tw.nekomimi.nekogram.filters.RegexFiltersSettingActivity;
+import toss.authorgram.filters.AGFilter;
+import toss.authorgram.filters.AGFiltersSettingsActivity;
 
 public class PrivacyUsersActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
@@ -171,10 +171,10 @@ public class PrivacyUsersActivity extends BaseFragment implements NotificationCe
                     AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                     if (currentType == TYPE_BLOCKED_CHANNELS) {
                         builder.setTitle(LocaleController.getString(R.string.UnblockAll));
-                        if (AyuFilter.getBlockedChannelsCount() > 0) {
+                        if (AGFilter.getBlockedChannelsCount() > 0) {
                             builder.setMessage(LocaleController.getString(R.string.UnblockAllChannelsWarn));
                             builder.setPositiveButton(LocaleController.getString(R.string.UnblockAll), (dialog, which) -> {
-                                AyuFilter.clearBlockedChannels();
+                                AGFilter.clearBlockedChannels();
                                 if (uidArray != null) {
                                     uidArray.clear();
                                 }
@@ -296,7 +296,7 @@ public class PrivacyUsersActivity extends BaseFragment implements NotificationCe
                         if (dialogId >= 0) {
                             return false;
                         }
-                        AyuFilter.blockPeer(dialogId);
+                        AGFilter.blockPeer(dialogId);
                         if (uidArray == null) {
                             uidArray = new ArrayList<>();
                         }
@@ -398,7 +398,7 @@ public class PrivacyUsersActivity extends BaseFragment implements NotificationCe
             if (uidArray == null || uidArray.isEmpty()) {
                 emptyView.showTextView();
             }
-            if (AyuFilter.getBlockedChannelsCount() != uidArray.size()) {
+            if (AGFilter.getBlockedChannelsCount() != uidArray.size()) {
                 AndroidUtilities.runOnUIThread(() -> {
                     BulletinFactory.of(PrivacyUsersActivity.this).createSimpleBulletin(R.raw.chats_infotip, LocaleController.getString(R.string.BlockChannelsUnavailable)).show();
                 }, 350);
@@ -421,7 +421,7 @@ public class PrivacyUsersActivity extends BaseFragment implements NotificationCe
             .setScrimViewBackground(new ColorDrawable(Theme.getColor(Theme.key_windowBackgroundWhite)))
             .addIf(currentType == TYPE_BLOCKED, 0, LocaleController.getString(R.string.Unblock), () -> getMessagesController().unblockPeer(uid))
             .addIf(currentType == TYPE_BLOCKED_CHANNELS, 0, LocaleController.getString(R.string.UnblockChannel), () -> {
-                AyuFilter.unblockPeer(uid);
+                AGFilter.unblockPeer(uid);
                 uidArray.remove(uid);
                 updateRows();
                 if (uidArray.isEmpty()) {
@@ -636,7 +636,7 @@ public class PrivacyUsersActivity extends BaseFragment implements NotificationCe
                             String link = LocaleController.getString(R.string.ShadowBan);
                             String fullText = LocaleController.getString(R.string.BlockedUsersInfo) + " **" + link + " >**";
                             privacyCell.setText(AndroidUtilities.replaceArrows(AndroidUtilities.replaceSingleTag(fullText, () -> {
-                                presentFragment(new RegexFiltersSettingActivity());
+                                presentFragment(new AGFiltersSettingsActivity());
                             }), true));
                         } else {
                             privacyCell.setFixedSize(8);
@@ -648,7 +648,7 @@ public class PrivacyUsersActivity extends BaseFragment implements NotificationCe
                         String link = LocaleController.getString(R.string.RegexFilters);
                         String fullText = String.format(description, " **" + link + " >**");
                         privacyCell.setText(AndroidUtilities.replaceArrows(AndroidUtilities.replaceSingleTag(fullText, () -> {
-                            presentFragment(new RegexFiltersSettingActivity());
+                            presentFragment(new AGFiltersSettingsActivity());
                         }), true));
                         if (usersStartRow == -1) {
                             privacyCell.setBackground(Theme.getThemedDrawableByKey(mContext, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));

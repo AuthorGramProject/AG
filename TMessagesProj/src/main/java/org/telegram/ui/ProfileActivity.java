@@ -354,21 +354,21 @@ import me.vkryl.android.animator.BoolAnimator;
 import tw.nekomimi.nekogram.BackButtonMenuRecent;
 import tw.nekomimi.nekogram.DatacenterActivity;
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
-import tw.nekomimi.nekogram.filters.RegexChatFiltersListActivity;
-import tw.nekomimi.nekogram.filters.ShadowBanListActivity;
+import toss.authorgram.filters.AGFilter;
+import toss.authorgram.filters.RegexChatFiltersListActivity;
+import toss.authorgram.filters.ShadowBanListActivity;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
 import tw.nekomimi.nekogram.helpers.LocalNameHelper;
 import tw.nekomimi.nekogram.helpers.MainTabsHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.helpers.ProfileDateHelper;
-import tw.nekomimi.nekogram.helpers.SettingsHelper;
-import tw.nekomimi.nekogram.helpers.SettingsSearchResult;
+import toss.authorgram.settings.AGSettingsRouter;
+import toss.authorgram.settings.AGSettingsSearchResult;
 import tw.nekomimi.nekogram.helpers.remote.UpdateHelper;
 import tw.nekomimi.nekogram.llm.LlmConfig;
 import tw.nekomimi.nekogram.menu.forum.CustomForumTabsPopupWrapper;
 import tw.nekomimi.nekogram.parts.DialogTransKt;
-import tw.nekomimi.nekogram.settings.NekoSettingsActivity;
+import toss.authorgram.settings.AGSettingsActivity;
 import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.ui.BottomBuilder;
 import tw.nekomimi.nekogram.utils.AlertUtil;
@@ -2297,7 +2297,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             } else if (chatInfo == null) {
                 chatInfo = getMessagesStorage().loadChatInfo(chatId, false, null, false, false);
             }
-            channelBlocked = AyuFilter.isBlockedChannel(-chatId);
+            channelBlocked = AGFilter.isBlockedChannel(-chatId);
             updateExceptions();
         } else {
             return false;
@@ -4623,7 +4623,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             } else if (position == devicesRow) {
                 presentFragment(new SessionsActivity(0));
             } else if (position == nekoRow) {
-                presentFragment(new NekoSettingsActivity());
+                presentFragment(new AGSettingsActivity());
             } else if (position == questionRow) {
                 showDialog(AlertsCreator.createSupportAlert(ProfileActivity.this, resourcesProvider));
             } else if (position == faqRow) {
@@ -12665,7 +12665,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             }
                         } else {
                             if (NekoConfig.ignoreBlocked.Bool()) {
-                                boolean customFiltered = AyuFilter.getCustomFilteredUsersList().contains(userId);
+                                boolean customFiltered = AGFilter.getCustomFilteredUsersList().contains(userId);
                                 otherItem.addSubItem(shadow_ban, customFiltered ? R.drawable.msg_block : R.drawable.msg_block2, getString(customFiltered ? R.string.UnshadowBan : R.string.ShadowBan));
                             }
                             otherItem.addSubItem(block_contact, !userBlocked ? R.drawable.msg_block : R.drawable.msg_block, !userBlocked ? LocaleController.getString(R.string.BlockContact) : LocaleController.getString(R.string.Unblock));
@@ -12679,7 +12679,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         otherItem.addSubItem(share_contact, R.drawable.msg_share, LocaleController.getString(R.string.ShareContact));
                     }
                     if (NekoConfig.ignoreBlocked.Bool()) {
-                        boolean customFiltered = AyuFilter.getCustomFilteredUsersList().contains(userId);
+                        boolean customFiltered = AGFilter.getCustomFilteredUsersList().contains(userId);
                         otherItem.addSubItem(shadow_ban, customFiltered ? R.drawable.msg_block : R.drawable.msg_block2, getString(customFiltered ? R.string.UnshadowBan : R.string.ShadowBan));
                     }
                     otherItem.addSubItem(block_contact, !userBlocked ? R.drawable.msg_block : R.drawable.msg_block, !userBlocked ? LocaleController.getString(R.string.BlockContact) : LocaleController.getString(R.string.Unblock));
@@ -15405,11 +15405,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     new SearchResult(403, getString(R.string.TelegramFAQ), getString(R.string.SettingsHelp), R.drawable.msg2_help, () -> Browser.openUrl(f.getParentActivity(), getString(R.string.TelegramFaqUrl))).withLink("tg://settings/faq"),
                     new SearchResult(404, getString(R.string.PrivacyPolicy), getString(R.string.SettingsHelp), R.drawable.msg2_help, () -> Browser.openUrl(f.getParentActivity(), getString(R.string.PrivacyPolicyUrl))).withLink("tg://settings/privacy-policy"),
             };
-            ArrayList<SettingsSearchResult> nagramSettings = SettingsHelper.onCreateSearchArray(
+            ArrayList<AGSettingsSearchResult> nagramSettings = AGSettingsRouter.onCreateSearchArray(
                     fragment -> AndroidUtilities.runOnUIThread(() -> f.presentFragment(fragment, false, false))
             );
             ArrayList<SearchResult> list = new ArrayList<>();
-            for (SettingsSearchResult oldResult: nagramSettings) {
+            for (AGSettingsSearchResult oldResult: nagramSettings) {
                 SearchResult result = new SearchResult(
                     oldResult.guid, oldResult.searchTitle, null, oldResult.path1, oldResult.path2, oldResult.iconResId, oldResult.openRunnable
                 );
@@ -17888,7 +17888,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
         if (ChatObject.isChannelAndNotMegaGroup(chat)) {
             if (channelBlocked) {
-                AyuFilter.unblockPeer(-chatId);
+                AGFilter.unblockPeer(-chatId);
                 channelBlocked = false;
                 if (BulletinFactory.canShowBulletin(ProfileActivity.this)) {
                     BulletinFactory.createBanChannelBulletin(ProfileActivity.this, false).show();
@@ -17899,7 +17899,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 builder.setTitle(getString(R.string.BlockChannel));
                 builder.setMessage(AndroidUtilities.replaceTags(formatString(R.string.AreYouSureBlockContact2, chat.title)));
                 builder.setPositiveButton(LocaleController.getString(R.string.Block), (dialogInterface, i) -> {
-                    AyuFilter.blockPeer(-chatId);
+                    AGFilter.blockPeer(-chatId);
                     channelBlocked = true;
                     if (BulletinFactory.canShowBulletin(ProfileActivity.this)) {
                         BulletinFactory.createBanChannelBulletin(ProfileActivity.this, true).show();
@@ -17925,7 +17925,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (user == null || UserObject.isUserSelf(user)) {
             return;
         }
-        ArrayList<Long> userIds = AyuFilter.getCustomFilteredUsersList();
+        ArrayList<Long> userIds = AGFilter.getCustomFilteredUsersList();
         boolean added;
         if (userIds.contains(userId)) {
             userIds.remove(userId);
@@ -17934,9 +17934,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             userIds.add(userId);
             added = true;
         }
-        AyuFilter.setCustomFilteredUsers(userIds);
+        AGFilter.setCustomFilteredUsers(userIds);
         if (added) {
-            AyuFilter.updateCustomFilteredUserFromLocalUser(user);
+            AGFilter.updateCustomFilteredUserFromLocalUser(user);
         }
         if (BulletinFactory.canShowBulletin(this)) {
             Drawable drawable = ContextCompat.getDrawable(getParentActivity(), added ? R.drawable.msg_block2 : R.drawable.msg_block);

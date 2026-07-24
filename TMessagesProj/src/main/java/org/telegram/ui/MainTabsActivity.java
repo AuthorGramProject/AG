@@ -90,9 +90,9 @@ import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.helpers.AppRestartHelper;
 import tw.nekomimi.nekogram.helpers.MainTabsHelper;
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
-import tw.nekomimi.nekogram.settings.GhostModeActivity;
-import tw.nekomimi.nekogram.settings.MainTabsCustomizeActivity;
-import tw.nekomimi.nekogram.settings.NekoSettingsActivity;
+import toss.authorgram.settings.GhostModeActivity;
+import toss.authorgram.settings.MainTabsCustomizeActivity;
+import toss.authorgram.settings.AGSettingsActivity;
 import tw.nekomimi.nekogram.ui.BookmarkManagerActivity;
 import tw.nekomimi.nekogram.utils.BrowserUtils;
 import xyz.nextalone.nagram.NaConfig;
@@ -1346,7 +1346,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                 addedAny = true;
             }
             if (!nSettingsInDrawer) {
-                o.add(R.drawable.msg_settings, getString(R.string.NekoSettings), () -> presentFragment(new NekoSettingsActivity()));
+                o.add(R.drawable.msg_settings, getString(R.string.NekoSettings), () -> presentFragment(new AGSettingsActivity()));
                 addedAny = true;
             }
             if (!browserInDrawer) {

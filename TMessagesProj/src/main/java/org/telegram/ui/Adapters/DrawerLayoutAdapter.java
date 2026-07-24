@@ -340,16 +340,16 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter imple
             }
         }
 
-        boolean showNSettings = NaConfig.INSTANCE.getDrawerItemNSettings().Bool();
+        boolean showAGSettings = NaConfig.INSTANCE.getDrawerItemNSettings().Bool();
         boolean showBrowser = NaConfig.INSTANCE.getDrawerItemBrowser().Bool();
         boolean showQrLogin = NaConfig.INSTANCE.getDrawerItemQrLogin().Bool();
         boolean showSessions = NaConfig.INSTANCE.getDrawerItemSessions().Bool();
         boolean showRestartApp = NaConfig.INSTANCE.getDrawerItemRestartApp().Bool();
-        if (showNSettings || showBrowser || showQrLogin || showSessions) {
+        if (showAGSettings || showBrowser || showQrLogin || showSessions) {
             items.add(null);
         }
-        if (showNSettings) {
-            items.add(new Item(nkbtnSettings, LocaleController.getString(R.string.NekoSettings), R.drawable.nagramx_outline));
+        if (showAGSettings) {
+            items.add(new Item(nkbtnSettings, LocaleController.getString(R.string.AGSettings), R.drawable.ag_settings));
         }
         if (showBrowser) {
             items.add(new Item(nkbtnBrowser, LocaleController.getString(R.string.InappBrowser), R.drawable.web_browser));

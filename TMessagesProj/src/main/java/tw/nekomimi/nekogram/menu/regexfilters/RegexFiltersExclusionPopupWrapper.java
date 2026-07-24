@@ -15,7 +15,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.PopupSwipeBackLayout;
 
-import tw.nekomimi.nekogram.filters.AyuFilter;
+import toss.authorgram.filters.AGFilter;
 
 public class RegexFiltersExclusionPopupWrapper {
 
@@ -37,16 +37,16 @@ public class RegexFiltersExclusionPopupWrapper {
         }
 
         defaultItem = ActionBarMenuItem.addItem(windowLayout, 0, getString(R.string.Default), true, resourcesProvider);
-        defaultItem.setChecked(!AyuFilter.isDialogExcluded(chatId));
+        defaultItem.setChecked(!AGFilter.isDialogExcluded(chatId));
         defaultItem.setOnClickListener(view -> {
-            AyuFilter.setDialogExcluded(chatId, false);
+            AGFilter.setDialogExcluded(chatId, false);
             updateItems();
         });
 
         exclusionItem = ActionBarMenuItem.addItem(windowLayout, 0, getString(R.string.SaveDeletedExcluded), true, resourcesProvider);
-        exclusionItem.setChecked(AyuFilter.isDialogExcluded(chatId));
+        exclusionItem.setChecked(AGFilter.isDialogExcluded(chatId));
         exclusionItem.setOnClickListener(view -> {
-            AyuFilter.setDialogExcluded(chatId, true);
+            AGFilter.setDialogExcluded(chatId, true);
             updateItems();
         });
 
@@ -61,7 +61,7 @@ public class RegexFiltersExclusionPopupWrapper {
     }
 
     public void updateItems() {
-        defaultItem.setChecked(!AyuFilter.isDialogExcluded(chatId));
-        exclusionItem.setChecked(AyuFilter.isDialogExcluded(chatId));
+        defaultItem.setChecked(!AGFilter.isDialogExcluded(chatId));
+        exclusionItem.setChecked(AGFilter.isDialogExcluded(chatId));
     }
 }

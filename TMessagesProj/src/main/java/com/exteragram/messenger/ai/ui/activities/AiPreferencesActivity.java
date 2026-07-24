@@ -25,10 +25,10 @@ import tw.nekomimi.nekogram.config.cell.AbstractConfigCell;
 import tw.nekomimi.nekogram.config.cell.ConfigCellHeader;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheck;
 import tw.nekomimi.nekogram.config.cell.ConfigCellTextCheckIcon;
-import tw.nekomimi.nekogram.settings.BaseNekoXSettingsActivity;
+import toss.authorgram.settings.BaseAGXSettingsActivity;
 
 @SuppressWarnings("FieldCanBeLocal")
-public class AiPreferencesActivity extends BaseNekoXSettingsActivity {
+public class AiPreferencesActivity extends BaseAGXSettingsActivity {
 
     private ListAdapter listAdapter;
 

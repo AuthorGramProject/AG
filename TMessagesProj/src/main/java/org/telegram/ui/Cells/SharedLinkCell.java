@@ -64,7 +64,7 @@ import java.util.Stack;
 import java.util.concurrent.atomic.AtomicReference;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
+import toss.authorgram.filters.AGFilter;
 
 public class SharedLinkCell extends FrameLayout {
     private final static int SPOILER_TYPE_LINK = 0,
@@ -405,7 +405,7 @@ public class SharedLinkCell extends FrameLayout {
                         }
                         SpannableString sb = SpannableString.valueOf(lobj);
                         int start = entity.offset, end = entity.offset + entity.length;
-                        ArrayList<TLRPC.MessageEntity> entities = AyuFilter.addSpoilerEntities(message, message.messageOwner.entities, message.messageText);
+                        ArrayList<TLRPC.MessageEntity> entities = AGFilter.addSpoilerEntities(message, message.messageOwner.entities, message.messageText);
                         if (entities == null) {
                             entities = message.messageOwner.entities;
                         }

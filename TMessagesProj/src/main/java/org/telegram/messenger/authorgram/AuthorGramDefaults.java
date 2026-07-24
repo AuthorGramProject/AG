@@ -169,7 +169,7 @@ public final class AuthorGramDefaults {
                 {"DisableCrashlyticsCollection", true},
                 {"SwitchStyleModernRemoved", true},
                 {"ShowRecentChatsSidebar", false},
-                {"CustomTitle", "AuthorGram"},
+                {"CustomTitle", "TOSS"},
                 {"showGhostModeStatus", true},
                 {"disableChoosingSticker", true},
                 {"CenterActionBarTitle", true},

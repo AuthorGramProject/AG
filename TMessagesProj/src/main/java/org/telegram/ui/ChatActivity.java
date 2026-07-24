@@ -382,10 +382,10 @@ import me.vkryl.core.reference.ReferenceList;
 
 import tw.nekomimi.nekogram.BackButtonMenuRecent;
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
-import tw.nekomimi.nekogram.filters.RegexChatFiltersListActivity;
-import tw.nekomimi.nekogram.filters.RegexFiltersSettingActivity;
-import tw.nekomimi.nekogram.filters.RegexFilterEditActivity;
+import toss.authorgram.filters.AGFilter;
+import toss.authorgram.filters.RegexChatFiltersListActivity;
+import toss.authorgram.filters.AGFiltersSettingsActivity;
+import toss.authorgram.filters.RegexFilterEditActivity;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
 import com.radolyn.ayugram.AyuForward;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
@@ -9867,7 +9867,7 @@ public class ChatActivity extends BaseFragment implements
             });
             regexFiltersItem.setOnLongClickListener(v -> {
                 dismissMenu.run();
-                AndroidUtilities.runOnUIThread(() -> presentFragment(new RegexFiltersSettingActivity()), 50);
+                AndroidUtilities.runOnUIThread(() -> presentFragment(new AGFiltersSettingsActivity()), 50);
                 return true;
             });
             regexFiltersItem.setRightIcon(R.drawable.msg_arrowright, v -> {
@@ -9899,10 +9899,10 @@ public class ChatActivity extends BaseFragment implements
                         if (m != null) {
                             m.skipAyuFiltering = !hideFilteredMessages;
                             m.forceUpdate = true;
-                            AyuFilter.refreshMaskStateForMessage(m);
+                            AGFilter.refreshMaskStateForMessage(m);
                             if (m.replyMessageObject != null) {
                                 m.replyMessageObject.skipAyuFiltering = !hideFilteredMessages;
-                                AyuFilter.refreshMaskStateForMessage(m.replyMessageObject);
+                                AGFilter.refreshMaskStateForMessage(m.replyMessageObject);
                             }
                         }
                     }
@@ -40672,22 +40672,22 @@ public class ChatActivity extends BaseFragment implements
                 if (msg == null || msg.messageOwner != null && msg.messageOwner.hide) {
                     return -1000;
                 }
-                // Sync session-level filter bypass so AyuFilter.isFiltered honors it consistently
+                // Sync session-level filter bypass so AGFilter.isFiltered honors it consistently
                 // across ChatMessageCell reply previews, notification formatters, etc.
                 msg.skipAyuFiltering = !hideFilteredMessages;
                 if (msg.replyMessageObject != null) {
                     msg.replyMessageObject.skipAyuFiltering = !hideFilteredMessages;
                 }
                 if (hideFilteredMessages) {
-                    if (AyuFilter.shouldHideIgnoredBlockedMessages() && ChatObject.isMegagroup(currentChat)) {
+                    if (AGFilter.shouldHideIgnoredBlockedMessages() && ChatObject.isMegagroup(currentChat)) {
                         long fromId = msg.getFromChatId();
-                        if (isBlockedUser(fromId) || AyuFilter.isBlockedChannel(fromId)) {
+                        if (isBlockedUser(fromId) || AGFilter.isBlockedChannel(fromId)) {
                             revealShowFilteredMenuItem();
                             return -1000;
                         }
                         if (msg.replyMessageObject != null) {
                             fromId = msg.replyMessageObject.getFromChatId();
-                            if (isBlockedUser(fromId) || AyuFilter.isBlockedChannel(fromId)) {
+                            if (isBlockedUser(fromId) || AGFilter.isBlockedChannel(fromId)) {
                                 revealShowFilteredMenuItem();
                                 return -1000;
                             }
@@ -40702,7 +40702,7 @@ public class ChatActivity extends BaseFragment implements
                         if (filterMsg == null) {
                             filterMsg = msg;
                         }
-                        if (AyuFilter.shouldHideFilteredMessage(filterMsg, filterGroup)) {
+                        if (AGFilter.shouldHideFilteredMessage(filterMsg, filterGroup)) {
                             revealShowFilteredMenuItem();
                             return -1000;
                         }
@@ -40718,14 +40718,14 @@ public class ChatActivity extends BaseFragment implements
                             continue;
                         }
                         if (hideFilteredMessages) {
-                            if (AyuFilter.shouldHideIgnoredBlockedMessages() && ChatObject.isMegagroup(currentChat)) {
+                            if (AGFilter.shouldHideIgnoredBlockedMessages() && ChatObject.isMegagroup(currentChat)) {
                                 long fromId = m.getFromChatId();
-                                if (isBlockedUser(fromId) || AyuFilter.isBlockedChannel(fromId)) {
+                                if (isBlockedUser(fromId) || AGFilter.isBlockedChannel(fromId)) {
                                     continue;
                                 }
                                 if (m.replyMessageObject != null) {
                                     fromId = m.replyMessageObject.getFromChatId();
-                                    if (isBlockedUser(fromId) || AyuFilter.isBlockedChannel(fromId)) {
+                                    if (isBlockedUser(fromId) || AGFilter.isBlockedChannel(fromId)) {
                                         continue;
                                     }
                                 }
@@ -40738,7 +40738,7 @@ public class ChatActivity extends BaseFragment implements
                             if (fm == null) {
                                 fm = m;
                             }
-                            if (AyuFilter.shouldHideFilteredMessage(fm, g)) {
+                            if (AGFilter.shouldHideFilteredMessage(fm, g)) {
                                 continue;
                             }
                         }
@@ -47199,7 +47199,7 @@ public class ChatActivity extends BaseFragment implements
             for (int i = 0; i < messages.size(); i++) {
                 int msgId = messages.get(i).getId();
                 long fromId = messages.get(i).getFromChatId();
-                if (AyuFilter.shouldHideIgnoredBlockedMessages() && (isBlockedUser(fromId) || AyuFilter.isBlockedChannel(fromId))) {
+                if (AGFilter.shouldHideIgnoredBlockedMessages() && (isBlockedUser(fromId) || AGFilter.isBlockedChannel(fromId))) {
                     continue;
                 }
                 {
@@ -47212,7 +47212,7 @@ public class ChatActivity extends BaseFragment implements
                     if (selFilterMsg == null) {
                         selFilterMsg = selMsg;
                     }
-                    if (AyuFilter.shouldHideFilteredMessage(selFilterMsg, selGroup)) {
+                    if (AGFilter.shouldHideFilteredMessage(selFilterMsg, selGroup)) {
                         continue;
                     }
                 }
@@ -50617,7 +50617,7 @@ public class ChatActivity extends BaseFragment implements
         if (!NekoConfig.ignoreBlocked.Bool()) {
             return false;
         }
-        return getMessagesController().blockePeers.indexOfKey(senderId) >= 0 || AyuFilter.isCustomFilteredPeer(senderId);
+        return getMessagesController().blockePeers.indexOfKey(senderId) >= 0 || AGFilter.isCustomFilteredPeer(senderId);
     }
 
     private void updateBotforumTabsBottomMargin() {

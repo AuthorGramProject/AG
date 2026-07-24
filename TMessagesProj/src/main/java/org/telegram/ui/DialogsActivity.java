@@ -298,7 +298,7 @@ import tw.nekomimi.nekogram.helpers.MainTabsHelper;
 import tw.nekomimi.nekogram.ChatHistoryActivity;
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 import tw.nekomimi.nekogram.helpers.TypefaceHelper;
-import tw.nekomimi.nekogram.settings.MainTabsCustomizeActivity;
+import toss.authorgram.settings.MainTabsCustomizeActivity;
 import tw.nekomimi.nekogram.ui.BookmarkManagerActivity;
 import xyz.nextalone.nagram.NaConfig;
 import xyz.nextalone.nagram.ui.folders.FoldersHelper;

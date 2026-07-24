@@ -63,7 +63,6 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS"/>
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
@@ -109,13 +108,13 @@
         android:restoreAnyVersion="true"
         android:backupAgent=".BackupAgent"
         android:hardwareAccelerated="true"
-        android:icon="@mipmap/ic_launcher_nagram_dark_blue"
+        android:icon="@mipmap/ic_launcher_toss"
         android:label="@string/AppName"
         android:largeHeap="true"
         android:theme="@style/Theme.TMessages.Start"
         android:manageSpaceActivity="org.telegram.ui.ExternalActionActivity"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:roundIcon="@mipmap/ic_launcher_nagram_dark_blue_round"
+        android:roundIcon="@mipmap/ic_launcher_toss_round"
         android:supportsRtl="false"
         android:requestLegacyExternalStorage="true"
         android:hasFragileUserData="true"
@@ -204,7 +203,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <data android:mimeType="vnd.android.cursor.item/vnd.fork.risin42.nagramx.android.profile"/>
+                <data android:mimeType="vnd.android.cursor.item/vnd.toss.authorgram.apk.android.profile"/>
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
@@ -220,13 +219,13 @@
                 <data android:host="www.keepassdx.com" android:scheme="http" />
                 <data android:host="www.keepassdx.com" android:scheme="https" />
             </intent-filter>
-            <intent-filter android:icon="@mipmap/ic_launcher_nagram_dark_blue" android:roundIcon="@mipmap/ic_launcher_nagram_dark_blue_round" android:priority="1">
+            <intent-filter android:icon="@mipmap/ic_launcher_toss" android:roundIcon="@mipmap/ic_launcher_toss_round" android:priority="1">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="tonsite" />
             </intent-filter>
-            <intent-filter android:icon="@mipmap/ic_launcher_nagram_dark_blue" android:roundIcon="@mipmap/ic_launcher_nagram_dark_blue_round" android:priority="1">
+            <intent-filter android:icon="@mipmap/ic_launcher_toss" android:roundIcon="@mipmap/ic_launcher_toss_round" android:priority="1">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -251,8 +250,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <data android:mimeType="vnd.android.cursor.item/vnd.fork.risin42.nagramx.android.call"/>
-                <data android:mimeType="vnd.android.cursor.item/vnd.fork.risin42.nagramx.android.call.video"/>
+                <data android:mimeType="vnd.android.cursor.item/vnd.toss.authorgram.apk.android.call"/>
+                <data android:mimeType="vnd.android.cursor.item/vnd.toss.authorgram.apk.android.call.video"/>
             </intent-filter>
         </activity-alias>
         <activity
@@ -272,7 +271,7 @@
             android:stateNotNeeded="true"
             android:theme="@style/Theme.TMessages.Transparent"
             android:exported="true">
-            <intent-filter android:icon="@mipmap/ic_launcher_nagram_dark_blue" android:roundIcon="@mipmap/ic_launcher_nagram_dark_blue_round" android:priority="1">
+            <intent-filter android:icon="@mipmap/ic_launcher_toss" android:roundIcon="@mipmap/ic_launcher_toss_round" android:priority="1">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -285,7 +284,7 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustPan"
             android:exported="true">
-            <intent-filter android:icon="@mipmap/ic_launcher_nagram_dark_blue" android:roundIcon="@mipmap/ic_launcher_nagram_dark_blue_round">
+            <intent-filter android:icon="@mipmap/ic_launcher_toss" android:roundIcon="@mipmap/ic_launcher_toss_round">
                 <action android:name="org.telegram.passport.AUTHORIZE"/>
                 <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
@@ -296,7 +295,7 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustPan"
             android:exported="true">
-            <intent-filter android:icon="@mipmap/ic_launcher_nagram_dark_blue" android:roundIcon="@mipmap/ic_launcher_nagram_dark_blue_round">
+            <intent-filter android:icon="@mipmap/ic_launcher_toss" android:roundIcon="@mipmap/ic_launcher_toss_round">
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
             </intent-filter>
         </activity>
@@ -306,7 +305,7 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustPan"
             android:exported="true">
-            <intent-filter android:icon="@mipmap/ic_launcher_nagram_dark_blue" android:roundIcon="@mipmap/ic_launcher_nagram_dark_blue_round">
+            <intent-filter android:icon="@mipmap/ic_launcher_toss" android:roundIcon="@mipmap/ic_launcher_toss_round">
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
             </intent-filter>
         </activity>
@@ -315,7 +314,7 @@
 <!--            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"-->
 <!--            android:hardwareAccelerated="true"-->
 <!--            android:windowSoftInputMode="adjustPan">-->
-<!--            <intent-filter android:icon="@mipmap/ic_launcher_nagram_dark_blue" android:roundIcon="@mipmap/ic_launcher_nagram_dark_blue_round">-->
+<!--            <intent-filter android:icon="@mipmap/ic_launcher_toss" android:roundIcon="@mipmap/ic_launcher_toss_round">-->
 <!--                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>-->
 <!--            </intent-filter>-->
 <!--        </activity>-->

@@ -25,10 +25,10 @@ import java.util.List;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-import tw.nekomimi.nekogram.settings.BaseNekoSettingsActivity;
+import toss.authorgram.settings.BaseAGSettingsActivity;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
 
-public class RolesActivity extends BaseNekoSettingsActivity {
+public class RolesActivity extends BaseAGSettingsActivity {
 
     private static final int MENU_ADD = 1;
     private static final int VIEW_TYPE_RADIO = 100;
@@ -142,7 +142,7 @@ public class RolesActivity extends BaseNekoSettingsActivity {
     }
 
     @Override
-    protected BaseNekoSettingsActivity.BaseListAdapter createAdapter(Context context) {
+    protected BaseAGSettingsActivity.BaseListAdapter createAdapter(Context context) {
         return new ListAdapter(context);
     }
 

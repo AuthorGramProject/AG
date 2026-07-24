@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="AppName">TOSS</string>
+    <string name="AppNameBeta">TOSS Beta</string>
+    <string name="TOSS">TOSS</string>
+    <string name="AGSettings">AuthorGram-Einstellungen</string>
+    <string name="AGRegexFilters">Nachrichtenfilter</string>
+    <string name="AGRegexFiltersInfo">Filtere Nachrichten global oder pro Chat mit regulären Ausdrücken.</string>
+    <string name="AGAboutInfo">TOSS</string>
+    <string name="AGLinks">AuthorChe-Links</string>
+    <string name="TOSSAboutDesc">TOSS ist ein datenschutzorientiertes Telegram-Multitool für sichere Kommunikation, flexible Steuerung und komfortable tägliche Nutzung.</string>
+    <string name="AGCredits">Open-Source-Danksagung</string>
+    <string name="AGCreditsText">Danke an Cherrygram, Nagram und Nekogram sowie ihre Mitwirkenden. Teile von TOSS basieren auf deren Open-Source-Arbeit oder wurden daraus angepasst. Telegram for Android bleibt die technische Grundlage.</string>
+</resources>

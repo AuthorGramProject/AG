@@ -184,7 +184,7 @@ import me.vkryl.core.BitwiseUtils;
 
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 import tw.nekomimi.nekogram.NekoConfig;
-import static tw.nekomimi.nekogram.settings.NekoChatSettingsActivity.getDeleteMenuChecks;
+import static toss.authorgram.settings.AGChatSettingsActivity.getDeleteMenuChecks;
 import xyz.nextalone.nagram.NaConfig;
 
 import com.radolyn.ayugram.AyuConstants;

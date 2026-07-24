@@ -261,7 +261,7 @@ import me.vkryl.core.BitwiseUtils;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.NekoXConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
+import toss.authorgram.filters.AGFilter;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.helpers.TimeStringHelper;
 import tw.nekomimi.nekogram.helpers.TranscribeHelper;
@@ -448,7 +448,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
         for (int i = 0; i < textLayoutBlocks.size(); i++) {
             MessageObject.TextLayoutBlock block = textLayoutBlocks.get(i);
-            if (block != null && block.textLayout != null && AyuFilter.hasMaskedFilterSpan(block.textLayout.getText())) {
+            if (block != null && block.textLayout != null && AGFilter.hasMaskedFilterSpan(block.textLayout.getText())) {
                 return true;
             }
         }
@@ -6804,9 +6804,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     public MultiLayoutTypingAnimator botDraftTypingAnimator;
 
     private void setMessageContent(MessageObject messageObject, MessageObject.GroupedMessages groupedMessages, boolean bottomNear, boolean topNear, boolean firstInChat, boolean lastInChatList) {
-        AyuFilter.syncMaskedSpoilerRevealState(messageObject, groupedMessages);
+        AGFilter.syncMaskedSpoilerRevealState(messageObject, groupedMessages);
         if (messageObject != null && messageObject.replyMessageObject != null) {
-            AyuFilter.syncMaskedSpoilerRevealState(messageObject.replyMessageObject, null);
+            AGFilter.syncMaskedSpoilerRevealState(messageObject.replyMessageObject, null);
         }
         if (messageObject.checkLayout() || currentPosition != null && lastHeight != AndroidUtilities.displaySize.y) {
             currentMessageObject = null;
@@ -19768,7 +19768,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         }
                     }
                     // Follow ayuGram: if the replied-to message itself is filtered, ghost out its preview.
-                    if (messageObject.replyMessageObject != null && AyuFilter.isFiltered(messageObject.replyMessageObject, null)) {
+                    if (messageObject.replyMessageObject != null && AGFilter.isFiltered(messageObject.replyMessageObject, null)) {
                         if (replyImageReceiver != null) {
                             replyImageReceiver.setImageBitmap((Drawable) null);
                         }

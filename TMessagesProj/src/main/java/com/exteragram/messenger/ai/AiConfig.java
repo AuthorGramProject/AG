@@ -32,7 +32,7 @@ public abstract class AiConfig {
     public static SharedPreferences preferences;
     public static SharedPreferences.Editor editor;
 
-    // ConfigItem instances for use with CellGroup/BaseNekoXSettingsActivity
+    // ConfigItem instances for use with CellGroup/BaseAGXSettingsActivity
     public static final ConfigItem saveHistoryConfig = new ConfigItem("aiChat_saveHistory", ConfigItem.configTypeBool, true);
     public static final ConfigItem responseStreamingConfig = new ConfigItem("aiChat_responseStreaming", ConfigItem.configTypeBool, true);
     public static final ConfigItem showResponseOnlyConfig = new ConfigItem("aiChat_showResponseOnly", ConfigItem.configTypeBool, false);

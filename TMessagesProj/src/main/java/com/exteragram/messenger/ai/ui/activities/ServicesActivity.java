@@ -26,10 +26,10 @@ import org.telegram.ui.Components.RecyclerListView;
 import java.util.ArrayList;
 import java.util.List;
 
-import tw.nekomimi.nekogram.settings.BaseNekoSettingsActivity;
+import toss.authorgram.settings.BaseAGSettingsActivity;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
 
-public class ServicesActivity extends BaseNekoSettingsActivity implements NotificationCenter.NotificationCenterDelegate {
+public class ServicesActivity extends BaseAGSettingsActivity implements NotificationCenter.NotificationCenterDelegate {
 
     private static final int VIEW_TYPE_RADIO = 100;
     private static final int VIEW_TYPE_CREATION = 101;
@@ -135,7 +135,7 @@ public class ServicesActivity extends BaseNekoSettingsActivity implements Notifi
     }
 
     @Override
-    protected BaseNekoSettingsActivity.BaseListAdapter createAdapter(Context context) {
+    protected BaseAGSettingsActivity.BaseListAdapter createAdapter(Context context) {
         return new ListAdapter(context);
     }
 

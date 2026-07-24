@@ -34,10 +34,10 @@ import java.util.List;
 
 import androidx.recyclerview.widget.DiffUtil;
 
-import tw.nekomimi.nekogram.settings.BaseNekoSettingsActivity;
+import toss.authorgram.settings.BaseAGSettingsActivity;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
 
-public class PillStackPreferencesActivity extends BaseNekoSettingsActivity {
+public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
 
     private static final int MENU_RESET = 1;
 

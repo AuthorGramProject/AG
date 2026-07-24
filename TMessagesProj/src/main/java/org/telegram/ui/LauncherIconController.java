@@ -21,7 +21,7 @@ public class LauncherIconController {
     }
 
     public enum LauncherIcon {
-        DARKBLUE("DarkBlueIcon", R.color.nagram_dark_blue_background, R.drawable.ic_launcher_nagram_dark_blue_foreground, R.string.AppIconDarkBlue);
+        DARKBLUE("DarkBlueIcon", R.color.nagram_dark_blue_background, R.drawable.ic_launcher_toss_dark_blue_foreground, R.string.AppIconDarkBlue);
 
         public final String key;
         public final int background;

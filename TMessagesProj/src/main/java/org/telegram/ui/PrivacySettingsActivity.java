@@ -78,7 +78,7 @@ import org.telegram.ui.bots.BotBiometrySettings;
 import java.util.ArrayList;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
+import toss.authorgram.filters.AGFilter;
 
 public class PrivacySettingsActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
@@ -328,7 +328,7 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
             } else if (position == blockedRow) {
                 presentFragment(new PrivacyUsersActivity());
             } else if (position == blockedChannelsRow) {
-                presentFragment(new PrivacyUsersActivity(PrivacyUsersActivity.TYPE_BLOCKED_CHANNELS, AyuFilter.getBlockedChannelsList(), false, false));
+                presentFragment(new PrivacyUsersActivity(PrivacyUsersActivity.TYPE_BLOCKED_CHANNELS, AGFilter.getBlockedChannelsList(), false, false));
             } else if (position == sessionsRow) {
                 devicesActivityPreload.resetFragment();
                 presentFragment(devicesActivityPreload);
@@ -1408,7 +1408,7 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                         }
                         textCell2.setTextAndValueAndIcon(getString("BlockedUsers", R.string.BlockedUsers), value, true, R.drawable.msg2_block2, true);
                     } else if (position == blockedChannelsRow) {
-                        int count = AyuFilter.getBlockedChannelsCount();
+                        int count = AGFilter.getBlockedChannelsCount();
                         if (count == 0) {
                             value = getString(R.string.BlockedEmpty);
                         } else {

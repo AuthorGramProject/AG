@@ -128,7 +128,7 @@ import me.vkryl.core.BitwiseUtils;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.NekoXConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
+import toss.authorgram.filters.AGFilter;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.parts.MessageTransKt;
 import xyz.nextalone.nagram.NaConfig;
@@ -242,7 +242,7 @@ public class MessageObject {
     public boolean isDateObject;
     public boolean isVideoConversionObject;
     public boolean isPlayingExplanationObject;
-    // NagramX: per-session filter bypass. When true, AyuFilter.isFiltered treats this message
+    // NagramX: per-session filter bypass. When true, AGFilter.isFiltered treats this message
     // as non-filtered, letting ChatActivity temporarily reveal filtered messages without
     // touching the user's filter configuration.
     public boolean skipAyuFiltering;
@@ -656,7 +656,7 @@ public class MessageObject {
     }
 
     public boolean hasMediaSpoilers() {
-        boolean maskMessage = AyuFilter.shouldMaskMessage(this, null);
+        boolean maskMessage = AGFilter.shouldMaskMessage(this, null);
         boolean hasMaskableMedia = maskMessage && (messageOwner.media != null || needDrawBluredPreview() || isHiddenSensitive());
         boolean hasNativeMediaSpoilers = (!isRepostPreview && ((messageOwner.media != null && messageOwner.media.spoiler) || needDrawBluredPreview())) || isHiddenSensitive();
         if (NekoConfig.showSpoilersDirectly.Bool() && !hasMaskableMedia) return false;
@@ -806,7 +806,7 @@ public class MessageObject {
         if (messageOwner.media != null && old.messageOwner.media != null) {
             messageOwner.media.storyItem = old.messageOwner.media.storyItem;
         }
-        if (isSpoilersRevealed && !AyuFilter.shouldMaskMessage(this, null) && textLayoutBlocks != null) {
+        if (isSpoilersRevealed && !AGFilter.shouldMaskMessage(this, null) && textLayoutBlocks != null) {
             for (TextLayoutBlock block : textLayoutBlocks) {
                 block.spoilers.clear();
             }
@@ -8000,11 +8000,11 @@ public class MessageObject {
             added = addEntitiesToText(text, entities, isOutOwner(), true, photoViewer, useManualParse);
         } else {
             ArrayList<TLRPC.MessageEntity> entities = MessageHelper.getEntitiesForText(this, text, summarized);
-            entities = AyuFilter.addSpoilerEntities(this, entities, text);
+            entities = AGFilter.addSpoilerEntities(this, entities, text);
             added = addEntitiesToText(text, entities, isOutOwner(), true, photoViewer, useManualParse);
         }
         if (text instanceof Spannable spannable) {
-            AyuFilter.syncMaskMarkerSpan(spannable, this, null);
+            AGFilter.syncMaskMarkerSpan(spannable, this, null);
         }
         return added;
     }
@@ -9157,7 +9157,7 @@ public class MessageObject {
             linesOffset += currentBlockLinesCount;
 
             block.spoilers.clear();
-            if ((!isSpoilersRevealed || AyuFilter.shouldMaskMessage(this, null)) && !spoiledLoginCode) {
+            if ((!isSpoilersRevealed || AGFilter.shouldMaskMessage(this, null)) && !spoiledLoginCode) {
                 int right = linesMaxWidthWithLeft;
                 if (block.quote) {
                     right -= AndroidUtilities.dp(32);
@@ -9606,7 +9606,7 @@ public class MessageObject {
                 }
 
                 linesOffset += currentBlockLinesCount;
-                if (messageObject != null && (!messageObject.isSpoilersRevealed || AyuFilter.shouldMaskMessage(messageObject, null)) && !messageObject.spoiledLoginCode) {
+                if (messageObject != null && (!messageObject.isSpoilersRevealed || AGFilter.shouldMaskMessage(messageObject, null)) && !messageObject.spoiledLoginCode) {
                     int right = linesMaxWidthWithLeft;
                     if (block.quote) {
                         right -= AndroidUtilities.dp(32);

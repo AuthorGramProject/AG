@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="AppName">TOSS</string>
+    <string name="AppNameBeta">TOSS Beta</string>
+    <string name="TOSS">TOSS</string>
+    <string name="AGSettings">Налаштування AuthorGram</string>
+    <string name="AGRegexFilters">Фільтри повідомлень</string>
+    <string name="AGRegexFiltersInfo">Фільтруйте повідомлення глобально або для окремих чатів за допомогою регулярних виразів.</string>
+    <string name="AGAboutInfo">TOSS</string>
+    <string name="AGLinks">Посилання AuthorChe</string>
+    <string name="TOSSAboutDesc">TOSS — орієнтований на приватність багатофункціональний Telegram-клієнт для захищеного спілкування, гнучких налаштувань і зручного щоденного користування.</string>
+    <string name="AGCredits">Подяки open-source проєктам</string>
+    <string name="AGCreditsText">Дяка Cherrygram, Nagram, Nekogram та їхнім учасникам. Частина можливостей TOSS створена на основі або з адаптацією їхнього відкритого коду. Базовою платформою залишається Telegram for Android.</string>
+</resources>

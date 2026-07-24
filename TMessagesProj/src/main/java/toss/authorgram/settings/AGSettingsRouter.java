@@ -1,0 +1,175 @@
+package toss.authorgram.settings;
+
+import static org.telegram.messenger.LocaleController.getString;
+import static org.telegram.ui.ProfileActivity.sendLogs;
+
+import android.app.Activity;
+import android.net.Uri;
+import android.text.TextUtils;
+
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.R;
+import org.telegram.ui.ActionBar.BaseFragment;
+
+import java.util.ArrayList;
+import java.util.Map;
+
+import toss.authorgram.settings.BaseAGSettingsActivity;
+import toss.authorgram.settings.BaseAGXSettingsActivity;
+import toss.authorgram.settings.GhostModeActivity;
+import toss.authorgram.settings.MainTabsCustomizeActivity;
+import toss.authorgram.settings.AGAboutActivity;
+import toss.authorgram.settings.AGAppearanceSettingsActivity;
+import toss.authorgram.settings.AGPrivacySettingsActivity;
+import toss.authorgram.settings.AGChatSettingsActivity;
+import toss.authorgram.settings.AGEmojiSettingsActivity;
+import toss.authorgram.settings.AGExperimentalSettingsActivity;
+import toss.authorgram.settings.AGGeneralSettingsActivity;
+import toss.authorgram.settings.AGPasscodeSettingsActivity;
+import toss.authorgram.settings.AGSettingsActivity;
+import toss.authorgram.settings.AGTranslatorSettingsActivity;
+import toss.authorgram.filters.AGFiltersSettingsActivity;
+
+public class AGSettingsRouter {
+
+    public static void processDeepLink(Activity activity, Uri uri, Callback callback, Runnable unknown) {
+        if (uri == null) {
+            unknown.run();
+            return;
+        }
+        var segments = uri.getPathSegments();
+        if (segments.isEmpty() || segments.size() > 2 || !"agsettings".equals(segments.get(0))) {
+            unknown.run();
+            return;
+        }
+        BaseFragment fragment;
+        BaseAGSettingsActivity neko_fragment = null;
+        BaseAGXSettingsActivity nekox_fragment = null;
+        if (segments.size() == 1) {
+            fragment = new AGSettingsActivity();
+        } else if (PasscodeHelper.getSettingsKey().equals(segments.get(1))) {
+            fragment = neko_fragment = new AGPasscodeSettingsActivity();
+        } else {
+            switch (segments.get(1)) {
+                case "about":
+                    fragment = new AGAboutActivity();
+                    break;
+                case "chat":
+                case "chats":
+                case "c":
+                    fragment = nekox_fragment = new AGChatSettingsActivity();
+                    break;
+                case "appearance":
+                case "a":
+                    fragment = nekox_fragment = new AGAppearanceSettingsActivity();
+                    break;
+                case "ayuspy":
+                case "spy":
+                    fragment = nekox_fragment = new AGPrivacySettingsActivity();
+                    break;
+                case "experimental":
+                case "e":
+                    fragment = nekox_fragment = new AGExperimentalSettingsActivity();
+                    break;
+                case "emoji":
+                    fragment = neko_fragment = new AGEmojiSettingsActivity();
+                    break;
+                case "general":
+                case "g":
+                    fragment = nekox_fragment = new AGGeneralSettingsActivity();
+                    break;
+                case "translator":
+                case "translate":
+                case "t":
+                    fragment = nekox_fragment = new AGTranslatorSettingsActivity();
+                    break;
+                case "ghostmode":
+                case "ghost":
+                    fragment = nekox_fragment = new GhostModeActivity();
+                    break;
+                case "maintabs":
+                case "main_tabs":
+                case "tabs":
+                    fragment = nekox_fragment = new MainTabsCustomizeActivity();
+                    break;
+                case "regexfilters":
+                case "regex":
+                    fragment = nekox_fragment = new AGFiltersSettingsActivity();
+                    break;
+                case "send_logs":
+                    sendLogs(activity, false);
+                    return;
+                default:
+                    unknown.run();
+                    return;
+            }
+        }
+        callback.presentFragment(fragment);
+        var row = uri.getQueryParameter("r");
+        if (TextUtils.isEmpty(row)) {
+            row = uri.getQueryParameter("row");
+        }
+        var value = uri.getQueryParameter("v");
+        if (TextUtils.isEmpty(value)) {
+            value = uri.getQueryParameter("value");
+        }
+        if (!TextUtils.isEmpty(row)) {
+            var rowFinal = row;
+            if (neko_fragment != null) {
+                BaseAGSettingsActivity finalNeko_fragment = neko_fragment;
+                AndroidUtilities.runOnUIThread(() -> finalNeko_fragment.scrollToRow(rowFinal, unknown));
+            } else if (nekox_fragment != null) {
+                BaseAGXSettingsActivity finalNekoX_fragment = nekox_fragment;
+                if (!TextUtils.isEmpty(value)) {
+                    String finalValue = value;
+                    AndroidUtilities.runOnUIThread(() -> finalNekoX_fragment.importToRow(rowFinal, finalValue, unknown));
+                } else {
+                    AndroidUtilities.runOnUIThread(() -> finalNekoX_fragment.scrollToRow(rowFinal, unknown));
+                }
+            }
+        }
+    }
+
+    public interface Callback {
+        void presentFragment(BaseFragment fragment);
+    }
+
+    public static ArrayList<AGSettingsSearchResult> onCreateSearchArray(Callback callback) {
+        ArrayList<AGSettingsSearchResult> items = new ArrayList<>();
+        ArrayList<BaseAGXSettingsActivity> fragments = new ArrayList<>();
+        fragments.add(new AGGeneralSettingsActivity());
+        fragments.add(new AGAppearanceSettingsActivity());
+        fragments.add(new AGPrivacySettingsActivity());
+        fragments.add(new AGChatSettingsActivity());
+        fragments.add(new AGExperimentalSettingsActivity());
+        fragments.add(new AGTranslatorSettingsActivity());
+
+        String n_title = getString(R.string.AGSettings);
+        for (BaseAGXSettingsActivity fragment: fragments) {
+            int uid = fragment.getBaseGuid();
+            int drawable = fragment.getDrawable();
+            String f_title = fragment.getTitle();
+            for (Map.Entry<Integer, String> entry : fragment.getRowMapReverse().entrySet()) {
+                Integer i = entry.getKey();
+                String key = entry.getValue();
+                if (key.equals(String.valueOf(i))) {
+                    continue;
+                }
+                int guid = uid + i;
+                String title = getString(key);
+                if (title == null || title.isEmpty()) {
+                    continue;
+                }
+                Runnable open = () -> {
+                    callback.presentFragment(fragment);
+                    AndroidUtilities.runOnUIThread(() -> fragment.scrollToRow(key, null));
+                };
+                AGSettingsSearchResult result = new AGSettingsSearchResult(
+                        guid, title, n_title, f_title, drawable, open
+                );
+                items.add(result);
+            }
+        }
+        return items;
+    }
+}

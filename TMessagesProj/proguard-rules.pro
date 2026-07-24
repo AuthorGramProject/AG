@@ -196,7 +196,7 @@
 }
 -keepclassmembernames,allowshrinking class tw.nekomimi.nekogram.ui.cells.AccountCell { <fields>; }
 -keepclassmembernames,allowshrinking class tw.nekomimi.nekogram.ui.cells.EmojiSetCell { <fields>; }
--keepclassmembernames,allowshrinking class tw.nekomimi.nekogram.settings.NekoChatSettingsActivity$StickerSizeCell { <fields>; }
+-keepclassmembernames,allowshrinking class toss.authorgram.settings.AGChatSettingsActivity$StickerSizeCell { <fields>; }
 
 # --- Keep Gson-reflected model fields used by Regex Filters import/export ---
 # Preserve fields annotated with @Expose so Gson can access them in release builds
@@ -205,13 +205,13 @@
 }
 
 # TransferData is an inner static class used only via Gson reflection; keep its fields
--keep class tw.nekomimi.nekogram.filters.RegexFiltersSettingActivity$TransferData { *; }
+-keep class toss.authorgram.filters.AGFiltersSettingsActivity$TransferData { *; }
 
-# Be explicit for AyuFilter models to be safe
--keepclassmembers class tw.nekomimi.nekogram.filters.AyuFilter$FilterModel { <fields>; }
--keepclassmembers class tw.nekomimi.nekogram.filters.AyuFilter$ChatFilterEntry { <fields>; }
--keepclassmembers class tw.nekomimi.nekogram.filters.AyuFilter$ExcludedFilterEntry { <fields>; }
--keepclassmembers class tw.nekomimi.nekogram.filters.AyuFilter$CustomFilteredUser { <fields>; }
+# Be explicit for AGFilter models to be safe
+-keepclassmembers class toss.authorgram.filters.AGFilter$FilterModel { <fields>; }
+-keepclassmembers class toss.authorgram.filters.AGFilter$ChatFilterEntry { <fields>; }
+-keepclassmembers class toss.authorgram.filters.AGFilter$ExcludedFilterEntry { <fields>; }
+-keepclassmembers class toss.authorgram.filters.AGFilter$CustomFilteredUser { <fields>; }
 
 # https://github.com/osmdroid/osmdroid/issues/633
 -dontwarn org.osmdroid.tileprovider.modules.NetworkAvailabliltyCheck

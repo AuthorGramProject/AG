@@ -111,7 +111,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.filters.AyuFilter;
+import toss.authorgram.filters.AGFilter;
 import tw.nekomimi.nekogram.helpers.EntitiesHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import xyz.nextalone.nagram.NaConfig;
@@ -7068,10 +7068,10 @@ public class MediaDataController extends BaseController {
         ArrayList<TLRPC.MessageEntity> entities = null;
         if (msg != null) {
             entities = MessageHelper.getEntitiesForText(msg, messageText, msg.summarized);
-            entities = AyuFilter.addSpoilerEntities(msg, entities, messageText);
+            entities = AGFilter.addSpoilerEntities(msg, entities, messageText);
         }
         addTextStyleRuns(entities, messageText, text, allowedFlags);
-        AyuFilter.syncMaskMarkerSpan(text, msg, null);
+        AGFilter.syncMaskMarkerSpan(text, msg, null);
     }
 
     public static void addTextStyleRuns(ArrayList<TLRPC.MessageEntity> entities, CharSequence messageText, Spannable text) {

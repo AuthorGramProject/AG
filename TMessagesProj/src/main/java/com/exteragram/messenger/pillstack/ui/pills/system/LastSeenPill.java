@@ -37,7 +37,7 @@ import java.util.Calendar;
 import java.util.Date;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.settings.GhostModeActivity;
+import toss.authorgram.settings.GhostModeActivity;
 
 /**
  * Shows the current account's last-seen status as reported by the Telegram
