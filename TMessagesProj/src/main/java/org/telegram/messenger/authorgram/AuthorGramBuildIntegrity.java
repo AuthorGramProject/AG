@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Detects APK resigning before the shared AuthorGram system key is used. */
+/** Detects APK resigning/repackaging before the shared system key is used. */
 public final class AuthorGramBuildIntegrity {
     private static volatile Boolean trusted;
 
