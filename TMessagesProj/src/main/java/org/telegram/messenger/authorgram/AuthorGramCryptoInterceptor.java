@@ -75,6 +75,8 @@ public final class AuthorGramCryptoInterceptor {
 
             boolean success =
                     encryptOutgoingText(
+                            account,
+                            dialogId,
                             sendRequest.message,
                             encrypted ->
                                     sendRequest.message =
@@ -121,6 +123,8 @@ public final class AuthorGramCryptoInterceptor {
 
             boolean success =
                     encryptOutgoingText(
+                            account,
+                            dialogId,
                             editRequest.message,
                             encrypted ->
                                     editRequest.message =
@@ -185,7 +189,9 @@ public final class AuthorGramCryptoInterceptor {
         }
 
         String plaintext =
-                AuthorGramCrypto.decryptTextOrNull(
+                AuthorGramChatCrypto.decryptTextOrNull(
+                        account,
+                        MessageObject.getDialogId(message),
                         message.message
                 );
 
@@ -274,6 +280,8 @@ public final class AuthorGramCryptoInterceptor {
 
 
     private static boolean encryptOutgoingText(
+            int account,
+            long dialogId,
             String plaintext,
             EncryptedTextConsumer consumer
     ) {
@@ -293,7 +301,9 @@ public final class AuthorGramCryptoInterceptor {
         }
 
         String encrypted =
-                AuthorGramCrypto.encryptText(
+                AuthorGramChatCrypto.encryptText(
+                        account,
+                        dialogId,
                         plaintext
                 );
 

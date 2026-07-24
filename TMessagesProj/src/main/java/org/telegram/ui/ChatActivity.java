@@ -574,6 +574,7 @@ public class ChatActivity extends BaseFragment implements
 
     // AUTHORGRAM_STEP4_UI_FIELDS
     private static final int AUTHORGRAM_CRYPTO_TOGGLE = 0x6A470001;
+    private static final int AUTHORGRAM_KEY_SETTINGS = 0x6A470002;
     private ActionBarMenuItem.Item authorGramCryptoItem;
     private ClippingImageView animatingImageView;
     private ThanosEffect chatListThanosEffect;
@@ -4058,7 +4059,13 @@ public class ChatActivity extends BaseFragment implements
                     refreshAuthorGramProtectionUi();
 
                     return;
-                }
+                } else if (id == AUTHORGRAM_KEY_SETTINGS) {
+                if (id ==     org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(
+                if (id ==             getParentActivity(),
+                if (id ==             currentAccount,
+                if (id ==             dialog_id
+                if (id ==     );
+                if (id == }
 
                 if (id == -1) {
                     if (isInPollAddOptionMode()) {
@@ -4844,6 +4851,11 @@ public class ChatActivity extends BaseFragment implements
                                 R.drawable.msg_secret,
                                 getAuthorGramToggleText()
                         );
+                headerItem.lazilyAddSubItem(
+                        AUTHORGRAM_KEY_SETTINGS,
+                        R.drawable.authorgram_key,
+                        LocaleController.getString(R.string.AuthorGramKeySettings)
+                );
             }
 
 
