@@ -166,7 +166,7 @@ public final class AuthorGramKeyDialog {
                         toast(activity, R.string.TextCopied);
                     }
                 })
-                .setNegativeButton(LocaleController.getString(R.string.Close), null)
+                .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
                 .show();
     }
 
