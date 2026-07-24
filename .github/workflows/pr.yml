@@ -41,16 +41,34 @@ jobs:
           fi
           cat gradle.properties
       - name: Debug Build
+        id: debug_build
+        continue-on-error: true
         run: |
+          set -o pipefail
           export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
           export DEBUG_BUILD=true
           sed -i 's/signingConfig = signingConfigs.release//g' TMessagesProj/build.gradle
-          ./gradlew TMessagesProj:assembleDebug
-
-          APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk')
-          APK=$(dirname $APK)
-          echo "APK=$APK" >> $GITHUB_ENV
-      - uses: actions/upload-artifact@v4
+          ./gradlew TMessagesProj:assembleDebug 2>&1 | tee pr_build.log
+          STATUS=${PIPESTATUS[0]}
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          if [ "$STATUS" -eq 0 ]; then
+            APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk' | head -1)
+            APK=$(dirname "$APK")
+            echo "APK=$APK" >> "$GITHUB_ENV"
+          fi
+          exit "$STATUS"
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TOSS-pr-build-log
+          path: pr_build.log
+      - name: Fail when build failed
+        if: steps.debug_build.outcome == 'failure'
+        run: exit 1
+      - name: Upload debug APK
+        if: steps.debug_build.outcome == 'success'
+        uses: actions/upload-artifact@v4
         with:
           name: Debug
           path: ${{ env.APK }}
