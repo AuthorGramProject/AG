@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin agent/security-hardening-final:refs/remotes/origin/agent/security-hardening-final
+          git fetch origin main:refs/remotes/origin/main
           python3 - <<'PY'
           from pathlib import Path
           import textwrap
@@ -30,6 +30,11 @@ jobs:
           start = workflow.index(marker) + len(marker)
           end = workflow.index("\n          PY\n", start)
           payload = textwrap.dedent(workflow[start:end])
+          payload = payload.replace(
+              "SOURCE = 'origin/agent/security-hardening-final'",
+              "SOURCE = 'origin/main'",
+              1,
+          )
           exec(compile(payload, 'toss-integration-payload', 'exec'), {})
           PY
           git diff --check
