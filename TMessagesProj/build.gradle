@@ -217,7 +217,6 @@ android {
             debuggable = true
             jniDebuggable = false
             multiDexEnabled = true
-            applicationIdSuffix '.debug'
             versionNameSuffix '-debug'
             buildConfigField 'boolean', 'DEBUG_VERSION', 'true'
             buildConfigField 'boolean', 'OFFICIAL_BUILD', 'false'
