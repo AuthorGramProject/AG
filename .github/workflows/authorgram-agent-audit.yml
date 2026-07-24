@@ -1,72 +1,60 @@
-name: AuthorGram agent patch runner
+name: Consolidate AuthorGram branches
 
 on:
-  pull_request:
-    branches:
-      - main
-      - play-market
-    types:
-      - opened
-      - synchronize
-      - reopened
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/authorgram-agent-audit.yml'
 
 permissions:
   contents: write
-  pull-requests: read
+
+concurrency:
+  group: authorgram-branch-consolidation
+  cancel-in-progress: false
 
 jobs:
-  patch:
-    if: >-
-      github.actor != 'github-actions[bot]' &&
-      (startsWith(github.event.pull_request.head.ref, 'agent/authorgram-') ||
-       startsWith(github.event.pull_request.head.ref, 'agent/toss-'))
+  consolidate:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: main
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Apply repository patch
-        shell: bash
-        run: |
-          set -uo pipefail
-          SCRIPT=.github/authorgram_agent_patch.py
-          if [ ! -f "$SCRIPT" ]; then
-            echo "No patch script; nothing to apply"
-            exit 0
-          fi
-          set +e
-          python3 "$SCRIPT" > authorgram_agent_patch.log 2>&1
-          STATUS=$?
-          set -e
-          cat authorgram_agent_patch.log
-          if [ "$STATUS" -ne 0 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add authorgram_agent_patch.log
-            git commit -m "Record AuthorGram patch failure"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-            exit "$STATUS"
-          fi
-          # Workflow files are maintained through the GitHub API. Keeping them
-          # out of bot commits avoids GitHub App workflow-scope rejections.
-          git restore --source=HEAD --staged --worktree .github/workflows || true
-          rm -f authorgram_agent_patch.log "$SCRIPT"
-          git diff --check
-
-      - name: Commit generated changes
+      - name: Keep only main, dev, and play-market
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mapfile -t branches < <(
+            git ls-remote --heads origin |
+              awk '{sub("refs/heads/", "", $2); print $2}' |
+              sort
+          )
+          printf 'Remote branches before cleanup:\n%s\n' "${branches[*]}"
+          for branch in "${branches[@]}"; do
+            case "$branch" in
+              main|dev|play-market)
+                ;;
+              *)
+                git push origin --delete "$branch"
+                ;;
+            esac
+          done
+          remaining=$(git ls-remote --heads origin | awk '{sub("refs/heads/", "", $2); print $2}' | sort)
+          printf 'Remote branches after cleanup:\n%s\n' "$remaining"
+          test "$remaining" = $'dev\nmain\nplay-market'
+
+      - name: Remove temporary branch automation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -f .github/workflows/authorgram-agent-audit.yml
           git add -A
-          if git diff --cached --quiet; then
-            echo "Patch produced no changes"
-            exit 0
-          fi
-          git commit -m "Apply AuthorGram agent patch"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git diff --cached --check
+          git commit -m 'Remove temporary branch automation'
+          git push origin HEAD:main
