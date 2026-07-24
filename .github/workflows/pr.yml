@@ -80,10 +80,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: AuthorGram-${{ github.ref_name }}-Debug
+          name: AuthorGram-Debug-${{ github.run_id }}
           path: |
             artifacts/
             gradle-debug.log
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Fail failed build
