@@ -19,9 +19,10 @@ jobs:
       - name: Run integration payload
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           git fetch origin main:refs/remotes/origin/main
-          python3 - <<'PY'
+          set +e
+          python3 - <<'PY' > toss-integration.log 2>&1
           from pathlib import Path
           import textwrap
 
@@ -37,9 +38,23 @@ jobs:
           )
           exec(compile(payload, 'toss-integration-payload', 'exec'), {})
           PY
-          git diff --check
+          STATUS=$?
+          set -e
+          cat toss-integration.log
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [ "$STATUS" -ne 0 ]; then
+            {
+              echo 'status=failure'
+              echo "head=$(git rev-parse HEAD)"
+              cat toss-integration.log
+            } > .github/toss-integration-result.txt
+            git add .github/toss-integration-result.txt
+            git commit -m 'Record TOSS integration failure'
+            git push origin HEAD:agent/toss-final
+            exit "$STATUS"
+          fi
+          git diff --check
           git add TMessagesProj gradle.properties
           git commit -m 'Integrate current AuthorGram security and per-chat keys into TOSS'
           git push origin HEAD:agent/toss-final
