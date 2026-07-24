@@ -116,7 +116,9 @@ public final class AuthorGramKeyDialog {
         );
         input.setHint(LocaleController.getString(R.string.AuthorGramKeyInputHint));
         input.setFilterTouchesWhenObscured(true);
-        input.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            input.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
 
         FrameLayout container = new FrameLayout(activity);
         int padding = AndroidUtilities.dp(20);
