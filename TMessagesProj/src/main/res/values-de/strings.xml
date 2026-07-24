@@ -13,4 +13,5 @@
     <string name="AGCredits">Open-Source-Danksagung</string>
     <string name="AGCreditsText">Danke an Cherrygram, Nagram und Nekogram sowie ihre Mitwirkenden. Teile von TOSS basieren auf deren Open-Source-Arbeit oder wurden daraus angepasst. Telegram for Android bleibt die technische Grundlage.</string>
     <string name="UnknownAGSettingsOption">Unbekannte AuthorGram-Einstellungsoption</string>
+    <string name="AGPasscode">App-Sperrcode</string>
 </resources>
