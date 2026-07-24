@@ -9,7 +9,14 @@ public class AGSettingsSearchResult {
     public int iconResId;
     public int guid;
 
-    public AGSettingsSearchResult(int guid, String searchTitle,String path1, String path2, int iconResId, Runnable open) {
+    public AGSettingsSearchResult(
+            int guid,
+            String searchTitle,
+            String path1,
+            String path2,
+            int iconResId,
+            Runnable open
+    ) {
         this.guid = guid;
         this.searchTitle = searchTitle;
         this.path1 = path1;
