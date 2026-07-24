@@ -1,42 +1,53 @@
-# Nagram XF
+# TOSS by AuthorChe
 
-A fork of [Nagram X](https://github.com/risin42/NagramX) with additional features.
-Includes most features from exteraGram and AyuGram.
+TOSS is a privacy-focused Telegram multitool designed for secure communication, flexible controls, and convenient everyday use.
 
-## Download
+The Play Market distribution uses the Android application ID:
 
-* [Telegram Channel](https://t.me/NagramXF)
-* [GitHub Releases](https://github.com/Keeperorowner/NagramXF/releases)
+```text
+toss.authorgram.apk
+```
 
-## Compilation Guide
+## Core goals
 
-1. Obtain API credentials (`TELEGRAM_APP_ID` and `TELEGRAM_APP_HASH`) from [Telegram Developer Portal](https://my.telegram.org/auth). Create `local.properties` in the project root with:
+- privacy-first communication controls;
+- optional AuthorGram message encryption, including per-chat keys;
+- practical chat, translation, media, interface, and accessibility tools;
+- clear local controls without requiring a separate AuthorGram server;
+- a public distribution without the private startup allow-list used by internal builds.
 
-   ```properties
-   TELEGRAM_APP_ID=<your_telegram_app_id>
-   TELEGRAM_APP_HASH=<your_telegram_app_hash>
-   ```
+## AuthorGram encryption
 
-2. For APK signing: Replace `release.keystore` with your keystore and add signing configuration to `local.properties`:
+Encryption can be enabled separately for supported chats. A chat may use the AuthorGram system key or a separately configured 256-bit key. Custom chat keys are wrapped locally through Android Keystore and are not stored as plaintext preferences.
 
-   ```properties
-   KEYSTORE_PASS=<your_keystore_password>
-   ALIAS_NAME=<your_alias_name>
-   ALIAS_PASS=<your_alias_password>
-   ```
+The protected system-key contact always uses the built-in system key provider and cannot be assigned a custom chat key.
 
-3. For FCM support: Replace `TMessagesProj/google-services.json` with your own configuration file.
+## Build
 
-4. Open the project in Android Studio to start building.
+1. Obtain `TELEGRAM_APP_ID` and `TELEGRAM_APP_HASH` from the Telegram developer portal.
+2. Put the credentials in `local.properties`.
+3. Provide your own signing keystore and Google services configuration when building a production release.
+4. Build the release variant:
 
-## Notice
+```bash
+./gradlew TMessagesProj:assembleRelease
+```
 
-This project reverse-engineered and uses some code from closed-source projects.
+## Open-source credits
 
-## Acknowledgments
+TOSS is based on Telegram for Android and includes code or ideas adapted from several open-source Telegram clients and projects.
 
-- [NagramX](https://github.com/risin42/NagramX)
-- [AyuGram](https://github.com/AyuGram/AyuGram4A)
-- [Cherrygram](https://github.com/arsLan4k1390/Cherrygram)
-- [exteraGram](https://github.com/exteraSquad/exteraGram)
-- [OctoGram](https://github.com/OctoGramApp/OctoGram)
+Special thanks to the contributors of:
+
+- Cherrygram;
+- Nagram and Nagram X;
+- Nekogram;
+- exteraGram;
+- AyuGram;
+- OctoGram.
+
+Their names remain in this credits section, applicable licenses, and preserved source history. They are not presented as the product identity of TOSS.
+
+## License
+
+Review the repository license files and retained upstream notices before redistributing modified builds. Source attribution and license notices must remain intact.
