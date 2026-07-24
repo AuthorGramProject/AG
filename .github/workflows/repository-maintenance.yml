@@ -1,10 +1,10 @@
 name: Repository maintenance audit
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
-      - '.github/workflows/repository-maintenance.yml'
+      - '.github/repository-maintenance-trigger'
   workflow_dispatch:
 
 permissions:
