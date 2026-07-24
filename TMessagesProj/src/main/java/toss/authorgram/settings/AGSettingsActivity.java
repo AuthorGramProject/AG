@@ -60,8 +60,6 @@ import tw.nekomimi.nekogram.helpers.AppRestartHelper;
 import tw.nekomimi.nekogram.helpers.CloudSettingsHelper;
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 import tw.nekomimi.nekogram.helpers.SettingsBackupHelper;
-import tw.nekomimi.nekogram.helpers.AGSettingsRouter;
-import tw.nekomimi.nekogram.helpers.AGSettingsSearchResult;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 
 public class AGSettingsActivity extends BaseAGSettingsActivity {
@@ -80,7 +78,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
     private int exportSettingsRow;
     private int resetSettingsRow;
     private int appRestartRow;
-    private int nSettingsEndRow;
+    private int agSettingsEndRow;
 
 
     private int aboutRow;
@@ -105,7 +103,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
         exportSettingsRow = addRow();
         resetSettingsRow = addRow();
         appRestartRow = addRow();
-        nSettingsEndRow = addRow();
+        agSettingsEndRow = addRow();
 
         aboutRow = addRow();
     }
@@ -425,7 +423,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
 
         @Override
         public int getItemViewType(int position) {
-            if (position == categoriesEndRow || position == nSettingsEndRow) {
+            if (position == categoriesEndRow || position == agSettingsEndRow) {
                 return TYPE_SHADOW;
             } else if (position == chatRow || position == generalRow || position == appearanceRow || position == passcodeRow || position == experimentRow || position == translatorRow ||
                     position == importSettingsRow || position == exportSettingsRow || position == resetSettingsRow || position == appRestartRow ||

@@ -14,6 +14,8 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import java.util.ArrayList;
 import java.util.Map;
 
+import tw.nekomimi.nekogram.helpers.PasscodeHelper;
+
 import toss.authorgram.settings.BaseAGSettingsActivity;
 import toss.authorgram.settings.BaseAGXSettingsActivity;
 import toss.authorgram.settings.GhostModeActivity;
@@ -43,12 +45,12 @@ public class AGSettingsRouter {
             return;
         }
         BaseFragment fragment;
-        BaseAGSettingsActivity neko_fragment = null;
-        BaseAGXSettingsActivity nekox_fragment = null;
+        BaseAGSettingsActivity agFragment = null;
+        BaseAGXSettingsActivity agxFragment = null;
         if (segments.size() == 1) {
             fragment = new AGSettingsActivity();
         } else if (PasscodeHelper.getSettingsKey().equals(segments.get(1))) {
-            fragment = neko_fragment = new AGPasscodeSettingsActivity();
+            fragment = agFragment = new AGPasscodeSettingsActivity();
         } else {
             switch (segments.get(1)) {
                 case "about":
@@ -57,44 +59,44 @@ public class AGSettingsRouter {
                 case "chat":
                 case "chats":
                 case "c":
-                    fragment = nekox_fragment = new AGChatSettingsActivity();
+                    fragment = agxFragment = new AGChatSettingsActivity();
                     break;
                 case "appearance":
                 case "a":
-                    fragment = nekox_fragment = new AGAppearanceSettingsActivity();
+                    fragment = agxFragment = new AGAppearanceSettingsActivity();
                     break;
                 case "ayuspy":
                 case "spy":
-                    fragment = nekox_fragment = new AGPrivacySettingsActivity();
+                    fragment = agxFragment = new AGPrivacySettingsActivity();
                     break;
                 case "experimental":
                 case "e":
-                    fragment = nekox_fragment = new AGExperimentalSettingsActivity();
+                    fragment = agxFragment = new AGExperimentalSettingsActivity();
                     break;
                 case "emoji":
-                    fragment = neko_fragment = new AGEmojiSettingsActivity();
+                    fragment = agFragment = new AGEmojiSettingsActivity();
                     break;
                 case "general":
                 case "g":
-                    fragment = nekox_fragment = new AGGeneralSettingsActivity();
+                    fragment = agxFragment = new AGGeneralSettingsActivity();
                     break;
                 case "translator":
                 case "translate":
                 case "t":
-                    fragment = nekox_fragment = new AGTranslatorSettingsActivity();
+                    fragment = agxFragment = new AGTranslatorSettingsActivity();
                     break;
                 case "ghostmode":
                 case "ghost":
-                    fragment = nekox_fragment = new GhostModeActivity();
+                    fragment = agxFragment = new GhostModeActivity();
                     break;
                 case "maintabs":
                 case "main_tabs":
                 case "tabs":
-                    fragment = nekox_fragment = new MainTabsCustomizeActivity();
+                    fragment = agxFragment = new MainTabsCustomizeActivity();
                     break;
                 case "regexfilters":
                 case "regex":
-                    fragment = nekox_fragment = new AGFiltersSettingsActivity();
+                    fragment = agxFragment = new AGFiltersSettingsActivity();
                     break;
                 case "send_logs":
                     sendLogs(activity, false);
@@ -115,16 +117,16 @@ public class AGSettingsRouter {
         }
         if (!TextUtils.isEmpty(row)) {
             var rowFinal = row;
-            if (neko_fragment != null) {
-                BaseAGSettingsActivity finalNeko_fragment = neko_fragment;
-                AndroidUtilities.runOnUIThread(() -> finalNeko_fragment.scrollToRow(rowFinal, unknown));
-            } else if (nekox_fragment != null) {
-                BaseAGXSettingsActivity finalNekoX_fragment = nekox_fragment;
+            if (agFragment != null) {
+                BaseAGSettingsActivity finalAGFragment = agFragment;
+                AndroidUtilities.runOnUIThread(() -> finalAGFragment.scrollToRow(rowFinal, unknown));
+            } else if (agxFragment != null) {
+                BaseAGXSettingsActivity finalAGXFragment = agxFragment;
                 if (!TextUtils.isEmpty(value)) {
                     String finalValue = value;
-                    AndroidUtilities.runOnUIThread(() -> finalNekoX_fragment.importToRow(rowFinal, finalValue, unknown));
+                    AndroidUtilities.runOnUIThread(() -> finalAGXFragment.importToRow(rowFinal, finalValue, unknown));
                 } else {
-                    AndroidUtilities.runOnUIThread(() -> finalNekoX_fragment.scrollToRow(rowFinal, unknown));
+                    AndroidUtilities.runOnUIThread(() -> finalAGXFragment.scrollToRow(rowFinal, unknown));
                 }
             }
         }
