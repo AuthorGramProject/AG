@@ -75,18 +75,20 @@ public final class AuthorGramChatKeyStore {
         }
     }
 
-    public static synchronized void clearCustomKeys(int account, long dialogId) {
+    public static synchronized boolean clearCustomKeys(int account, long dialogId) {
         if (dialogId == 0 || isSystemKeyLocked(dialogId)) {
-            return;
+            return false;
         }
         SharedPreferences.Editor editor = preferences().edit()
                 .remove(currentName(account, dialogId));
         for (int index = 0; index < HISTORY_LIMIT; index++) {
             editor.remove(historyName(account, dialogId, index));
         }
-        if (!editor.commit()) {
+        boolean committed = editor.commit();
+        if (!committed) {
             FileLog.e("AuthorGram: unable to remove custom chat keys");
         }
+        return committed;
     }
 
     static synchronized byte[] getCurrentKey(int account, long dialogId) {
