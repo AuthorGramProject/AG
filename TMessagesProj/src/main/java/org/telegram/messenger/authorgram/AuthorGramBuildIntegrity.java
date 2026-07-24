@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Detects APK resigning/repackaging before the shared system key is used. */
+/** Verifies the installed release signature before shared system-key access. */
 public final class AuthorGramBuildIntegrity {
     private static volatile Boolean trusted;
 
