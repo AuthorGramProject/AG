@@ -59,8 +59,11 @@ jobs:
           if missing:
               raise SystemExit('Missing release signing properties: ' + ', '.join(missing))
           PY
-          if [ "$GITHUB_REF_NAME" = "play-market" ] && [ -z "$AUTHORGRAM_SIGNING_CERT_SHA256" ]; then
-            echo '::warning::Set AUTHORGRAM_SIGNING_CERT_SHA256 to both the Play App Signing certificate and upload certificate before publishing through Google Play.'
+          if [ "$GITHUB_REF_NAME" = "play-market" ]; then
+            test -n "$AUTHORGRAM_SIGNING_CERT_SHA256" || {
+              echo '::error::AUTHORGRAM_SIGNING_CERT_SHA256 must contain the Play App Signing certificate and upload certificate SHA-256 values.'
+              exit 1
+            }
           fi
 
       - name: Verify release security invariants
@@ -73,17 +76,27 @@ jobs:
           test -f TMessagesProj/release.keystore
           git diff --check
 
-      - name: Build signed release APK
+      - name: Build signed release artifacts
         id: build
         continue-on-error: true
         env:
           COMMIT_ID: ${{ github.sha }}
           BUILD_TIMESTAMP: ${{ github.run_id }}
+        shell: bash
         run: |
           set -o pipefail
-          ./gradlew --no-daemon TMessagesProj:assembleRelease 2>&1 | tee gradle-release.log
+          if [ "$GITHUB_REF_NAME" = "play-market" ]; then
+            ./gradlew --no-daemon \
+              TMessagesProj:assembleRelease \
+              TMessagesProj:bundleRelease \
+              2>&1 | tee gradle-release.log
+          else
+            ./gradlew --no-daemon \
+              TMessagesProj:assembleRelease \
+              2>&1 | tee gradle-release.log
+          fi
 
-      - name: Verify and collect release APK
+      - name: Verify and collect release artifacts
         if: steps.build.outcome == 'success'
         shell: bash
         run: |
@@ -95,11 +108,14 @@ jobs:
           PACKAGE=$("${ANDROID_HOME}/build-tools/36.0.0/aapt" dump badging "$APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)
           if [ "$GITHUB_REF_NAME" = "play-market" ]; then
             test "$PACKAGE" = 'toss.authorgram.apk'
+            AAB=$(find TMessagesProj/build/outputs/bundle -type f -name '*.aab' | head -n 1)
+            test -n "$AAB" -a -f "$AAB"
+            cp "$AAB" artifacts/
           else
             test "$PACKAGE" = 'fork.risin42.nagramx'
           fi
           cp "$APK" artifacts/
-          (cd artifacts && sha256sum *.apk > SHA256SUMS)
+          (cd artifacts && sha256sum * > SHA256SUMS)
 
       - uses: actions/upload-artifact@v4
         if: always()
