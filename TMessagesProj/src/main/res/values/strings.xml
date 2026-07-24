@@ -11174,4 +11174,5 @@
     <string name="TOSSAboutDesc">TOSS is a privacy-focused Telegram multitool designed for secure communication, flexible controls and convenient everyday use.</string>
     <string name="AGCredits">Open-source credits</string>
     <string name="AGCreditsText">Thanks to Cherrygram, Nagram and Nekogram and their contributors. Parts of TOSS are based on or adapted from their open-source work. Telegram for Android remains the upstream foundation.</string>
+    <string name="UnknownAGSettingsOption">Unknown AuthorGram settings option</string>
 </resources>

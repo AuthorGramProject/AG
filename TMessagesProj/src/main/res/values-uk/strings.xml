@@ -12,4 +12,5 @@
     <string name="TOSSAboutDesc">TOSS — орієнтований на приватність багатофункціональний Telegram-клієнт для захищеного спілкування, гнучких налаштувань і зручного щоденного користування.</string>
     <string name="AGCredits">Подяки open-source проєктам</string>
     <string name="AGCreditsText">Дяка Cherrygram, Nagram, Nekogram та їхнім учасникам. Частина можливостей TOSS створена на основі або з адаптацією їхнього відкритого коду. Базовою платформою залишається Telegram for Android.</string>
+    <string name="UnknownAGSettingsOption">Невідомий пункт налаштувань AuthorGram</string>
 </resources>
