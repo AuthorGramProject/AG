@@ -1,0 +1,249 @@
+name: TOSS common-code integration
+
+on:
+  push:
+    branches: [agent/toss-final]
+    paths: ['.github/workflows/toss-integrate-common.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/toss-final
+          fetch-depth: 0
+      - name: Integrate reviewed common code
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/security-hardening-final
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+
+          SOURCE = 'origin/agent/security-hardening-final'
+
+          def source(path: str) -> str:
+              return subprocess.check_output(['git', 'show', f'{SOURCE}:{path}'], text=True)
+
+          def write(path: str, text: str) -> None:
+              target = Path(path)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(text, encoding='utf-8')
+
+          common_files = [
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramBuildIntegrity.java',
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatCrypto.java',
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatKeyStore.java',
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCrypto.java',
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java',
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramKeyDialog.java',
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramKeyProtector.java',
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramMessageMeta.java',
+              'TMessagesProj/src/main/res/drawable/authorgram_key.xml',
+          ]
+          for path in common_files:
+              write(path, source(path))
+
+          build_path = 'TMessagesProj/build.gradle'
+          build = source(build_path)
+          if build.count("String gramName = 'AuthorGram'") != 1:
+              raise RuntimeError('Expected AuthorGram APK-name anchor')
+          build = build.replace("String gramName = 'AuthorGram'", "String gramName = 'TOSS'", 1)
+          write(build_path, build)
+
+          props_path = Path('gradle.properties')
+          props = props_path.read_text(encoding='utf-8')
+          for key in ('RELEASE_KEY_PASSWORD', 'RELEASE_KEY_ALIAS', 'RELEASE_STORE_PASSWORD'):
+              props = re.sub(rf'(?m)^{re.escape(key)}=.*\n?', '', props)
+          if 'APP_PACKAGE=toss.authorgram.apk' not in props:
+              raise RuntimeError('TOSS package identity was lost')
+          props_path.write_text(props, encoding='utf-8')
+
+          manifest_path = Path('TMessagesProj/src/main/AndroidManifest.xml')
+          manifest = manifest_path.read_text(encoding='utf-8')
+          manifest = manifest.replace('    <uses-permission android:name="android.permission.READ_CLIPBOARD"/>\n', '')
+          manifest = re.sub(r'\s+android:restoreAnyVersion="true"', '', manifest, count=1)
+          manifest = re.sub(r'\s+android:backupAgent="\.BackupAgent"', '', manifest, count=1)
+          manifest = manifest.replace('android:allowBackup="true"', 'android:allowBackup="false"', 1)
+          manifest = manifest.replace('android:hasFragileUserData="true"', 'android:hasFragileUserData="false"', 1)
+          manifest = manifest.replace('android:allowAudioPlaybackCapture="true"', 'android:allowAudioPlaybackCapture="false"', 1)
+
+          def service_block(name: str):
+              marker = f'android:name="{name}"'
+              start = manifest.find(marker)
+              if start < 0:
+                  raise RuntimeError(f'Missing service {name}')
+              block_start = manifest.rfind('<service', 0, start)
+              block_end = manifest.find('/>', start)
+              if block_start < 0 or block_end < 0:
+                  raise RuntimeError(f'Invalid service block {name}')
+              return block_start, block_end + 2
+
+          for name in (
+              '.BringAppForegroundService',
+              '.NotificationsService',
+              '.VideoEncodingService',
+              'org.telegram.ui.Stories.recorder.StoryUploadingService',
+              '.ImportingService',
+              '.LocationSharingService',
+              '.MusicPlayerService',
+          ):
+              start, end = service_block(name)
+              block = manifest[start:end]
+              if 'android:exported="true"' in block:
+                  block = block.replace('android:exported="true"', 'android:exported="false"', 1)
+                  manifest = manifest[:start] + block + manifest[end:]
+
+          for name, permission in {
+              '.AuthenticatorService': 'android.permission.BIND_ACCOUNT_AUTHENTICATOR',
+              '.ContactsSyncAdapterService': 'android.permission.BIND_SYNC_ADAPTER',
+              '.MusicBrowserService': 'android.permission.BIND_MEDIA_BROWSER_SERVICE',
+          }.items():
+              start, end = service_block(name)
+              block = manifest[start:end]
+              if f'android:permission="{permission}"' not in block:
+                  exported = 'android:exported="true"'
+                  if exported not in block:
+                      raise RuntimeError(f'Missing exported anchor for {name}')
+                  block = block.replace(exported, exported + f'\n            android:permission="{permission}"', 1)
+                  manifest = manifest[:start] + block + manifest[end:]
+
+          if '@mipmap/ic_launcher_toss' not in manifest:
+              raise RuntimeError('TOSS launcher identity was lost')
+          if 'android.permission.REQUEST_INSTALL_PACKAGES' in manifest:
+              raise RuntimeError('Play build must not request install permission')
+          manifest_path.write_text(manifest, encoding='utf-8')
+
+          chat_path = Path('TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java')
+          chat = chat_path.read_text(encoding='utf-8')
+          if 'AUTHORGRAM_KEY_SETTINGS' not in chat:
+              constant = '    private static final int AUTHORGRAM_CRYPTO_TOGGLE = 0x6A470001;\n'
+              if chat.count(constant) != 1:
+                  raise RuntimeError('Toggle constant anchor not found')
+              chat = chat.replace(constant, constant + '    private static final int AUTHORGRAM_KEY_SETTINGS = 0x6A470002;\n', 1)
+              handler = '''                    refreshAuthorGramProtectionUi();
+
+                    return;
+                }
+'''
+              if chat.count(handler) != 1:
+                  raise RuntimeError('Toggle handler anchor not found')
+              chat = chat.replace(handler, '''                    refreshAuthorGramProtectionUi();
+
+                    return;
+                } else if (id == AUTHORGRAM_KEY_SETTINGS) {
+                    org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(
+                            getParentActivity(),
+                            currentAccount,
+                            dialog_id
+                    );
+
+                    return;
+                }
+''', 1)
+              menu = '''                                R.drawable.msg_secret,
+                                getAuthorGramToggleText()
+                        );
+'''
+              if chat.count(menu) != 1:
+                  raise RuntimeError('Toggle menu anchor not found')
+              chat = chat.replace(menu, menu + '''                headerItem.lazilyAddSubItem(
+                        AUTHORGRAM_KEY_SETTINGS,
+                        R.drawable.authorgram_key,
+                        LocaleController.getString(R.string.AuthorGramKeySettings)
+                );
+''', 1)
+          chat_path.write_text(chat, encoding='utf-8')
+
+          strings = {
+              'TMessagesProj/src/main/res/values/strings.xml': [
+                  ('AuthorGramKeySettings', 'AuthorGram encryption key'),
+                  ('AuthorGramSystemKeyLocked', 'This chat always uses the AuthorGram system key. A custom key cannot be configured here.'),
+                  ('AuthorGramCustomKeyActive', 'A custom 256-bit key is active for this chat. Old rotated keys are kept locally so earlier messages remain readable.'),
+                  ('AuthorGramSystemKeyActive', 'This chat currently uses the AuthorGram system key.'),
+                  ('AuthorGramGenerateKey', 'Generate custom key'),
+                  ('AuthorGramGenerateKeyInfo', 'A random 256-bit key will be created for this chat. The other participant must use the same key.'),
+                  ('AuthorGramRotateKey', 'Rotate custom key'),
+                  ('AuthorGramRotateKeyWarning', 'A new key will replace the current key. The previous key remains in local history for decrypting older messages.'),
+                  ('AuthorGramImportKey', 'Import custom key'),
+                  ('AuthorGramImportKeyInfo', 'Enter a 256-bit key as 64 hexadecimal characters.'),
+                  ('AuthorGramExportKey', 'Show and copy custom key'),
+                  ('AuthorGramRemoveKey', 'Remove custom keys'),
+                  ('AuthorGramRemoveKeyWarning', 'The current key and its local history will be deleted. Messages encrypted with those keys may no longer be readable.'),
+                  ('AuthorGramKeyInputHint', '64-character hex key'),
+                  ('AuthorGramKeySaved', 'AuthorGram key saved'),
+                  ('AuthorGramKeyRemoved', 'Custom AuthorGram keys removed'),
+                  ('AuthorGramInvalidKey', 'Invalid key. Use exactly 256 bits.'),
+                  ('AuthorGramNoCustomKey', 'No custom key is configured'),
+                  ('AuthorGramKeyOperationFailed', 'The key operation failed'),
+              ],
+              'TMessagesProj/src/main/res/values-de/strings.xml': [
+                  ('AuthorGramKeySettings', 'AuthorGram-Verschlüsselungsschlüssel'),
+                  ('AuthorGramSystemKeyLocked', 'Dieser Chat verwendet immer den AuthorGram-Systemschlüssel. Ein eigener Schlüssel kann hier nicht eingerichtet werden.'),
+                  ('AuthorGramCustomKeyActive', 'Für diesen Chat ist ein eigener 256-Bit-Schlüssel aktiv. Frühere Schlüssel bleiben lokal erhalten, damit ältere Nachrichten lesbar bleiben.'),
+                  ('AuthorGramSystemKeyActive', 'Dieser Chat verwendet derzeit den AuthorGram-Systemschlüssel.'),
+                  ('AuthorGramGenerateKey', 'Eigenen Schlüssel erzeugen'),
+                  ('AuthorGramGenerateKeyInfo', 'Für diesen Chat wird ein zufälliger 256-Bit-Schlüssel erzeugt. Die andere Person muss denselben Schlüssel verwenden.'),
+                  ('AuthorGramRotateKey', 'Eigenen Schlüssel wechseln'),
+                  ('AuthorGramRotateKeyWarning', 'Ein neuer Schlüssel ersetzt den aktuellen. Der vorherige Schlüssel bleibt lokal zum Entschlüsseln älterer Nachrichten gespeichert.'),
+                  ('AuthorGramImportKey', 'Eigenen Schlüssel importieren'),
+                  ('AuthorGramImportKeyInfo', 'Gib einen 256-Bit-Schlüssel als 64 Hex-Zeichen ein.'),
+                  ('AuthorGramExportKey', 'Schlüssel anzeigen und kopieren'),
+                  ('AuthorGramRemoveKey', 'Eigene Schlüssel entfernen'),
+                  ('AuthorGramRemoveKeyWarning', 'Der aktuelle Schlüssel und sein lokaler Verlauf werden gelöscht. Damit verschlüsselte Nachrichten sind danach möglicherweise nicht mehr lesbar.'),
+                  ('AuthorGramKeyInputHint', '64-stelliger Hex-Schlüssel'),
+                  ('AuthorGramKeySaved', 'AuthorGram-Schlüssel gespeichert'),
+                  ('AuthorGramKeyRemoved', 'Eigene AuthorGram-Schlüssel entfernt'),
+                  ('AuthorGramInvalidKey', 'Ungültiger Schlüssel. Es werden genau 256 Bit benötigt.'),
+                  ('AuthorGramNoCustomKey', 'Kein eigener Schlüssel eingerichtet'),
+                  ('AuthorGramKeyOperationFailed', 'Schlüsselvorgang fehlgeschlagen'),
+              ],
+              'TMessagesProj/src/main/res/values-uk/strings.xml': [
+                  ('AuthorGramKeySettings', 'Ключ шифрування AuthorGram'),
+                  ('AuthorGramSystemKeyLocked', 'Цей чат завжди використовує системний ключ AuthorGram. Власний ключ тут налаштувати неможливо.'),
+                  ('AuthorGramCustomKeyActive', 'Для цього чату активний власний 256-бітний ключ. Попередні ключі зберігаються локально для читання старих повідомлень.'),
+                  ('AuthorGramSystemKeyActive', 'Цей чат зараз використовує системний ключ AuthorGram.'),
+                  ('AuthorGramGenerateKey', 'Створити власний ключ'),
+                  ('AuthorGramGenerateKeyInfo', 'Для цього чату буде створено випадковий 256-бітний ключ. Співрозмовник має використовувати той самий ключ.'),
+                  ('AuthorGramRotateKey', 'Замінити власний ключ'),
+                  ('AuthorGramRotateKeyWarning', 'Новий ключ замінить поточний. Попередній залишиться в локальній історії для розшифрування старих повідомлень.'),
+                  ('AuthorGramImportKey', 'Імпортувати власний ключ'),
+                  ('AuthorGramImportKeyInfo', 'Введіть 256-бітний ключ як 64 шістнадцяткові символи.'),
+                  ('AuthorGramExportKey', 'Показати й скопіювати ключ'),
+                  ('AuthorGramRemoveKey', 'Видалити власні ключі'),
+                  ('AuthorGramRemoveKeyWarning', 'Поточний ключ і його локальну історію буде видалено. Повідомлення, зашифровані цими ключами, можуть більше не читатися.'),
+                  ('AuthorGramKeyInputHint', '64-символьний hex-ключ'),
+                  ('AuthorGramKeySaved', 'Ключ AuthorGram збережено'),
+                  ('AuthorGramKeyRemoved', 'Власні ключі AuthorGram видалено'),
+                  ('AuthorGramInvalidKey', 'Некоректний ключ. Потрібно рівно 256 біт.'),
+                  ('AuthorGramNoCustomKey', 'Власний ключ не налаштовано'),
+                  ('AuthorGramKeyOperationFailed', 'Операцію з ключем не виконано'),
+              ],
+          }
+          for path, entries in strings.items():
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              additions = [f'    <string name="{name}">{value}</string>' for name, value in entries if f'name="{name}"' not in text]
+              if additions:
+                  if '</resources>' not in text:
+                      raise RuntimeError(f'Missing resources root in {path}')
+                  text = text.replace('</resources>', '\n' + '\n'.join(additions) + '\n</resources>', 1)
+                  target.write_text(text, encoding='utf-8')
+
+          assert Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatKeyStore.java').exists()
+          assert 'APP_PACKAGE=toss.authorgram.apk' in props_path.read_text(encoding='utf-8')
+          assert 'AUTHORGRAM_KEY_SETTINGS' in chat_path.read_text(encoding='utf-8')
+          print('TOSS common integration complete')
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add TMessagesProj gradle.properties
+          git commit -m 'Integrate current AuthorGram security and per-chat keys into TOSS'
+          git push origin HEAD:agent/toss-final
