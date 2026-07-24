@@ -1,9 +1,10 @@
-name: AuthorGram agent audit runner
+name: AuthorGram agent patch runner
 
 on:
   pull_request:
     branches:
       - main
+      - play-market
     types:
       - opened
       - synchronize
@@ -14,8 +15,11 @@ permissions:
   pull-requests: read
 
 jobs:
-  audit:
-    if: github.event.pull_request.head.ref == 'agent/authorgram-audit-20260724'
+  patch:
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      (startsWith(github.event.pull_request.head.ref, 'agent/authorgram-') ||
+       startsWith(github.event.pull_request.head.ref, 'agent/toss-'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,184 +29,26 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build redacted repository map
+      - name: Apply repository patch
         shell: bash
         run: |
-          python3 <<'PY'
-          from pathlib import Path
-          import datetime
-          import json
-          import re
-          import subprocess
+          set -euo pipefail
+          SCRIPT=.github/authorgram_agent_patch.py
+          test -f "$SCRIPT"
+          python3 "$SCRIPT"
+          rm -f "$SCRIPT"
+          git diff --check
 
-          root = Path.cwd()
-          out_dir = root / "authorgram_audit"
-          out_dir.mkdir(exist_ok=True)
-          report = out_dir / "authorgram_rebrand_crypto_map.txt"
-          paths_json = out_dir / "authorgram_relevant_paths.json"
-
-          allowed_suffixes = {
-              ".java", ".kt", ".kts", ".xml", ".gradle", ".properties",
-              ".yml", ".yaml", ".json", ".md", ".txt", ".sh", ".pro"
-          }
-          max_size = 4 * 1024 * 1024
-
-          raw = subprocess.check_output(["git", "ls-files", "-z"])
-          tracked = []
-          for value in raw.split(b"\0"):
-              if not value:
-                  continue
-              path = root / value.decode("utf-8", "replace")
-              if not path.is_file():
-                  continue
-              if path.suffix.lower() not in allowed_suffixes and path.name not in {
-                  "gradle.properties", "AndroidManifest.xml"
-              }:
-                  continue
-              try:
-                  if path.stat().st_size > max_size:
-                      continue
-              except OSError:
-                  continue
-              tracked.append(path)
-
-          secret_name = re.compile(
-              r"(?i)(?:encryption|system|authorgram|api|app|gemini|cloudflare|cf)[A-Za-z0-9_]*(?:key|token|secret|hash)|(?:key|token|secret|hash)[A-Za-z0-9_]*"
-          )
-
-          def redact(line):
-              line = re.sub(r"\b[0-9a-fA-F]{64}\b", "<REDACTED_64_HEX>", line)
-              line = re.sub(r"\bAIza[0-9A-Za-z_-]{20,}\b", "<REDACTED_GOOGLE_KEY>", line)
-              line = re.sub(r"\bcfut_[0-9A-Za-z_-]+\b", "<REDACTED_CF_TOKEN>", line)
-              if secret_name.search(line):
-                  line = re.sub(r'"(?:[^"\\]|\\.)*"', '"<REDACTED_SECRET>"', line)
-                  line = re.sub(r"'(?:[^'\\]|\\.)*'", "'<REDACTED_SECRET>'", line)
-                  line = re.sub(r"new\s+byte\s*\[\s*\]\s*\{.*?\}", "new byte[] { <REDACTED_KEY_BYTES> }", line)
-              return line
-
-          categories = {
-              "BRAND_REFERENCES": [
-                  r"Nagram", r"Naigram", r"Nekogram", r"NekoX", r"NagramXF",
-                  r"Cherrygram", r"AyuGram", r"AyuMoments", r"NASettings",
-                  r"NaSettings", r"nasettings", r"NekoSettings", r"nextalone",
-                  r"nekox"
-              ],
-              "PACKAGE_AND_APPLICATION_ID": [
-                  r"APP_PACKAGE", r"applicationId", r"namespace", r"applicationIdSuffix",
-                  r"package=", r"authorities", r"fork\.risin42\.nagramx",
-                  r"tg\.authorche\.top", r"BuildConfig\.APPLICATION_ID"
-              ],
-              "SETTINGS_AND_DRAWER": [
-                  r"SettingsActivity", r"ConfigCell", r"DrawerItem", r"drawer",
-                  r"menu_gram", r"mini_gram", r"settings_gram", r"outline_gram",
-                  r"presentFragment", r"Chats"
-              ],
-              "ABOUT_AND_CREDITS": [
-                  r"AboutActivity", r"AboutApp", r"app_description", r"credits?",
-                  r"thanks?", r"source code", r"GitHub"
-              ],
-              "AYU_MOMENTS_AND_FILTERS": [
-                  r"AyuMoments", r"AyuGram", r"Moments", r"RegexFilters",
-                  r"RegexChatFilters", r"BlockedChannels", r"messageFilter"
-              ],
-              "ACCESS_AND_PERMISSION_PROTECTION": [
-                  r"AuthorgramAccessChecker", r"AccessChecker", r"allow\.txt",
-                  r"authorized", r"authorization", r"access denied", r"verifyInstaller",
-                  r"getInstallerPackageName", r"getInstallSourceInfo", r"checkSignatures",
-                  r"GET_SIGNING_CERTIFICATES", r"requestPermissions", r"checkSelfPermission"
-              ],
-              "AUTHORGRAM_CRYPTO": [
-                  r"AuthorGramCrypto", r"AuthorGramCryptoInterceptor", r"AuthorGramChatState",
-                  r"AuthorGramMessageMeta", r"AuthorGramMessageSplitter", r"encryptText",
-                  r"decryptText", r"decryptIncomingMessage", r"prepareOutgoingRequest",
-                  r"isAuthorGramPayload", r"AUTHORGRAM_", r"6316376597", r"AES/GCM",
-                  r"SecretKey", r"AndroidKeyStore"
-              ],
-          }
-          compiled = {
-              name: [re.compile(pattern, re.I) for pattern in patterns]
-              for name, patterns in categories.items()
-          }
-          path_terms = re.compile(
-              r"(?i)(authorgram|nagram|naigram|nekogram|nekox|nextalone|ayu|moment|"
-              r"filter|settings|drawer|about|access|permission|crypto)"
-          )
-
-          relevant_paths = []
-          snippets = {name: [] for name in categories}
-          for path in tracked:
-              rel = path.relative_to(root).as_posix()
-              if path_terms.search(rel):
-                  relevant_paths.append(rel)
-              try:
-                  text = path.read_text("utf-8", errors="replace")
-              except OSError:
-                  continue
-              lines = text.splitlines()
-              for category, regexes in compiled.items():
-                  hits = [
-                      index for index, line in enumerate(lines)
-                      if any(regex.search(line) for regex in regexes)
-                  ]
-                  if not hits:
-                      continue
-                  ranges = []
-                  for hit in hits:
-                      start = max(0, hit - 3)
-                      end = min(len(lines), hit + 4)
-                      if ranges and start <= ranges[-1][1]:
-                          ranges[-1] = (ranges[-1][0], max(ranges[-1][1], end))
-                      else:
-                          ranges.append((start, end))
-                  for start, end in ranges[:120]:
-                      block = [f"\n--- {rel}:{start + 1}-{end} ---"]
-                      for number in range(start, end):
-                          block.append(f"{number + 1:6d}: {redact(lines[number])}")
-                      snippets[category].append("\n".join(block))
-
-          relevant_paths = sorted(set(relevant_paths))
-          paths_json.write_text(
-              json.dumps(relevant_paths, indent=2, ensure_ascii=False) + "\n",
-              "utf-8"
-          )
-          with report.open("w", encoding="utf-8") as handle:
-              handle.write("AUTHORGRAM REBRAND / PLAY MARKET / PER-CHAT CRYPTO AUDIT\n")
-              handle.write(f"Generated: {datetime.datetime.now(datetime.timezone.utc).isoformat()}\n")
-              handle.write(f"Commit: {subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()}\n")
-              handle.write("=" * 88 + "\n")
-              handle.write("\nRELEVANT TRACKED PATHS\n")
-              handle.write("=" * 88 + "\n")
-              for rel in relevant_paths:
-                  handle.write(rel + "\n")
-              for category in categories:
-                  handle.write("\n\n" + "=" * 88 + "\n")
-                  handle.write(category + "\n")
-                  handle.write("=" * 88 + "\n")
-                  blocks = snippets[category]
-                  if not blocks:
-                      handle.write("<no matches>\n")
-                  else:
-                      for block in blocks[:1800]:
-                          handle.write(block + "\n")
-
-          audit_text = report.read_text("utf-8", errors="replace")
-          if re.search(r"\b[0-9a-fA-F]{64}\b", audit_text):
-              raise SystemExit("Raw 64-hex value remains in audit")
-          if "AIza" in audit_text or "cfut_" in audit_text:
-              raise SystemExit("Raw API credential remains in audit")
-          print(f"Wrote {report} ({report.stat().st_size} bytes)")
-          print(f"Wrote {paths_json} ({paths_json.stat().st_size} bytes)")
-          PY
-
-      - name: Commit audit output to PR branch
+      - name: Commit generated changes
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add authorgram_audit/authorgram_rebrand_crypto_map.txt authorgram_audit/authorgram_relevant_paths.json
+          git add -A
           if git diff --cached --quiet; then
-            echo "Audit output unchanged"
+            echo "Patch produced no changes"
             exit 0
           fi
-          git commit -m "[audit output] Map AuthorGram rebrand and crypto code"
+          git commit -m "Apply AuthorGram agent patch"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
