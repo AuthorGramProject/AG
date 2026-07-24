@@ -1,5 +1,6 @@
 package toss.authorgram.settings;
 
+@SuppressWarnings("ClassCanBeRecord")
 public class AGSettingsSearchResult {
 
     public String searchTitle;
