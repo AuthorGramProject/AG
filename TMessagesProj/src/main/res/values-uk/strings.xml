@@ -14,4 +14,24 @@
     <string name="AGCreditsText">Дяка Cherrygram, Nagram, Nekogram та їхнім учасникам. Частина можливостей TOSS створена на основі або з адаптацією їхнього відкритого коду. Базовою платформою залишається Telegram for Android.</string>
     <string name="UnknownAGSettingsOption">Невідомий пункт налаштувань AuthorGram</string>
     <string name="AGPasscode">Код-пароль</string>
+
+    <string name="AuthorGramKeySettings">Ключ шифрування AuthorGram</string>
+    <string name="AuthorGramSystemKeyLocked">Цей чат завжди використовує системний ключ AuthorGram. Власний ключ тут налаштувати неможливо.</string>
+    <string name="AuthorGramCustomKeyActive">Для цього чату активний власний 256-бітний ключ. Попередні ключі зберігаються локально для читання старих повідомлень.</string>
+    <string name="AuthorGramSystemKeyActive">Цей чат зараз використовує системний ключ AuthorGram.</string>
+    <string name="AuthorGramGenerateKey">Створити власний ключ</string>
+    <string name="AuthorGramGenerateKeyInfo">Для цього чату буде створено випадковий 256-бітний ключ. Співрозмовник має використовувати той самий ключ.</string>
+    <string name="AuthorGramRotateKey">Замінити власний ключ</string>
+    <string name="AuthorGramRotateKeyWarning">Новий ключ замінить поточний. Попередній залишиться в локальній історії для розшифрування старих повідомлень.</string>
+    <string name="AuthorGramImportKey">Імпортувати власний ключ</string>
+    <string name="AuthorGramImportKeyInfo">Введіть 256-бітний ключ як 64 шістнадцяткові символи.</string>
+    <string name="AuthorGramExportKey">Показати й скопіювати ключ</string>
+    <string name="AuthorGramRemoveKey">Видалити власні ключі</string>
+    <string name="AuthorGramRemoveKeyWarning">Поточний ключ і його локальну історію буде видалено. Повідомлення, зашифровані цими ключами, можуть більше не читатися.</string>
+    <string name="AuthorGramKeyInputHint">64-символьний hex-ключ</string>
+    <string name="AuthorGramKeySaved">Ключ AuthorGram збережено</string>
+    <string name="AuthorGramKeyRemoved">Власні ключі AuthorGram видалено</string>
+    <string name="AuthorGramInvalidKey">Некоректний ключ. Потрібно рівно 256 біт.</string>
+    <string name="AuthorGramNoCustomKey">Власний ключ не налаштовано</string>
+    <string name="AuthorGramKeyOperationFailed">Операцію з ключем не виконано</string>
 </resources>

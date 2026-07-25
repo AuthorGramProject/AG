@@ -1,4 +1,8 @@
 import java.nio.file.Paths
+import java.security.KeyStore
+import java.security.MessageDigest
+import java.util.Arrays
+import java.util.Locale
 import org.gradle.internal.os.OperatingSystem
 
 plugins {
@@ -10,7 +14,7 @@ plugins {
 def buildTimestamp = System.getenv('BUILD_TIMESTAMP') ?: '0'
 def commitId = System.getenv('COMMIT_ID')
 def verName = "${APP_VERSION_NAME}${commitId?.take(7) ? "-${commitId.take(7)}" : ''}"
-def verCode = 1246
+def verCode = Integer.parseInt(APP_VERSION_CODE.toString())
 
 def officialVer = APP_VERSION_NAME
 def officialCode = APP_VERSION_CODE
@@ -38,6 +42,65 @@ if (properties != null) {
 keystorePwd = keystorePwd ?: System.getenv('KEYSTORE_PASS')
 alias = alias ?: System.getenv('ALIAS_NAME')
 pwd = pwd ?: System.getenv('ALIAS_PASS')
+
+def releaseStoreFile = project.file('release.keystore')
+def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase(Locale.ROOT) }
+def releaseBuildRequested = requestedTasks.any { it.contains('release') || it.contains('staging') }
+def normalizeCertificateDigest = { String value ->
+    value == null ? '' : value.replaceAll('[^0-9A-Fa-f]', '').toLowerCase(Locale.ROOT)
+}
+def configuredSigningCertificates = (
+        properties?.getProperty('AUTHORGRAM_SIGNING_CERT_SHA256')
+                ?: System.getenv('AUTHORGRAM_SIGNING_CERT_SHA256')
+                ?: ''
+).split(',').collect { normalizeCertificateDigest(it) }.findAll { it.length() == 64 }
+
+def deriveSigningCertificate = {
+    if (!releaseStoreFile.isFile() || !keystorePwd || !alias) {
+        return ''
+    }
+    char[] password = keystorePwd.toCharArray()
+    try {
+        for (String type : ['PKCS12', 'JKS']) {
+            try {
+                KeyStore keyStore = KeyStore.getInstance(type)
+                releaseStoreFile.withInputStream { stream -> keyStore.load(stream, password) }
+                def certificate = keyStore.getCertificate(alias)
+                if (certificate != null) {
+                    byte[] digest = MessageDigest.getInstance('SHA-256').digest(certificate.encoded)
+                    return digest.collect { String.format('%02x', it & 0xff) }.join('')
+                }
+            } catch (Exception ignored) {
+                // Try the other common Android keystore container format.
+            }
+        }
+        return ''
+    } finally {
+        Arrays.fill(password, (char) 0)
+    }
+}
+
+def derivedSigningCertificate = deriveSigningCertificate()
+if (!configuredSigningCertificates.isEmpty()
+        && derivedSigningCertificate
+        && !configuredSigningCertificates.contains(derivedSigningCertificate)) {
+    throw new GradleException('Configured AuthorGram signing certificate does not match release.keystore')
+}
+def trustedSigningCertificates = configuredSigningCertificates.isEmpty()
+        ? derivedSigningCertificate
+        : configuredSigningCertificates.join(',')
+
+if (releaseBuildRequested) {
+    if (!releaseStoreFile.isFile()) {
+        throw new GradleException('TMessagesProj/release.keystore is required for release builds')
+    }
+    if (!keystorePwd || !alias || !pwd) {
+        throw new GradleException('Release signing credentials are missing from LOCAL_PROPERTIES or environment')
+    }
+    if (!trustedSigningCertificates) {
+        throw new GradleException('Unable to derive or configure the trusted signing certificate SHA-256')
+    }
+}
 
 def nativeTarget = System.getenv('NATIVE_TARGET') ?: ''
 
@@ -96,6 +159,8 @@ android {
         buildConfigField 'long', 'BUILD_TIMESTAMP', buildTimestamp + 'L'
         buildConfigField 'boolean', 'DEBUG_VERSION', 'false'
         buildConfigField 'boolean', 'DEBUG_PRIVATE_VERSION', 'false'
+        buildConfigField 'boolean', 'OFFICIAL_BUILD', 'false'
+        buildConfigField 'String', 'TRUSTED_SIGNING_CERT_SHA256', '""'
 
         externalNativeBuild {
             cmake {
@@ -133,10 +198,16 @@ android {
 
     signingConfigs {
         release {
-            storeFile project.file('release.keystore')
-            storePassword keystorePwd
-            keyAlias alias
-            keyPassword pwd
+            storeFile releaseStoreFile
+            if (keystorePwd) {
+                storePassword keystorePwd
+            }
+            if (alias) {
+                keyAlias alias
+            }
+            if (pwd) {
+                keyPassword pwd
+            }
         }
     }
 
@@ -146,7 +217,10 @@ android {
             debuggable = true
             jniDebuggable = false
             multiDexEnabled = true
-            signingConfig = signingConfigs.release
+            versionNameSuffix '-debug'
+            buildConfigField 'boolean', 'DEBUG_VERSION', 'true'
+            buildConfigField 'boolean', 'OFFICIAL_BUILD', 'false'
+            buildConfigField 'String', 'TRUSTED_SIGNING_CERT_SHA256', '""'
         }
 
         staging {
@@ -158,6 +232,8 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             matchingFallbacks = ['release', 'staging', 'debug']
             signingConfig = signingConfigs.release
+            buildConfigField 'boolean', 'OFFICIAL_BUILD', 'true'
+            buildConfigField 'String', 'TRUSTED_SIGNING_CERT_SHA256', '"' + trustedSigningCertificates + '"'
         }
 
         release {
@@ -169,6 +245,8 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             matchingFallbacks = ['release', 'staging', 'debug']
             signingConfig = signingConfigs.release
+            buildConfigField 'boolean', 'OFFICIAL_BUILD', 'true'
+            buildConfigField 'String', 'TRUSTED_SIGNING_CERT_SHA256', '"' + trustedSigningCertificates + '"'
         }
     }
 

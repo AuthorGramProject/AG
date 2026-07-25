@@ -11176,4 +11176,24 @@
     <string name="AGCreditsText">Thanks to Cherrygram, Nagram and Nekogram and their contributors. Parts of TOSS are based on or adapted from their open-source work. Telegram for Android remains the upstream foundation.</string>
     <string name="UnknownAGSettingsOption">Unknown AuthorGram settings option</string>
     <string name="AGPasscode">Passcode</string>
+
+    <string name="AuthorGramKeySettings">AuthorGram encryption key</string>
+    <string name="AuthorGramSystemKeyLocked">This chat always uses the AuthorGram system key. A custom key cannot be configured here.</string>
+    <string name="AuthorGramCustomKeyActive">A custom 256-bit key is active for this chat. Old rotated keys are kept locally so earlier messages remain readable.</string>
+    <string name="AuthorGramSystemKeyActive">This chat currently uses the AuthorGram system key.</string>
+    <string name="AuthorGramGenerateKey">Generate custom key</string>
+    <string name="AuthorGramGenerateKeyInfo">A random 256-bit key will be created for this chat. The other participant must use the same key.</string>
+    <string name="AuthorGramRotateKey">Rotate custom key</string>
+    <string name="AuthorGramRotateKeyWarning">A new key will replace the current key. The previous key remains in local history for decrypting older messages.</string>
+    <string name="AuthorGramImportKey">Import custom key</string>
+    <string name="AuthorGramImportKeyInfo">Enter a 256-bit key as 64 hexadecimal characters.</string>
+    <string name="AuthorGramExportKey">Show and copy custom key</string>
+    <string name="AuthorGramRemoveKey">Remove custom keys</string>
+    <string name="AuthorGramRemoveKeyWarning">The current key and its local history will be deleted. Messages encrypted with those keys may no longer be readable.</string>
+    <string name="AuthorGramKeyInputHint">64-character hex key</string>
+    <string name="AuthorGramKeySaved">AuthorGram key saved</string>
+    <string name="AuthorGramKeyRemoved">Custom AuthorGram keys removed</string>
+    <string name="AuthorGramInvalidKey">Invalid key. Use exactly 256 bits.</string>
+    <string name="AuthorGramNoCustomKey">No custom key is configured</string>
+    <string name="AuthorGramKeyOperationFailed">The key operation failed</string>
 </resources>
