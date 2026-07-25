@@ -83,7 +83,7 @@ public class AGAboutActivity extends BaseAGSettingsActivity {
 
     private String getSimpleVersion() {
         String versionName = BuildConfig.VERSION_NAME.split("-")[0];
-        return "TOSS v" + versionName;
+        return "AuthorGram v" + versionName;
     }
 
     @Override
