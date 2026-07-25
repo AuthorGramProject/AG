@@ -6,6 +6,14 @@
         android:icon="@mipmap/ic_launcher_toss_dark_blue"
         android:roundIcon="@mipmap/ic_launcher_toss_dark_blue_round"
         android:label="@string/AppName"
-        tools:replace="android:icon,android:roundIcon,android:label" />
+        tools:replace="android:icon,android:roundIcon,android:label">
+
+        <provider
+            android:name="org.telegram.messenger.authorgram.PlayDefaultsMigrationProvider"
+            android:authorities="${applicationId}.authorgram.playdefaults"
+            android:exported="false"
+            android:initOrder="100" />
+
+    </application>
 
 </manifest>
