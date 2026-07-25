@@ -72,7 +72,7 @@ jobs:
             echo '::warning::AUTHORGRAM_SIGNING_CERT_SHA256 is not configured for the Play signing certificate.'
           fi
 
-      - name: Verify release security invariants
+      - name: Verify release security and branch identity
         shell: bash
         run: |
           set -euo pipefail
@@ -80,6 +80,18 @@ jobs:
           grep -q 'android:allowBackup="false"' TMessagesProj/src/main/AndroidManifest.xml
           grep -q 'android:allowAudioPlaybackCapture="false"' TMessagesProj/src/main/AndroidManifest.xml
           test -f TMessagesProj/release.keystore
+          test -f TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatKeyStore.java
+          test -f TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramKeyDialog.java
+          grep -q 'AUTHORGRAM_KEY_SETTINGS' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          if [ "$GITHUB_REF_NAME" = "play-market" ]; then
+            grep -q '^APP_PACKAGE=toss.authorgram.apk$' gradle.properties
+            grep -q '@mipmap/ic_launcher_toss' TMessagesProj/src/main/AndroidManifest.xml
+            ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' TMessagesProj/src/main/AndroidManifest.xml
+            test ! -f TMessagesProj/src/main/java/org/telegram/messenger/AuthorgramAccessChecker.java
+            test -f TMessagesProj/src/main/java/toss/authorgram/settings/AGSettingsActivity.java
+          else
+            grep -q '^APP_PACKAGE=fork.risin42.nagramx$' gradle.properties
+          fi
           git diff --check
 
       - name: Build signed release APK
