@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="AppName">AuthorGram</string>
+    <string name="AppNameBeta">AuthorGram Beta</string>
+    <string name="TOSSAboutDesc">AuthorGram is a privacy-focused Telegram client with per-chat encryption, flexible privacy controls, media tools, translation, filters, and accessibility features.</string>
+</resources>
