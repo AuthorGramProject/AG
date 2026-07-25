@@ -85,10 +85,17 @@ jobs:
           grep -q 'AUTHORGRAM_KEY_SETTINGS' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           if [ "$GITHUB_REF_NAME" = "play-market" ]; then
             grep -q '^APP_PACKAGE=toss.authorgram.apk$' gradle.properties
-            grep -q '@mipmap/ic_launcher_toss' TMessagesProj/src/main/AndroidManifest.xml
+            grep -q '^APP_VERSION_NAME=12.9.0$' gradle.properties
             ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' TMessagesProj/src/main/AndroidManifest.xml
             test ! -f TMessagesProj/src/main/java/org/telegram/messenger/AuthorgramAccessChecker.java
             test -f TMessagesProj/src/main/java/toss/authorgram/settings/AGSettingsActivity.java
+            test -f TMessagesProj/src/release/AndroidManifest.xml
+            test -f TMessagesProj/src/release/res/values/authorgram_brand.xml
+            grep -q 'android:icon="@mipmap/ic_launcher_toss_dark_blue"' TMessagesProj/src/release/AndroidManifest.xml
+            grep -q '<string name="AppName">AuthorGram</string>' TMessagesProj/src/release/res/values/authorgram_brand.xml
+            grep -q '{"CustomTitle", "AuthorGram"}' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramDefaults.java
+            ! grep -q '"localPremium"' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramDefaults.java
+            grep -q 'return "AuthorGram v"' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
           else
             grep -q '^APP_PACKAGE=fork.risin42.nagramx$' gradle.properties
           fi
@@ -120,7 +127,9 @@ jobs:
           else
             test "$PACKAGE" = 'fork.risin42.nagramx'
           fi
-          cp "$APK" artifacts/
+          VERSION=$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties | head -n 1)
+          OUTPUT="AuthorGram-v${VERSION}(${GITHUB_RUN_NUMBER})-${GITHUB_REF_NAME}-arm64-v8a.apk"
+          cp "$APK" "artifacts/$OUTPUT"
           (cd artifacts && sha256sum *.apk > SHA256SUMS)
 
       - name: Upload release APK or build log
