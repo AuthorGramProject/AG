@@ -1,4 +1,4 @@
-name: AuthorGram Release
+name: AuthorGram Release APK
 
 on:
   push:
@@ -11,28 +11,37 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: authorgram-release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   build:
-    name: Release Build
+    name: Build signed ${{ github.ref_name }} APK
     if: github.ref_name == 'dev' || github.ref_name == 'play-market'
     runs-on: ubuntu-latest
+    timeout-minutes: 150
     env:
       NATIVE_TARGET: arm64-v8a
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
-      - uses: android-actions/setup-android@v3
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
@@ -60,7 +69,7 @@ jobs:
               raise SystemExit('Missing release signing properties: ' + ', '.join(missing))
           PY
           if [ "$GITHUB_REF_NAME" = "play-market" ] && [ -z "$AUTHORGRAM_SIGNING_CERT_SHA256" ]; then
-            echo '::warning::Set AUTHORGRAM_SIGNING_CERT_SHA256 to both the Play App Signing certificate and upload certificate before publishing through Google Play.'
+            echo '::warning::AUTHORGRAM_SIGNING_CERT_SHA256 is not configured for the Play signing certificate.'
           fi
 
       - name: Verify release security invariants
@@ -79,11 +88,12 @@ jobs:
         env:
           COMMIT_ID: ${{ github.sha }}
           BUILD_TIMESTAMP: ${{ github.run_id }}
+        shell: bash
         run: |
           set -o pipefail
           ./gradlew --no-daemon TMessagesProj:assembleRelease 2>&1 | tee gradle-release.log
 
-      - name: Verify and collect release APK
+      - name: Verify APK package, signature, and checksum
         if: steps.build.outcome == 'success'
         shell: bash
         run: |
@@ -101,15 +111,18 @@ jobs:
           cp "$APK" artifacts/
           (cd artifacts && sha256sum *.apk > SHA256SUMS)
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload release APK or build log
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.ref_name }}-Release
+          name: AuthorGram-${{ github.ref_name }}-Release-${{ github.run_number }}
           path: |
             artifacts/
             gradle-release.log
+          if-no-files-found: error
+          overwrite: true
           retention-days: 30
 
-      - name: Fail failed build
+      - name: Fail when Gradle build failed
         if: steps.build.outcome != 'success'
         run: exit 1
