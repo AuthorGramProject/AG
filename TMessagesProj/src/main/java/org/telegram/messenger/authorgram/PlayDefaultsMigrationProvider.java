@@ -12,14 +12,17 @@ import androidx.annotation.Nullable;
 
 /**
  * One-time Play build migration that removes the previously injected
- * Local Premium preference. New Play installs no longer receive this default.
+ * Local Premium preference and restores the AuthorGram product title.
  */
 public final class PlayDefaultsMigrationProvider extends ContentProvider {
 
     private static final String PREFERENCES = "nkmrcfg";
     private static final String LOCAL_PREMIUM = "localPremium";
+    private static final String CUSTOM_TITLE = "CustomTitle";
+    private static final String LEGACY_TITLE = "TOSS";
+    private static final String AUTHORGRAM_TITLE = "AuthorGram";
     private static final String MIGRATION_DONE =
-            "authorgram_play_local_premium_default_removed_v1";
+            "authorgram_play_defaults_migrated_v1";
 
     @Override
     public boolean onCreate() {
@@ -34,10 +37,16 @@ public final class PlayDefaultsMigrationProvider extends ContentProvider {
         );
 
         if (!preferences.getBoolean(MIGRATION_DONE, false)) {
-            preferences.edit()
+            SharedPreferences.Editor editor = preferences.edit()
                     .remove(LOCAL_PREMIUM)
-                    .putBoolean(MIGRATION_DONE, true)
-                    .apply();
+                    .putBoolean(MIGRATION_DONE, true);
+
+            String currentTitle = preferences.getString(CUSTOM_TITLE, null);
+            if (currentTitle == null || LEGACY_TITLE.equals(currentTitle)) {
+                editor.putString(CUSTOM_TITLE, AUTHORGRAM_TITLE);
+            }
+
+            editor.apply();
         }
 
         return true;
