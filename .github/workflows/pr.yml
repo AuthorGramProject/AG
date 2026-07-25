@@ -1,74 +1,99 @@
-name: Pull request
+name: AuthorGram Debug APK
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
     paths-ignore:
       - '**.md'
-      - '**.xml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: authorgram-debug-main
+  cancel-in-progress: true
 
 jobs:
   build:
-    name: Gradle Build
+    name: Build main debug APK
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     env:
-      NATIVE_TARGET: "arm64-v8a"
+      NATIVE_TARGET: arm64-v8a
+
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
-      - name: Set up JDK
+
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Set up Android SDK Tools
+
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: "build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36"
-      - name: Configure Android SDK Path
+          packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
+
+      - name: Configure Android SDK
+        run: echo "sdk.dir=${ANDROID_HOME}" > local.properties
+
+      - name: Verify debug security invariants
+        shell: bash
         run: |
-          echo "sdk.dir=${ANDROID_HOME}" >> local.properties
-      - name: Modify Gradle JVM Args
-        run: |
-          MEMORY_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
-          MEMORY_GB=$((MEMORY_KB / 1024 / 1024))
-          echo "Detected memory size: ${MEMORY_GB}GB"
-          if [ $MEMORY_GB -ge 12 ]; then
-            sed -i '/^org\.gradle\.jvmargs=/d' gradle.properties
-            echo "org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=2G -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> gradle.properties
-          fi
-          cat gradle.properties
-      - name: Debug Build
-        id: debug_build
+          set -euo pipefail
+          ! grep -qE '^RELEASE_(KEY|STORE)_PASSWORD=' gradle.properties
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('TMessagesProj/build.gradle').read_text(encoding='utf-8')
+          start = text.index('        debug {')
+          end = text.index('\n        staging {', start)
+          block = text[start:end]
+          assert 'signingConfig = signingConfigs.release' not in block
+          assert "versionNameSuffix '-debug'" in block
+          PY
+          grep -q 'android:allowBackup="false"' TMessagesProj/src/main/AndroidManifest.xml
+          grep -q 'android:allowAudioPlaybackCapture="false"' TMessagesProj/src/main/AndroidManifest.xml
+          git diff --check
+
+      - name: Build debug APK
+        id: build
         continue-on-error: true
+        env:
+          COMMIT_ID: ${{ github.sha }}
+          BUILD_TIMESTAMP: ${{ github.run_id }}
+        shell: bash
         run: |
           set -o pipefail
-          export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
-          export DEBUG_BUILD=true
-          sed -i 's/signingConfig = signingConfigs.release//g' TMessagesProj/build.gradle
-          ./gradlew TMessagesProj:assembleDebug 2>&1 | tee pr_build.log
-          STATUS=${PIPESTATUS[0]}
-          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
-          if [ "$STATUS" -eq 0 ]; then
-            APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk' | head -1)
-            APK=$(dirname "$APK")
-            echo "APK=$APK" >> "$GITHUB_ENV"
-          fi
-          exit "$STATUS"
-      - name: Upload build log
+          ./gradlew --no-daemon TMessagesProj:assembleDebug 2>&1 | tee gradle-debug.log
+
+      - name: Collect APK and checksum
+        if: steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          APK=$(find TMessagesProj/build/outputs/apk -type f -name '*arm64-v8a*.apk' | head -n 1)
+          test -n "$APK" -a -f "$APK"
+          cp "$APK" artifacts/
+          (cd artifacts && sha256sum *.apk > SHA256SUMS)
+
+      - name: Upload APK or build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: TOSS-pr-build-log
-          path: pr_build.log
-      - name: Fail when build failed
-        if: steps.debug_build.outcome == 'failure'
+          name: AuthorGram-main-Debug-${{ github.run_number }}
+          path: |
+            artifacts/
+            gradle-debug.log
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail when Gradle build failed
+        if: steps.build.outcome != 'success'
         run: exit 1
-      - name: Upload debug APK
-        if: steps.debug_build.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Debug
-          path: ${{ env.APK }}

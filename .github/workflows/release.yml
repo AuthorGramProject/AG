@@ -1,84 +1,128 @@
-name: Release Build
+name: AuthorGram Release APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [dev, play-market]
     paths-ignore:
       - '**.md'
-      - '.github/**'
-      - '!.github/workflows/release.yml'
   workflow_dispatch:
-    inputs:
-      upload:
-        description: 'Skip Upload: Set to "y" to skip uploading the build.'
-        required: false
 
 permissions:
   contents: read
-  actions: read
-  models: read
+
+concurrency:
+  group: authorgram-release-${{ github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Gradle Build
+    name: Build signed ${{ github.ref_name }} APK
+    if: github.ref_name == 'dev' || github.ref_name == 'play-market'
     runs-on: ubuntu-latest
-    outputs:
-      build_timestamp: ${{ steps.release_build_step.outputs.build_timestamp }}
+    timeout-minutes: 150
     env:
-      NATIVE_TARGET: "arm64-v8a"
+      NATIVE_TARGET: arm64-v8a
+      LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+
     steps:
-      - name: Checkout
+      - name: Checkout release branch
         uses: actions/checkout@v4
-      - name: Set up JDK
+
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
-      - name: Set up Gradle cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
-      - name: Set up Android SDK Tools
+
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: "build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36"
-      - name: Configure Android SDK Path
-        run: |
-          echo "sdk.dir=${ANDROID_HOME}" >> local.properties
-      - name: Modify Gradle JVM Args
-        run: |
-          MEMORY_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
-          MEMORY_GB=$((MEMORY_KB / 1024 / 1024))
-          echo "Detected memory size: ${MEMORY_GB}GB"
-          if [ $MEMORY_GB -ge 12 ]; then
-            sed -i '/^org\.gradle\.jvmargs=/d' gradle.properties
-            echo "org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=2G -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> gradle.properties
-          fi
-          cat gradle.properties
-      - name: Release Build
-        id: release_build_step
-        env:
-          COMMIT_ID: ${{ github.event.head_commit.id }}
-        run: |
-          export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
-          export BUILD_TIMESTAMP=$(date +%s)
-          echo "build_timestamp=$BUILD_TIMESTAMP" >> "$GITHUB_OUTPUT"
-          ./gradlew TMessagesProj:assembleRelease
+          packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-          APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk')
-          APK=$(dirname $APK)
-          echo "APK=$APK" >> $GITHUB_ENV
-      - uses: actions/upload-artifact@v4
+      - name: Configure SDK and validate signing input
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+          test -n "$LOCAL_PROPERTIES"
+          python3 - <<'PY'
+          import base64
+          import os
+
+          raw = os.environ['LOCAL_PROPERTIES']
+          data = base64.b64decode(raw, validate=True).decode('utf-8')
+          props = {}
+          for line in data.splitlines():
+              line = line.strip()
+              if line and not line.startswith('#') and '=' in line:
+                  key, value = line.split('=', 1)
+                  props[key.strip()] = value.strip()
+          required = ('KEYSTORE_PASS', 'ALIAS_NAME', 'ALIAS_PASS')
+          missing = [key for key in required if not props.get(key)]
+          if missing:
+              raise SystemExit('Missing release signing properties: ' + ', '.join(missing))
+          PY
+          if [ "$GITHUB_REF_NAME" = "play-market" ] && [ -z "$AUTHORGRAM_SIGNING_CERT_SHA256" ]; then
+            echo '::warning::AUTHORGRAM_SIGNING_CERT_SHA256 is not configured for the Play signing certificate.'
+          fi
+
+      - name: Verify release security invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -qE '^RELEASE_(KEY|STORE)_PASSWORD=' gradle.properties
+          grep -q 'android:allowBackup="false"' TMessagesProj/src/main/AndroidManifest.xml
+          grep -q 'android:allowAudioPlaybackCapture="false"' TMessagesProj/src/main/AndroidManifest.xml
+          test -f TMessagesProj/release.keystore
+          git diff --check
+
+      - name: Build signed release APK
+        id: build
+        continue-on-error: true
+        env:
+          COMMIT_ID: ${{ github.sha }}
+          BUILD_TIMESTAMP: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon TMessagesProj:assembleRelease 2>&1 | tee gradle-release.log
+
+      - name: Verify APK package, signature, and checksum
+        if: steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          APK=$(find TMessagesProj/build/outputs/apk -type f -name '*arm64-v8a*.apk' | head -n 1)
+          test -n "$APK" -a -f "$APK"
+          "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
+          PACKAGE=$("${ANDROID_HOME}/build-tools/36.0.0/aapt" dump badging "$APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)
+          if [ "$GITHUB_REF_NAME" = "play-market" ]; then
+            test "$PACKAGE" = 'toss.authorgram.apk'
+          else
+            test "$PACKAGE" = 'fork.risin42.nagramx'
+          fi
+          cp "$APK" artifacts/
+          (cd artifacts && sha256sum *.apk > SHA256SUMS)
+
+      - name: Upload release APK or build log
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: Release
-          path: ${{ env.APK }}
+          name: AuthorGram-${{ github.ref_name }}-Release-${{ github.run_number }}
+          path: |
+            artifacts/
+            gradle-release.log
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 30
+
+      - name: Fail when Gradle build failed
+        if: steps.build.outcome != 'success'
+        run: exit 1
