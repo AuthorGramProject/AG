@@ -1,4 +1,4 @@
-name: Integrate AuthorGram encryption into TOSS
+name: Finalize TOSS Play Market branch
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   integrate:
-    name: Apply reviewed main encryption code
+    name: Integrate encryption and publish play-market
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -26,11 +26,11 @@ jobs:
           ref: agent/toss-final
           fetch-depth: 0
 
-      - name: Integrate security and per-chat keys
+      - name: Integrate reviewed main code and consolidate branches
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
+          git fetch origin main play-market
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -189,38 +189,28 @@ jobs:
               constant = '    private static final int AUTHORGRAM_CRYPTO_TOGGLE = 0x6A470001;\n'
               if chat.count(constant) != 1:
                   raise RuntimeError('Toggle constant anchor not found')
-              chat = chat.replace(
-                  constant,
-                  constant + '    private static final int AUTHORGRAM_KEY_SETTINGS = 0x6A470002;\n',
-                  1,
-              )
+              chat = chat.replace(constant, constant + '    private static final int AUTHORGRAM_KEY_SETTINGS = 0x6A470002;\n', 1)
 
-              toggle_match = re.search(
-                  r'(?:if|else\s+if)\s*\(\s*id\s*==\s*AUTHORGRAM_CRYPTO_TOGGLE\s*\)\s*\{',
-                  chat,
-              )
+              toggle_match = re.search(r'(?:if|else\s+if)\s*\(\s*id\s*==\s*AUTHORGRAM_CRYPTO_TOGGLE\s*\)\s*\{', chat)
               if not toggle_match:
                   raise RuntimeError('Toggle handler condition not found')
               handler_open = chat.find('{', toggle_match.start(), toggle_match.end())
               handler_close = matching_delimiter(chat, handler_open, '{', '}')
-              handler_indent_start = chat.rfind('\n', 0, toggle_match.start()) + 1
-              handler_indent = chat[handler_indent_start:toggle_match.start()]
+              indent_start = chat.rfind('\n', 0, toggle_match.start()) + 1
+              indent = chat[indent_start:toggle_match.start()]
               key_handler = (
-                  f' else if (id == AUTHORGRAM_KEY_SETTINGS) {{\n'
-                  f'{handler_indent}    org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(\n'
-                  f'{handler_indent}            getParentActivity(),\n'
-                  f'{handler_indent}            currentAccount,\n'
-                  f'{handler_indent}            dialog_id\n'
-                  f'{handler_indent}    );\n\n'
-                  f'{handler_indent}    return;\n'
-                  f'{handler_indent}}}'
+                  ' else if (id == AUTHORGRAM_KEY_SETTINGS) {\n'
+                  f'{indent}    org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(\n'
+                  f'{indent}            getParentActivity(),\n'
+                  f'{indent}            currentAccount,\n'
+                  f'{indent}            dialog_id\n'
+                  f'{indent}    );\n\n'
+                  f'{indent}    return;\n'
+                  f'{indent}}}'
               )
               chat = chat[:handler_close + 1] + key_handler + chat[handler_close + 1:]
 
-              menu_match = re.search(
-                  r'headerItem\.lazilyAddSubItem\s*\(\s*AUTHORGRAM_CRYPTO_TOGGLE\b',
-                  chat,
-              )
+              menu_match = re.search(r'headerItem\.lazilyAddSubItem\s*\(\s*AUTHORGRAM_CRYPTO_TOGGLE\b', chat)
               if not menu_match:
                   raise RuntimeError('Toggle menu call not found')
               menu_open = chat.find('(', menu_match.start(), menu_match.end())
@@ -243,24 +233,12 @@ jobs:
           chat_path.write_text(chat, encoding='utf-8')
 
           string_names = (
-              'AuthorGramKeySettings',
-              'AuthorGramSystemKeyLocked',
-              'AuthorGramCustomKeyActive',
-              'AuthorGramSystemKeyActive',
-              'AuthorGramGenerateKey',
-              'AuthorGramGenerateKeyInfo',
-              'AuthorGramRotateKey',
-              'AuthorGramRotateKeyWarning',
-              'AuthorGramImportKey',
-              'AuthorGramImportKeyInfo',
-              'AuthorGramExportKey',
-              'AuthorGramRemoveKey',
-              'AuthorGramRemoveKeyWarning',
-              'AuthorGramKeyInputHint',
-              'AuthorGramKeySaved',
-              'AuthorGramKeyRemoved',
-              'AuthorGramInvalidKey',
-              'AuthorGramNoCustomKey',
+              'AuthorGramKeySettings', 'AuthorGramSystemKeyLocked', 'AuthorGramCustomKeyActive',
+              'AuthorGramSystemKeyActive', 'AuthorGramGenerateKey', 'AuthorGramGenerateKeyInfo',
+              'AuthorGramRotateKey', 'AuthorGramRotateKeyWarning', 'AuthorGramImportKey',
+              'AuthorGramImportKeyInfo', 'AuthorGramExportKey', 'AuthorGramRemoveKey',
+              'AuthorGramRemoveKeyWarning', 'AuthorGramKeyInputHint', 'AuthorGramKeySaved',
+              'AuthorGramKeyRemoved', 'AuthorGramInvalidKey', 'AuthorGramNoCustomKey',
               'AuthorGramKeyOperationFailed',
           )
           for path in (
@@ -275,38 +253,35 @@ jobs:
               for name in string_names:
                   if f'name="{name}"' in target_text:
                       continue
-                  match = re.search(
-                      rf'<string\s+name="{re.escape(name)}"[^>]*>.*?</string>',
-                      source_text,
-                      flags=re.DOTALL,
-                  )
+                  match = re.search(rf'<string\s+name="{re.escape(name)}"[^>]*>.*?</string>', source_text, flags=re.DOTALL)
                   if not match:
                       raise RuntimeError(f'Missing {name} in main {path}')
                   additions.append('    ' + match.group(0).strip())
               if additions:
                   if '</resources>' not in target_text:
                       raise RuntimeError(f'Missing resources root in {path}')
-                  target_text = target_text.replace(
-                      '</resources>',
-                      '\n' + '\n'.join(additions) + '\n</resources>',
-                      1,
-                  )
+                  target_text = target_text.replace('</resources>', '\n' + '\n'.join(additions) + '\n</resources>', 1)
                   target.write_text(target_text, encoding='utf-8')
 
           assert Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatKeyStore.java').exists()
           assert 'APP_PACKAGE=toss.authorgram.apk' in props_path.read_text(encoding='utf-8')
           assert 'AUTHORGRAM_KEY_SETTINGS' in chat_path.read_text(encoding='utf-8')
           assert 'android:allowBackup="false"' in manifest_path.read_text(encoding='utf-8')
-          print('TOSS common integration complete')
           PY
+
+          git show origin/main:.github/workflows/pr.yml > .github/workflows/pr.yml
+          git show origin/main:.github/workflows/release.yml > .github/workflows/release.yml
+          rm -f \
+            .github/toss-integration-result.txt \
+            .github/workflows/authorgram-agent-audit.yml \
+            .github/workflows/toss-integrate-runner-fix.yml \
+            .github/workflows/toss-integrate-common.yml
 
           git diff --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add TMessagesProj gradle.properties
-          if git diff --cached --quiet; then
-            echo 'TOSS encryption integration is already current'
-            exit 0
-          fi
-          git commit -m 'Integrate current AuthorGram encryption and security into TOSS'
-          git push origin HEAD:agent/toss-final
+          git add -A
+          git commit -m 'Finalize TOSS encryption, security, and Play release build'
+          git push --force-with-lease=refs/heads/play-market:$(git rev-parse origin/play-market) origin HEAD:play-market
+          git push origin --delete agent/dev-release-check || true
+          git push origin --delete agent/toss-final || true
