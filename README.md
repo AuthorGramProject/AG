@@ -1,12 +1,14 @@
-# TOSS by AuthorChe
+# AuthorGram by AuthorChe
 
-TOSS is a privacy-focused Telegram multitool designed for secure communication, flexible controls, and convenient everyday use.
+AuthorGram is a privacy-focused Telegram client designed for secure communication, flexible controls, and convenient everyday use.
 
-The Play Market distribution uses the Android application ID:
+The public Google Play distribution keeps a separate technical Android application ID so it can be installed and maintained independently from private AuthorGram builds:
 
 ```text
 toss.authorgram.apk
 ```
+
+The package identifier is internal and does not change the visible product name: **AuthorGram**.
 
 ## Core goals
 
@@ -22,6 +24,10 @@ Encryption can be enabled separately for supported chats. A chat may use the Aut
 
 The protected system-key contact always uses the built-in system key provider and cannot be assigned a custom chat key.
 
+## Terms of Service
+
+In this project, **ToS** means **Terms of Service**. It is a legal publication document for the Google Play version and is not an alternative application name or brand. The public application remains AuthorGram.
+
 ## Build
 
 1. Obtain `TELEGRAM_APP_ID` and `TELEGRAM_APP_HASH` from the Telegram developer portal.
@@ -35,7 +41,7 @@ The protected system-key contact always uses the built-in system key provider an
 
 ## Open-source credits
 
-TOSS is based on Telegram for Android and includes code or ideas adapted from several open-source Telegram clients and projects.
+AuthorGram is based on Telegram for Android and includes code or ideas adapted from several open-source Telegram clients and projects.
 
 Special thanks to the contributors of:
 
@@ -46,7 +52,7 @@ Special thanks to the contributors of:
 - AyuGram;
 - OctoGram.
 
-Their names remain in this credits section, applicable licenses, and preserved source history. They are not presented as the product identity of TOSS.
+Their names remain in this credits section, applicable licenses, and preserved source history. They are not presented as the product identity of AuthorGram.
 
 ## License
 
