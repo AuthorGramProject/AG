@@ -5,6 +5,7 @@
     <string name="AuthorGramSystemKeyLocked">Dieser Chat verwendet immer den AuthorGram-Systemschlüssel. Ein eigener Schlüssel kann hier nicht eingerichtet werden.</string>
     <string name="AuthorGramCustomKeyActive">Für diesen Chat ist ein eigener 256-Bit-Schlüssel aktiv. Frühere Schlüssel bleiben lokal erhalten, damit ältere Nachrichten lesbar bleiben.</string>
     <string name="AuthorGramSystemKeyActive">Dieser Chat verwendet derzeit den AuthorGram-Systemschlüssel.</string>
+    <string name="AuthorGramUseSystemKey">Systemschlüssel</string>
     <string name="AuthorGramGenerateKey">Eigenen Schlüssel erzeugen</string>
     <string name="AuthorGramGenerateKeyInfo">Für diesen Chat wird ein zufälliger 256-Bit-Schlüssel erzeugt. Die andere Person muss denselben Schlüssel verwenden.</string>
     <string name="AuthorGramRotateKey">Eigenen Schlüssel wechseln</string>

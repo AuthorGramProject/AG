@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- AuthorGram's A, kept solid so SettingsCell can tint it consistently. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2.25L3.25,21.75H7.15L9.05,17.25H14.95L16.85,21.75H20.75L12,2.25ZM12,9.05L13.65,13.25H10.35L12,9.05Z" />
+</vector>

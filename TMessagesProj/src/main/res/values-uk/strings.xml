@@ -5,6 +5,7 @@
     <string name="AuthorGramSystemKeyLocked">Цей чат завжди використовує системний ключ AuthorGram. Власний ключ тут налаштувати неможливо.</string>
     <string name="AuthorGramCustomKeyActive">Для цього чату активний власний 256-бітний ключ. Попередні ключі зберігаються локально для читання старих повідомлень.</string>
     <string name="AuthorGramSystemKeyActive">Цей чат зараз використовує системний ключ AuthorGram.</string>
+    <string name="AuthorGramUseSystemKey">Системний ключ</string>
     <string name="AuthorGramGenerateKey">Створити власний ключ</string>
     <string name="AuthorGramGenerateKeyInfo">Для цього чату буде створено випадковий 256-бітний ключ. Співрозмовник має використовувати той самий ключ.</string>
     <string name="AuthorGramRotateKey">Замінити власний ключ</string>

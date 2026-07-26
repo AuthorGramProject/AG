@@ -11142,6 +11142,7 @@
     <string name="ArticleCommandTable">Table</string>
     <string name="ArticleCommandMath">Math</string>
     <string name="ArticleCommandDivider">Divider</string>
+    <string name="AuthorGramUseSystemKey">System key</string>
     <string name="ArticleCommandImage">Image</string>
     <string name="ArticleCommandVideo">Video</string>
     <string name="ArticleCommandAudio">Audio</string>

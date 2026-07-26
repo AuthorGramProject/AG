@@ -1,7 +1,6 @@
 package org.telegram.messenger.authorgram;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ClipboardManager;
@@ -18,6 +17,7 @@ import android.widget.Toast;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.ui.ActionBar.AlertDialog;
 
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -43,6 +43,8 @@ public final class AuthorGramKeyDialog {
         boolean hasKey = AuthorGramChatKeyStore.hasCustomKey(account, dialogId);
         ArrayList<CharSequence> labels = new ArrayList<>();
         ArrayList<Integer> actions = new ArrayList<>();
+        labels.add(LocaleController.getString(R.string.AuthorGramUseSystemKey));
+        actions.add(0);
         labels.add(LocaleController.getString(
                 hasKey ? R.string.AuthorGramRotateKey : R.string.AuthorGramGenerateKey
         ));
@@ -65,7 +67,11 @@ public final class AuthorGramKeyDialog {
                 ))
                 .setItems(labels.toArray(new CharSequence[0]), (dialog, which) -> {
                     int action = actions.get(which);
-                    if (action == 1) {
+                    if (action == 0) {
+                        if (hasKey) {
+                            confirmRemove(activity, account, dialogId);
+                        }
+                    } else if (action == 1) {
                         confirmGenerate(activity, account, dialogId, hasKey);
                     } else if (action == 2) {
                         showImport(activity, account, dialogId);
