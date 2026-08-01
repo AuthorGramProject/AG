@@ -1,37 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <string name="AppName">TOSS</string>
-    <string name="AppNameBeta">TOSS Beta</string>
-    <string name="TOSS">TOSS</string>
+    <string name="AppName">AuthorGram</string>
+    <string name="AppNameBeta">AuthorGram</string>
+    <string name="TOSS">AuthorGram</string>
     <string name="AGSettings">Налаштування AuthorGram</string>
     <string name="AGRegexFilters">Фільтри повідомлень</string>
     <string name="AGRegexFiltersInfo">Фільтруйте повідомлення глобально або для окремих чатів за допомогою регулярних виразів.</string>
-    <string name="AGAboutInfo">TOSS</string>
+    <string name="AGAboutInfo">AuthorGram</string>
     <string name="AGLinks">Посилання AuthorChe</string>
-    <string name="TOSSAboutDesc">TOSS — орієнтований на приватність багатофункціональний Telegram-клієнт для захищеного спілкування, гнучких налаштувань і зручного щоденного користування.</string>
+    <string name="TOSSAboutDesc">AuthorGram — орієнтований на приватність Telegram-клієнт від AuthorChe для захищеного спілкування, гнучких налаштувань і зручного щоденного користування.</string>
     <string name="AGCredits">Подяки open-source проєктам</string>
-    <string name="AGCreditsText">Дяка Cherrygram, Nagram, Nekogram та їхнім учасникам. Частина можливостей TOSS створена на основі або з адаптацією їхнього відкритого коду. Базовою платформою залишається Telegram for Android.</string>
+    <string name="AGCreditsText">AuthorGram базується на Telegram for Android і містить GPL-сумісні напрацювання Cherrygram, Nagram та Nekogram. Назви згадано лише для належного юридичного зазначення походження відкритого коду.</string>
     <string name="UnknownAGSettingsOption">Невідомий пункт налаштувань AuthorGram</string>
     <string name="AGPasscode">Код-пароль</string>
 
-    <string name="AuthorGramKeySettings">Ключ шифрування AuthorGram</string>
-    <string name="AuthorGramSystemKeyLocked">Цей чат завжди використовує системний ключ AuthorGram. Власний ключ тут налаштувати неможливо.</string>
-    <string name="AuthorGramCustomKeyActive">Для цього чату активний власний 256-бітний ключ. Попередні ключі зберігаються локально для читання старих повідомлень.</string>
+    <!-- Compatibility wording for any stale call site; raw key operations are removed from the UI. -->
+    <string name="AuthorGramKeySettings">Шифрування чату AuthorGram</string>
+    <string name="AuthorGramSystemKeyLocked">Цей чат завжди використовує системний ключ AuthorGram. Окрему фразу чату тут налаштувати не можна.</string>
+    <string name="AuthorGramCustomKeyActive">Для чату активна власна секретна фраза. Попередні похідні ключі залишаються захищено збереженими локально для читання старих повідомлень.</string>
     <string name="AuthorGramSystemKeyActive">Цей чат зараз використовує системний ключ AuthorGram.</string>
-    <string name="AuthorGramGenerateKey">Створити власний ключ</string>
-    <string name="AuthorGramGenerateKeyInfo">Для цього чату буде створено випадковий 256-бітний ключ. Співрозмовник має використовувати той самий ключ.</string>
-    <string name="AuthorGramRotateKey">Замінити власний ключ</string>
-    <string name="AuthorGramRotateKeyWarning">Новий ключ замінить поточний. Попередній залишиться в локальній історії для розшифрування старих повідомлень.</string>
-    <string name="AuthorGramImportKey">Імпортувати власний ключ</string>
-    <string name="AuthorGramImportKeyInfo">Введіть 256-бітний ключ як 64 шістнадцяткові символи.</string>
-    <string name="AuthorGramExportKey">Показати й скопіювати ключ</string>
-    <string name="AuthorGramRemoveKey">Видалити власні ключі</string>
-    <string name="AuthorGramRemoveKeyWarning">Поточний ключ і його локальну історію буде видалено. Повідомлення, зашифровані цими ключами, можуть більше не читатися.</string>
-    <string name="AuthorGramKeyInputHint">64-символьний hex-ключ</string>
-    <string name="AuthorGramKeySaved">Ключ AuthorGram збережено</string>
-    <string name="AuthorGramKeyRemoved">Власні ключі AuthorGram видалено</string>
-    <string name="AuthorGramInvalidKey">Некоректний ключ. Потрібно рівно 256 біт.</string>
-    <string name="AuthorGramNoCustomKey">Власний ключ не налаштовано</string>
-    <string name="AuthorGramKeyOperationFailed">Операцію з ключем не виконано</string>
+    <string name="AuthorGramGenerateKey">Установити фразу чату</string>
+    <string name="AuthorGramGenerateKeyInfo">Введіть слово або секретну фразу. AuthorGram локально перетворить її на 256-бітний ключ цього чату.</string>
+    <string name="AuthorGramRotateKey">Змінити фразу чату</string>
+    <string name="AuthorGramRotateKeyWarning">Нова фраза замінить поточну для майбутніх повідомлень. Попередній похідний ключ залишиться локально для читання старих повідомлень.</string>
+    <string name="AuthorGramImportKey">Установити фразу чату</string>
+    <string name="AuthorGramImportKeyInfo">Введіть будь-яке непорожнє слово або секретну фразу.</string>
+    <string name="AuthorGramExportKey">Фраза не показується і не експортується</string>
+    <string name="AuthorGramRemoveKey">Використовувати системний ключ</string>
+    <string name="AuthorGramRemoveKeyWarning">Нові повідомлення використовуватимуть системний ключ. Попередній похідний ключ залишиться локально для читання старих повідомлень.</string>
+    <string name="AuthorGramKeyInputHint">Слово або секретна фраза</string>
+    <string name="AuthorGramKeySaved">Фразу чату встановлено</string>
+    <string name="AuthorGramKeyRemoved">Системний ключ AuthorGram активовано</string>
+    <string name="AuthorGramInvalidKey">Введіть непорожнє слово або фразу довжиною до 256 символів.</string>
+    <string name="AuthorGramNoCustomKey">Чат використовує системний ключ</string>
+    <string name="AuthorGramKeyOperationFailed">Не вдалося змінити ключ чату</string>
 </resources>
