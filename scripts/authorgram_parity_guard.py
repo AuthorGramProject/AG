@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Allow Main and Play branches to differ only in approved packaging files."""
+"""Allow Main and Play branches to differ only in the package identifier."""
 
 from __future__ import annotations
 
@@ -9,10 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED_DIFFERENCES = {
-    "gradle.properties",
-    "TMessagesProj/build.gradle",
-}
+ALLOWED_DIFFERENCES = {"gradle.properties"}
 
 
 def git(*args: str) -> str:
@@ -47,7 +44,7 @@ def main() -> int:
     if unexpected:
         failures.append("Unexpected branch differences: " + ", ".join(unexpected))
     if missing:
-        failures.append("Expected packaging differences are missing: " + ", ".join(missing))
+        failures.append("The package identity difference is missing")
 
     main_properties = git("show", f"{args.main_ref}:gradle.properties")
     play_properties = git("show", f"{args.play_ref}:gradle.properties")
@@ -55,13 +52,6 @@ def main() -> int:
         failures.append("Main package must be top.authorche.authorgram")
     if "APP_PACKAGE=toss.authorgram.apk" not in play_properties:
         failures.append("Play package must be toss.authorgram.apk")
-
-    main_gradle = git("show", f"{args.main_ref}:TMessagesProj/build.gradle")
-    play_gradle = git("show", f"{args.play_ref}:TMessagesProj/build.gradle")
-    normalized_main = main_gradle.replace("String gramName = 'AuthorGram-Main'", "String gramName = 'AuthorGram-BUILD'")
-    normalized_play = play_gradle.replace("String gramName = 'AuthorGram-Play'", "String gramName = 'AuthorGram-BUILD'")
-    if normalized_main != normalized_play:
-        failures.append("build.gradle differs by more than the approved artifact label")
 
     normalized_main_properties = main_properties.replace(
         "APP_PACKAGE=top.authorche.authorgram", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
@@ -78,7 +68,7 @@ def main() -> int:
             print(f" - {failure}", file=sys.stderr)
         return 1
 
-    print("AuthorGram Main/Play parity passed")
+    print("AuthorGram Main/Play parity passed: only APP_PACKAGE differs")
     return 0
 
 
