@@ -165,7 +165,23 @@ def main() -> int:
         require(not release_keystore.exists(), "Play release keystore must not be tracked", failures)
     else:
         require(release_keystore.is_file(), "Main release keystore is missing", failures)
-    release_match = re.search(r"\n\s*release\s*\{(?P<body>.*?)\n\s*\}\n", build_gradle, re.S)
+    build_types_start = build_gradle.find("\n    buildTypes {")
+    build_types_end = build_gradle.find("\n    sourceSets.", build_types_start)
+    require(
+        build_types_start >= 0 and build_types_end > build_types_start,
+        "buildTypes block missing",
+        failures,
+    )
+    build_types = (
+        build_gradle[build_types_start:build_types_end]
+        if build_types_start >= 0 and build_types_end > build_types_start
+        else ""
+    )
+    release_match = re.search(
+        r"\n\s*release\s*\{(?P<body>.*?)\n\s*\}",
+        build_types,
+        re.S,
+    )
     require(release_match is not None, "Release build type missing", failures)
     if release_match:
         body = release_match.group("body")
