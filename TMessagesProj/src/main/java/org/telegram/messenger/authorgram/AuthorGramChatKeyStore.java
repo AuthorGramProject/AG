@@ -7,16 +7,10 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.UserConfig;
 
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Arrays;
-
-import javax.crypto.Mac;
-import javax.crypto.ShortBufferException;
-import javax.crypto.spec.SecretKeySpec;
 
 /** Per-account and per-dialog AuthorGram key storage and passphrase derivation. */
 public final class AuthorGramChatKeyStore {
@@ -25,11 +19,8 @@ public final class AuthorGramChatKeyStore {
     private static final String PREFS = "authorgram_chat_keys_v1";
     private static final String CURRENT = "current_";
     private static final String HISTORY = "history_";
-    private static final String KDF_DOMAIN = "AuthorGram-Chat-KDF-v1";
-    private static final int KEY_BYTES = 32;
+    private static final int KEY_BYTES = AuthorGramPassphraseKdf.KEY_BYTES;
     private static final int HISTORY_LIMIT = 5;
-    private static final int KDF_ITERATIONS = 600_000;
-    private static final int MAX_PASSPHRASE_CODE_POINTS = 256;
 
     private AuthorGramChatKeyStore() {
     }
@@ -39,7 +30,7 @@ public final class AuthorGramChatKeyStore {
     }
 
     public static int getMaxPassphraseCodePoints() {
-        return MAX_PASSPHRASE_CODE_POINTS;
+        return AuthorGramPassphraseKdf.MAX_CODE_POINTS;
     }
 
     public static synchronized boolean hasCustomKey(int account, long dialogId) {
@@ -145,52 +136,7 @@ public final class AuthorGramChatKeyStore {
 
     private static byte[] deriveKey(int account, long dialogId, char[] passphrase)
             throws GeneralSecurityException {
-        String normalized = normalizePassphrase(passphrase);
-        byte[] passwordBytes = normalized.getBytes(StandardCharsets.UTF_8);
-        byte[] salt = null;
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            salt = digest.digest(stableKdfScope(account, dialogId).getBytes(StandardCharsets.UTF_8));
-            return pbkdf2HmacSha256(passwordBytes, salt, KDF_ITERATIONS, KEY_BYTES);
-        } finally {
-            Arrays.fill(passwordBytes, (byte) 0);
-            if (salt != null) {
-                Arrays.fill(salt, (byte) 0);
-            }
-        }
-    }
-
-    private static String normalizePassphrase(char[] passphrase)
-            throws GeneralSecurityException {
-        String value = stripUnicodeWhitespace(new String(passphrase));
-        value = Normalizer.normalize(value, Normalizer.Form.NFKC);
-        if (value.isEmpty()) {
-            throw new GeneralSecurityException("Passphrase must not be empty");
-        }
-        if (value.codePointCount(0, value.length()) > MAX_PASSPHRASE_CODE_POINTS) {
-            throw new GeneralSecurityException("Passphrase is too long");
-        }
-        return value;
-    }
-
-    private static String stripUnicodeWhitespace(String value) {
-        int start = 0;
-        int end = value.length();
-        while (start < end) {
-            int codePoint = value.codePointAt(start);
-            if (!Character.isWhitespace(codePoint) && !Character.isSpaceChar(codePoint)) {
-                break;
-            }
-            start += Character.charCount(codePoint);
-        }
-        while (end > start) {
-            int codePoint = value.codePointBefore(end);
-            if (!Character.isWhitespace(codePoint) && !Character.isSpaceChar(codePoint)) {
-                break;
-            }
-            end -= Character.charCount(codePoint);
-        }
-        return value.substring(start, end);
+        return AuthorGramPassphraseKdf.derive(passphrase, stableKdfScope(account, dialogId));
     }
 
     private static String stableKdfScope(int account, long dialogId)
@@ -202,77 +148,9 @@ public final class AuthorGramChatKeyStore {
             }
             long low = Math.min(ownUserId, dialogId);
             long high = Math.max(ownUserId, dialogId);
-            return KDF_DOMAIN + "|private|" + low + "|" + high;
+            return AuthorGramPassphraseKdf.DOMAIN + "|private|" + low + "|" + high;
         }
-        return KDF_DOMAIN + "|dialog|" + dialogId;
-    }
-
-    /**
-     * PBKDF2-HMAC-SHA256 without per-iteration allocations. Android versions
-     * below API 26 do not consistently expose PBKDF2WithHmacSHA256 via PBEKeySpec,
-     * so the standards-compatible construction is implemented directly.
-     */
-    private static byte[] pbkdf2HmacSha256(
-            byte[] password,
-            byte[] salt,
-            int iterations,
-            int outputLength
-    ) throws GeneralSecurityException {
-        if (iterations < 1 || outputLength < 1) {
-            throw new GeneralSecurityException("Invalid KDF parameters");
-        }
-
-        Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(new SecretKeySpec(password, "HmacSHA256"));
-        int macLength = mac.getMacLength();
-        int blockCount = (outputLength + macLength - 1) / macLength;
-        byte[] output = new byte[outputLength];
-        byte[] blockInput = new byte[salt.length + 4];
-        byte[] u = new byte[macLength];
-        byte[] next = new byte[macLength];
-        byte[] block = new byte[macLength];
-        System.arraycopy(salt, 0, blockInput, 0, salt.length);
-
-        try {
-            for (int blockIndex = 1; blockIndex <= blockCount; blockIndex++) {
-                int offset = salt.length;
-                blockInput[offset] = (byte) (blockIndex >>> 24);
-                blockInput[offset + 1] = (byte) (blockIndex >>> 16);
-                blockInput[offset + 2] = (byte) (blockIndex >>> 8);
-                blockInput[offset + 3] = (byte) blockIndex;
-
-                mac.update(blockInput);
-                mac.doFinal(u, 0);
-                System.arraycopy(u, 0, block, 0, macLength);
-
-                for (int iteration = 1; iteration < iterations; iteration++) {
-                    mac.update(u);
-                    mac.doFinal(next, 0);
-                    for (int index = 0; index < macLength; index++) {
-                        block[index] ^= next[index];
-                    }
-                    byte[] swap = u;
-                    u = next;
-                    next = swap;
-                }
-
-                int destination = (blockIndex - 1) * macLength;
-                int count = Math.min(macLength, outputLength - destination);
-                System.arraycopy(block, 0, output, destination, count);
-                Arrays.fill(u, (byte) 0);
-                Arrays.fill(next, (byte) 0);
-                Arrays.fill(block, (byte) 0);
-            }
-            return output;
-        } catch (ShortBufferException exception) {
-            Arrays.fill(output, (byte) 0);
-            throw new GeneralSecurityException("Unable to derive AuthorGram chat key", exception);
-        } finally {
-            Arrays.fill(blockInput, (byte) 0);
-            Arrays.fill(u, (byte) 0);
-            Arrays.fill(next, (byte) 0);
-            Arrays.fill(block, (byte) 0);
-        }
+        return AuthorGramPassphraseKdf.DOMAIN + "|dialog|" + dialogId;
     }
 
     private static void store(int account, long dialogId, byte[] key)
