@@ -3,6 +3,11 @@ name: AuthorGram 12.9.1 Verified Release
 on:
   workflow_dispatch:
   workflow_call:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release.yml'
 
 permissions:
   contents: read
@@ -20,13 +25,23 @@ jobs:
       NATIVE_TARGET: arm64-v8a
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
-      ARTIFACT_DIR: ${{ runner.temp }}/authorgram-release
-      KDF_TEST_DIR: ${{ runner.temp }}/authorgram-kdf-test
     steps:
       - name: Checkout repository history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Initialize release workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ARTIFACT_DIR=${RUNNER_TEMP}/authorgram-release" >> "${GITHUB_ENV}"
+          echo "KDF_TEST_DIR=${RUNNER_TEMP}/authorgram-kdf-test" >> "${GITHUB_ENV}"
+          echo "PLAY_KEY_DIR=${RUNNER_TEMP}/authorgram-play-signing-key" >> "${GITHUB_ENV}"
+          mkdir -p \
+            "${RUNNER_TEMP}/authorgram-release" \
+            "${RUNNER_TEMP}/authorgram-kdf-test" \
+            "${RUNNER_TEMP}/authorgram-play-signing-key"
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -156,12 +171,91 @@ jobs:
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           python3 scripts/authorgram_guard.py --expected-package toss.authorgram.apk
 
+          # Generate fresh Play upload key outside the repository checkout.
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import os
+          import shutil
+          import subprocess
+          from pathlib import Path
+
+          raw = os.environ['LOCAL_PROPERTIES']
+          decoded = base64.b64decode(raw, validate=True).decode('utf-8')
+          values = {}
+          sanitized_lines = []
+          for source_line in decoded.splitlines():
+              line = source_line.strip()
+              if line and not line.startswith('#') and '=' in line:
+                  key, value = line.split('=', 1)
+                  key = key.strip()
+                  values[key] = value.strip()
+                  if key == 'AUTHORGRAM_SIGNING_CERT_SHA256':
+                      continue
+              sanitized_lines.append(source_line)
+
+          required = ('KEYSTORE_PASS', 'ALIAS_NAME', 'ALIAS_PASS')
+          missing = [key for key in required if not values.get(key)]
+          if missing:
+              raise SystemExit('Missing Play signing properties: ' + ', '.join(missing))
+
+          runner_temp = Path(os.environ['RUNNER_TEMP'])
+          key_dir = runner_temp / 'authorgram-play-signing-key'
+          key_dir.mkdir(parents=True, exist_ok=True)
+          keystore = key_dir / 'AuthorGram-Play-upload-key.jks'
+          if keystore.exists():
+              keystore.unlink()
+
+          subprocess.run(
+              [
+                  'keytool', '-genkeypair', '-noprompt',
+                  '-storetype', 'JKS',
+                  '-keystore', str(keystore),
+                  '-storepass', values['KEYSTORE_PASS'],
+                  '-alias', values['ALIAS_NAME'],
+                  '-keypass', values['ALIAS_PASS'],
+                  '-keyalg', 'RSA',
+                  '-keysize', '4096',
+                  '-sigalg', 'SHA256withRSA',
+                  '-validity', '10000',
+                  '-dname', 'CN=AuthorGram Play Upload, OU=Release, O=AuthorChe, C=DE',
+              ],
+              check=True,
+          )
+          os.chmod(keystore, 0o600)
+
+          certificate = subprocess.run(
+              [
+                  'keytool', '-exportcert',
+                  '-keystore', str(keystore),
+                  '-storepass', values['KEYSTORE_PASS'],
+                  '-alias', values['ALIAS_NAME'],
+              ],
+              check=True,
+              stdout=subprocess.PIPE,
+          ).stdout
+          digest = hashlib.sha256(certificate).hexdigest()
+          (runner_temp / 'play-signing-cert-sha256').write_text(digest + '\n', encoding='ascii')
+          (key_dir / 'CERTIFICATE-SHA256.txt').write_text(digest + '\n', encoding='ascii')
+
+          sanitized = '\n'.join(sanitized_lines).rstrip() + '\n'
+          encoded = base64.b64encode(sanitized.encode('utf-8')).decode('ascii')
+          (runner_temp / 'play-local-properties-base64').write_text(encoded, encoding='ascii')
+
+          destination = Path('TMessagesProj/release.keystore')
+          shutil.copy2(keystore, destination)
+          os.chmod(destination, 0o600)
+          PY
+
           VERSION_NAME=$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)
           VERSION_CODE=$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)
           test "${VERSION_NAME}" = '12.9.1'
           test "${VERSION_CODE}" = '6967'
 
-          ./gradlew --no-daemon clean TMessagesProj:assembleRelease TMessagesProj:bundleRelease
+          PLAY_LOCAL_PROPERTIES=$(cat "${RUNNER_TEMP}/play-local-properties-base64")
+          LOCAL_PROPERTIES="${PLAY_LOCAL_PROPERTIES}" \
+            AUTHORGRAM_SIGNING_CERT_SHA256='' \
+            ./gradlew --no-daemon clean TMessagesProj:assembleRelease TMessagesProj:bundleRelease
 
           python3 - <<'PY' > "${RUNNER_TEMP}/play-apk-path"
           import json
@@ -196,6 +290,14 @@ jobs:
             exit 1
           fi
           "${APKSIGNER}" verify --verbose --print-certs "${APK}" | tee "${ARTIFACT_DIR}/Play-CERTIFICATE.txt"
+          EXPECTED_CERT=$(tr -cd '0-9A-Fa-f' < "${RUNNER_TEMP}/play-signing-cert-sha256" | tr 'A-F' 'a-f')
+          APK_CERT=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${ARTIFACT_DIR}/Play-CERTIFICATE.txt" | head -n 1 | tr -cd '0-9A-Fa-f' | tr 'A-F' 'a-f')
+          test -n "${EXPECTED_CERT}"
+          test "${APK_CERT}" = "${EXPECTED_CERT}"
+          if unzip -Z1 "${APK}" | grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks)$'; then
+            echo 'Private signing material was packaged into the Play APK' >&2
+            exit 1
+          fi
 
           mapfile -t BUNDLES < <(find TMessagesProj/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print)
           test "${#BUNDLES[@]}" -eq 1
@@ -227,10 +329,20 @@ jobs:
             cat Play-BUILD.txt
             echo
             echo 'All APKs are release-signed and non-debuggable.'
-            echo 'Main and Play source trees differ only by APP_PACKAGE.'
+            echo 'Main and Play source trees differ only by APP_PACKAGE and the excluded Play keystore.'
+            echo 'Telegram sponsored-message blocking is compile-time disabled for the Play package.'
+            echo 'The Play APK and AAB use the freshly generated RSA-4096 upload key.'
             echo 'The deterministic AuthorGram passphrase KDF test passed.'
           } > RELEASE-SUMMARY.txt
           cat SHA256SUMS.txt
+
+      - name: Upload Play signing key backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuthorGram-Play-Signing-Key-KEEP-PRIVATE
+          path: ${{ runner.temp }}/authorgram-play-signing-key/
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Upload verified release artifacts
         uses: actions/upload-artifact@v4
