@@ -2,6 +2,8 @@ name: AuthorGram 12.9.1 Verified Release
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -12,6 +14,7 @@ concurrency:
 
 jobs:
   release:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[final release]') }}
     name: Build and verify Main + Play releases
     runs-on: ubuntu-latest
     timeout-minutes: 180
