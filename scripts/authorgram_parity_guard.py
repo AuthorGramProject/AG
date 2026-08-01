@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Allow Main and Play branches to differ only in the package identifier."""
+"""Allow only the package identifier and Play signing-key exclusion to differ."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED_DIFFERENCES = {"gradle.properties"}
+ALLOWED_DIFFERENCES = {"gradle.properties", "TMessagesProj/release.keystore"}
 
 
 def git(*args: str) -> str:
@@ -24,6 +24,16 @@ def git(*args: str) -> str:
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "git command failed")
     return result.stdout
+
+
+def git_object_exists(ref: str, path: str) -> bool:
+    return subprocess.run(
+        ["git", "cat-file", "-e", f"{ref}:{path}"],
+        cwd=ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    ).returncode == 0
 
 
 def main() -> int:
@@ -44,7 +54,7 @@ def main() -> int:
     if unexpected:
         failures.append("Unexpected branch differences: " + ", ".join(unexpected))
     if missing:
-        failures.append("The package identity difference is missing")
+        failures.append("Required Main/Play differences are missing: " + ", ".join(missing))
 
     main_properties = git("show", f"{args.main_ref}:gradle.properties")
     play_properties = git("show", f"{args.play_ref}:gradle.properties")
@@ -62,13 +72,19 @@ def main() -> int:
     if normalized_main_properties != normalized_play_properties:
         failures.append("gradle.properties differs by more than APP_PACKAGE")
 
+    keystore_path = "TMessagesProj/release.keystore"
+    if not git_object_exists(args.main_ref, keystore_path):
+        failures.append("Main release keystore is missing")
+    if git_object_exists(args.play_ref, keystore_path):
+        failures.append("Play release keystore must not be tracked")
+
     if failures:
         print("AuthorGram branch parity failed:", file=sys.stderr)
         for failure in failures:
             print(f" - {failure}", file=sys.stderr)
         return 1
 
-    print("AuthorGram Main/Play parity passed: only APP_PACKAGE differs")
+    print("AuthorGram Main/Play parity passed: APP_PACKAGE differs and Play excludes the tracked keystore")
     return 0
 
 
