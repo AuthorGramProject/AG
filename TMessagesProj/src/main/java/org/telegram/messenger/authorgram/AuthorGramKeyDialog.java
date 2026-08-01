@@ -183,14 +183,15 @@ public final class AuthorGramKeyDialog {
                 })
                 .create();
 
-        enableSecureWindow(dialog);
         dialog.setOnShowListener(ignored -> {
             input.requestFocus();
             Window window = dialog.getWindow();
             if (window != null) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
                 window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
             }
         });
+        dialog.setOnDismissListener(ignored -> input.setText(""));
         dialog.show();
     }
 
@@ -280,21 +281,6 @@ public final class AuthorGramKeyDialog {
         textView.setTextSize(size);
         textView.setTextColor(color);
         return textView;
-    }
-
-    private static void enableSecureWindow(AlertDialog dialog) {
-        dialog.setOnShowListener(ignored -> {
-            Window window = dialog.getWindow();
-            if (window != null) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-            }
-        });
-        dialog.setOnDismissListener(ignored -> {
-            Window window = dialog.getWindow();
-            if (window != null) {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
-            }
-        });
     }
 
     private static boolean isActivityUsable(Activity activity) {
