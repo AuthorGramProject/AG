@@ -1,99 +1,14 @@
-name: AuthorGram Debug APK
+name: AuthorGram Validation (maintenance lock)
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: authorgram-debug-main
-  cancel-in-progress: true
-
 jobs:
-  build:
-    name: Build main debug APK
+  maintenance-lock:
+    if: ${{ false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-    env:
-      NATIVE_TARGET: arm64-v8a
-
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
-
-      - name: Configure Android SDK
-        run: echo "sdk.dir=${ANDROID_HOME}" > local.properties
-
-      - name: Verify debug security invariants
-        shell: bash
-        run: |
-          set -euo pipefail
-          ! grep -qE '^RELEASE_(KEY|STORE)_PASSWORD=' gradle.properties
-          python3 - <<'PY'
-          from pathlib import Path
-          text = Path('TMessagesProj/build.gradle').read_text(encoding='utf-8')
-          start = text.index('        debug {')
-          end = text.index('\n        staging {', start)
-          block = text[start:end]
-          assert 'signingConfig = signingConfigs.release' not in block
-          assert "versionNameSuffix '-debug'" in block
-          PY
-          grep -q 'android:allowBackup="false"' TMessagesProj/src/main/AndroidManifest.xml
-          grep -q 'android:allowAudioPlaybackCapture="false"' TMessagesProj/src/main/AndroidManifest.xml
-          git diff --check
-
-      - name: Build debug APK
-        id: build
-        continue-on-error: true
-        env:
-          COMMIT_ID: ${{ github.sha }}
-          BUILD_TIMESTAMP: ${{ github.run_id }}
-        shell: bash
-        run: |
-          set -o pipefail
-          ./gradlew --no-daemon TMessagesProj:assembleDebug 2>&1 | tee gradle-debug.log
-
-      - name: Collect APK and checksum
-        if: steps.build.outcome == 'success'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          APK=$(find TMessagesProj/build/outputs/apk -type f -name '*arm64-v8a*.apk' | head -n 1)
-          test -n "$APK" -a -f "$APK"
-          cp "$APK" artifacts/
-          (cd artifacts && sha256sum *.apk > SHA256SUMS)
-
-      - name: Upload APK or build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: AuthorGram-main-Debug-${{ github.run_number }}
-          path: |
-            artifacts/
-            gradle-debug.log
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Fail when Gradle build failed
-        if: steps.build.outcome != 'success'
-        run: exit 1
+      - run: echo "Automatic validation builds are temporarily disabled during the approved AuthorGram update."
