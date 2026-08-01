@@ -4,13 +4,9 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Alias artwork for legacy drawer code; identical to authorgram_settings_a. -->
     <path
-        android:fillColor="#000000"
-        android:pathData="M12,2L4.2,5.3V10.4C4.2,15.5 7.4,20 12,22.3C16.6,20 19.8,15.5 19.8,10.4V5.3L12,2ZM12,4.4L17.6,6.8V10.4C17.6,14.2 15.4,17.8 12,19.8C8.6,17.8 6.4,14.2 6.4,10.4V6.8L12,4.4Z" />
-    <path
-        android:fillColor="#000000"
-        android:pathData="M8,8.2H16V10.1H8ZM8,13.9H16V15.8H8Z" />
-    <path
-        android:fillColor="#000000"
-        android:pathData="M10.3,7.2H12.2V11.1H10.3ZM13.8,12.9H15.7V16.8H13.8Z" />
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2.25L3.25,21.75H7.15L9.05,17.25H14.95L16.85,21.75H20.75L12,2.25ZM12,9.05L13.65,13.25H10.35L12,9.05Z" />
 </vector>
