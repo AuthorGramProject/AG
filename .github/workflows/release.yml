@@ -2,7 +2,8 @@ name: AuthorGram 12.9.1 Verified Release
 
 on:
   workflow_dispatch:
-  workflow_call:
+  schedule:
+    - cron: '40 16 1 8 *'
 
 permissions:
   contents: read
