@@ -1,37 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <string name="AppName">TOSS</string>
-    <string name="AppNameBeta">TOSS Beta</string>
-    <string name="TOSS">TOSS</string>
+    <string name="AppName">AuthorGram</string>
+    <string name="AppNameBeta">AuthorGram</string>
+    <string name="TOSS">AuthorGram</string>
     <string name="AGSettings">AuthorGram-Einstellungen</string>
     <string name="AGRegexFilters">Nachrichtenfilter</string>
     <string name="AGRegexFiltersInfo">Filtere Nachrichten global oder pro Chat mit regulären Ausdrücken.</string>
-    <string name="AGAboutInfo">TOSS</string>
+    <string name="AGAboutInfo">AuthorGram</string>
     <string name="AGLinks">AuthorChe-Links</string>
-    <string name="TOSSAboutDesc">TOSS ist ein datenschutzorientiertes Telegram-Multitool für sichere Kommunikation, flexible Steuerung und komfortable tägliche Nutzung.</string>
+    <string name="TOSSAboutDesc">AuthorGram ist ein datenschutzorientierter Telegram-Client von AuthorChe für geschützte Kommunikation, flexible Einstellungen und komfortable tägliche Nutzung.</string>
     <string name="AGCredits">Open-Source-Danksagung</string>
-    <string name="AGCreditsText">Danke an Cherrygram, Nagram und Nekogram sowie ihre Mitwirkenden. Teile von TOSS basieren auf deren Open-Source-Arbeit oder wurden daraus angepasst. Telegram for Android bleibt die technische Grundlage.</string>
+    <string name="AGCreditsText">AuthorGram basiert auf Telegram for Android und enthält GPL-kompatible Beiträge aus Cherrygram, Nagram und Nekogram. Diese Namen werden ausschließlich zur korrekten rechtlichen Zuordnung des offenen Quellcodes genannt.</string>
     <string name="UnknownAGSettingsOption">Unbekannte AuthorGram-Einstellungsoption</string>
     <string name="AGPasscode">App-Sperrcode</string>
 
-    <string name="AuthorGramKeySettings">AuthorGram-Verschlüsselungsschlüssel</string>
-    <string name="AuthorGramSystemKeyLocked">Dieser Chat verwendet immer den AuthorGram-Systemschlüssel. Ein eigener Schlüssel kann hier nicht eingerichtet werden.</string>
-    <string name="AuthorGramCustomKeyActive">Für diesen Chat ist ein eigener 256-Bit-Schlüssel aktiv. Frühere Schlüssel bleiben lokal erhalten, damit ältere Nachrichten lesbar bleiben.</string>
+    <!-- Kompatibilität für ältere Aufrufstellen; Rohschlüssel-Aktionen sind aus der Oberfläche entfernt. -->
+    <string name="AuthorGramKeySettings">AuthorGram-Chatverschlüsselung</string>
+    <string name="AuthorGramSystemKeyLocked">Dieser Chat verwendet immer den AuthorGram-Systemschlüssel. Eine eigene Chat-Passphrase kann hier nicht eingerichtet werden.</string>
+    <string name="AuthorGramCustomKeyActive">Für diesen Chat ist eine eigene geheime Passphrase aktiv. Frühere abgeleitete Schlüssel bleiben lokal geschützt gespeichert, damit ältere Nachrichten lesbar bleiben.</string>
     <string name="AuthorGramSystemKeyActive">Dieser Chat verwendet derzeit den AuthorGram-Systemschlüssel.</string>
-    <string name="AuthorGramGenerateKey">Eigenen Schlüssel erzeugen</string>
-    <string name="AuthorGramGenerateKeyInfo">Für diesen Chat wird ein zufälliger 256-Bit-Schlüssel erzeugt. Die andere Person muss denselben Schlüssel verwenden.</string>
-    <string name="AuthorGramRotateKey">Eigenen Schlüssel wechseln</string>
-    <string name="AuthorGramRotateKeyWarning">Ein neuer Schlüssel ersetzt den aktuellen. Der vorherige Schlüssel bleibt lokal zum Entschlüsseln älterer Nachrichten gespeichert.</string>
-    <string name="AuthorGramImportKey">Eigenen Schlüssel importieren</string>
-    <string name="AuthorGramImportKeyInfo">Gib einen 256-Bit-Schlüssel als 64 Hex-Zeichen ein.</string>
-    <string name="AuthorGramExportKey">Schlüssel anzeigen und kopieren</string>
-    <string name="AuthorGramRemoveKey">Eigene Schlüssel entfernen</string>
-    <string name="AuthorGramRemoveKeyWarning">Der aktuelle Schlüssel und sein lokaler Verlauf werden gelöscht. Damit verschlüsselte Nachrichten sind danach möglicherweise nicht mehr lesbar.</string>
-    <string name="AuthorGramKeyInputHint">64-stelliger Hex-Schlüssel</string>
-    <string name="AuthorGramKeySaved">AuthorGram-Schlüssel gespeichert</string>
-    <string name="AuthorGramKeyRemoved">Eigene AuthorGram-Schlüssel entfernt</string>
-    <string name="AuthorGramInvalidKey">Ungültiger Schlüssel. Es werden genau 256 Bit benötigt.</string>
-    <string name="AuthorGramNoCustomKey">Kein eigener Schlüssel eingerichtet</string>
-    <string name="AuthorGramKeyOperationFailed">Schlüsselvorgang fehlgeschlagen</string>
+    <string name="AuthorGramGenerateKey">Chat-Passphrase festlegen</string>
+    <string name="AuthorGramGenerateKeyInfo">Gib ein Wort oder eine geheime Phrase ein. AuthorGram wandelt sie lokal in einen chatspezifischen 256-Bit-Schlüssel um.</string>
+    <string name="AuthorGramRotateKey">Chat-Passphrase ändern</string>
+    <string name="AuthorGramRotateKeyWarning">Die neue Passphrase ersetzt die aktuelle für künftige Nachrichten. Der vorherige abgeleitete Schlüssel bleibt lokal gespeichert, damit ältere Nachrichten lesbar bleiben.</string>
+    <string name="AuthorGramImportKey">Chat-Passphrase festlegen</string>
+    <string name="AuthorGramImportKeyInfo">Gib ein beliebiges nicht leeres Wort oder eine geheime Phrase ein.</string>
+    <string name="AuthorGramExportKey">Die Passphrase wird weder angezeigt noch exportiert</string>
+    <string name="AuthorGramRemoveKey">Systemschlüssel verwenden</string>
+    <string name="AuthorGramRemoveKeyWarning">Neue Nachrichten verwenden den Systemschlüssel. Der vorherige abgeleitete Schlüssel bleibt lokal gespeichert, damit ältere Nachrichten lesbar bleiben.</string>
+    <string name="AuthorGramKeyInputHint">Wort oder geheime Phrase</string>
+    <string name="AuthorGramKeySaved">Chat-Passphrase gespeichert</string>
+    <string name="AuthorGramKeyRemoved">AuthorGram-Systemschlüssel aktiviert</string>
+    <string name="AuthorGramInvalidKey">Gib ein nicht leeres Wort oder eine Phrase mit höchstens 256 Zeichen ein.</string>
+    <string name="AuthorGramNoCustomKey">Der Chat verwendet den Systemschlüssel</string>
+    <string name="AuthorGramKeyOperationFailed">Der Chatschlüssel konnte nicht geändert werden</string>
 </resources>
