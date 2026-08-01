@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Locale
 
 plugins {
     id 'com.android.application' version '9.1.0' apply false
@@ -6,7 +7,11 @@ plugins {
     id 'com.google.firebase.crashlytics' version '3.0.6' apply false
 }
 
-subprojects {
+def authorGramPlayPackage = 'toss.authorgram.apk'
+def applicationLoaderPath = 'src/main/java/org/telegram/messenger/ApplicationLoader.java'
+def pushControllerPath = 'src/main/java/org/telegram/messenger/PushListenerController.java'
+
+subprojects { subproject ->
     afterEvaluate {
         if (plugins.hasPlugin("com.android.library") || plugins.hasPlugin("com.android.application")) {
             android {
@@ -38,6 +43,76 @@ subprojects {
                 }
 
                 buildFeatures.buildConfig = true
+            }
+        }
+
+        if (subproject.name != 'TMessagesProj' || !plugins.hasPlugin('com.android.application')) {
+            return
+        }
+
+        def appPackage = subproject.findProperty('APP_PACKAGE')?.toString()
+        if (appPackage == null || appPackage == authorGramPlayPackage) {
+            return
+        }
+
+        /*
+         * google-services.json is intentionally registered only for the public
+         * Play package. Main/dev use Telegram's local fallback push service and
+         * must not pretend to be the Play Firebase application.
+         *
+         * Keep the tracked Java sources identical between Main and Play. For a
+         * non-Play build, compile two generated copies with the direct Firebase
+         * entry points removed while excluding only the corresponding originals.
+         */
+        def generatedSources = subproject.layout.buildDirectory.dir('generated/authorgram-no-firebase')
+        def prepareNoFirebaseSources = subproject.tasks.register('prepareAuthorGramNoFirebaseSources') {
+            def applicationLoader = subproject.file(applicationLoaderPath)
+            def pushController = subproject.file(pushControllerPath)
+
+            inputs.files(applicationLoader, pushController)
+            outputs.dir(generatedSources)
+
+            doLast {
+                def outputDir = generatedSources.get().asFile
+                subproject.delete(outputDir)
+                outputDir.mkdirs()
+
+                def applicationLoaderSource = applicationLoader.getText('UTF-8')
+                def crashlyticsCall = '        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(!NaConfig.INSTANCE.getDisableCrashlyticsCollection().Bool());'
+                if (!applicationLoaderSource.contains(crashlyticsCall)) {
+                    throw new GradleException('AuthorGram Main Firebase guard could not find the Crashlytics initialization call')
+                }
+                applicationLoaderSource = applicationLoaderSource.replace(
+                        crashlyticsCall,
+                        '        // Firebase/Crashlytics is intentionally disabled for non-Play AuthorGram packages.'
+                )
+                new File(outputDir, 'ApplicationLoader.java').setText(applicationLoaderSource, 'UTF-8')
+
+                def pushControllerSource = pushController.getText('UTF-8')
+                def googleProvider = '                instance = new GooglePushListenerServiceProvider();'
+                if (!pushControllerSource.contains(googleProvider)) {
+                    throw new GradleException('AuthorGram Main Firebase guard could not find the Google push provider')
+                }
+                pushControllerSource = pushControllerSource.replace(
+                        googleProvider,
+                        '                instance = new DummyPushProvider();'
+                )
+                new File(outputDir, 'PushListenerController.java').setText(pushControllerSource, 'UTF-8')
+            }
+        }
+
+        android.sourceSets.main.java.exclude('org/telegram/messenger/ApplicationLoader.java')
+        android.sourceSets.main.java.exclude('org/telegram/messenger/PushListenerController.java')
+        android.sourceSets.main.java.srcDir(generatedSources)
+
+        tasks.matching { it.name == 'preBuild' }.configureEach {
+            dependsOn(prepareNoFirebaseSources)
+        }
+
+        tasks.configureEach { task ->
+            def taskName = task.name.toLowerCase(Locale.ROOT)
+            if (taskName.contains('googleservices') || taskName.contains('crashlytics')) {
+                task.enabled = false
             }
         }
     }
