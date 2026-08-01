@@ -1,6 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="AppName">AuthorGram</string>
-    <string name="AppNameBeta">AuthorGram Beta</string>
-    <string name="TOSSAboutDesc">AuthorGram is a privacy-focused Telegram client with per-chat encryption, flexible privacy controls, media tools, translation, filters, and accessibility features.</string>
+    <string name="AppNameBeta">AuthorGram</string>
+    <string name="TOSS">AuthorGram</string>
+    <string name="AGAboutInfo">AuthorGram</string>
+    <string name="NekoSettings">AuthorGram Settings</string>
+    <string name="NaxAboutDesc">AuthorGram is a privacy-focused Telegram client by AuthorChe.</string>
+    <string name="TOSSAboutDesc">AuthorGram is a privacy-focused Telegram client by AuthorChe for secure communication, flexible controls and convenient everyday use.</string>
+    <string name="AGCreditsText">AuthorGram is based on Telegram for Android and includes GPL-compatible work from Cherrygram, Nagram and Nekogram. These names are shown only for proper legal attribution of open-source code.</string>
+    <string name="AuthorGramKeySettings">AuthorGram chat encryption</string>
+    <string name="AuthorGramSystemKeyLocked">This chat always uses the AuthorGram system key. A separate chat passphrase cannot be configured here.</string>
+    <string name="AuthorGramCustomKeyActive">A private chat passphrase is active. Previous derived keys remain protected locally so older messages stay readable.</string>
+    <string name="AuthorGramSystemKeyActive">This chat currently uses the AuthorGram system key.</string>
+    <string name="AuthorGramGenerateKey">Set chat passphrase</string>
+    <string name="AuthorGramGenerateKeyInfo">Enter a word or secret phrase. AuthorGram converts it locally into a chat-specific 256-bit key.</string>
+    <string name="AuthorGramRotateKey">Change chat passphrase</string>
+    <string name="AuthorGramRotateKeyWarning">The new passphrase replaces the current one for future messages. The previous derived key remains protected locally so older messages stay readable.</string>
+    <string name="AuthorGramImportKey">Set chat passphrase</string>
+    <string name="AuthorGramImportKeyInfo">Enter any non-empty word or secret phrase.</string>
+    <string name="AuthorGramExportKey">The passphrase is never displayed or exported</string>
+    <string name="AuthorGramRemoveKey">Use system key</string>
+    <string name="AuthorGramRemoveKeyWarning">New messages will use the system key. The previous derived key remains protected locally so older messages stay readable.</string>
+    <string name="AuthorGramKeyInputHint">Word or secret phrase</string>
+    <string name="AuthorGramKeySaved">Chat passphrase saved</string>
+    <string name="AuthorGramKeyRemoved">AuthorGram system key activated</string>
+    <string name="AuthorGramInvalidKey">Enter a non-empty word or phrase of up to 256 characters.</string>
+    <string name="AuthorGramNoCustomKey">This chat uses the system key</string>
+    <string name="AuthorGramKeyOperationFailed">The chat key could not be changed</string>
 </resources>
