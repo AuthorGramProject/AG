@@ -1,14 +1,69 @@
-name: AuthorGram Validation (maintenance lock)
+name: AuthorGram Lightweight Validation
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main, play-market]
 
 permissions:
   contents: read
 
+concurrency:
+  group: authorgram-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  maintenance-lock:
-    if: ${{ false }}
+  validate:
+    name: Validate branding, crypto and branch parity
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - run: echo "Automatic validation builds are temporarily disabled during the approved AuthorGram update."
+      - name: Checkout repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Fetch supported branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force origin main:refs/remotes/origin/main play-market:refs/remotes/origin/play-market
+
+      - name: Validate current branch invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE=$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)
+          case "${PACKAGE}" in
+            top.authorche.authorgram|toss.authorgram.apk) ;;
+            *) echo "Unexpected APP_PACKAGE: ${PACKAGE}" >&2; exit 1;;
+          esac
+          python3 scripts/authorgram_guard.py --expected-package "${PACKAGE}"
+          git diff --check
+
+      - name: Verify Main and Play parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/authorgram_parity_guard.py \
+            --main-ref origin/main \
+            --play-ref origin/play-market
+
+      - name: Run deterministic passphrase KDF test
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_DIR="${RUNNER_TEMP}/authorgram-kdf-test"
+          rm -rf "${TEST_DIR}"
+          mkdir -p "${TEST_DIR}"
+          javac -encoding UTF-8 -d "${TEST_DIR}" \
+            TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPassphraseKdf.java \
+            scripts/java/org/telegram/messenger/authorgram/AuthorGramPassphraseKdfSelfTest.java
+          java -cp "${TEST_DIR}" \
+            org.telegram.messenger.authorgram.AuthorGramPassphraseKdfSelfTest
