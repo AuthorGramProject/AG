@@ -216,8 +216,9 @@ public final class AuthorGramKeyDialog {
         AlertDialog progress = new AlertDialog.Builder(activity)
                 .setTitle(LocaleController.getString(R.string.AuthorGramPassphraseSettings))
                 .setMessage(LocaleController.getString(R.string.AuthorGramDerivingPassphrase))
-                .setCancelable(false)
                 .create();
+        progress.setCancelable(false);
+        progress.setCanceledOnTouchOutside(false);
         progress.show();
 
         Utilities.globalQueue.postRunnable(() -> {
