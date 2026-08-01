@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import javax.crypto.Mac;
+import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
 
 /** Per-account and per-dialog AuthorGram key storage and passphrase derivation. */
@@ -49,9 +50,10 @@ public final class AuthorGramChatKeyStore {
 
     /**
      * Derives a chat-specific 256-bit key from a human passphrase and stores only
-     * the wrapped derived key. The passphrase itself is never persisted or logged.
+     * the wrapped derived key. The expensive KDF runs outside the storage lock so
+     * message encryption/decryption in other chats is never blocked by the dialog.
      */
-    public static synchronized void deriveAndStore(
+    public static void deriveAndStore(
             int account,
             long dialogId,
             char[] passphrase
@@ -64,7 +66,9 @@ public final class AuthorGramChatKeyStore {
         byte[] key = null;
         try {
             key = deriveKey(account, dialogId, passphrase);
-            store(account, dialogId, key);
+            synchronized (AuthorGramChatKeyStore.class) {
+                store(account, dialogId, key);
+            }
         } finally {
             Arrays.fill(passphrase, '\0');
             if (key != null) {
@@ -203,6 +207,11 @@ public final class AuthorGramChatKeyStore {
         return KDF_DOMAIN + "|dialog|" + dialogId;
     }
 
+    /**
+     * PBKDF2-HMAC-SHA256 without per-iteration allocations. Android versions
+     * below API 26 do not consistently expose PBKDF2WithHmacSHA256 via PBEKeySpec,
+     * so the standards-compatible construction is implemented directly.
+     */
     private static byte[] pbkdf2HmacSha256(
             byte[] password,
             byte[] salt,
@@ -219,10 +228,11 @@ public final class AuthorGramChatKeyStore {
         int blockCount = (outputLength + macLength - 1) / macLength;
         byte[] output = new byte[outputLength];
         byte[] blockInput = new byte[salt.length + 4];
+        byte[] u = new byte[macLength];
+        byte[] next = new byte[macLength];
+        byte[] block = new byte[macLength];
         System.arraycopy(salt, 0, blockInput, 0, salt.length);
 
-        byte[] u = null;
-        byte[] block = null;
         try {
             for (int blockIndex = 1; blockIndex <= blockCount; blockIndex++) {
                 int offset = salt.length;
@@ -231,34 +241,37 @@ public final class AuthorGramChatKeyStore {
                 blockInput[offset + 2] = (byte) (blockIndex >>> 8);
                 blockInput[offset + 3] = (byte) blockIndex;
 
-                u = mac.doFinal(blockInput);
-                block = u.clone();
+                mac.update(blockInput);
+                mac.doFinal(u, 0);
+                System.arraycopy(u, 0, block, 0, macLength);
+
                 for (int iteration = 1; iteration < iterations; iteration++) {
-                    byte[] next = mac.doFinal(u);
-                    Arrays.fill(u, (byte) 0);
-                    u = next;
-                    for (int index = 0; index < block.length; index++) {
-                        block[index] ^= u[index];
+                    mac.update(u);
+                    mac.doFinal(next, 0);
+                    for (int index = 0; index < macLength; index++) {
+                        block[index] ^= next[index];
                     }
+                    byte[] swap = u;
+                    u = next;
+                    next = swap;
                 }
 
                 int destination = (blockIndex - 1) * macLength;
                 int count = Math.min(macLength, outputLength - destination);
                 System.arraycopy(block, 0, output, destination, count);
                 Arrays.fill(u, (byte) 0);
+                Arrays.fill(next, (byte) 0);
                 Arrays.fill(block, (byte) 0);
-                u = null;
-                block = null;
             }
             return output;
+        } catch (ShortBufferException exception) {
+            Arrays.fill(output, (byte) 0);
+            throw new GeneralSecurityException("Unable to derive AuthorGram chat key", exception);
         } finally {
             Arrays.fill(blockInput, (byte) 0);
-            if (u != null) {
-                Arrays.fill(u, (byte) 0);
-            }
-            if (block != null) {
-                Arrays.fill(block, (byte) 0);
-            }
+            Arrays.fill(u, (byte) 0);
+            Arrays.fill(next, (byte) 0);
+            Arrays.fill(block, (byte) 0);
         }
     }
 
