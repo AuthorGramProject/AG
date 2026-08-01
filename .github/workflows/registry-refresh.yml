@@ -1,0 +1,14 @@
+name: AuthorGram Workflow Registry Refresh
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  noop:
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "AuthorGram workflow registry refreshed"
