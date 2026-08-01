@@ -18,6 +18,7 @@ def verCode = Integer.parseInt(APP_VERSION_CODE.toString())
 
 def officialVer = APP_VERSION_NAME
 def officialCode = APP_VERSION_CODE
+def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'
 
 def keystorePwd = null
 def alias = null
@@ -160,6 +161,7 @@ android {
         buildConfigField 'boolean', 'DEBUG_VERSION', 'false'
         buildConfigField 'boolean', 'DEBUG_PRIVATE_VERSION', 'false'
         buildConfigField 'boolean', 'OFFICIAL_BUILD', 'false'
+        buildConfigField 'boolean', 'TELEGRAM_AD_BLOCKING_ENABLED', telegramAdBlockingEnabled.toString()
         buildConfigField 'String', 'TRUSTED_SIGNING_CERT_SHA256', '""'
 
         externalNativeBuild {
