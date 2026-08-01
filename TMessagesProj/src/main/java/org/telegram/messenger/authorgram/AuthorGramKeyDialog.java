@@ -1,7 +1,6 @@
 package org.telegram.messenger.authorgram;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ClipboardManager;
@@ -18,6 +17,7 @@ import android.widget.Toast;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.ui.ActionBar.AlertDialog;
 
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -43,6 +43,10 @@ public final class AuthorGramKeyDialog {
         boolean hasKey = AuthorGramChatKeyStore.hasCustomKey(account, dialogId);
         ArrayList<CharSequence> labels = new ArrayList<>();
         ArrayList<Integer> actions = new ArrayList<>();
+        if (hasKey) {
+            labels.add(LocaleController.getString(R.string.AuthorGramRemoveKey));
+            actions.add(0);
+        }
         labels.add(LocaleController.getString(
                 hasKey ? R.string.AuthorGramRotateKey : R.string.AuthorGramGenerateKey
         ));
@@ -52,8 +56,6 @@ public final class AuthorGramKeyDialog {
         if (hasKey) {
             labels.add(LocaleController.getString(R.string.AuthorGramExportKey));
             actions.add(3);
-            labels.add(LocaleController.getString(R.string.AuthorGramRemoveKey));
-            actions.add(4);
         }
 
         new AlertDialog.Builder(activity)
@@ -65,14 +67,14 @@ public final class AuthorGramKeyDialog {
                 ))
                 .setItems(labels.toArray(new CharSequence[0]), (dialog, which) -> {
                     int action = actions.get(which);
-                    if (action == 1) {
+                    if (action == 0) {
+                        confirmRemove(activity, account, dialogId);
+                    } else if (action == 1) {
                         confirmGenerate(activity, account, dialogId, hasKey);
                     } else if (action == 2) {
                         showImport(activity, account, dialogId);
                     } else if (action == 3) {
                         showExport(activity, account, dialogId);
-                    } else if (action == 4) {
-                        confirmRemove(activity, account, dialogId);
                     }
                 })
                 .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
