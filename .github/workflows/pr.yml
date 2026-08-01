@@ -67,3 +67,10 @@ jobs:
             scripts/java/org/telegram/messenger/authorgram/AuthorGramPassphraseKdfSelfTest.java
           java -cp "${TEST_DIR}" \
             org.telegram.messenger.authorgram.AuthorGramPassphraseKdfSelfTest
+
+  release:
+    name: Build AuthorGram 12.9.1 verified artifacts
+    if: ${{ contains(github.event.pull_request.title, '[final release]') }}
+    needs: validate
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
