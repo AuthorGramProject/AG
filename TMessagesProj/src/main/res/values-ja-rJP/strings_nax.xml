@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="XChannel">TOSS チャンネル</string>
+    <string name="XChannel">AuthorGram チャンネル</string>
     <string name="EnableSaveDeletedMessages">削除済みメッセージを保存</string>
     <string name="DeletedMessage">削除済み</string>
     <string name="EnableSaveEditsHistory">編集履歴を保存</string>
@@ -214,7 +214,7 @@
     <string name="CopySticker">ステッカーをコピー</string>
     <string name="NaxAboutInfo">情報</string>
     <string name="NaxLinks">リンク</string>
-    <string name="NaxAboutDesc">追加機能を備えた TOSS のフォーク。exteraGram と AuthorGram の大部分の機能を含みます。</string>
+    <string name="NaxAboutDesc">追加機能を備えた AuthorGram のフォーク。exteraGram と AuthorGram の大部分の機能を含みます。</string>
     <string name="CheckUpdate">アップデートを確認</string>
     <string name="AutoCheckUpdateOFF">オフ</string>
     <string name="AutoCheckUpdateSwitch">更新チャネル</string>
@@ -314,7 +314,7 @@
     <string name="BackAnimationSpring">Spring</string>
     <string name="BackAnimationPredictive">予測型</string>
     <string name="AddToFilter">フィルターに追加</string>
-    <string name="UnifiedPushNeverReceivedNotifications">TOSS の起動以降、UnifiedPush 経由で通知を受信したことはありません。</string>
+    <string name="UnifiedPushNeverReceivedNotifications">AuthorGram の起動以降、UnifiedPush 経由で通知を受信したことはありません。</string>
     <string name="UnifiedPushLastReceivedNotification">UnifiedPush で最後に受信した通知は %1$d 秒前です。\n\nTOSS の起動以降、 %2$d 件の通知を受信しました。</string>
     <string name="UnifiedPushCurrentEndpoint">現在の UnifiedPush エンドポイントは：%1$s</string>
     <string name="PlayOnce">ワンショット</string>

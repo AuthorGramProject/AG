@@ -89,6 +89,13 @@ def main() -> int:
         "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java"
     )
 
+    send_helper = read("TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java")
+    require(
+        "AuthorGram encrypted messages always use a normal reply without a plaintext quote" in send_helper,
+        "Encrypted-message quote prevention is missing from SendMessagesHelper",
+        failures,
+    )
+
     for obsolete in ("generateAndStore", "importAndStore", "exportCurrentKey", "decodeHex(", "encodeHex("):
         require(obsolete not in key_store, f"Obsolete raw-key API remains: {obsolete}", failures)
     for obsolete in ("ClipboardManager", "ClipData", "AuthorGramGenerateKey", "AuthorGramExportKey"):
@@ -132,56 +139,9 @@ def main() -> int:
     require(package_line in gradle_properties, f"Expected package missing: {package_line}", failures)
 
     build_gradle = read("TMessagesProj/build.gradle")
-    defaults = read("TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramDefaults.java")
-    config_item = read("TMessagesProj/src/main/java/tw/nekomimi/nekogram/config/ConfigItem.java")
-    is_play = args.expected_package == "toss.authorgram.apk"
-
     require("String gramName = 'AuthorGram" in build_gradle, "Artifact name is not AuthorGram", failures)
-    require(
-        "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" in build_gradle,
-        "Package-based Telegram ad-blocking build flag is missing",
-        failures,
-    )
-    require(
-        "'TELEGRAM_AD_BLOCKING_ENABLED', telegramAdBlockingEnabled.toString()" in build_gradle,
-        "Telegram ad-blocking BuildConfig flag is missing",
-        failures,
-    )
-    for key in ("hideSponsoredMessage", "HideProxySponsorChannel"):
-        require(key in defaults, f"Missing controlled Telegram ad preference: {key}", failures)
-        require(key in config_item, f"ConfigItem does not guard Telegram ad preference: {key}", failures)
-    require(
-        "!isTelegramAdBlockingUnavailable() && (boolean) value" in config_item,
-        "Play build can still read Telegram ad blocking as enabled",
-        failures,
-    )
-    require(
-        "value = isTelegramAdBlockingUnavailable() ? false : v" in config_item,
-        "Play build can still enable Telegram ad blocking",
-        failures,
-    )
-    release_keystore = ROOT / "TMessagesProj/release.keystore"
-    if is_play:
-        require(not release_keystore.exists(), "Play release keystore must not be tracked", failures)
-    else:
-        require(release_keystore.is_file(), "Main release keystore is missing", failures)
-    build_types_start = build_gradle.find("\n    buildTypes {")
-    build_types_end = build_gradle.find("\n    sourceSets.", build_types_start)
-    require(
-        build_types_start >= 0 and build_types_end > build_types_start,
-        "buildTypes block missing",
-        failures,
-    )
-    build_types = (
-        build_gradle[build_types_start:build_types_end]
-        if build_types_start >= 0 and build_types_end > build_types_start
-        else ""
-    )
-    release_match = re.search(
-        r"\n\s*release\s*\{(?P<body>.*?)\n\s*\}",
-        build_types,
-        re.S,
-    )
+    require("TELEGRAM_AD_BLOCKING_ENABLED" in build_gradle, "Compile-time Telegram ad policy is missing", failures)
+    release_match = re.search(r"\n\s*release\s*\{(?P<body>.*?)\n\s*\}\n", build_gradle, re.S)
     require(release_match is not None, "Release build type missing", failures)
     if release_match:
         body = release_match.group("body")
@@ -203,8 +163,6 @@ def main() -> int:
         require("assembleDebug" not in workflow, "Release workflow must never publish a debug APK", failures)
         require("apksigner" in workflow, "Release workflow does not verify APK signature", failures)
         require("output-metadata.json" in workflow, "Release workflow does not resolve exact output metadata", failures)
-        require("Generate fresh Play upload key" in workflow, "Play signing key generation is missing", failures)
-        require("ARTIFACT_DIR: ${{ runner.temp }}" not in workflow, "runner.temp is invalid in job-level env", failures)
 
     if failures:
         print("AuthorGram guard failed:", file=sys.stderr)

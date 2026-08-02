@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AppName">TOSS</string>
-    <string name="AppNameBeta">TOSS Beta</string>
+    <string name="AppName">AuthorGram</string>
+    <string name="AppNameBeta">AuthorGram Beta</string>
     <string name="LanguageName">English</string>
     <string name="English">English</string>
     <string name="LanguageNameInEnglish">English</string>
@@ -11165,15 +11165,15 @@
     <string name="ArticleAIGenerate">Generate</string>
     <string name="ArticleAIAddToPage">Add to Page</string>
 
-    <string name="TOSS">TOSS</string>
+    <string name="TOSS">AuthorGram</string>
     <string name="AGSettings">AuthorGram Settings</string>
     <string name="AGRegexFilters">Message filters</string>
     <string name="AGRegexFiltersInfo">Filter global or per-chat messages with regular expressions.</string>
-    <string name="AGAboutInfo">TOSS</string>
+    <string name="AGAboutInfo">AuthorGram</string>
     <string name="AGLinks">AuthorChe links</string>
-    <string name="TOSSAboutDesc">TOSS is a privacy-focused Telegram multitool designed for secure communication, flexible controls and convenient everyday use.</string>
+    <string name="TOSSAboutDesc">AuthorGram is a privacy-focused Telegram multitool designed for secure communication, flexible controls and convenient everyday use.</string>
     <string name="AGCredits">Open-source credits</string>
-    <string name="AGCreditsText">Thanks to Cherrygram, Nagram and Nekogram and their contributors. Parts of TOSS are based on or adapted from their open-source work. Telegram for Android remains the upstream foundation.</string>
+    <string name="AGCreditsText">Thanks to Cherrygram, AuthorGram and AuthorGram and their contributors. Parts of AuthorGram are based on or adapted from their open-source work. Telegram for Android remains the upstream foundation.</string>
     <string name="UnknownAGSettingsOption">Unknown AuthorGram settings option</string>
     <string name="AGPasscode">Passcode</string>
 

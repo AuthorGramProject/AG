@@ -43,7 +43,7 @@ object GoogleTranslator : Translator {
             translate(textToTranslate, from, to)
         } catch (e: RuntimeException) {
             try {
-                FileLog.e("Cloud Translation API request failed, trying to use Nekogram's translation API...", e)
+                FileLog.e("Cloud Translation API request failed, trying to use AuthorGram's translation API...", e)
                 GoogleTranslatorNeko.translate(textToTranslate, from, to)
             } catch (e: Exception) {
                 error("Cloud Translation API request failed: ${e.message}")

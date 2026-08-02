@@ -193,7 +193,7 @@ object NaConfig {
         addConfig(
             "CustomTitle",
             ConfigItem.configTypeString,
-            "Nagram XF"
+            "AuthorGram"
         )
     val dateOfForwardedMsg =
         addConfig(
