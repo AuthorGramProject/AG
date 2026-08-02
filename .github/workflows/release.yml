@@ -151,6 +151,7 @@ jobs:
 
           for relative in (
               'scripts/apply_authorgram_exact_icon_and_spy.py',
+              'scripts/fix_authorgram_adaptive_icon.py',
               'scripts/finalize_authorgram_source.py',
               'scripts/authorgram_guard.py',
               'scripts/authorgram_parity_guard.py',
@@ -165,6 +166,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/apply_authorgram_exact_icon_and_spy.py
+          python3 scripts/fix_authorgram_adaptive_icon.py
           git diff --check
           git config user.name "AuthorGram Release Bot"
           git config user.email "actions@users.noreply.github.com"
