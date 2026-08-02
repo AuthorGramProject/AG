@@ -1,3 +1,3 @@
 AuthorGram 12.9.1 final release trigger.
-Resource-safe finalizer revision: 2026-08-02T10:50+02:00.
-This marker is excluded from synchronized release branches.
+Isolated worktree release revision: 2026-08-02T10:55+02:00.
+Cleanup includes all historical failure and cancelled workflow runs.
