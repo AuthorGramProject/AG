@@ -1,2 +1,3 @@
 AuthorGram source guard: release automation must use the resource-safe branding finalizer.
-Guard revision: 2026-08-02T10:45+02:00
+Guard revision: 2026-08-02T10:47+02:00
+Stale release automation must fail by non-fast-forward before changing dev, main, or play-market.
