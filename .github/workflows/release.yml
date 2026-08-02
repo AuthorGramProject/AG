@@ -107,6 +107,7 @@ jobs:
           from pathlib import Path
 
           for relative in (
+              'scripts/apply_authorgram_visual_revision.py',
               'scripts/finalize_authorgram_source.py',
               'scripts/authorgram_guard.py',
               'scripts/authorgram_parity_guard.py',
@@ -115,6 +116,20 @@ jobs:
               compile(source, relative, 'exec')
               print(f'Python syntax passed: {relative}')
           PY
+
+      - name: Apply visual cleanup and private Spy menu
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/apply_authorgram_visual_revision.py
+          git diff --check
+          git config user.name "AuthorGram Release Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "[skip ci] Apply AuthorGram launcher and Spy revision"
+            git push origin HEAD:dev
+          fi
 
       - name: Finalize sources and build verified release artifacts
         shell: bash
