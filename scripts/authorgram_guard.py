@@ -89,6 +89,13 @@ def main() -> int:
         "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java"
     )
 
+    send_helper = read("TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java")
+    require(
+        "AuthorGram encrypted messages always use a normal reply without a plaintext quote" in send_helper,
+        "Encrypted-message quote prevention is missing from SendMessagesHelper",
+        failures,
+    )
+
     for obsolete in ("generateAndStore", "importAndStore", "exportCurrentKey", "decodeHex(", "encodeHex("):
         require(obsolete not in key_store, f"Obsolete raw-key API remains: {obsolete}", failures)
     for obsolete in ("ClipboardManager", "ClipData", "AuthorGramGenerateKey", "AuthorGramExportKey"):
@@ -133,6 +140,7 @@ def main() -> int:
 
     build_gradle = read("TMessagesProj/build.gradle")
     require("String gramName = 'AuthorGram" in build_gradle, "Artifact name is not AuthorGram", failures)
+    require("TELEGRAM_AD_BLOCKING_ENABLED" in build_gradle, "Compile-time Telegram ad policy is missing", failures)
     release_match = re.search(r"\n\s*release\s*\{(?P<body>.*?)\n\s*\}\n", build_gradle, re.S)
     require(release_match is not None, "Release build type missing", failures)
     if release_match:

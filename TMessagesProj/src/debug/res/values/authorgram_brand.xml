@@ -7,7 +7,7 @@
     <string name="NekoSettings">AuthorGram Settings</string>
     <string name="NaxAboutDesc">AuthorGram is a privacy-focused Telegram client by AuthorChe.</string>
     <string name="TOSSAboutDesc">AuthorGram is a privacy-focused Telegram client by AuthorChe for secure communication, flexible controls and convenient everyday use.</string>
-    <string name="AGCreditsText">AuthorGram is based on Telegram for Android and includes GPL-compatible work from Cherrygram, Nagram and Nekogram. These names are shown only for proper legal attribution of open-source code.</string>
+    <string name="AGCreditsText">AuthorGram is based on Telegram for Android and includes GPL-compatible work from Cherrygram, AuthorGram and AuthorGram. These names are shown only for proper legal attribution of open-source code.</string>
 
     <!-- Compatibility for any stale call site; raw key actions are no longer exposed. -->
     <string name="AuthorGramKeySettings">AuthorGram chat encryption</string>

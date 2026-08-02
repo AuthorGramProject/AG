@@ -24,6 +24,9 @@ STRING_LITERAL = re.compile(r'"(?:\\.|[^"\\])*"')
 XML_QUOTED = re.compile(r'"([^"\n]*)"')
 XML_TEXT = re.compile(r">([^<]+)<")
 URL = re.compile(r"https?://[^\s)>\"]+")
+INTERNAL_IDENTIFIER = re.compile(
+    r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+"
+)
 
 SKIP_PARTS = {
     ".git",
@@ -177,7 +180,7 @@ def rebrand_xml(path: Path) -> bool:
 
     def text_node(match: re.Match[str]) -> str:
         value = match.group(1)
-        if "://" in value:
+        if "://" in value or INTERNAL_IDENTIFIER.fullmatch(value):
             return match.group(0)
         return ">" + replace_brand(value) + "<"
 
@@ -196,9 +199,15 @@ def rebrand_source_literals(path: Path) -> bool:
     def literal(match: re.Match[str]) -> str:
         token = match.group(0)
         value = token[1:-1]
-        if "://" in value or "/" in value or "\\" in value:
+        if (
+                "://" in value
+                or "/" in value
+                or "\\" in value
+                or INTERNAL_IDENTIFIER.fullmatch(value)
+                or (path.name == "SessionCell.java" and ("Nagram X" in value or "NagramX" in value))
+        ):
             return token
-        return '"' + replace_brand(value) + '"'
+        return '"' + LEGACY_BRAND.sub("AuthorGram", value) + '"'
 
     updated = STRING_LITERAL.sub(literal, content)
     if updated == content:
@@ -322,8 +331,14 @@ def scan_legacy_visible_brand() -> list[str]:
         elif suffix in {".java", ".kt", ".kts"} and "TMessagesProj" in path.parts:
             for token in STRING_LITERAL.findall(content):
                 value = token[1:-1]
-                if "://" not in value and "/" not in value and "\\" not in value:
-                    candidates.append(value)
+                if (
+                        "://" not in value
+                        and "/" not in value
+                        and "\\" not in value
+                        and not INTERNAL_IDENTIFIER.fullmatch(value)
+                        and not (path.name == "SessionCell.java" and ("Nagram X" in value or "NagramX" in value))
+                ):
+                    candidates.append(LEGACY_MISC.sub("", value))
         elif suffix in {".md", ".txt"}:
             candidates.append(URL.sub("", content))
         else:

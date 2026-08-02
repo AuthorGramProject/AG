@@ -10,7 +10,7 @@
     <string name="AGLinks">AuthorChe-Links</string>
     <string name="TOSSAboutDesc">AuthorGram ist ein datenschutzorientierter Telegram-Client von AuthorChe für geschützte Kommunikation, flexible Einstellungen und komfortable tägliche Nutzung.</string>
     <string name="AGCredits">Open-Source-Danksagung</string>
-    <string name="AGCreditsText">AuthorGram basiert auf Telegram for Android und enthält GPL-kompatible Beiträge aus Cherrygram, Nagram und Nekogram. Diese Namen werden ausschließlich zur korrekten rechtlichen Zuordnung des offenen Quellcodes genannt.</string>
+    <string name="AGCreditsText">AuthorGram basiert auf Telegram for Android und enthält GPL-kompatible Beiträge aus Cherrygram, AuthorGram und AuthorGram. Diese Namen werden ausschließlich zur korrekten rechtlichen Zuordnung des offenen Quellcodes genannt.</string>
     <string name="UnknownAGSettingsOption">Unbekannte AuthorGram-Einstellungsoption</string>
     <string name="AGPasscode">App-Sperrcode</string>
 

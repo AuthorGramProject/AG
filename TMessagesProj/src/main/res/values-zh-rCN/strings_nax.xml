@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="XChannel">TOSS 频道</string>
-    <string name="NagramXForkChannel">TOSS 频道</string>
+    <string name="XChannel">AuthorGram 频道</string>
+    <string name="NagramXForkChannel">AuthorGram 频道</string>
     <string name="EnableSaveDeletedMessages">保存已删除消息</string>
     <string name="DeletedMessage">已删除</string>
     <string name="EnableSaveEditsHistory">保存编辑历史</string>
@@ -219,7 +219,7 @@
     <string name="CopySticker">复制贴纸</string>
     <string name="NaxAboutInfo">信息</string>
     <string name="NaxLinks">链接</string>
-    <string name="NaxAboutDesc">TOSS 的一个分支，包含额外功能。融合了 exteraGram 和 AuthorGram 的大部分特性。</string>
+    <string name="NaxAboutDesc">AuthorGram 的一个分支，包含额外功能。融合了 exteraGram 和 AuthorGram 的大部分特性。</string>
     <string name="CheckUpdate">检查更新</string>
     <string name="AutoCheckUpdateOFF">禁用</string>
     <string name="AutoCheckUpdateSwitch">更新通道</string>
@@ -319,8 +319,8 @@
     <string name="BackAnimationSpring">Spring</string>
     <string name="BackAnimationPredictive">预测</string>
     <string name="AddToFilter">添加过滤器</string>
-    <string name="UnifiedPushNeverReceivedNotifications">自 TOSS 启动后，您从未收到 UnifiedPush 的通知。</string>
-    <string name="UnifiedPushLastReceivedNotification">最后一次通过 UnifiedPush 接收到的通知是 %1$d 秒前。\n\n自 TOSS 启动以来，您已收到 %2$d 条通知。</string>
+    <string name="UnifiedPushNeverReceivedNotifications">自 AuthorGram 启动后，您从未收到 UnifiedPush 的通知。</string>
+    <string name="UnifiedPushLastReceivedNotification">最后一次通过 UnifiedPush 接收到的通知是 %1$d 秒前。\n\n自 AuthorGram 启动以来，您已收到 %2$d 条通知。</string>
     <string name="UnifiedPushCurrentEndpoint">当前的 UnifiedPush 端点是：%1$s</string>
     <string name="PlayOnce">播放一次</string>
     <string name="SwitchAccountNax">切换账号</string>

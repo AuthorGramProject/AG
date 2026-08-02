@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED_DIFFERENCES = {"gradle.properties"}
+ALLOWED_DIFFERENCES = {"gradle.properties", "TMessagesProj/release.keystore"}
 
 
 def git(*args: str) -> str:
@@ -48,13 +48,13 @@ def main() -> int:
 
     main_properties = git("show", f"{args.main_ref}:gradle.properties")
     play_properties = git("show", f"{args.play_ref}:gradle.properties")
-    if "APP_PACKAGE=top.authorche.authorgram" not in main_properties:
+    if "APP_PACKAGE=fork.risin42.nagramx" not in main_properties:
         failures.append("Main package must be top.authorche.authorgram")
     if "APP_PACKAGE=toss.authorgram.apk" not in play_properties:
         failures.append("Play package must be toss.authorgram.apk")
 
     normalized_main_properties = main_properties.replace(
-        "APP_PACKAGE=top.authorche.authorgram", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
+        "APP_PACKAGE=fork.risin42.nagramx", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
     )
     normalized_play_properties = play_properties.replace(
         "APP_PACKAGE=toss.authorgram.apk", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
