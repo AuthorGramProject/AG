@@ -142,7 +142,11 @@ def main() -> int:
         failures,
     )
     require("assembleRelease" in release_script, "Release script does not build release APKs", failures)
-    require("bundleRelease" in release_script, "Release script does not build the Play AAB", failures)
+    require(
+        "bundleRelease" not in release_script,
+        "APK-only release script must not build an Android App Bundle",
+        failures,
+    )
     require("assembleDebug" not in release_script, "Release script must never build a debug APK", failures)
     require("apksigner" in release_script, "Release script does not verify APK signatures", failures)
     require(
@@ -160,6 +164,12 @@ def main() -> int:
         and "'failure'" in workflow
         and "'cancelled'" in workflow,
         "Release workflow does not remove historical failed and cancelled runs",
+        failures,
+    )
+    require(
+        "Expected exactly two APKs" in workflow
+        and "AAB files are forbidden" in workflow,
+        "Release workflow does not enforce exactly two APK artifacts and zero AAB files",
         failures,
     )
 
