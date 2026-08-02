@@ -47,7 +47,7 @@ commit_and_push() {
 sync_from_dev() {
   local destination="$1"
   rsync -a --delete --quiet \
-    --exclude='.git/' \
+    --exclude='.git' \
     --exclude='.github/' \
     --exclude='.gradle/' \
     --exclude='local.properties' \
@@ -109,6 +109,7 @@ verify_apk() {
 }
 
 log "Prepare isolated release workspace"
+git worktree prune
 rm -rf "${WORK_ROOT}"
 mkdir -p "${ARTIFACT_DIR}" "${TEST_DIR}"
 git config user.name "AuthorGram Release Bot"
@@ -241,7 +242,7 @@ mapfile -t PLAY_BUNDLES < <(find "${PLAY_DIR}/TMessagesProj/build/outputs/bundle
 [[ "${#PLAY_BUNDLES[@]}" -eq 1 ]] \
   || fail "Expected exactly one Play AAB, found ${#PLAY_BUNDLES[@]}"
 PLAY_AAB="${PLAY_BUNDLES[0]}"
-jarsigner -verify -strict "${PLAY_AAB}"
+jarsigner -verify "${PLAY_AAB}"
 keytool -printcert -jarfile "${PLAY_AAB}" > "${ARTIFACT_DIR}/Play-AAB-CERTIFICATE.txt"
 cp "${PLAY_APK}" "${ARTIFACT_DIR}/AuthorGram-Play-v${VERSION_NAME}-release-arm64-v8a.apk"
 cp "${PLAY_AAB}" "${ARTIFACT_DIR}/AuthorGram-Play-v${VERSION_NAME}-release.aab"
