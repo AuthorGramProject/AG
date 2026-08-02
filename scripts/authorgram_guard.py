@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -157,8 +156,10 @@ def main() -> int:
         failures,
     )
     require(
-        re.search(r"conclusion\s*!==\s*['\"]failure['\"]", workflow) is not None,
-        "Release workflow does not remove historical failed runs",
+        "deleteWorkflowRun" in workflow
+        and "'failure'" in workflow
+        and "'cancelled'" in workflow,
+        "Release workflow does not remove historical failed and cancelled runs",
         failures,
     )
 
