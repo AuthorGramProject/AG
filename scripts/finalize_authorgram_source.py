@@ -186,15 +186,6 @@ def rebrand_visible_text() -> int:
                     changed += int(rebrand_source(path))
             except UnicodeDecodeError:
                 continue
-    for relative in ("README.md", "SECURITY.md"):
-        path = ROOT / relative
-        if not path.is_file():
-            continue
-        content = path.read_text(encoding="utf-8")
-        updated = replace_brand(content)
-        if updated != content:
-            path.write_text(updated, encoding="utf-8", newline="")
-            changed += 1
     return changed
 
 
@@ -233,6 +224,20 @@ def visible_legacy_hits() -> list[str]:
     return hits
 
 
+def build_type_release_body(build_gradle: str) -> str | None:
+    build_types_start = build_gradle.find("\n    buildTypes {")
+    if build_types_start < 0:
+        return None
+    release_start = build_gradle.find("\n        release {", build_types_start)
+    if release_start < 0:
+        return None
+    body_start = release_start + len("\n        release {")
+    release_end = build_gradle.find("\n        }", body_start)
+    if release_end < 0:
+        return None
+    return build_gradle[body_start:release_end]
+
+
 def validate(role: str, package_id: str) -> None:
     failures: list[str] = []
     if f"APP_PACKAGE={package_id}" not in read("gradle.properties"):
@@ -243,18 +248,17 @@ def validate(role: str, package_id: str) -> None:
         failures.append("Main/Play artifact naming is not package-driven from common source")
     if "TELEGRAM_AD_BLOCKING_ENABLED" not in build_gradle:
         failures.append("Compile-time Telegram ad policy is missing")
-    release_match = re.search(r"\n\s*release\s*\{(?P<body>.*?)\n\s*\}\n", build_gradle, re.S)
-    if release_match is None:
-        failures.append("Release build type is missing")
+    release_body = build_type_release_body(build_gradle)
+    if release_body is None:
+        failures.append("buildTypes.release is missing")
     else:
-        body = release_match.group("body")
         for required in (
             "debuggable = false",
             "minifyEnabled = true",
             "shrinkResources = true",
             "signingConfig = signingConfigs.release",
         ):
-            if required not in body:
+            if required not in release_body:
                 failures.append(f"Release invariant missing: {required}")
 
     send_helper = read("TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java")
