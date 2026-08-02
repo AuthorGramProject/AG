@@ -103,7 +103,9 @@ subprojects { subproject ->
 
         android.sourceSets.main.java.exclude('org/telegram/messenger/ApplicationLoader.java')
         android.sourceSets.main.java.exclude('org/telegram/messenger/PushListenerController.java')
-        android.sourceSets.main.java.srcDir(generatedSources)
+        // AGP 9.x rejects Provider<Directory> in the legacy SourceSet API.
+        // Materialize the directory as a File; preBuild below keeps the task dependency explicit.
+        android.sourceSets.main.java.srcDir(generatedSources.get().asFile)
 
         tasks.matching { it.name == 'preBuild' }.configureEach {
             dependsOn(prepareNoFirebaseSources)

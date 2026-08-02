@@ -33,15 +33,36 @@ commit_and_push() {
   local directory="$1"
   local branch="$2"
   local message="$3"
+  local attempt
 
+  git -C "${directory}" config core.fileMode false
   git -C "${directory}" add -A
   if git -C "${directory}" diff --cached --quiet; then
     printf 'No source changes required for %s.\n' "${branch}"
     return
   fi
+
   git -C "${directory}" diff --cached --check
   git -C "${directory}" commit -m "${message}"
-  git -C "${directory}" push origin "HEAD:${branch}"
+
+  for attempt in 1 2 3; do
+    if git -C "${directory}" push origin "HEAD:${branch}"; then
+      return
+    fi
+
+    if [[ "${attempt}" -eq 3 ]]; then
+      break
+    fi
+
+    log "Remote ${branch} moved during release; rebasing attempt ${attempt}/2"
+    git -C "${directory}" fetch --force origin "${branch}"
+    if ! git -C "${directory}" rebase "origin/${branch}"; then
+      git -C "${directory}" rebase --abort || true
+      fail "Unable to rebase finalized ${branch} source onto the latest remote branch"
+    fi
+  done
+
+  fail "Unable to push finalized ${branch} source after three attempts"
 }
 
 sync_from_dev() {
@@ -102,6 +123,7 @@ verify_apk() {
   if grep -q '^application-debuggable' <<<"${badging}"; then
     fail "Release APK is debuggable: ${apk}"
   fi
+
   "${apksigner}" verify --verbose --print-certs "${apk}" | tee "${certificate_output}"
   if unzip -Z1 "${apk}" | grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks|[^/]*\.p12|[^/]*\.pfx)$'; then
     fail "Signing material was packaged into ${apk}"
@@ -110,25 +132,30 @@ verify_apk() {
 
 log "Prepare isolated release workspace"
 git worktree prune
-rm -rf "${WORK_ROOT}"
-mkdir -p "${ARTIFACT_DIR}" "${TEST_DIR}"
+git config core.fileMode false
 git config user.name "AuthorGram Release Bot"
 git config user.email "actions@users.noreply.github.com"
 git fetch --force --prune origin dev main play-market
+git reset --hard origin/dev
+git clean -fd
+rm -rf "${WORK_ROOT}"
+mkdir -p "${ARTIFACT_DIR}" "${TEST_DIR}"
 
-log "Finalize and validate dev source without destructive checkout operations"
+log "Finalize and validate the latest dev source"
 python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
 git diff --check
 commit_and_push "${ROOT}" dev "[skip ci] Align dev source for final AuthorGram release"
 DEV_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
 
 log "Create isolated Main and Play worktrees"
+git fetch --force origin main play-market
 git worktree add --force --detach "${MAIN_DIR}" origin/main >/dev/null
 git worktree add --force --detach "${PLAY_DIR}" origin/play-market >/dev/null
-git -C "${MAIN_DIR}" config user.name "AuthorGram Release Bot"
-git -C "${MAIN_DIR}" config user.email "actions@users.noreply.github.com"
-git -C "${PLAY_DIR}" config user.name "AuthorGram Release Bot"
-git -C "${PLAY_DIR}" config user.email "actions@users.noreply.github.com"
+for checkout in "${MAIN_DIR}" "${PLAY_DIR}"; do
+  git -C "${checkout}" config core.fileMode false
+  git -C "${checkout}" config user.name "AuthorGram Release Bot"
+  git -C "${checkout}" config user.email "actions@users.noreply.github.com"
+done
 
 log "Synchronize finalized app source into Main"
 sync_from_dev "${MAIN_DIR}"
@@ -151,7 +178,7 @@ import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
-result = subprocess.run(
+changed = subprocess.run(
     ["git", "diff", "--name-only", "origin/main", "origin/play-market"],
     cwd=root,
     text=True,
@@ -160,7 +187,7 @@ result = subprocess.run(
 ).stdout.splitlines()
 allowed_exact = {"gradle.properties", "TMessagesProj/release.keystore"}
 unexpected = [
-    path for path in result
+    path for path in changed
     if path not in allowed_exact and not path.startswith(".github/")
 ]
 if unexpected:
