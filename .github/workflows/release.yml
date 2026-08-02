@@ -21,7 +21,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.head_commit.message == 'Run final AuthorGram 12.9.1 release'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
       MAIN_PACKAGE: fork.risin42.nagramx
@@ -30,13 +30,14 @@ jobs:
       VERSION_CODE: '6967'
       NATIVE_TARGET: arm64-v8a
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
 
     steps:
-      - name: Checkout release trigger source
+      - name: Checkout release controller
         uses: actions/checkout@v4
         with:
           ref: dev
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: true
 
       - name: Publish pending release status
@@ -53,17 +54,20 @@ jobs:
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
 
-      - name: Delete historical failed workflow runs
+      - name: Delete historical failed and cancelled workflow runs
         uses: actions/github-script@v7
         with:
           script: |
+            const removable = new Set(['failure', 'cancelled']);
             const runs = await github.paginate(
               github.rest.actions.listWorkflowRunsForRepo,
               { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
             );
             let deleted = 0;
             for (const run of runs) {
-              if (Number(run.id) === Number(context.runId) || run.conclusion !== 'failure') continue;
+              if (Number(run.id) === Number(context.runId) || !removable.has(run.conclusion)) {
+                continue;
+              }
               try {
                 await github.rest.actions.deleteWorkflowRun({
                   owner: context.repo.owner,
@@ -75,7 +79,7 @@ jobs:
                 if (error.status !== 404) throw error;
               }
             }
-            core.info(`Deleted ${deleted} failed workflow run(s).`);
+            core.info(`Deleted ${deleted} failed/cancelled workflow run(s).`);
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -93,15 +97,18 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-      - name: Finalize source and build verified releases
+      - name: Validate release controller script
         shell: bash
         run: |
           set -euo pipefail
-          base64 --decode scripts/final_release_12_9_1.sh.gz.b64 \
-            | gzip --decompress \
-            > "${RUNNER_TEMP}/authorgram-final-release.sh"
-          chmod 700 "${RUNNER_TEMP}/authorgram-final-release.sh"
-          bash "${RUNNER_TEMP}/authorgram-final-release.sh"
+          bash -n scripts/final_release_12_9_1.sh
+          python3 -m py_compile scripts/finalize_authorgram_source.py
+
+      - name: Finalize sources and build verified release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/final_release_12_9_1.sh
 
       - name: Upload final verified release artifacts
         uses: actions/upload-artifact@v4
