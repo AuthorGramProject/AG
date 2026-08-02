@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.text.TextUtils;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.BaseFragment;
 
@@ -19,6 +20,13 @@ import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 import toss.authorgram.filters.AGFiltersSettingsActivity;
 
 public class AGSettingsRouter {
+
+    private static final String PLAY_PACKAGE = "toss.authorgram.apk";
+
+    private static boolean isPrivateMainBuild() {
+        return ApplicationLoader.applicationContext == null
+                || !PLAY_PACKAGE.equals(ApplicationLoader.applicationContext.getPackageName());
+    }
 
     public static void processDeepLink(Activity activity, Uri uri, Callback callback, Runnable unknown) {
         if (uri == null) {
@@ -53,7 +61,12 @@ public class AGSettingsRouter {
                     break;
                 case "privacy":
                 case "security":
+                case "spy":
                 case "p":
+                    if (!isPrivateMainBuild()) {
+                        unknown.run();
+                        return;
+                    }
                     fragment = agxFragment = new AGPrivacySettingsActivity();
                     break;
                 case "experimental":
@@ -128,7 +141,9 @@ public class AGSettingsRouter {
         ArrayList<BaseAGXSettingsActivity> fragments = new ArrayList<>();
         fragments.add(new AGGeneralSettingsActivity());
         fragments.add(new AGAppearanceSettingsActivity());
-        fragments.add(new AGPrivacySettingsActivity());
+        if (isPrivateMainBuild()) {
+            fragments.add(new AGPrivacySettingsActivity());
+        }
         fragments.add(new AGChatSettingsActivity());
         fragments.add(new AGExperimentalSettingsActivity());
         fragments.add(new AGTranslatorSettingsActivity());
