@@ -10,6 +10,8 @@ public final class AuthorGramPassphraseKdfSelfTest {
             "AuthorGram-Chat-KDF-v1|private|12345|67890";
     private static final String EXPECTED_AUTHORGRAM =
             "1b56fe37cd18c654945574ac83b694cf03a9b2a75fe8ed06c56c04c1616e2fe1";
+    private static final String HEX_LOOKING_PASSPHRASE =
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
     private AuthorGramPassphraseKdfSelfTest() {
     }
@@ -24,6 +26,8 @@ public final class AuthorGramPassphraseKdfSelfTest {
         );
         byte[] compatibility = derive("ＡuthorGram", PRIVATE_SCOPE);
         byte[] normalizedCompatibility = derive("AuthorGram", PRIVATE_SCOPE);
+        byte[] hexLookingFirst = derive(HEX_LOOKING_PASSPHRASE, PRIVATE_SCOPE);
+        byte[] hexLookingSecond = derive(HEX_LOOKING_PASSPHRASE, PRIVATE_SCOPE);
 
         try {
             require(canonical.length == 32, "Derived key must be exactly 256 bits");
@@ -47,11 +51,28 @@ public final class AuthorGramPassphraseKdfSelfTest {
                     MessageDigest.isEqual(compatibility, normalizedCompatibility),
                     "NFKC-equivalent text must produce the same key"
             );
+            require(
+                    MessageDigest.isEqual(hexLookingFirst, hexLookingSecond),
+                    "A 64-character hex-looking word must derive deterministically"
+            );
+            require(
+                    !HEX_LOOKING_PASSPHRASE.equals(toHex(hexLookingFirst)),
+                    "A 64-character hex-looking word must be derived, never imported as a raw key"
+            );
             expectRejected(new char[0], "Empty passphrase must be rejected");
             expectRejected(repeatCodePoint('a', 257), "Passphrases over 256 code points must be rejected");
             System.out.println("AuthorGram passphrase KDF self-test passed");
         } finally {
-            wipe(canonical, trimmed, caseChanged, otherChat, compatibility, normalizedCompatibility);
+            wipe(
+                    canonical,
+                    trimmed,
+                    caseChanged,
+                    otherChat,
+                    compatibility,
+                    normalizedCompatibility,
+                    hexLookingFirst,
+                    hexLookingSecond
+            );
         }
     }
 
