@@ -16,7 +16,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.Utilities;
@@ -50,7 +49,7 @@ public final class AuthorGramKeyDialog {
         }
 
         boolean hasCustomKey = AuthorGramChatKeyStore.hasCustomKey(account, dialogId);
-        boolean playMarketBuild = isPlayMarketBuild();
+        boolean playMarketBuild = isPlayMarketBuild(activity);
         ArrayList<CharSequence> labels = new ArrayList<>();
         ArrayList<Integer> actions = new ArrayList<>();
 
@@ -268,8 +267,8 @@ public final class AuthorGramKeyDialog {
                 .show();
     }
 
-    private static boolean isPlayMarketBuild() {
-        return PLAY_PACKAGE.equals(BuildConfig.APPLICATION_ID);
+    private static boolean isPlayMarketBuild(Activity activity) {
+        return activity != null && PLAY_PACKAGE.equals(activity.getPackageName());
     }
 
     private static TextView createText(Activity activity, String value, int size, int color) {
