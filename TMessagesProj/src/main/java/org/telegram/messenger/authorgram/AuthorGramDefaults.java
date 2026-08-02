@@ -3,8 +3,6 @@ package org.telegram.messenger.authorgram;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import org.telegram.messenger.BuildConfig;
-
 /**
  * First-run AuthorGram defaults.
  *
@@ -21,8 +19,6 @@ public final class AuthorGramDefaults {
         if (context == null) {
             return;
         }
-
-        final boolean telegramAdBlockingEnabled = BuildConfig.TELEGRAM_AD_BLOCKING_ENABLED;
 
         applyDefaults(
                 context,
@@ -118,7 +114,7 @@ public final class AuthorGramDefaults {
                 {"hideGroupSticker", true},
                 {"TransToLang", "uk"},
                 {"rememberAllBackMessages", false},
-                {"HideProxySponsorChannel", telegramAdBlockingEnabled},
+                {"HideProxySponsorChannel", true},
                 {"HideKeyboardOnChatScroll", true},
                 {"RemoveMessageTail", true},
                 {"HidePremiumSection", true},
@@ -196,7 +192,7 @@ public final class AuthorGramDefaults {
                 {"showMessageHide", true},
                 {"SaveMediaInPrivateGroups", false},
                 {"HideTimeForSticker", true},
-                {"hideSponsoredMessage", telegramAdBlockingEnabled},
+                {"hideSponsoredMessage", true},
                 {"DrawerItemContacts", true},
                 {"SilentMessageByDefault", true},
                 {"NotificationIcon", 0},
@@ -208,14 +204,6 @@ public final class AuthorGramDefaults {
                 {"uploadBoost", false}
                 }
         );
-
-        if (!telegramAdBlockingEnabled) {
-            context.getSharedPreferences("nkmrcfg", Context.MODE_PRIVATE)
-                    .edit()
-                    .putBoolean("HideProxySponsorChannel", false)
-                    .putBoolean("hideSponsoredMessage", false)
-                    .apply();
-        }
 
         applyDefaults(
                 context,

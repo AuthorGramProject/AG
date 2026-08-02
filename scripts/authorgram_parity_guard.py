@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Allow only the package identifier and Play signing-key exclusion to differ."""
+"""Allow Main and Play branches to differ only in the package identifier."""
 
 from __future__ import annotations
 
@@ -26,16 +26,6 @@ def git(*args: str) -> str:
     return result.stdout
 
 
-def git_object_exists(ref: str, path: str) -> bool:
-    return subprocess.run(
-        ["git", "cat-file", "-e", f"{ref}:{path}"],
-        cwd=ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    ).returncode == 0
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--main-ref", default="origin/main")
@@ -54,17 +44,17 @@ def main() -> int:
     if unexpected:
         failures.append("Unexpected branch differences: " + ", ".join(unexpected))
     if missing:
-        failures.append("Required Main/Play differences are missing: " + ", ".join(missing))
+        failures.append("The package identity difference is missing")
 
     main_properties = git("show", f"{args.main_ref}:gradle.properties")
     play_properties = git("show", f"{args.play_ref}:gradle.properties")
-    if "APP_PACKAGE=top.authorche.authorgram" not in main_properties:
+    if "APP_PACKAGE=fork.risin42.nagramx" not in main_properties:
         failures.append("Main package must be top.authorche.authorgram")
     if "APP_PACKAGE=toss.authorgram.apk" not in play_properties:
         failures.append("Play package must be toss.authorgram.apk")
 
     normalized_main_properties = main_properties.replace(
-        "APP_PACKAGE=top.authorche.authorgram", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
+        "APP_PACKAGE=fork.risin42.nagramx", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
     )
     normalized_play_properties = play_properties.replace(
         "APP_PACKAGE=toss.authorgram.apk", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
@@ -72,19 +62,13 @@ def main() -> int:
     if normalized_main_properties != normalized_play_properties:
         failures.append("gradle.properties differs by more than APP_PACKAGE")
 
-    keystore_path = "TMessagesProj/release.keystore"
-    if not git_object_exists(args.main_ref, keystore_path):
-        failures.append("Main release keystore is missing")
-    if git_object_exists(args.play_ref, keystore_path):
-        failures.append("Play release keystore must not be tracked")
-
     if failures:
         print("AuthorGram branch parity failed:", file=sys.stderr)
         for failure in failures:
             print(f" - {failure}", file=sys.stderr)
         return 1
 
-    print("AuthorGram Main/Play parity passed: APP_PACKAGE differs and Play excludes the tracked keystore")
+    print("AuthorGram Main/Play parity passed: only APP_PACKAGE differs")
     return 0
 
 

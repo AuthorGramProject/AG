@@ -260,7 +260,7 @@ android {
 androidComponents {
     onVariants(selector().all()) { variant ->
         variant.outputs.forEach { output ->
-            String gramName = 'AuthorGram-Play'
+            String gramName = 'AuthorGram-Main'
             String first = String.format('%s-v%s(%s)', gramName, verName, verCode)
             output.outputFileName.set(
                 output.outputFileName.get()

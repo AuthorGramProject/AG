@@ -182,6 +182,15 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
     }
 
     public TLRPC.InputReplyTo createReplyInput(TLRPC.InputPeer sendToPeer, int replyToMsgId, int topMessageId, ChatActivity.ReplyQuote replyQuote) {
+        /* AuthorGram encrypted messages always use a normal reply without a plaintext quote. */
+        if (replyQuote != null
+                && replyQuote.message != null
+                && org.telegram.messenger.authorgram.AuthorGramMessageMeta.isKnownEncrypted(
+                        currentAccount,
+                        replyQuote.message
+                )) {
+            replyQuote = null;
+        }
         TLRPC.TL_inputReplyToMessage replyTo = new TLRPC.TL_inputReplyToMessage();
         replyTo.reply_to_msg_id = replyToMsgId;
         if (topMessageId != 0) {

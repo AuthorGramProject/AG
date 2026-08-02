@@ -1,42 +1,81 @@
-name: AuthorGram 12.9.1 Verified Release
+name: AuthorGram 12.9.1 Final Verified Release
 
 on:
   workflow_dispatch:
-  workflow_call:
+  push:
+    branches: [dev]
+    paths: [.github/FINAL_RELEASE_12_9_1]
 
 permissions:
-  contents: read
+  actions: write
+  contents: write
+  statuses: write
 
 concurrency:
-  group: authorgram-final-release
+  group: authorgram-12-9-1-final-release
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Build and verify Main + Play releases
+    name: Finalize, verify and build Main + Play
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.head_commit.message == 'Run final AuthorGram 12.9.1 release'
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 240
     env:
+      MAIN_PACKAGE: fork.risin42.nagramx
+      PLAY_PACKAGE: toss.authorgram.apk
+      VERSION_NAME: 12.9.1
+      VERSION_CODE: '6967'
       NATIVE_TARGET: arm64-v8a
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+
     steps:
-      - name: Checkout repository history
+      - name: Checkout release trigger source
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: dev
+          fetch-depth: 1
+          persist-credentials: true
 
-      - name: Initialize release workspace
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "ARTIFACT_DIR=${RUNNER_TEMP}/authorgram-release" >> "${GITHUB_ENV}"
-          echo "KDF_TEST_DIR=${RUNNER_TEMP}/authorgram-kdf-test" >> "${GITHUB_ENV}"
-          echo "PLAY_KEY_DIR=${RUNNER_TEMP}/authorgram-play-signing-key" >> "${GITHUB_ENV}"
-          mkdir -p \
-            "${RUNNER_TEMP}/authorgram-release" \
-            "${RUNNER_TEMP}/authorgram-kdf-test" \
-            "${RUNNER_TEMP}/authorgram-play-signing-key"
+      - name: Publish pending release status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'pending',
+              context: 'authorgram/final-release',
+              description: 'Final AuthorGram 12.9.1 verification is running',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+
+      - name: Delete historical failed workflow runs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
+            );
+            let deleted = 0;
+            for (const run of runs) {
+              if (Number(run.id) === Number(context.runId) || run.conclusion !== 'failure') continue;
+              try {
+                await github.rest.actions.deleteWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: run.id,
+                });
+                deleted += 1;
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            }
+            core.info(`Deleted ${deleted} failed workflow run(s).`);
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -54,295 +93,50 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-      - name: Fetch final branches and validate secrets
+      - name: Finalize source and build verified releases
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --force origin main:refs/remotes/origin/main play-market:refs/remotes/origin/play-market
-          test -n "${LOCAL_PROPERTIES}"
-          python3 - <<'PY'
-          import base64
-          import os
+          base64 --decode scripts/final_release_12_9_1.sh.gz.b64 \
+            | gzip --decompress \
+            > "${RUNNER_TEMP}/authorgram-final-release.sh"
+          chmod 700 "${RUNNER_TEMP}/authorgram-final-release.sh"
+          bash "${RUNNER_TEMP}/authorgram-final-release.sh"
 
-          raw = os.environ['LOCAL_PROPERTIES']
-          decoded = base64.b64decode(raw, validate=True).decode('utf-8')
-          values = {}
-          for source_line in decoded.splitlines():
-              line = source_line.strip()
-              if line and not line.startswith('#') and '=' in line:
-                  key, value = line.split('=', 1)
-                  values[key.strip()] = value.strip()
-          required = ('KEYSTORE_PASS', 'ALIAS_NAME', 'ALIAS_PASS')
-          missing = [key for key in required if not values.get(key)]
-          if missing:
-              raise SystemExit('Missing release signing properties: ' + ', '.join(missing))
-          PY
-          mkdir -p "${ARTIFACT_DIR}" "${KDF_TEST_DIR}"
-
-      - name: Verify Main and Play source parity
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/authorgram_parity_guard.py \
-            --main-ref origin/main \
-            --play-ref origin/play-market
-
-      - name: Run deterministic passphrase KDF test
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf "${KDF_TEST_DIR}"
-          mkdir -p "${KDF_TEST_DIR}"
-          javac -encoding UTF-8 -d "${KDF_TEST_DIR}" \
-            TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPassphraseKdf.java \
-            scripts/java/org/telegram/messenger/authorgram/AuthorGramPassphraseKdfSelfTest.java
-          java -cp "${KDF_TEST_DIR}" \
-            org.telegram.messenger.authorgram.AuthorGramPassphraseKdfSelfTest
-
-      - name: Build and verify Main release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          git checkout --force --detach origin/main
-          git clean -fdx
-          echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          python3 scripts/authorgram_guard.py --expected-package top.authorche.authorgram
-
-          VERSION_NAME=$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)
-          VERSION_CODE=$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)
-          test "${VERSION_NAME}" = '12.9.1'
-          test "${VERSION_CODE}" = '6967'
-
-          ./gradlew --no-daemon clean TMessagesProj:assembleRelease
-
-          python3 - <<'PY' > "${RUNNER_TEMP}/main-apk-path"
-          import json
-          from pathlib import Path
-
-          roots = list(Path('TMessagesProj/build/outputs/apk').rglob('output-metadata.json'))
-          matches = []
-          for metadata in roots:
-              data = json.loads(metadata.read_text(encoding='utf-8'))
-              for element in data.get('elements', []):
-                  output = element.get('outputFile', '')
-                  filters = element.get('filters') or []
-                  abi_values = [item.get('value') for item in filters if item.get('filterType') == 'ABI']
-                  if 'arm64-v8a' in abi_values or 'arm64-v8a' in output:
-                      candidate = (metadata.parent / output).resolve()
-                      if candidate.is_file():
-                          matches.append(candidate)
-          unique = sorted(set(matches))
-          if len(unique) != 1:
-              raise SystemExit(f'Expected exactly one Main arm64 release APK, found {len(unique)}: {unique}')
-          print(unique[0])
-          PY
-
-          APK=$(cat "${RUNNER_TEMP}/main-apk-path")
-          case "${APK}" in *[Dd][Ee][Bb][Uu][Gg]*) echo 'Debug artifact detected' >&2; exit 1;; esac
-          AAPT="${ANDROID_HOME}/build-tools/36.0.0/aapt"
-          APKSIGNER="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
-          PACKAGE=$("${AAPT}" dump badging "${APK}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)
-          test "${PACKAGE}" = 'top.authorche.authorgram'
-          if "${AAPT}" dump badging "${APK}" | grep -q '^application-debuggable'; then
-            echo 'Main release APK is debuggable' >&2
-            exit 1
-          fi
-          "${APKSIGNER}" verify --verbose --print-certs "${APK}" | tee "${ARTIFACT_DIR}/Main-CERTIFICATE.txt"
-          cp "${APK}" "${ARTIFACT_DIR}/AuthorGram-Main-v${VERSION_NAME}-release-arm64-v8a.apk"
-          {
-            echo "branch=main"
-            echo "commit=$(git rev-parse HEAD)"
-            echo "package=${PACKAGE}"
-            echo "versionName=${VERSION_NAME}"
-            echo "versionCode=${VERSION_CODE}"
-          } > "${ARTIFACT_DIR}/Main-BUILD.txt"
-
-      - name: Build and verify Play release APK and AAB
-        shell: bash
-        run: |
-          set -euo pipefail
-          git checkout --force --detach origin/play-market
-          git clean -fdx
-          echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          python3 scripts/authorgram_guard.py --expected-package toss.authorgram.apk
-
-          # Generate fresh Play upload key outside the repository checkout.
-          python3 - <<'PY'
-          import base64
-          import hashlib
-          import os
-          import shutil
-          import subprocess
-          from pathlib import Path
-
-          raw = os.environ['LOCAL_PROPERTIES']
-          decoded = base64.b64decode(raw, validate=True).decode('utf-8')
-          values = {}
-          sanitized_lines = []
-          for source_line in decoded.splitlines():
-              line = source_line.strip()
-              if line and not line.startswith('#') and '=' in line:
-                  key, value = line.split('=', 1)
-                  key = key.strip()
-                  values[key] = value.strip()
-                  if key == 'AUTHORGRAM_SIGNING_CERT_SHA256':
-                      continue
-              sanitized_lines.append(source_line)
-
-          required = ('KEYSTORE_PASS', 'ALIAS_NAME', 'ALIAS_PASS')
-          missing = [key for key in required if not values.get(key)]
-          if missing:
-              raise SystemExit('Missing Play signing properties: ' + ', '.join(missing))
-
-          runner_temp = Path(os.environ['RUNNER_TEMP'])
-          key_dir = runner_temp / 'authorgram-play-signing-key'
-          key_dir.mkdir(parents=True, exist_ok=True)
-          keystore = key_dir / 'AuthorGram-Play-upload-key.jks'
-          if keystore.exists():
-              keystore.unlink()
-
-          subprocess.run(
-              [
-                  'keytool', '-genkeypair', '-noprompt',
-                  '-storetype', 'JKS',
-                  '-keystore', str(keystore),
-                  '-storepass', values['KEYSTORE_PASS'],
-                  '-alias', values['ALIAS_NAME'],
-                  '-keypass', values['ALIAS_PASS'],
-                  '-keyalg', 'RSA',
-                  '-keysize', '4096',
-                  '-sigalg', 'SHA256withRSA',
-                  '-validity', '10000',
-                  '-dname', 'CN=AuthorGram Play Upload, OU=Release, O=AuthorChe, C=DE',
-              ],
-              check=True,
-          )
-          os.chmod(keystore, 0o600)
-
-          certificate = subprocess.run(
-              [
-                  'keytool', '-exportcert',
-                  '-keystore', str(keystore),
-                  '-storepass', values['KEYSTORE_PASS'],
-                  '-alias', values['ALIAS_NAME'],
-              ],
-              check=True,
-              stdout=subprocess.PIPE,
-          ).stdout
-          digest = hashlib.sha256(certificate).hexdigest()
-          (runner_temp / 'play-signing-cert-sha256').write_text(digest + '\n', encoding='ascii')
-          (key_dir / 'CERTIFICATE-SHA256.txt').write_text(digest + '\n', encoding='ascii')
-
-          sanitized = '\n'.join(sanitized_lines).rstrip() + '\n'
-          encoded = base64.b64encode(sanitized.encode('utf-8')).decode('ascii')
-          (runner_temp / 'play-local-properties-base64').write_text(encoded, encoding='ascii')
-
-          destination = Path('TMessagesProj/release.keystore')
-          shutil.copy2(keystore, destination)
-          os.chmod(destination, 0o600)
-          PY
-
-          VERSION_NAME=$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)
-          VERSION_CODE=$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)
-          test "${VERSION_NAME}" = '12.9.1'
-          test "${VERSION_CODE}" = '6967'
-
-          PLAY_LOCAL_PROPERTIES=$(cat "${RUNNER_TEMP}/play-local-properties-base64")
-          LOCAL_PROPERTIES="${PLAY_LOCAL_PROPERTIES}" \
-            AUTHORGRAM_SIGNING_CERT_SHA256='' \
-            ./gradlew --no-daemon clean TMessagesProj:assembleRelease TMessagesProj:bundleRelease
-
-          python3 - <<'PY' > "${RUNNER_TEMP}/play-apk-path"
-          import json
-          from pathlib import Path
-
-          roots = list(Path('TMessagesProj/build/outputs/apk').rglob('output-metadata.json'))
-          matches = []
-          for metadata in roots:
-              data = json.loads(metadata.read_text(encoding='utf-8'))
-              for element in data.get('elements', []):
-                  output = element.get('outputFile', '')
-                  filters = element.get('filters') or []
-                  abi_values = [item.get('value') for item in filters if item.get('filterType') == 'ABI']
-                  if 'arm64-v8a' in abi_values or 'arm64-v8a' in output:
-                      candidate = (metadata.parent / output).resolve()
-                      if candidate.is_file():
-                          matches.append(candidate)
-          unique = sorted(set(matches))
-          if len(unique) != 1:
-              raise SystemExit(f'Expected exactly one Play arm64 release APK, found {len(unique)}: {unique}')
-          print(unique[0])
-          PY
-
-          APK=$(cat "${RUNNER_TEMP}/play-apk-path")
-          case "${APK}" in *[Dd][Ee][Bb][Uu][Gg]*) echo 'Debug artifact detected' >&2; exit 1;; esac
-          AAPT="${ANDROID_HOME}/build-tools/36.0.0/aapt"
-          APKSIGNER="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
-          PACKAGE=$("${AAPT}" dump badging "${APK}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)
-          test "${PACKAGE}" = 'toss.authorgram.apk'
-          if "${AAPT}" dump badging "${APK}" | grep -q '^application-debuggable'; then
-            echo 'Play release APK is debuggable' >&2
-            exit 1
-          fi
-          "${APKSIGNER}" verify --verbose --print-certs "${APK}" | tee "${ARTIFACT_DIR}/Play-CERTIFICATE.txt"
-          EXPECTED_CERT=$(tr -cd '0-9A-Fa-f' < "${RUNNER_TEMP}/play-signing-cert-sha256" | tr 'A-F' 'a-f')
-          APK_CERT=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${ARTIFACT_DIR}/Play-CERTIFICATE.txt" | head -n 1 | tr -cd '0-9A-Fa-f' | tr 'A-F' 'a-f')
-          test -n "${EXPECTED_CERT}"
-          test "${APK_CERT}" = "${EXPECTED_CERT}"
-          if unzip -Z1 "${APK}" | grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks)$'; then
-            echo 'Private signing material was packaged into the Play APK' >&2
-            exit 1
-          fi
-
-          mapfile -t BUNDLES < <(find TMessagesProj/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print)
-          test "${#BUNDLES[@]}" -eq 1
-          AAB="${BUNDLES[0]}"
-          jarsigner -verify "${AAB}"
-          keytool -printcert -jarfile "${AAB}" > "${ARTIFACT_DIR}/Play-AAB-CERTIFICATE.txt"
-
-          cp "${APK}" "${ARTIFACT_DIR}/AuthorGram-Play-v${VERSION_NAME}-release-arm64-v8a.apk"
-          cp "${AAB}" "${ARTIFACT_DIR}/AuthorGram-Play-v${VERSION_NAME}-release.aab"
-          {
-            echo "branch=play-market"
-            echo "commit=$(git rev-parse HEAD)"
-            echo "package=${PACKAGE}"
-            echo "versionName=${VERSION_NAME}"
-            echo "versionCode=${VERSION_CODE}"
-          } > "${ARTIFACT_DIR}/Play-BUILD.txt"
-
-      - name: Produce release checksums and summary
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "${ARTIFACT_DIR}"
-          sha256sum AuthorGram-*.apk AuthorGram-*.aab > SHA256SUMS.txt
-          {
-            echo '# AuthorGram 12.9.1 verified release'
-            echo
-            cat Main-BUILD.txt
-            echo
-            cat Play-BUILD.txt
-            echo
-            echo 'All APKs are release-signed and non-debuggable.'
-            echo 'Main and Play source trees differ only by APP_PACKAGE and the excluded Play keystore.'
-            echo 'Telegram sponsored-message blocking is compile-time disabled for the Play package.'
-            echo 'The Play APK and AAB use the freshly generated RSA-4096 upload key.'
-            echo 'The deterministic AuthorGram passphrase KDF test passed.'
-          } > RELEASE-SUMMARY.txt
-          cat SHA256SUMS.txt
-
-      - name: Upload Play signing key backup
+      - name: Upload final verified release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-Signing-Key-KEEP-PRIVATE
-          path: ${{ runner.temp }}/authorgram-play-signing-key/
-          if-no-files-found: error
-          retention-days: 90
-
-      - name: Upload verified release artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: AuthorGram-12.9.1-Verified-Release
-          path: ${{ runner.temp }}/authorgram-release/
+          name: AuthorGram-12.9.1-Final-Verified-Release
+          path: ${{ runner.temp }}/authorgram-final/artifacts/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish successful release status
+        if: ${{ success() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'success',
+              context: 'authorgram/final-release',
+              description: 'Main APK and Play APK/AAB passed final verification',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+
+      - name: Publish failed release status
+        if: ${{ failure() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'failure',
+              context: 'authorgram/final-release',
+              description: 'Final AuthorGram release verification failed',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });

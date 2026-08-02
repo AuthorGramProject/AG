@@ -3,7 +3,6 @@ package tw.nekomimi.nekogram.config;
 import android.content.SharedPreferences;
 import android.util.Base64;
 
-import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.FileLog;
 
 import java.io.ByteArrayOutputStream;
@@ -43,17 +42,10 @@ public class ConfigItem {
         return key;
     }
 
-    private boolean isTelegramAdBlockingUnavailable() {
-        if (BuildConfig.TELEGRAM_AD_BLOCKING_ENABLED) {
-            return false;
-        }
-        return "hideSponsoredMessage".equals(key) || "HideProxySponsorChannel".equals(key);
-    }
-
     // Read config
 
     public boolean Bool() {
-        return !isTelegramAdBlockingUnavailable() && (boolean) value;
+        return (boolean) value;
     }
 
     public int Int() {
@@ -86,25 +78,20 @@ public class ConfigItem {
 
 
     public void changed(Object o) {
-        value = isTelegramAdBlockingUnavailable() ? false : o;
+        value = o;
     }
 
     // Write config
     // Note: no type checking here
 
     public boolean toggleConfigBool() {
-        if (isTelegramAdBlockingUnavailable()) {
-            value = false;
-            saveConfig();
-            return false;
-        }
         value = !this.Bool();
         saveConfig();
         return this.Bool(); // return value after toggle
     }
 
     public void setConfigBool(boolean v) {
-        value = isTelegramAdBlockingUnavailable() ? false : v;
+        value = v;
         saveConfig();
     }
 
@@ -142,9 +129,6 @@ public class ConfigItem {
     public void saveConfig() {
         synchronized (NekoConfig.sync) {
             try {
-                if (isTelegramAdBlockingUnavailable()) {
-                    value = false;
-                }
                 SharedPreferences.Editor editor = NekoConfig.getPreferences().edit();
 
                 if (this.type == configTypeBool) {
@@ -185,9 +169,6 @@ public class ConfigItem {
     }
 
     public Object checkConfigFromString(String value) {
-        if (isTelegramAdBlockingUnavailable()) {
-            return false;
-        }
         try {
             return switch (type) {
                 case configTypeBool -> Boolean.parseBoolean(value);
