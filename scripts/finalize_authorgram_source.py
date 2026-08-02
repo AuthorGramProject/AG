@@ -17,7 +17,7 @@ PLAY_PACKAGE = "toss.authorgram.apk"
 MAIN_PACKAGE = "fork.risin42.nagramx"
 
 LEGACY_BRAND = re.compile(
-    r"(?<![A-Za-z0-9_])(?:NekoGram|Nekogram|Nagram|Ngram)(?:\s*X)?(?![A-Za-z0-9_])"
+    r"(?<![A-Za-z0-9_])(?:NekoGram|Nekogram|Nagram|Ngram)(?:\s*X(?:F)?)?(?![A-Za-z0-9_])"
 )
 LEGACY_MISC = re.compile(r"(?<![A-Za-z0-9_])(?:TOSS|NASAtings)(?![A-Za-z0-9_])")
 STRING_LITERAL = re.compile(r'"(?:\\.|[^"\\])*"')
@@ -175,20 +175,15 @@ def patch_encrypted_quote_reply() -> bool:
 def rebrand_xml(path: Path) -> bool:
     content = path.read_text(encoding="utf-8")
 
-    def quoted(match: re.Match[str]) -> str:
-        value = match.group(1)
-        if "://" in value:
-            return match.group(0)
-        return '"' + replace_brand(value) + '"'
-
     def text_node(match: re.Match[str]) -> str:
         value = match.group(1)
         if "://" in value:
             return match.group(0)
         return ">" + replace_brand(value) + "<"
 
-    updated = XML_QUOTED.sub(quoted, content)
-    updated = XML_TEXT.sub(text_node, updated)
+    # Attribute values include resource IDs, class names and other internal contracts.
+    # Rebrand only text nodes so the UI changes without breaking resource references.
+    updated = XML_TEXT.sub(text_node, content)
     if updated == content:
         return False
     path.write_text(updated, encoding="utf-8", newline="")
@@ -321,9 +316,6 @@ def scan_legacy_visible_brand() -> list[str]:
 
         candidates: list[str] = []
         if suffix == ".xml" and "res" in path.parts:
-            candidates.extend(
-                value for value in XML_QUOTED.findall(content) if "://" not in value
-            )
             candidates.extend(
                 value for value in XML_TEXT.findall(content) if "://" not in value
             )
