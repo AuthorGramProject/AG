@@ -143,6 +143,7 @@ mkdir -p "${ARTIFACT_DIR}" "${TEST_DIR}"
 
 log "Finalize and validate the latest dev source"
 python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
+python3 scripts/authorgram_guard.py --expected-package "${MAIN_PACKAGE}"
 git diff --check
 commit_and_push "${ROOT}" dev "[skip ci] Align dev source for final AuthorGram release"
 DEV_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
@@ -172,55 +173,9 @@ commit_and_push "${PLAY_DIR}" play-market "[skip ci] Synchronize finalized Autho
 
 log "Verify Main and Play application-source parity"
 git fetch --force origin main play-market
-python3 - "${ROOT}" <<'PY'
-import subprocess
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-changed = subprocess.run(
-    ["git", "diff", "--name-only", "origin/main", "origin/play-market"],
-    cwd=root,
-    text=True,
-    check=True,
-    stdout=subprocess.PIPE,
-).stdout.splitlines()
-allowed_exact = {"gradle.properties", "TMessagesProj/release.keystore"}
-unexpected = [
-    path for path in changed
-    if path not in allowed_exact and not path.startswith(".github/")
-]
-if unexpected:
-    raise SystemExit("Unexpected Main/Play source differences: " + ", ".join(unexpected))
-
-main_props = subprocess.run(
-    ["git", "show", "origin/main:gradle.properties"],
-    cwd=root,
-    text=True,
-    check=True,
-    stdout=subprocess.PIPE,
-).stdout
-play_props = subprocess.run(
-    ["git", "show", "origin/play-market:gradle.properties"],
-    cwd=root,
-    text=True,
-    check=True,
-    stdout=subprocess.PIPE,
-).stdout
-if "APP_PACKAGE=fork.risin42.nagramx" not in main_props:
-    raise SystemExit("Main package identity is incorrect")
-if "APP_PACKAGE=toss.authorgram.apk" not in play_props:
-    raise SystemExit("Play package identity is incorrect")
-normalized_main = main_props.replace(
-    "APP_PACKAGE=fork.risin42.nagramx", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
-)
-normalized_play = play_props.replace(
-    "APP_PACKAGE=toss.authorgram.apk", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
-)
-if normalized_main != normalized_play:
-    raise SystemExit("gradle.properties differs by more than APP_PACKAGE")
-print("Main/Play application source parity passed")
-PY
+python3 scripts/authorgram_parity_guard.py \
+  --main-ref origin/main \
+  --play-ref origin/play-market
 
 MAIN_COMMIT="$(git -C "${MAIN_DIR}" rev-parse HEAD)"
 PLAY_COMMIT="$(git -C "${PLAY_DIR}" rev-parse HEAD)"
@@ -310,7 +265,7 @@ Verified invariants:
 - The only application identity difference is APP_PACKAGE.
 - Main and Play artifact names are selected from the package in common Gradle source.
 - Encrypted-message replies cannot carry plaintext quote text or quote entities.
-- Legacy visible Nagram/Nekogram branding is rejected by source validation.
+- Legacy visible Nagram/Nekogram branding is rejected except exact legal upstream attribution.
 - Release APKs are signed, non-debuggable, minified and shrink resources.
 - Play APK and AAB use the stable existing release signing identity.
 - Signing material is not included in APK artifacts or committed to Play source.
