@@ -16,6 +16,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.Utilities;
@@ -26,8 +27,12 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-/** Telegram-style dialog management for a dialog-specific AuthorGram passphrase. */
+/** Telegram-style dialog management for a dialog-specific AuthorGram encryption word. */
 public final class AuthorGramKeyDialog {
+    private static final String PLAY_PACKAGE = "toss.authorgram.apk";
+    private static final int ACTION_SYSTEM_KEY = 0;
+    private static final int ACTION_CUSTOM_KEY = 1;
+
     private AuthorGramKeyDialog() {
     }
 
@@ -44,33 +49,37 @@ public final class AuthorGramKeyDialog {
             return;
         }
 
-        boolean hasPassphrase = AuthorGramChatKeyStore.hasCustomKey(account, dialogId);
+        boolean hasCustomKey = AuthorGramChatKeyStore.hasCustomKey(account, dialogId);
+        boolean playMarketBuild = isPlayMarketBuild();
         ArrayList<CharSequence> labels = new ArrayList<>();
         ArrayList<Integer> actions = new ArrayList<>();
 
-        labels.add(LocaleController.getString(
-                hasPassphrase
-                        ? R.string.AuthorGramChangePassphrase
-                        : R.string.AuthorGramSetPassphrase
-        ));
-        actions.add(0);
-        if (hasPassphrase) {
+        if (!playMarketBuild) {
             labels.add(LocaleController.getString(R.string.AuthorGramUseSystemKey));
-            actions.add(1);
+            actions.add(ACTION_SYSTEM_KEY);
+        }
+        labels.add(LocaleController.getString(R.string.AuthorGramSetPassphrase));
+        actions.add(ACTION_CUSTOM_KEY);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity)
+                .setTitle(LocaleController.getString(R.string.AuthorGramPassphraseSettings));
+
+        if (!playMarketBuild) {
+            builder.setMessage(LocaleController.getString(
+                    hasCustomKey
+                            ? R.string.AuthorGramPassphraseCustomActive
+                            : R.string.AuthorGramPassphraseSystemActive
+            ));
         }
 
-        new AlertDialog.Builder(activity)
-                .setTitle(LocaleController.getString(R.string.AuthorGramPassphraseSettings))
-                .setMessage(LocaleController.getString(
-                        hasPassphrase
-                                ? R.string.AuthorGramPassphraseCustomActive
-                                : R.string.AuthorGramPassphraseSystemActive
-                ))
-                .setItems(labels.toArray(new CharSequence[0]), (dialog, which) -> {
-                    if (actions.get(which) == 0) {
-                        showPassphraseEditor(activity, account, dialogId, hasPassphrase);
-                    } else {
+        builder.setItems(labels.toArray(new CharSequence[0]), (dialog, which) -> {
+                    int action = actions.get(which);
+                    if (action == ACTION_CUSTOM_KEY) {
+                        showPassphraseEditor(activity, account, dialogId);
+                    } else if (hasCustomKey) {
                         confirmSystemKey(activity, account, dialogId);
+                    } else {
+                        toast(activity, R.string.AuthorGramSystemKeyRestored, Toast.LENGTH_SHORT);
                     }
                 })
                 .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
@@ -80,8 +89,7 @@ public final class AuthorGramKeyDialog {
     private static void showPassphraseEditor(
             Activity activity,
             int account,
-            long dialogId,
-            boolean replacing
+            long dialogId
     ) {
         if (!isActivityUsable(activity)) {
             return;
@@ -154,24 +162,8 @@ public final class AuthorGramKeyDialog {
                 AndroidUtilities.dp(48)
         ));
 
-        TextView notice = createText(
-                activity,
-                LocaleController.getString(R.string.AuthorGramPassphraseCaseNotice),
-                13,
-                Theme.getColor(Theme.key_dialogTextGray2)
-        );
-        notice.setLineSpacing(AndroidUtilities.dp(1), 1.0f);
-        container.addView(notice, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-
         AlertDialog dialog = new AlertDialog.Builder(activity)
-                .setTitle(LocaleController.getString(
-                        replacing
-                                ? R.string.AuthorGramChangePassphrase
-                                : R.string.AuthorGramSetPassphrase
-                ))
+                .setTitle(LocaleController.getString(R.string.AuthorGramSetPassphrase))
                 .setView(container)
                 .setPositiveButton(LocaleController.getString(R.string.Save), (ignored, which) -> {
                     char[] passphrase = input.getText().toString().toCharArray();
@@ -274,6 +266,10 @@ public final class AuthorGramKeyDialog {
                 })
                 .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
                 .show();
+    }
+
+    private static boolean isPlayMarketBuild() {
+        return PLAY_PACKAGE.equals(BuildConfig.APPLICATION_ID);
     }
 
     private static TextView createText(Activity activity, String value, int size, int color) {
