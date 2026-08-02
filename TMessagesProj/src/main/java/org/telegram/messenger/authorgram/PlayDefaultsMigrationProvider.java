@@ -19,7 +19,7 @@ public final class PlayDefaultsMigrationProvider extends ContentProvider {
     private static final String PREFERENCES = "nkmrcfg";
     private static final String LOCAL_PREMIUM = "localPremium";
     private static final String CUSTOM_TITLE = "CustomTitle";
-    private static final String LEGACY_TITLE = "TOSS";
+    private static final String LEGACY_TITLE = "AuthorGram";
     private static final String AUTHORGRAM_TITLE = "AuthorGram";
     private static final String MIGRATION_DONE =
             "authorgram_play_defaults_migrated_v1";
