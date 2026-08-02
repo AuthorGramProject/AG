@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AuthorGramPassphraseSettings">AuthorGram chat encryption</string>
-    <string name="AuthorGramPassphraseSystemLocked">This chat always uses the AuthorGram system key. A separate chat passphrase cannot be configured here.</string>
-    <string name="AuthorGramPassphraseCustomActive">A private chat passphrase is active. Previous derived keys remain protected on this device so older messages stay readable.</string>
+    <string name="AuthorGramPassphraseSettings">AuthorGram encryption key</string>
+    <string name="AuthorGramPassphraseSystemLocked">This chat always uses the AuthorGram system key. A custom key cannot be created here.</string>
+    <string name="AuthorGramPassphraseCustomActive">A custom encryption key is active for this chat.</string>
     <string name="AuthorGramPassphraseSystemActive">This chat currently uses the AuthorGram system key.</string>
-    <string name="AuthorGramSetPassphrase">Set chat passphrase</string>
-    <string name="AuthorGramChangePassphrase">Change chat passphrase</string>
-    <string name="AuthorGramUseSystemKey">Use system key</string>
-    <string name="AuthorGramPassphraseInfo">Enter any word or phrase. AuthorGram converts it locally into a chat-specific 256-bit key. The other participant must enter exactly the same phrase in this chat.</string>
-    <string name="AuthorGramPassphraseHint">Word or secret phrase</string>
+    <string name="AuthorGramSetPassphrase">Create custom key</string>
+    <string name="AuthorGramChangePassphrase">Create custom key</string>
+    <string name="AuthorGramUseSystemKey">System key</string>
+    <string name="AuthorGramPassphraseInfo">Enter an encryption word that will be used to create the key.</string>
+    <string name="AuthorGramPassphraseHint">Encryption word</string>
     <string name="AuthorGramPassphraseCaseNotice">Uppercase, lowercase, internal spaces and symbols matter. Leading and trailing spaces are ignored.</string>
-    <string name="AuthorGramShowPassphrase">Show passphrase</string>
-    <string name="AuthorGramDerivingPassphrase">Protecting the chat key…</string>
-    <string name="AuthorGramPassphraseSaved">Chat passphrase set. The other participant must enter exactly the same phrase.</string>
-    <string name="AuthorGramPassphraseInvalid">Enter a non-empty word or phrase.</string>
-    <string name="AuthorGramPassphraseTooLong">The passphrase can contain at most 256 characters.</string>
-    <string name="AuthorGramPassphraseOperationFailed">The chat key could not be created. No message was sent and the previous key remains active.</string>
-    <string name="AuthorGramUseSystemKeyWarning">New messages will use the AuthorGram system key. The previous derived key will remain protected locally so older messages stay readable.</string>
+    <string name="AuthorGramShowPassphrase">Show encryption word</string>
+    <string name="AuthorGramDerivingPassphrase">Creating encryption key…</string>
+    <string name="AuthorGramPassphraseSaved">Custom key created. The other participant must enter the same encryption word.</string>
+    <string name="AuthorGramPassphraseInvalid">Enter an encryption word.</string>
+    <string name="AuthorGramPassphraseTooLong">The encryption word can contain at most 256 characters.</string>
+    <string name="AuthorGramPassphraseOperationFailed">The custom key could not be created. The previous key remains active.</string>
+    <string name="AuthorGramUseSystemKeyWarning">New messages will use the AuthorGram system key. The previous custom key will remain protected locally so older messages stay readable.</string>
     <string name="AuthorGramSystemKeyRestored">The AuthorGram system key is now active.</string>
 </resources>
