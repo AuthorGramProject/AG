@@ -59,39 +59,35 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const targetMessage = 'Update/telegram 12.9.0 20260718 212239';
-            const log = await exec.getExecOutput(
-              'git',
-              ['log', '--all', '--format=%H%x09%cI%x09%s'],
-              { silent: true }
-            );
-            if (log.exitCode !== 0) {
-              core.setFailed('Unable to read repository history for workflow cleanup.');
-              return;
-            }
-
-            const targetLine = log.stdout
-              .split(/\r?\n/)
-              .find(line => {
-                const columns = line.split('\t');
-                return columns.slice(2).join('\t') === targetMessage;
-              });
-            if (!targetLine) {
-              core.setFailed(`Cleanup cutoff commit was not found: ${targetMessage}`);
-              return;
-            }
-
-            const [cutoffSha, cutoffIso] = targetLine.split('\t');
-            const cutoffTime = Date.parse(cutoffIso);
-            if (!Number.isFinite(cutoffTime)) {
-              core.setFailed(`Invalid cutoff commit date for ${cutoffSha}: ${cutoffIso}`);
-              return;
-            }
-
+            const targetTitle = 'Update/telegram 12.9.0 20260718 212239';
             const runs = await github.paginate(
               github.rest.actions.listWorkflowRunsForRepo,
               { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
             );
+
+            const matchingRuns = runs
+              .filter(run => {
+                const commitMessage = run.head_commit && run.head_commit.message
+                  ? run.head_commit.message.split(/\r?\n/, 1)[0]
+                  : '';
+                return run.display_title === targetTitle
+                  || run.name === targetTitle
+                  || commitMessage === targetTitle;
+              })
+              .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
+
+            if (matchingRuns.length === 0) {
+              core.setFailed(`Cleanup cutoff workflow run was not found: ${targetTitle}`);
+              return;
+            }
+
+            const cutoffRun = matchingRuns[0];
+            const cutoffTime = Date.parse(cutoffRun.created_at);
+            if (!Number.isFinite(cutoffTime)) {
+              core.setFailed(`Invalid cutoff run date: ${cutoffRun.created_at}`);
+              return;
+            }
+
             const unsuccessful = new Set(['failure', 'cancelled']);
             let deletedBeforeCutoff = 0;
             let deletedUnsuccessful = 0;
@@ -121,7 +117,7 @@ jobs:
               }
             }
 
-            core.info(`Cleanup cutoff: ${cutoffSha} (${cutoffIso}) ${targetMessage}`);
+            core.info(`Cleanup cutoff run: ${cutoffRun.id} (${cutoffRun.created_at}) ${targetTitle}`);
             core.info(`Deleted ${deletedBeforeCutoff} run(s) at or before the cutoff.`);
             core.info(`Deleted ${deletedUnsuccessful} newer failed/cancelled run(s).`);
 
