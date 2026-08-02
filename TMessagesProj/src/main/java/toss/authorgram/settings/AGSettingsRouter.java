@@ -59,9 +59,15 @@ public class AGSettingsRouter {
                 case "a":
                     fragment = agxFragment = new AGAppearanceSettingsActivity();
                     break;
+                case "spy":
+                    if (!isPrivateMainBuild()) {
+                        unknown.run();
+                        return;
+                    }
+                    fragment = agxFragment = new AGSpySettingsActivity();
+                    break;
                 case "privacy":
                 case "security":
-                case "spy":
                 case "p":
                     if (!isPrivateMainBuild()) {
                         unknown.run();
@@ -142,6 +148,7 @@ public class AGSettingsRouter {
         fragments.add(new AGGeneralSettingsActivity());
         fragments.add(new AGAppearanceSettingsActivity());
         if (isPrivateMainBuild()) {
+            fragments.add(new AGSpySettingsActivity());
             fragments.add(new AGPrivacySettingsActivity());
         }
         fragments.add(new AGChatSettingsActivity());
