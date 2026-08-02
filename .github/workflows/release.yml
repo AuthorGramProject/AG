@@ -102,10 +102,18 @@ jobs:
         run: |
           set -euo pipefail
           bash -n scripts/final_release_12_9_1.sh
-          python3 -m py_compile \
-            scripts/finalize_authorgram_source.py \
-            scripts/authorgram_guard.py \
-            scripts/authorgram_parity_guard.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          for relative in (
+              'scripts/finalize_authorgram_source.py',
+              'scripts/authorgram_guard.py',
+              'scripts/authorgram_parity_guard.py',
+          ):
+              source = Path(relative).read_text(encoding='utf-8')
+              compile(source, relative, 'exec')
+              print(f'Python syntax passed: {relative}')
+          PY
 
       - name: Finalize sources and build verified release artifacts
         shell: bash
