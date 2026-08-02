@@ -5836,7 +5836,7 @@ public class NotificationsController extends BaseController implements Notificat
 
     public static Person.Builder loadRoundAvatar(long dialogId, File avatar, Person.Builder personBuilder) {
         if (dialogId == UserObject.OAUTH) {
-            personBuilder.setIcon(IconCompat.createWithResource(ApplicationLoader.applicationContext, R.drawable.ic_launcher_toss_dark_blue_foreground));
+            personBuilder.setIcon(IconCompat.createWithResource(ApplicationLoader.applicationContext, R.drawable.ic_launcher_authorgram_foreground));
             return personBuilder;
         }
         if (avatar != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

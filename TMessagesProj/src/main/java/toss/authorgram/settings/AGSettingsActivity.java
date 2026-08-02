@@ -65,9 +65,11 @@ import tw.nekomimi.nekogram.utils.AlertUtil;
 public class AGSettingsActivity extends BaseAGSettingsActivity {
 
     private static final int MENU_SEARCH = 1;
+    private static final String PLAY_PACKAGE = "toss.authorgram.apk";
 
     private int generalRow;
     private int appearanceRow;
+    private int spyRow;
     private int translatorRow;
     private int chatRow;
     private int passcodeRow;
@@ -89,6 +91,11 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
 
         generalRow = addRow();
         appearanceRow = addRow();
+        if (isPrivateMainBuild()) {
+            spyRow = addRow();
+        } else {
+            spyRow = -1;
+        }
         translatorRow = addRow();
         chatRow = addRow();
         if (!PasscodeHelper.isSettingsHidden()) {
@@ -319,6 +326,11 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
         }
     }
 
+    private boolean isPrivateMainBuild() {
+        return ApplicationLoader.applicationContext == null
+                || !PLAY_PACKAGE.equals(ApplicationLoader.applicationContext.getPackageName());
+    }
+
     @Override
     protected String getActionBarTitle() {
         return getString(R.string.AGSettings);
@@ -333,6 +345,8 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
             presentFragment(new AGGeneralSettingsActivity());
         } else if (position == appearanceRow) {
             presentFragment(new AGAppearanceSettingsActivity());
+        } else if (position == spyRow) {
+            presentFragment(new AGPrivacySettingsActivity());
         } else if (position == passcodeRow) {
             presentFragment(new AGPasscodeSettingsActivity());
         } else if (position == experimentRow) {
@@ -398,6 +412,8 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                         textCell.setTextAndIcon(getString(R.string.General), R.drawable.msg_media, true);
                     } else if (position == appearanceRow) {
                         textCell.setTextAndIcon(getString(R.string.Appearance), R.drawable.msg_theme, true);
+                    } else if (position == spyRow) {
+                        textCell.setTextAndIcon(getString(R.string.AuthorGramSpy), R.drawable.msg_secret, true);
                     } else if (position == translatorRow) {
                         textCell.setTextAndIcon(getString(R.string.TranslatorSettings), R.drawable.ic_translate, true);
                     } else if (position == passcodeRow) {
@@ -425,7 +441,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
         public int getItemViewType(int position) {
             if (position == categoriesEndRow || position == agSettingsEndRow) {
                 return TYPE_SHADOW;
-            } else if (position == chatRow || position == generalRow || position == appearanceRow || position == passcodeRow || position == experimentRow || position == translatorRow ||
+            } else if (position == chatRow || position == generalRow || position == appearanceRow || position == spyRow || position == passcodeRow || position == experimentRow || position == translatorRow ||
                     position == importSettingsRow || position == exportSettingsRow || position == resetSettingsRow || position == appRestartRow ||
                     position == aboutRow) {
                 return TYPE_TEXT;
