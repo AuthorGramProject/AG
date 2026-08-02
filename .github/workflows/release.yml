@@ -97,12 +97,15 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-      - name: Validate release controller script
+      - name: Validate release controller scripts
         shell: bash
         run: |
           set -euo pipefail
           bash -n scripts/final_release_12_9_1.sh
-          python3 -m py_compile scripts/finalize_authorgram_source.py
+          python3 -m py_compile \
+            scripts/finalize_authorgram_source.py \
+            scripts/authorgram_guard.py \
+            scripts/authorgram_parity_guard.py
 
       - name: Finalize sources and build verified release artifacts
         shell: bash
