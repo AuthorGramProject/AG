@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: authorgram-12-9-1-final-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   release:
@@ -29,6 +29,7 @@ jobs:
       VERSION_NAME: 12.9.1
       VERSION_CODE: '6967'
       NATIVE_TARGET: arm64-v8a
+      PYTHONDONTWRITEBYTECODE: '1'
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
 
