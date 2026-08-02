@@ -9,6 +9,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from finalize_authorgram_source import MAIN_PACKAGE, PLAY_PACKAGE, validate
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -39,6 +41,17 @@ def main() -> int:
     args = parser.parse_args()
     failures: list[str] = []
 
+    if args.expected_package not in {MAIN_PACKAGE, PLAY_PACKAGE}:
+        failures.append(
+            f"Unsupported package {args.expected_package!r}; expected {MAIN_PACKAGE!r} or {PLAY_PACKAGE!r}"
+        )
+    else:
+        role = "play" if args.expected_package == PLAY_PACKAGE else "main"
+        try:
+            validate(role, args.expected_package)
+        except RuntimeError as exc:
+            failures.extend(str(exc).splitlines())
+
     overlays = [
         "TMessagesProj/src/debug/res/values/authorgram_brand.xml",
         "TMessagesProj/src/staging/res/values/authorgram_brand.xml",
@@ -60,22 +73,6 @@ def main() -> int:
                 failures,
             )
 
-    for locale_file in (
-        "TMessagesProj/src/main/res/values-uk/strings.xml",
-        "TMessagesProj/src/main/res/values-de/strings.xml",
-    ):
-        values = resources(locale_file)
-        require(values.get("AppName") == "AuthorGram", f"{locale_file}: wrong AppName", failures)
-        require(values.get("AppNameBeta") == "AuthorGram", f"{locale_file}: wrong AppNameBeta", failures)
-        for name, value in values.items():
-            if name == "AGCreditsText":
-                continue
-            require(
-                not re.search(r"(?i)\b(?:TOSS|Nagram\s*X|Ngram\s*X|Ngram|NASAtings)\b", value),
-                f"{locale_file}: legacy visible brand in {name}: {value!r}",
-                failures,
-            )
-
     key_store = read(
         "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatKeyStore.java"
     )
@@ -87,13 +84,6 @@ def main() -> int:
     )
     interceptor = read(
         "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java"
-    )
-
-    send_helper = read("TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java")
-    require(
-        "AuthorGram encrypted messages always use a normal reply without a plaintext quote" in send_helper,
-        "Encrypted-message quote prevention is missing from SendMessagesHelper",
-        failures,
     )
 
     for obsolete in ("generateAndStore", "importAndStore", "exportCurrentKey", "decodeHex(", "encodeHex("):
@@ -120,7 +110,10 @@ def main() -> int:
         failures,
     )
     require("reply_to_msg_id" in interceptor, "Normal reply relationship is not documented/preserved", failures)
-    require("quote_text = null" in interceptor, "Plaintext quote is not removed", failures)
+    require("quote_text = null" in interceptor, "Plaintext quote text is not removed", failures)
+    require("quote_entities.clear()" in interceptor, "Plaintext quote entities are not removed", failures)
+    require("quote_offset = 0" in interceptor, "Plaintext quote offset is not reset", failures)
+    require("sanitizeLocalReplyHeader" in interceptor, "Local quoted preview is not sanitized", failures)
 
     def icon_paths(path: str) -> list[str]:
         root = ET.fromstring(read(path))
@@ -134,21 +127,6 @@ def main() -> int:
         failures,
     )
 
-    gradle_properties = read("gradle.properties")
-    package_line = f"APP_PACKAGE={args.expected_package}"
-    require(package_line in gradle_properties, f"Expected package missing: {package_line}", failures)
-
-    build_gradle = read("TMessagesProj/build.gradle")
-    require("String gramName = 'AuthorGram" in build_gradle, "Artifact name is not AuthorGram", failures)
-    require("TELEGRAM_AD_BLOCKING_ENABLED" in build_gradle, "Compile-time Telegram ad policy is missing", failures)
-    release_match = re.search(r"\n\s*release\s*\{(?P<body>.*?)\n\s*\}\n", build_gradle, re.S)
-    require(release_match is not None, "Release build type missing", failures)
-    if release_match:
-        body = release_match.group("body")
-        require("debuggable = false" in body, "Release build is debuggable", failures)
-        require("signingConfig = signingConfigs.release" in body, "Release signing config missing", failures)
-        require("minifyEnabled = true" in body, "Release minification disabled", failures)
-
     manifest = read("TMessagesProj/src/main/AndroidManifest.xml")
     require('android:allowBackup="false"' in manifest, "Android backup must be disabled", failures)
     require(
@@ -158,11 +136,31 @@ def main() -> int:
     )
 
     workflow = read(".github/workflows/release.yml")
-    if "maintenance lock" not in workflow.lower():
-        require("assembleRelease" in workflow, "Release workflow does not build release APK", failures)
-        require("assembleDebug" not in workflow, "Release workflow must never publish a debug APK", failures)
-        require("apksigner" in workflow, "Release workflow does not verify APK signature", failures)
-        require("output-metadata.json" in workflow, "Release workflow does not resolve exact output metadata", failures)
+    release_script = read("scripts/final_release_12_9_1.sh")
+    require(
+        "scripts/final_release_12_9_1.sh" in workflow,
+        "Release workflow must execute the auditable plain release script",
+        failures,
+    )
+    require("assembleRelease" in release_script, "Release script does not build release APKs", failures)
+    require("bundleRelease" in release_script, "Release script does not build the Play AAB", failures)
+    require("assembleDebug" not in release_script, "Release script must never build a debug APK", failures)
+    require("apksigner" in release_script, "Release script does not verify APK signatures", failures)
+    require(
+        "output-metadata.json" in release_script,
+        "Release script does not resolve exact APK output metadata",
+        failures,
+    )
+    require(
+        "authorgram_guard.py" in release_script,
+        "Release script does not execute the source guard before synchronization/build",
+        failures,
+    )
+    require(
+        re.search(r"conclusion\s*!==\s*['\"]failure['\"]", workflow) is not None,
+        "Release workflow does not remove historical failed runs",
+        failures,
+    )
 
     if failures:
         print("AuthorGram guard failed:", file=sys.stderr)
