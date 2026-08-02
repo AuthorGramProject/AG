@@ -3,4 +3,4 @@ Use the user-provided circular AuthorGram launcher artwork in Main and Play Mark
 Restore the complete private Main Spy page, including Local Premium and sponsored-message controls.
 Build exactly two signed release APKs: Main and Play Market. Do not build or upload AAB.
 Delete workflow runs at or before the Actions run titled: Update/telegram 12.9.0 20260718 212239.
-Static two-APK controller revision: 2026-08-02T23:20+02:00.
+Static two-APK controller revision: 2026-08-02T23:25+02:00.
