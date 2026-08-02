@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AuthorGramPassphraseSettings">AuthorGram-Chatverschlüsselung</string>
-    <string name="AuthorGramPassphraseSystemLocked">Dieser Chat verwendet immer den AuthorGram-Systemschlüssel. Eine eigene Chat-Passphrase kann hier nicht eingerichtet werden.</string>
-    <string name="AuthorGramPassphraseCustomActive">Für diesen Chat ist eine eigene Passphrase aktiv. Frühere abgeleitete Schlüssel bleiben auf diesem Gerät geschützt gespeichert, damit ältere Nachrichten lesbar bleiben.</string>
+    <string name="AuthorGramPassphraseSettings">AuthorGram-Verschlüsselungsschlüssel</string>
+    <string name="AuthorGramPassphraseSystemLocked">Dieser Chat verwendet immer den AuthorGram-Systemschlüssel. Ein eigener Schlüssel kann hier nicht erstellt werden.</string>
+    <string name="AuthorGramPassphraseCustomActive">Für diesen Chat ist ein eigener Verschlüsselungsschlüssel aktiv.</string>
     <string name="AuthorGramPassphraseSystemActive">Dieser Chat verwendet derzeit den AuthorGram-Systemschlüssel.</string>
-    <string name="AuthorGramSetPassphrase">Chat-Passphrase festlegen</string>
-    <string name="AuthorGramChangePassphrase">Chat-Passphrase ändern</string>
-    <string name="AuthorGramUseSystemKey">Systemschlüssel verwenden</string>
-    <string name="AuthorGramPassphraseInfo">Gib ein beliebiges Wort oder eine Phrase ein. AuthorGram wandelt sie lokal in einen chatspezifischen 256-Bit-Schlüssel um. Die andere Person muss in diesem Chat exakt dieselbe Phrase eingeben.</string>
-    <string name="AuthorGramPassphraseHint">Wort oder geheime Phrase</string>
+    <string name="AuthorGramSetPassphrase">Eigenen Schlüssel erstellen</string>
+    <string name="AuthorGramChangePassphrase">Eigenen Schlüssel erstellen</string>
+    <string name="AuthorGramUseSystemKey">Systemschlüssel</string>
+    <string name="AuthorGramPassphraseInfo">Gib ein Verschlüsselungswort ein, auf dessen Grundlage der Schlüssel erstellt wird.</string>
+    <string name="AuthorGramPassphraseHint">Verschlüsselungswort</string>
     <string name="AuthorGramPassphraseCaseNotice">Groß-/Kleinschreibung, innere Leerzeichen und Sonderzeichen sind relevant. Leerzeichen am Anfang und Ende werden ignoriert.</string>
-    <string name="AuthorGramShowPassphrase">Passphrase anzeigen</string>
-    <string name="AuthorGramDerivingPassphrase">Chatschlüssel wird geschützt…</string>
-    <string name="AuthorGramPassphraseSaved">Die Chat-Passphrase wurde festgelegt. Die andere Person muss exakt dieselbe Phrase eingeben.</string>
-    <string name="AuthorGramPassphraseInvalid">Gib ein nicht leeres Wort oder eine Phrase ein.</string>
-    <string name="AuthorGramPassphraseTooLong">Die Passphrase darf höchstens 256 Zeichen enthalten.</string>
-    <string name="AuthorGramPassphraseOperationFailed">Der Chatschlüssel konnte nicht erstellt werden. Es wurde keine Nachricht gesendet und der vorherige Schlüssel bleibt aktiv.</string>
-    <string name="AuthorGramUseSystemKeyWarning">Neue Nachrichten verwenden den AuthorGram-Systemschlüssel. Der vorherige abgeleitete Schlüssel bleibt lokal geschützt gespeichert, damit ältere Nachrichten lesbar bleiben.</string>
+    <string name="AuthorGramShowPassphrase">Verschlüsselungswort anzeigen</string>
+    <string name="AuthorGramDerivingPassphrase">Verschlüsselungsschlüssel wird erstellt…</string>
+    <string name="AuthorGramPassphraseSaved">Der eigene Schlüssel wurde erstellt. Die andere Person muss dasselbe Verschlüsselungswort eingeben.</string>
+    <string name="AuthorGramPassphraseInvalid">Gib ein Verschlüsselungswort ein.</string>
+    <string name="AuthorGramPassphraseTooLong">Das Verschlüsselungswort darf höchstens 256 Zeichen enthalten.</string>
+    <string name="AuthorGramPassphraseOperationFailed">Der eigene Schlüssel konnte nicht erstellt werden. Der vorherige Schlüssel bleibt aktiv.</string>
+    <string name="AuthorGramUseSystemKeyWarning">Neue Nachrichten verwenden den AuthorGram-Systemschlüssel. Der vorherige eigene Schlüssel bleibt lokal geschützt gespeichert, damit ältere Nachrichten lesbar bleiben.</string>
     <string name="AuthorGramSystemKeyRestored">Der AuthorGram-Systemschlüssel ist jetzt aktiv.</string>
 </resources>
