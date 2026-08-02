@@ -5,6 +5,8 @@
 *.aar
 *.so
 *.iml
+*.py[cod]
+__pycache__/
 **/.DS_Store
 build/
 obj/

@@ -18,11 +18,28 @@ LEGACY_BRAND = re.compile(
 LEGACY_MISC = re.compile(r"(?<![A-Za-z0-9_])(?:TOSS|NASAtings)(?![A-Za-z0-9_])")
 STRING_LITERAL = re.compile(r'"(?:\\.|[^"\\])*"')
 XML_TEXT = re.compile(r">([^<]+)<")
+LEGAL_CREDIT_ELEMENT = re.compile(
+    r'(<string\s+name="AGCreditsText">)(.*?)(</string>)',
+    re.DOTALL,
+)
 INTERNAL_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+")
 DYNAMIC_ARTIFACT_LINE = (
     "            String gramName = APP_PACKAGE == 'toss.authorgram.apk' "
     "? 'AuthorGram-Play' : 'AuthorGram-Main'"
 )
+LEGAL_CREDITS = {
+    "TMessagesProj/src/main/res/values-de/strings.xml": (
+        "AuthorGram basiert auf Telegram for Android und enthält GPL-kompatible Beiträge "
+        "aus Cherrygram, Nagram und Nekogram. Diese Namen werden ausschließlich zur "
+        "korrekten rechtlichen Zuordnung des offenen Quellcodes genannt."
+    ),
+    "TMessagesProj/src/main/res/values-uk/strings.xml": (
+        "AuthorGram базується на Telegram for Android і містить GPL-сумісні напрацювання "
+        "Cherrygram, Nagram та Nekogram. Назви згадано лише для належного юридичного "
+        "зазначення походження відкритого коду."
+    ),
+}
+LEGAL_CREDIT_VALUES = frozenset(LEGAL_CREDITS.values())
 
 
 def read(relative: str) -> str:
@@ -134,17 +151,37 @@ def source_roots() -> list[Path]:
     return roots
 
 
+def restore_legal_credit(path: Path, content: str) -> str:
+    relative = path.relative_to(ROOT).as_posix()
+    expected = LEGAL_CREDITS.get(relative)
+    if expected is None:
+        return content
+    updated, count = LEGAL_CREDIT_ELEMENT.subn(
+        lambda match: match.group(1) + expected + match.group(3),
+        content,
+        count=1,
+    )
+    if count != 1:
+        raise RuntimeError(f"Unable to locate AGCreditsText in {relative}")
+    return updated
+
+
 def rebrand_xml(path: Path) -> bool:
-    content = path.read_text(encoding="utf-8")
+    content = restore_legal_credit(path, path.read_text(encoding="utf-8"))
 
     def replace_node(match: re.Match[str]) -> str:
         value = match.group(1)
-        if "://" in value or INTERNAL_IDENTIFIER.fullmatch(value.strip()):
+        if (
+            value in LEGAL_CREDIT_VALUES
+            or "://" in value
+            or INTERNAL_IDENTIFIER.fullmatch(value.strip())
+        ):
             return match.group(0)
         return ">" + replace_brand(value) + "<"
 
     updated = XML_TEXT.sub(replace_node, content)
-    if updated == content:
+    previous = path.read_text(encoding="utf-8")
+    if updated == previous:
         return False
     path.write_text(updated, encoding="utf-8", newline="")
     return True
@@ -201,7 +238,9 @@ def visible_legacy_hits() -> list[str]:
                 continue
             candidates: list[str] = []
             if path.suffix.lower() == ".xml" and "res" in path.parts:
-                candidates.extend(XML_TEXT.findall(content))
+                candidates.extend(
+                    value for value in XML_TEXT.findall(content) if value not in LEGAL_CREDIT_VALUES
+                )
             elif path.suffix.lower() in {".java", ".kt", ".kts"}:
                 for token in STRING_LITERAL.findall(content):
                     value = token[1:-1]
@@ -236,6 +275,16 @@ def build_type_release_body(build_gradle: str) -> str | None:
     if release_end < 0:
         return None
     return build_gradle[body_start:release_end]
+
+
+def validate_legal_credits(failures: list[str]) -> None:
+    for relative, expected in LEGAL_CREDITS.items():
+        content = read(relative)
+        match = LEGAL_CREDIT_ELEMENT.search(content)
+        if match is None:
+            failures.append(f"{relative}: AGCreditsText is missing")
+        elif match.group(2) != expected:
+            failures.append(f"{relative}: legal upstream attribution was modified")
 
 
 def validate(role: str, package_id: str) -> None:
@@ -284,6 +333,7 @@ def validate(role: str, package_id: str) -> None:
         if forbidden in key_dialog:
             failures.append(f"Obsolete raw-key UI remains: {forbidden}")
 
+    validate_legal_credits(failures)
     failures.extend("Visible legacy brand remains in " + hit for hit in visible_legacy_hits())
 
     if role == "play" and (ROOT / "TMessagesProj/release.keystore").exists():
