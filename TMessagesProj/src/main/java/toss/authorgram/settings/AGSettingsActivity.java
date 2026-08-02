@@ -346,7 +346,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
         } else if (position == appearanceRow) {
             presentFragment(new AGAppearanceSettingsActivity());
         } else if (position == spyRow) {
-            presentFragment(new AGPrivacySettingsActivity());
+            presentFragment(new AGSpySettingsActivity());
         } else if (position == passcodeRow) {
             presentFragment(new AGPasscodeSettingsActivity());
         } else if (position == experimentRow) {
