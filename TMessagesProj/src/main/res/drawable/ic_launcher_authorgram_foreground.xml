@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Telegram paper-plane silhouette, placed behind the AuthorChe A. -->
+    <path
+        android:fillColor="#35A9E8"
+        android:fillType="evenOdd"
+        android:pathData="M42,53L86,33C89,31.7 91.3,34.1 90.5,37.3L81.4,77.1C80.7,80.2 77.8,81.2 75.5,78.8L65.2,68.2L57.1,75.1C54.9,77 51.7,75.4 51.9,72.4L52.7,62.2L43.1,58.3C39.8,56.9 39.4,54.2 42,53ZM57.6,62.9L77.7,45.1L64.5,67.2Z" />
+    <!-- AuthorChe A derived from the supplied logo, kept bold inside adaptive-icon safe bounds. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M54,21L27.5,85H40.5L46.1,68.7H62.2L68,85H81L56.4,21ZM54.2,39.7L49.3,58.7H59.2Z" />
+    <path
+        android:fillColor="#D69B38"
+        android:pathData="M43.7,64H64.9L67.2,70H41.2Z" />
+</vector>

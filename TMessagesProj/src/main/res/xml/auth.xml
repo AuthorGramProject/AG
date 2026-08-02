@@ -2,7 +2,7 @@
 
 <account-authenticator xmlns:android="http://schemas.android.com/apk/res/android"
     android:accountType="toss.authorgram.apk"
-    android:icon="@mipmap/ic_launcher_toss_dark_blue_round"
-    android:smallIcon="@mipmap/ic_launcher_toss_dark_blue_round"
+    android:icon="@mipmap/ic_launcher_authorgram_round"
+    android:smallIcon="@mipmap/ic_launcher_authorgram_round"
     android:label="@string/AppName"
     android:accountPreferences="@xml/auth_menu"/>

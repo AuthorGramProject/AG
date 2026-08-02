@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ContactsAccountType xmlns:android="http://schemas.android.com/apk/res/android">
-    <ContactsDataKind android:icon="@mipmap/ic_launcher_toss_dark_blue"
+    <ContactsDataKind android:icon="@mipmap/ic_launcher_authorgram"
         android:mimeType="vnd.android.cursor.item/vnd.toss.authorgram.apk.android.profile"
         android:summaryColumn="data2"
         android:detailColumn="data3"
         android:detailSocialSummary="true"/>
-    <ContactsDataKind android:icon="@mipmap/ic_launcher_toss_dark_blue"
+    <ContactsDataKind android:icon="@mipmap/ic_launcher_authorgram"
         android:mimeType="vnd.android.cursor.item/vnd.toss.authorgram.apk.android.call"
         android:summaryColumn="data2"
         android:detailColumn="data3"
         android:detailSocialSummary="true"/>
-    <ContactsDataKind android:icon="@mipmap/ic_launcher_toss_dark_blue"
+    <ContactsDataKind android:icon="@mipmap/ic_launcher_authorgram"
         android:mimeType="vnd.android.cursor.item/vnd.toss.authorgram.apk.android.call.video"
         android:summaryColumn="data2"
         android:detailColumn="data3"

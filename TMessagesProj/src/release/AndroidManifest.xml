@@ -3,8 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
-        android:icon="@mipmap/ic_launcher_toss_dark_blue"
-        android:roundIcon="@mipmap/ic_launcher_toss_dark_blue_round"
+        android:icon="@mipmap/ic_launcher_authorgram"
+        android:roundIcon="@mipmap/ic_launcher_authorgram_round"
         android:label="@string/AppName"
         tools:replace="android:icon,android:roundIcon,android:label">
 
