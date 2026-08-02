@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that Main and Play differ only in package, artifact label, and tracked keystore."""
+"""Verify that Main and Play application sources differ only by package and keystore."""
 
 from __future__ import annotations
 
@@ -9,11 +9,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED_DIFFERENCES = {
+ALLOWED_EXACT = {
     "gradle.properties",
-    "TMessagesProj/build.gradle",
     "TMessagesProj/release.keystore",
 }
+DYNAMIC_ARTIFACT_LINE = (
+    "String gramName = APP_PACKAGE == 'toss.authorgram.apk' "
+    "? 'AuthorGram-Play' : 'AuthorGram-Main'"
+)
 
 
 def git(*args: str) -> str:
@@ -41,14 +44,15 @@ def main() -> int:
         for line in git("diff", "--name-only", args.main_ref, args.play_ref).splitlines()
         if line.strip()
     }
-    unexpected = sorted(changed - ALLOWED_DIFFERENCES)
-    missing = sorted(ALLOWED_DIFFERENCES - changed)
+    application_changes = {path for path in changed if not path.startswith(".github/")}
+    unexpected = sorted(application_changes - ALLOWED_EXACT)
+    missing = sorted(ALLOWED_EXACT - application_changes)
 
     failures: list[str] = []
     if unexpected:
-        failures.append("Unexpected branch differences: " + ", ".join(unexpected))
+        failures.append("Unexpected application-source differences: " + ", ".join(unexpected))
     if missing:
-        failures.append("Expected controlled branch differences are missing: " + ", ".join(missing))
+        failures.append("Expected controlled differences are missing: " + ", ".join(missing))
 
     main_properties = git("show", f"{args.main_ref}:gradle.properties")
     play_properties = git("show", f"{args.play_ref}:gradle.properties")
@@ -57,30 +61,21 @@ def main() -> int:
     if "APP_PACKAGE=toss.authorgram.apk" not in play_properties:
         failures.append("Play package must be toss.authorgram.apk")
 
-    normalized_main_properties = main_properties.replace(
+    normalized_main = main_properties.replace(
         "APP_PACKAGE=fork.risin42.nagramx", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
     )
-    normalized_play_properties = play_properties.replace(
+    normalized_play = play_properties.replace(
         "APP_PACKAGE=toss.authorgram.apk", "APP_PACKAGE=AUTHORGRAM_PACKAGE"
     )
-    if normalized_main_properties != normalized_play_properties:
+    if normalized_main != normalized_play:
         failures.append("gradle.properties differs by more than APP_PACKAGE")
 
     main_build = git("show", f"{args.main_ref}:TMessagesProj/build.gradle")
     play_build = git("show", f"{args.play_ref}:TMessagesProj/build.gradle")
-    if "String gramName = 'AuthorGram-Main'" not in main_build:
-        failures.append("Main artifact label must be AuthorGram-Main")
-    if "String gramName = 'AuthorGram-Play'" not in play_build:
-        failures.append("Play artifact label must be AuthorGram-Play")
-
-    normalized_main_build = main_build.replace(
-        "String gramName = 'AuthorGram-Main'", "String gramName = 'AuthorGram-ROLE'"
-    )
-    normalized_play_build = play_build.replace(
-        "String gramName = 'AuthorGram-Play'", "String gramName = 'AuthorGram-ROLE'"
-    )
-    if normalized_main_build != normalized_play_build:
-        failures.append("TMessagesProj/build.gradle differs by more than the artifact label")
+    if main_build != play_build:
+        failures.append("TMessagesProj/build.gradle must be identical in Main and Play")
+    if DYNAMIC_ARTIFACT_LINE not in main_build:
+        failures.append("Common Gradle source does not select Main/Play artifact names from APP_PACKAGE")
 
     if failures:
         print("AuthorGram branch parity failed:", file=sys.stderr)
@@ -89,7 +84,7 @@ def main() -> int:
         return 1
 
     print(
-        "AuthorGram Main/Play parity passed: only package, artifact label, and keystore differ"
+        "AuthorGram Main/Play parity passed: application source is identical except APP_PACKAGE and Main keystore"
     )
     return 0
 
