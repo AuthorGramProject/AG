@@ -333,7 +333,7 @@ public class AGFiltersSettingsActivity extends BaseAGXSettingsActivity {
                         .setType(MultipartBody.FORM)
                         .addFormDataPart("content", json)
                         .addFormDataPart("syntax", "json")
-                        .addFormDataPart("title", "TOSS Filters")
+                        .addFormDataPart("title", "AuthorGram Filters")
                         .build())
                 .build();
         HttpClient.INSTANCE.getInstance().newCall(request).enqueue(new Callback() {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Allow Main and Play branches to differ only in the package identifier."""
+"""Verify that Main and Play differ only in package, artifact label, and tracked keystore."""
 
 from __future__ import annotations
 
@@ -9,7 +9,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED_DIFFERENCES = {"gradle.properties", "TMessagesProj/release.keystore"}
+ALLOWED_DIFFERENCES = {
+    "gradle.properties",
+    "TMessagesProj/build.gradle",
+    "TMessagesProj/release.keystore",
+}
 
 
 def git(*args: str) -> str:
@@ -44,12 +48,12 @@ def main() -> int:
     if unexpected:
         failures.append("Unexpected branch differences: " + ", ".join(unexpected))
     if missing:
-        failures.append("The package identity difference is missing")
+        failures.append("Expected controlled branch differences are missing: " + ", ".join(missing))
 
     main_properties = git("show", f"{args.main_ref}:gradle.properties")
     play_properties = git("show", f"{args.play_ref}:gradle.properties")
     if "APP_PACKAGE=fork.risin42.nagramx" not in main_properties:
-        failures.append("Main package must be top.authorche.authorgram")
+        failures.append("Main package must be fork.risin42.nagramx")
     if "APP_PACKAGE=toss.authorgram.apk" not in play_properties:
         failures.append("Play package must be toss.authorgram.apk")
 
@@ -62,13 +66,31 @@ def main() -> int:
     if normalized_main_properties != normalized_play_properties:
         failures.append("gradle.properties differs by more than APP_PACKAGE")
 
+    main_build = git("show", f"{args.main_ref}:TMessagesProj/build.gradle")
+    play_build = git("show", f"{args.play_ref}:TMessagesProj/build.gradle")
+    if "String gramName = 'AuthorGram-Main'" not in main_build:
+        failures.append("Main artifact label must be AuthorGram-Main")
+    if "String gramName = 'AuthorGram-Play'" not in play_build:
+        failures.append("Play artifact label must be AuthorGram-Play")
+
+    normalized_main_build = main_build.replace(
+        "String gramName = 'AuthorGram-Main'", "String gramName = 'AuthorGram-ROLE'"
+    )
+    normalized_play_build = play_build.replace(
+        "String gramName = 'AuthorGram-Play'", "String gramName = 'AuthorGram-ROLE'"
+    )
+    if normalized_main_build != normalized_play_build:
+        failures.append("TMessagesProj/build.gradle differs by more than the artifact label")
+
     if failures:
         print("AuthorGram branch parity failed:", file=sys.stderr)
         for failure in failures:
             print(f" - {failure}", file=sys.stderr)
         return 1
 
-    print("AuthorGram Main/Play parity passed: only APP_PACKAGE differs")
+    print(
+        "AuthorGram Main/Play parity passed: only package, artifact label, and keystore differ"
+    )
     return 0
 
 
