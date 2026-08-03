@@ -61,7 +61,6 @@ import java.util.stream.Collectors;
 
 import kotlin.Unit;
 import tw.nekomimi.nekogram.NekoConfig;
-import toss.authorgram.filters.AGFiltersSettingsActivity;
 import tw.nekomimi.nekogram.config.CellGroup;
 import tw.nekomimi.nekogram.config.ConfigItem;
 import tw.nekomimi.nekogram.config.cell.AbstractConfigCell;
@@ -194,14 +193,6 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
             getString(R.string.Official),
             "AuthorGram",
     }, null));
-    private final AbstractConfigCell agFiltersRow = cellGroup.appendCell(new ConfigCellTextDetailIcon(
-            "AGRegexFilters",
-            getString(R.string.AGRegexFilters),
-            getString(R.string.AGRegexFiltersInfo),
-            R.drawable.ag_filter,
-            true,
-            () -> presentFragment(new AGFiltersSettingsActivity())
-    ));
     private final AbstractConfigCell dividerChats = cellGroup.appendCell(new ConfigCellDivider());
 
     // Double Tap
