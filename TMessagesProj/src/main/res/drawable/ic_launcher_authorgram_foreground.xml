@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:drawable="@mipmap/authorgram_launcher_artwork"
-    android:insetLeft="10dp"
-    android:insetTop="10dp"
-    android:insetRight="10dp"
-    android:insetBottom="10dp" />
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <bitmap
+            android:gravity="fill"
+            android:src="@drawable/authorgram_launcher_foreground" />
+    </item>
+</layer-list>
