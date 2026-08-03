@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
-/** Central policy boundary for the Play Market package. */
+/** AuthorGram policy boundary shared by Main and Play builds. */
 public final class AuthorGramPlayPolicy {
     public static final String PLAY_PACKAGE = "toss.authorgram.apk";
     public static final long OWNER_DIALOG_ID = 6316376597L;
@@ -77,7 +77,7 @@ public final class AuthorGramPlayPolicy {
     }
 
     public static boolean isEncryptionForbidden(long dialogId) {
-        return isPlayBuild() && isOwnerDialog(dialogId);
+        return isOwnerDialog(dialogId);
     }
 
     public static boolean canEnableEncryption(int account, long dialogId) {
@@ -89,7 +89,7 @@ public final class AuthorGramPlayPolicy {
     }
 
     public static boolean canDelete(long dialogId) {
-        return !isPlayBuild() || !isOwnerDialog(dialogId);
+        return !isOwnerDialog(dialogId);
     }
 
     public static boolean isRestrictedSettingsSection(String section) {
