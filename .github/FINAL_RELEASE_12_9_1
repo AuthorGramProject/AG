@@ -9,4 +9,4 @@ Delete every remaining historical Actions run and every obsolete workflow defini
 Build exactly two signed release APKs: Main and Play Market. Do not build or upload AAB.
 Resolve APK and external documents by their safe file extension before generic server MIME.
 Main may request user-approved APK installation; Play must omit the restricted install permission.
-Production revision: 2026-08-03T19:29:13+02:00.
+Production revision: 2026-08-03T20:01:02+02:00.
