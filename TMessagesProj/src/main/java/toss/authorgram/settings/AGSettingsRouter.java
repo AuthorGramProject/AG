@@ -23,10 +23,35 @@ import toss.authorgram.filters.AGFiltersSettingsActivity;
 public class AGSettingsRouter {
 
     private static final String PLAY_PACKAGE = "toss.authorgram.apk";
+    private static final String CANONICAL_SETTINGS_HOST = "t.me";
+    private static final String CANONICAL_SETTINGS_PREFIX = "authorgram_apk";
 
     private static boolean isPrivateMainBuild() {
         return ApplicationLoader.applicationContext == null
                 || !PLAY_PACKAGE.equals(ApplicationLoader.applicationContext.getPackageName());
+    }
+
+    private static boolean isSettingsPrefix(String prefix) {
+        return CANONICAL_SETTINGS_PREFIX.equals(prefix)
+                || "agsettings".equals(prefix)
+                || "nasettings".equals(prefix);
+    }
+
+    public static String buildDeepLink(String section, String row, String value) {
+        Uri.Builder builder = new Uri.Builder()
+                .scheme("https")
+                .authority(CANONICAL_SETTINGS_HOST)
+                .appendPath(CANONICAL_SETTINGS_PREFIX);
+        if (!TextUtils.isEmpty(section)) {
+            builder.appendPath(section);
+        }
+        if (!TextUtils.isEmpty(row)) {
+            builder.appendQueryParameter("r", row);
+        }
+        if (!TextUtils.isEmpty(value)) {
+            builder.appendQueryParameter("v", value);
+        }
+        return builder.build().toString();
     }
 
     public static void processDeepLink(Activity activity, Uri uri, Callback callback, Runnable unknown) {
@@ -35,7 +60,7 @@ public class AGSettingsRouter {
             return;
         }
         var segments = uri.getPathSegments();
-        if (segments.isEmpty() || segments.size() > 2 || !"agsettings".equals(segments.get(0))) {
+        if (segments.isEmpty() || segments.size() > 2 || !isSettingsPrefix(segments.get(0))) {
             unknown.run();
             return;
         }

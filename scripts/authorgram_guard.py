@@ -121,6 +121,18 @@ def main() -> int:
     settings_router = read(
         "TMessagesProj/src/main/java/toss/authorgram/settings/AGSettingsRouter.java"
     )
+    base_settings = read(
+        "TMessagesProj/src/main/java/toss/authorgram/settings/BaseAGSettingsActivity.java"
+    )
+    base_x_settings = read(
+        "TMessagesProj/src/main/java/toss/authorgram/settings/BaseAGXSettingsActivity.java"
+    )
+    launch_activity = read(
+        "TMessagesProj/src/main/java/org/telegram/ui/LaunchActivity.java"
+    )
+    settings_backup = read(
+        "TMessagesProj/src/main/java/tw/nekomimi/nekogram/helpers/SettingsBackupHelper.java"
+    )
     messages_controller = read(
         "TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java"
     )
@@ -212,6 +224,41 @@ def main() -> int:
             "Play settings are not centrally write-protected", failures)
     require("AuthorGramPlayPolicy.isPlayBuild()" in settings_router,
             "Play settings router restrictions missing", failures)
+    require(
+        'CANONICAL_SETTINGS_HOST = "t.me"' in settings_router
+        and 'CANONICAL_SETTINGS_PREFIX = "authorgram_apk"' in settings_router
+        and 'appendQueryParameter("r", row)' in settings_router
+        and 'appendQueryParameter("v", value)' in settings_router,
+        "Canonical AuthorGram settings-link builder is incomplete",
+        failures,
+    )
+    require(
+        '"agsettings".equals(prefix)' in settings_router
+        and '"nasettings".equals(prefix)' in settings_router,
+        "Legacy AuthorGram settings links are not backward compatible",
+        failures,
+    )
+    require(
+        "AGSettingsRouter.buildDeepLink" in base_settings
+        and base_x_settings.count("AGSettingsRouter.buildDeepLink") == 2
+        and "/nasettings/" not in base_settings
+        and "/nasettings/" not in base_x_settings,
+        "Settings copy/export links do not use the canonical AuthorGram router",
+        failures,
+    )
+    require(
+        'path.equals("authorgram_apk")' in launch_activity
+        and 'path.startsWith("authorgram_apk/")' in launch_activity
+        and "tg://t.me/authorgram_apk" in launch_activity,
+        "LaunchActivity does not redirect canonical AuthorGram settings links",
+        failures,
+    )
+    require(
+        ".authorgram-settings.json" in settings_backup
+        and ".nekox-settings.json" not in settings_backup,
+        "Full settings export filename is not AuthorGram-branded",
+        failures,
+    )
     require("blocked message deletion in the author dialog" in messages_controller,
             "Author-dialog message deletion guard missing", failures)
     require("blocked chat/history deletion in the author dialog" in messages_controller,

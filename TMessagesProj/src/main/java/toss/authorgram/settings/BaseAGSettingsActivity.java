@@ -49,7 +49,6 @@ import org.telegram.ui.Components.URLSpanNoUnderline;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Locale;
 
 import tw.nekomimi.nekogram.ui.cells.AccountCell;
 import tw.nekomimi.nekogram.ui.cells.EmojiSetCell;
@@ -135,7 +134,7 @@ public abstract class BaseAGSettingsActivity extends BaseFragment {
             var key = getKey();
             if (key != null && holder != null && listAdapter.isEnabled(holder) && rowMapReverse.containsKey(position)) {
                 showDialog(new AlertDialog.Builder(context).setItems(new CharSequence[]{getString(R.string.CopyLink)}, (dialogInterface, i) -> {
-                    AndroidUtilities.addToClipboard(String.format(Locale.getDefault(), "https://%s/nasettings/%s?r=%s", getMessagesController().linkPrefix, getKey(), rowMapReverse.get(position)));
+                    AndroidUtilities.addToClipboard(AGSettingsRouter.buildDeepLink(getKey(), rowMapReverse.get(position), null));
                     BulletinFactory.of(BaseAGSettingsActivity.this).createCopyLinkBulletin().show();
                 }).create());
                 return true;
