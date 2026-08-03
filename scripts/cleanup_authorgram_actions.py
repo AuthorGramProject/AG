@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remove obsolete Designers workflows and stale AuthorGram Actions runs."""
+"""Keep one exact 12.9.0 run and remove every other historical Actions run."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ import subprocess
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -22,10 +21,6 @@ CUTOFF_TITLE = "Update/telegram 12.9.0 20260718 212239"
 FALLBACK_CUTOFF_ISO = "2026-07-19T22:45:50Z"
 DESIGNER_PATTERN = re.compile(r"\bdesigners?\b", re.IGNORECASE)
 BRANCHES = ("dev", "main", "play-market")
-
-
-def parse_time(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
 
 
 def read_git_authorization() -> str:
@@ -180,7 +175,7 @@ def run_label(run: dict[str, Any]) -> str:
     )
 
 
-def resolve_cutoff(runs: list[dict[str, Any]]) -> tuple[datetime, str]:
+def preserve_run(runs: list[dict[str, Any]]) -> dict[str, Any]:
     matches: list[dict[str, Any]] = []
     for run in runs:
         values = (
@@ -190,69 +185,52 @@ def resolve_cutoff(runs: list[dict[str, Any]]) -> tuple[datetime, str]:
         )
         if CUTOFF_TITLE in values:
             matches.append(run)
-    if matches:
-        matches.sort(key=lambda item: parse_time(item["created_at"]), reverse=True)
-        value = matches[0]["created_at"]
-        return parse_time(value), value
-    return parse_time(FALLBACK_CUTOFF_ISO), FALLBACK_CUTOFF_ISO
+    if not matches:
+        raise RuntimeError(
+            f"Required preserved workflow run is missing: {CUTOFF_TITLE}"
+        )
+    matches.sort(
+        key=lambda item: (
+            item.get("conclusion") == "success",
+            str(item.get("created_at", "")),
+        ),
+        reverse=True,
+    )
+    return matches[0]
 
 
-def clean_runs(api: GitHubApi, current_run_id: int) -> dict[str, int]:
+def clean_runs(api: GitHubApi, current_run_id: int) -> int:
     runs = api.get_all_runs()
-    cutoff_time, cutoff_iso = resolve_cutoff(runs)
-    counts = {"historical": 0, "designer": 0, "unsuccessful": 0}
+    preserved = preserve_run(runs)
+    preserved_id = int(preserved["id"])
+    deleted = 0
 
     for run in runs:
         run_id = int(run["id"])
-        if run_id == current_run_id:
-            continue
-        historical = parse_time(run["created_at"]) <= cutoff_time
-        designer = DESIGNER_PATTERN.search(run_label(run)) is not None
-        unsuccessful = run.get("conclusion") in {"failure", "cancelled"}
-        if not historical and not designer and not unsuccessful:
+        if run_id in {current_run_id, preserved_id}:
             continue
         api.request(
             "DELETE",
             f"/repos/{api.repository}/actions/runs/{run_id}",
             expected=(204,),
         )
-        if historical:
-            counts["historical"] += 1
-        elif designer:
-            counts["designer"] += 1
-        else:
-            counts["unsuccessful"] += 1
+        deleted += 1
 
     remaining = api.get_all_runs()
-    historical_left = [
-        run
-        for run in remaining
-        if int(run["id"]) != current_run_id
-        and parse_time(run["created_at"]) <= cutoff_time
-    ]
-    designer_left = [
-        run
-        for run in remaining
-        if int(run["id"]) != current_run_id
-        and DESIGNER_PATTERN.search(run_label(run)) is not None
-    ]
-    unsuccessful_left = [
-        run
-        for run in remaining
-        if int(run["id"]) != current_run_id
-        and run.get("conclusion") in {"failure", "cancelled"}
-    ]
-    if historical_left or designer_left or unsuccessful_left:
+    remaining_ids = {int(run["id"]) for run in remaining}
+    extra_ids = remaining_ids - {current_run_id, preserved_id}
+    if preserved_id not in remaining_ids or extra_ids:
         raise RuntimeError(
             "Workflow cleanup incomplete: "
-            f"historical={len(historical_left)}, "
-            f"designers={len(designer_left)}, "
-            f"failed_or_cancelled={len(unsuccessful_left)}"
+            f"preserved_present={preserved_id in remaining_ids}, "
+            f"unexpected_run_ids={sorted(extra_ids)}"
         )
 
-    print(f"Cleanup cutoff: {cutoff_iso} — {CUTOFF_TITLE}")
-    return counts
-
+    print(
+        f"Preserved run {preserved_id}: {CUTOFF_TITLE}; "
+        f"current release run {current_run_id} remains until completion."
+    )
+    return deleted
 
 def main() -> None:
     if os.environ.get("GITHUB_ACTIONS") != "true":
@@ -265,11 +243,9 @@ def main() -> None:
 
     api = GitHubApi(repository, read_git_authorization())
     designer_files = remove_designer_workflow_files(api)
-    counts = clean_runs(api, int(current_run))
+    deleted_runs = clean_runs(api, int(current_run))
     print(f"Deleted {designer_files} Designers workflow file(s).")
-    print(f"Deleted {counts['historical']} historical run(s).")
-    print(f"Deleted {counts['designer']} newer Designers run(s).")
-    print(f"Deleted {counts['unsuccessful']} newer failed/cancelled run(s).")
+    print(f"Deleted {deleted_runs} non-preserved workflow run(s).")
 
 
 if __name__ == "__main__":
