@@ -212,10 +212,10 @@ def main() -> int:
             "Play settings are not centrally write-protected", failures)
     require("AuthorGramPlayPolicy.isPlayBuild()" in settings_router,
             "Play settings router restrictions missing", failures)
-    require("blocked message deletion in protected dialog" in messages_controller,
-            "Protected Play message deletion guard missing", failures)
-    require("blocked chat/history deletion in protected dialog" in messages_controller,
-            "Protected Play chat deletion guard missing", failures)
+    require("blocked message deletion in the author dialog" in messages_controller,
+            "Author-dialog message deletion guard missing", failures)
+    require("blocked chat/history deletion in the author dialog" in messages_controller,
+            "Author-dialog chat deletion guard missing", failures)
 
     sanitize_index = interceptor.find(
         "sanitizeReplyToEncryptedSource(account, request, messageObject)"
@@ -257,6 +257,7 @@ def main() -> int:
             "Audio playback capture must be disabled", failures)
 
     workflow = read(".github/workflows/release.yml")
+    cleanup_script = read("scripts/cleanup_authorgram_actions.py")
     release_script = read("scripts/final_release_12_9_1.sh")
     require("scripts/final_release_12_9_1.sh" in workflow,
             "Release workflow must execute the plain release script", failures)
@@ -277,10 +278,11 @@ def main() -> int:
     require("authorgram_guard.py" in release_script,
             "Release script does not execute the source guard", failures)
     require(
-        "deleteWorkflowRun" in workflow
-        and "'failure'" in workflow
-        and "'cancelled'" in workflow,
-        "Workflow does not remove failed/cancelled runs",
+        "cleanup_authorgram_actions.py" in workflow
+        and "PRESERVED_TITLE" in cleanup_script
+        and "kept_ids = {current_run_id}" in cleanup_script
+        and "actions/runs/{run_id}" in cleanup_script,
+        "Workflow does not preserve the requested run and purge all other runs",
         failures,
     )
     require(
