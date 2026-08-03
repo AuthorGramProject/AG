@@ -1,8 +1,9 @@
-AuthorGram 12.9.1 exact-icon and complete-Spy release trigger.
-Use the user-provided circular AuthorGram launcher artwork in Main and Play Market.
-Restore the complete private Main Spy page, including Local Premium and sponsored-message controls.
+AuthorGram 12.9.1 final production release trigger.
+Use the faceless anonymous AuthorGram launcher artwork in Main and Play.
+Generate square, round, adaptive, monochrome and mdpi through xxxhdpi launcher resources.
+Use one encryption menu action and one word-key dialog with resilient protected key storage.
+Hide encryption and delete/clear actions for the author dialog in both builds.
+Keep only the Actions run titled: Update/telegram 12.9.0 20260718 212239.
+Delete every other historical Actions run and obsolete Designers workflow definitions.
 Build exactly two signed release APKs: Main and Play Market. Do not build or upload AAB.
-Delete workflow runs at or before the Actions run titled: Update/telegram 12.9.0 20260718 212239.
-Remove obsolete Designers workflow definitions and runs.
-Compile-fix revision: 2026-08-03T09:36+02:00.
-Crypto and Play-policy revision: 2026-08-03T11:32+02:00.
+Production revision: 2026-08-03T14:47:48+02:00.
