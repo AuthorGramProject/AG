@@ -164,8 +164,14 @@ def main() -> int:
             "Versioned key wrapper missing", failures)
     require("getOrCreateHealthyMasterKey" in key_protector,
             "Broken Android Keystore recovery missing", failures)
-    require("success = AuthorGramChatKeyStore.hasCustomKey" in key_dialog,
+    require("AuthorGramChatKeyStore.hasCustomKey(account, dialogId)" in key_dialog,
             "Word-key UI does not verify persistence", failures)
+    require("AuthorGramChatState.setEnabled(account, dialogId, true)" in key_dialog,
+            "Word-key UI does not enable encryption atomically", failures)
+    require('PREFIX_SOFTWARE_V3 = "v3s:"' in key_protector,
+            "Broken-keystore device-vault fallback missing", failures)
+    require("getNoBackupFilesDir()" in key_protector,
+            "Device-vault fallback is not stored outside backup", failures)
 
     require("BuildConfig.AUTHORGRAM_SYSTEM_KEY_HEX" in system_crypto,
             "System key is not package BuildConfig-driven", failures)
