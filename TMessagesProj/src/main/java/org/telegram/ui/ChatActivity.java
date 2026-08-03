@@ -573,7 +573,6 @@ public class ChatActivity extends BaseFragment implements
     private ActionBarMenuItem.Item bookmarksItem;
 
     // AUTHORGRAM_STEP4_UI_FIELDS
-    private static final int AUTHORGRAM_CRYPTO_TOGGLE = 0x6A470001;
     private static final int AUTHORGRAM_KEY_SETTINGS = 0x6A470002;
     private ActionBarMenuItem.Item authorGramCryptoItem;
     private ClippingImageView animatingImageView;
@@ -4046,26 +4045,16 @@ public class ChatActivity extends BaseFragment implements
             public void onItemClick(final int id) {
 
                 // AUTHORGRAM_STEP4_TOGGLE_CLICK
-                if (id == AUTHORGRAM_CRYPTO_TOGGLE) {
+                if (id == AUTHORGRAM_KEY_SETTINGS) {
                     if (!canUseAuthorGramProtection()) {
                         return;
                     }
-
-                    org.telegram.messenger.authorgram.AuthorGramChatState.toggle(
-                            currentAccount,
-                            dialog_id
-                    );
-
-                    refreshAuthorGramProtectionUi();
-
-                    return;
-                } else if (id == AUTHORGRAM_KEY_SETTINGS) {
                     org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(
                             getParentActivity(),
                             currentAccount,
-                            dialog_id
+                            dialog_id,
+                            ChatActivity.this::refreshAuthorGramProtectionUi
                     );
-
                     return;
                 }
 
@@ -4251,6 +4240,9 @@ public class ChatActivity extends BaseFragment implements
                     }
                     showDialog(AlertsCreator.createTTLAlert(getParentActivity(), currentEncryptedChat, themeDelegate).create());
                 } else if (id == clear_history || id == delete_chat || id == auto_delete_timer) {
+                    if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialog_id)) {
+                        return;
+                    }
                     if (getParentActivity() == null) {
                         return;
                     }
@@ -4849,14 +4841,9 @@ public class ChatActivity extends BaseFragment implements
             if (canUseAuthorGramProtection()) {
                 authorGramCryptoItem =
                         headerItem.lazilyAddSubItem(
-                                AUTHORGRAM_CRYPTO_TOGGLE,
+                                AUTHORGRAM_KEY_SETTINGS,
                                 R.drawable.msg_secret,
                                 getAuthorGramToggleText()
-                        );
-                        headerItem.lazilyAddSubItem(
-                                AUTHORGRAM_KEY_SETTINGS,
-                                R.drawable.authorgram_key,
-                                LocaleController.getString(R.string.AuthorGramKeySettings)
                         );
             }
 
@@ -5044,7 +5031,8 @@ public class ChatActivity extends BaseFragment implements
             if (currentUser != null && currentUser.self && getDialogId() != UserObject.VERIFY) {
                 headerItem.lazilyAddSubItem(add_shortcut, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut));
             }
-            if (!isTopic && !ChatObject.isMonoForum(currentChat)) {
+            if (!isTopic && !ChatObject.isMonoForum(currentChat)
+                    && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialog_id)) {
                 clearHistoryItem = headerItem.lazilyAddSubItem(clear_history, R.drawable.msg_clear,
                     LocaleController.getString(UserObject.isBotForum(currentUser) ? R.string.ClearAllHistory : R.string.ClearHistory));
             }
@@ -5061,7 +5049,8 @@ public class ChatActivity extends BaseFragment implements
                 createAyuGramMenuItem();
                 headerItem.lazilyAddColoredGap();
             }
-            if (!isTopic) {
+            if (!isTopic
+                    && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialog_id)) {
                 if (NaConfig.INSTANCE.getChatMenuItemDeleteOwnMessages().Bool() && (ChatObject.isMegagroup(currentChat) || currentChat != null && !ChatObject.isChannel(currentChat))) {
                     headerItem.lazilyAddSubItem(nkheaderbtn_zibi, R.drawable.msg_delete, LocaleController.getString(R.string.DeleteAllFromSelf));
                 }
@@ -11336,7 +11325,9 @@ public class ChatActivity extends BaseFragment implements
         actionMode.setItemVisibility(star, selectedMessagesCanStarIds[0].size() + selectedMessagesCanStarIds[1].size() != 0 ? View.VISIBLE : View.GONE);
         actionMode.setItemVisibility(combine_message, selectedMessagesCanCopyIds[0].size() + selectedMessagesCanCopyIds[1].size() != 0 ? View.VISIBLE : View.GONE);
         actionMode.setItemVisibility(forward, NaConfig.INSTANCE.getActionBarButtonForward().Bool() ? View.VISIBLE : View.GONE);
-        actionMode.setItemVisibility(delete, cantDeleteMessagesCount == 0 ? View.VISIBLE : View.GONE);
+        actionMode.setItemVisibility(delete, cantDeleteMessagesCount == 0
+                && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialog_id)
+                ? View.VISIBLE : View.GONE);
         actionMode.setItemVisibility(tag_message, getUserConfig().isPremium() ? View.VISIBLE : View.GONE);
         actionMode.setItemVisibility(share, View.GONE);
 
@@ -20730,7 +20721,9 @@ public class ChatActivity extends BaseFragment implements
                 }
 
                 if (deleteItem != null) {
-                    deleteItem.setVisibility(cantDeleteMessagesCount == 0 ? View.VISIBLE : View.GONE);
+                    deleteItem.setVisibility(cantDeleteMessagesCount == 0
+                            && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialog_id)
+                            ? View.VISIBLE : View.GONE);
                 }
                 hasUnfavedSelected = false;
                 for (int a = 0; a < 2; a++) {
@@ -20991,7 +20984,9 @@ public class ChatActivity extends BaseFragment implements
     private boolean canUseAuthorGramProtection() {
         if (currentEncryptedChat != null
                 || dialog_id == 0
-                || chatMode != 0) {
+                || chatMode != 0
+                || org.telegram.messenger.authorgram.AuthorGramPlayPolicy
+                .isOwnerDialog(dialog_id)) {
 
             return false;
         }
@@ -21028,20 +21023,11 @@ public class ChatActivity extends BaseFragment implements
                         currentAccount,
                         dialog_id
                 );
-
-        String language =
-                java.util.Locale.getDefault()
-                        .getLanguage();
-
-        if ("uk".equalsIgnoreCase(language)) {
-            return enabled
-                    ? "Захист AuthorGram: увімкнено"
-                    : "Захист AuthorGram: вимкнено";
-        }
-
-        return enabled
-                ? "AuthorGram protection: on"
-                : "AuthorGram protection: off";
+        return LocaleController.getString(
+                enabled
+                        ? R.string.AuthorGramEncryptionMenuOn
+                        : R.string.AuthorGramEncryptionMenuOff
+        );
     }
 
     private void refreshAuthorGramProtectionUi() {
@@ -47258,6 +47244,9 @@ public class ChatActivity extends BaseFragment implements
             updateActionModeTitle();
             updateVisibleRows();
         } else if (id == nkheaderbtn_zibi) {
+            if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialog_id)) {
+                return;
+            }
             getMessageHelper().createDeleteHistoryAlert(ChatActivity.this, currentChat, forumTopic, mergeDialogId, themeDelegate);
         } else if (id == agbtn_clearDeleted) {
             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
@@ -47821,7 +47810,8 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void checkLeaveChannelButton() {
-        if (headerItem == null || chatMode == MODE_SAVED) return;
+        if (headerItem == null || chatMode == MODE_SAVED
+                || !org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialog_id)) return;
         if (!headerItem.hasSubItem(delete_chat)) {
             if (!isTopic) {
                 if (ChatObject.isChannel(currentChat) && !currentChat.creator) {
