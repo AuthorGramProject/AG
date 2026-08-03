@@ -7,4 +7,4 @@ Preserve the Actions run titled Update/telegram 12.9.0 20260718 212239 if it sti
 The verified cleanup report proves that the original run was already deleted; never fabricate a replacement.
 Delete every remaining historical Actions run and every obsolete workflow definition.
 Build exactly two signed release APKs: Main and Play Market. Do not build or upload AAB.
-Production revision: 2026-08-03T14:56:26+02:00.
+Production revision: 2026-08-03T15:00:00+02:00.
