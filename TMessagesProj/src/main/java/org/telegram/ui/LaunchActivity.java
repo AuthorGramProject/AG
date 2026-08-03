@@ -2861,7 +2861,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                 conferenceSlug = path.replace("call/", "");
                                             } else if (path.startsWith("addemoji/")) {
                                                 emoji = path.replace("addemoji/", "");
-                                            } else if ((path.equals("agsettings") || path.startsWith("agsettings/"))) {
+                                            } else if (path.equals("authorgram_apk")
+                                                    || path.startsWith("authorgram_apk/")
+                                                    || path.equals("agsettings")
+                                                    || path.startsWith("agsettings/")
+                                                    || path.equals("nasettings")
+                                                    || path.startsWith("nasettings/")) {
                                                 AGSettingsRouter.processDeepLink(this, data, fragment -> {
                                                     AndroidUtilities.runOnUIThread(() -> presentFragment(fragment, false, false));
                                                     if (AndroidUtilities.isTablet()) {
@@ -3438,7 +3443,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                         }
                                         checkAppUpdate(true, null, updateAlways);
                                     } else if (url.startsWith("tg:agsettings") || url.startsWith("tg://agsettings")) {
-                                        url = url.replace("tg:agsettings", "tg://t.me/agsettings").replace("tg://agsettings", "tg://t.me/agsettings");
+                                        url = url.replace("tg:agsettings", "tg://t.me/authorgram_apk").replace("tg://agsettings", "tg://t.me/authorgram_apk");
                                         data = Uri.parse(url);
                                         AGSettingsRouter.processDeepLink(this, data, fragment -> {
                                             AndroidUtilities.runOnUIThread(() -> presentFragment(fragment, false, false));

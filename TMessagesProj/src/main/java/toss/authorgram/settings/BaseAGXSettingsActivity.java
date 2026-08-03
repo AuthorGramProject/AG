@@ -46,7 +46,6 @@ import org.telegram.ui.Components.UndoView;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Locale;
 
 import tw.nekomimi.nekogram.config.CellGroup;
 import tw.nekomimi.nekogram.config.ConfigItem;
@@ -246,11 +245,11 @@ public class BaseAGXSettingsActivity extends BaseFragment {
 
     protected void addDefaultLongClickOptions(ItemOptions options, String prefix, String key, String value) {
         options.add(R.drawable.msg_link2, getString(R.string.CopyLink), () -> {
-            AndroidUtilities.addToClipboard(String.format(Locale.getDefault(), "https://%s/nasettings/%s?r=%s", getMessagesController().linkPrefix, prefix, key));
+            AndroidUtilities.addToClipboard(AGSettingsRouter.buildDeepLink(prefix, key, null));
             BulletinFactory.of(this).createCopyLinkBulletin().show();
         });
         options.addIf(value != null && !value.isEmpty(), R.drawable.msg_copy, getString(R.string.BackupSettings), () -> {
-            AndroidUtilities.addToClipboard(String.format(Locale.getDefault(), "https://%s/nasettings/%s?r=%s&v=%s", getMessagesController().linkPrefix, prefix, key, value));
+            AndroidUtilities.addToClipboard(AGSettingsRouter.buildDeepLink(prefix, key, value));
             BulletinFactory.of(this).createCopyLinkBulletin().show();
         });
     }
