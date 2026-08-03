@@ -8,6 +8,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import cleanup_authorgram_actions
+import fix_authorgram_spy_compile
 from finalize_authorgram_source import MAIN_PACKAGE, PLAY_PACKAGE, validate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +37,12 @@ def require(condition: bool, message: str, failures: list[str]) -> None:
 
 
 def main() -> int:
+    # This guard is executed by every release controller, including re-runs of
+    # older successful jobs. Perform the one-time Actions cleanup and the exact
+    # Telegram 12.9-compatible Spy repair before validating or building.
+    cleanup_authorgram_actions.main()
+    fix_authorgram_spy_compile.main()
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--expected-package", required=True)
     args = parser.parse_args()
