@@ -20,6 +20,11 @@ public final class AuthorGramDefaults {
             return;
         }
 
+        if (AuthorGramPlayPolicy.isPlayBuild()) {
+            AuthorGramPlayPolicy.applyStartupPolicy(context);
+            return;
+        }
+
         applyDefaults(
                 context,
                 "mainconfig",

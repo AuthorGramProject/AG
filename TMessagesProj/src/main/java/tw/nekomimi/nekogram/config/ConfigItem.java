@@ -4,6 +4,7 @@ import android.content.SharedPreferences;
 import android.util.Base64;
 
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
@@ -78,40 +79,40 @@ public class ConfigItem {
 
 
     public void changed(Object o) {
-        value = o;
+        value = AuthorGramPlayPolicy.sanitizeConfigValue(key, o);
     }
 
     // Write config
     // Note: no type checking here
 
     public boolean toggleConfigBool() {
-        value = !this.Bool();
+        value = AuthorGramPlayPolicy.sanitizeConfigValue(key, !this.Bool());
         saveConfig();
-        return this.Bool(); // return value after toggle
+        return this.Bool(); // return value after policy enforcement
     }
 
     public void setConfigBool(boolean v) {
-        value = v;
+        value = AuthorGramPlayPolicy.sanitizeConfigValue(key, v);
         saveConfig();
     }
 
     public void setConfigInt(int v) {
-        value = v;
+        value = AuthorGramPlayPolicy.sanitizeConfigValue(key, v);
         saveConfig();
     }
 
     public void setConfigLong(Long v) {
-        value = v;
+        value = AuthorGramPlayPolicy.sanitizeConfigValue(key, v);
         saveConfig();
     }
 
     public void setConfigFloat(Float v) {
-        value = v;
+        value = AuthorGramPlayPolicy.sanitizeConfigValue(key, v);
         saveConfig();
     }
 
     public void setConfigString(String v) {
-        value = Objects.requireNonNullElse(v, "");
+        value = AuthorGramPlayPolicy.sanitizeConfigValue(key, Objects.requireNonNullElse(v, ""));
         saveConfig();
     }
 
@@ -127,6 +128,7 @@ public class ConfigItem {
 
     // save one item
     public void saveConfig() {
+        value = AuthorGramPlayPolicy.sanitizeConfigValue(key, value);
         synchronized (NekoConfig.sync) {
             try {
                 SharedPreferences.Editor editor = NekoConfig.getPreferences().edit();

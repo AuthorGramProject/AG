@@ -18,4 +18,6 @@
     <string name="AuthorGramPassphraseOperationFailed">The custom key could not be created. The previous key remains active.</string>
     <string name="AuthorGramUseSystemKeyWarning">New messages will use the AuthorGram system key. The previous custom key will remain protected locally so older messages stay readable.</string>
     <string name="AuthorGramSystemKeyRestored">The AuthorGram system key is now active.</string>
+    <string name="AuthorGramPlayCustomKeyOnly">The Play version uses only keys created by users for each chat. Create the same word key on both devices before enabling encryption.</string>
+    <string name="AuthorGramPlayProtectedDialog">Encryption is unavailable in this chat in the Play version.</string>
 </resources>

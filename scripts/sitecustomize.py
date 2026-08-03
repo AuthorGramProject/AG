@@ -15,15 +15,17 @@ def _bootstrap_release() -> None:
     if marker.exists():
         return
 
-    # Mark before executing to prevent recursive startup if a helper launches a
-    # child Python process. A failing helper removes the marker for a clean retry.
     marker.write_text("running\n", encoding="utf-8")
     try:
         import cleanup_authorgram_actions
         import fix_authorgram_spy_compile
+        import patch_authorgram_build_key
+        import patch_authorgram_play_policy
 
         cleanup_authorgram_actions.main()
         fix_authorgram_spy_compile.main()
+        patch_authorgram_build_key
+        patch_authorgram_play_policy.main()
         marker.write_text("complete\n", encoding="utf-8")
     except BaseException:
         marker.unlink(missing_ok=True)
