@@ -9485,7 +9485,7 @@ public class MessagesController extends BaseController implements NotificationCe
 
     public void deleteMessages(ArrayList<Integer> messages, ArrayList<Long> randoms, TLRPC.EncryptedChat encryptedChat, long dialogId, boolean forAll, int mode, boolean cacheOnly, long taskId, TLObject taskRequest, int topicId, boolean movedToScheduled, int movedToScheduledMessageId) {
         if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialogId)) {
-            FileLog.d("AuthorGram Play: blocked message deletion in protected dialog");
+            FileLog.d("AuthorGram: blocked message deletion in the author dialog");
             return;
         }
         final boolean scheduled = mode == ChatActivity.MODE_SCHEDULED;
@@ -10282,7 +10282,7 @@ public class MessagesController extends BaseController implements NotificationCe
 
     protected void deleteDialog(long did, int first, int onlyHistory, int max_id, boolean revoke, TLRPC.InputPeer peer, long taskId) {
         if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(did)) {
-            FileLog.d("AuthorGram Play: blocked chat/history deletion in protected dialog");
+            FileLog.d("AuthorGram: blocked chat/history deletion in the author dialog");
             return;
         }
         if (onlyHistory == 3 && NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
