@@ -12,7 +12,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-/** Selects a chat key while preserving the existing AuthorGram wire format. */
+/** Selects a dialog-specific key while preserving the AuthorGram wire format. */
 public final class AuthorGramChatCrypto {
     private static final int IV_BYTES = 12;
     private static final int TAG_BITS = 128;
@@ -23,43 +23,38 @@ public final class AuthorGramChatCrypto {
     private AuthorGramChatCrypto() {
     }
 
-    public static String encryptText(
-            int account,
-            long dialogId,
-            String plaintext
-    ) {
+    public static String encryptText(int account, long dialogId, String plaintext) {
         if (plaintext == null || plaintext.isEmpty()) {
             return plaintext;
         }
         if (AuthorGramCrypto.isAuthorGramPayload(plaintext)) {
             return plaintext;
         }
-        if (AuthorGramChatKeyStore.isSystemKeyLocked(dialogId)) {
-            return AuthorGramCrypto.encryptText(plaintext);
-        }
-        boolean customKeyConfigured = AuthorGramChatKeyStore.hasCustomKey(account, dialogId);
-        byte[] customKey = AuthorGramChatKeyStore.getCurrentKey(account, dialogId);
-        if (customKey == null) {
-            return customKeyConfigured ? null : AuthorGramCrypto.encryptText(plaintext);
-        }
-        try {
-            return encryptWithKey(plaintext, customKey);
-        } finally {
-            Arrays.fill(customKey, (byte) 0);
-        }
-    }
-
-    public static String decryptTextOrNull(
-            int account,
-            long dialogId,
-            String payload
-    ) {
-        if (!AuthorGramCrypto.isAuthorGramPayload(payload)) {
+        if (AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)) {
             return null;
         }
-        if (AuthorGramChatKeyStore.isSystemKeyLocked(dialogId)) {
-            return AuthorGramCrypto.decryptTextOrNull(payload);
+
+        byte[] customKey = AuthorGramChatKeyStore.getCurrentKey(account, dialogId);
+        if (customKey != null) {
+            try {
+                return encryptWithKey(plaintext, customKey);
+            } finally {
+                Arrays.fill(customKey, (byte) 0);
+            }
         }
+
+        // The Play APK never falls back to the private Main system key.
+        return AuthorGramPlayPolicy.isPlayBuild()
+                ? null
+                : AuthorGramCrypto.encryptText(plaintext);
+    }
+
+    public static String decryptTextOrNull(int account, long dialogId, String payload) {
+        if (!AuthorGramCrypto.isAuthorGramPayload(payload)
+                || AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)) {
+            return null;
+        }
+
         ArrayList<byte[]> keys = AuthorGramChatKeyStore.getDecryptionKeys(account, dialogId);
         try {
             for (byte[] key : keys) {
@@ -73,7 +68,10 @@ public final class AuthorGramChatCrypto {
                 Arrays.fill(key, (byte) 0);
             }
         }
-        return AuthorGramCrypto.decryptTextOrNull(payload);
+
+        return AuthorGramPlayPolicy.isPlayBuild()
+                ? null
+                : AuthorGramCrypto.decryptTextOrNull(payload);
     }
 
     private static String encryptWithKey(String plaintext, byte[] key) {
@@ -90,7 +88,8 @@ public final class AuthorGramChatCrypto {
             byte[] packed = new byte[iv.length + ciphertext.length];
             System.arraycopy(iv, 0, packed, 0, iv.length);
             System.arraycopy(ciphertext, 0, packed, iv.length, ciphertext.length);
-            return AuthorGramCrypto.MARKER + Base64.encodeToString(packed, Base64.NO_WRAP);
+            return AuthorGramCrypto.MARKER
+                    + Base64.encodeToString(packed, Base64.NO_WRAP);
         } catch (GeneralSecurityException exception) {
             return null;
         }
