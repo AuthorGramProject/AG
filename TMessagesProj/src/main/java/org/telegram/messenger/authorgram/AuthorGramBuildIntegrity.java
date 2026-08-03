@@ -25,6 +25,9 @@ public final class AuthorGramBuildIntegrity {
     }
 
     public static boolean canUseSystemKey() {
+        if (!AuthorGramPlayPolicy.hasEmbeddedSystemKey()) {
+            return false;
+        }
         if (!BuildConfig.OFFICIAL_BUILD) {
             return true;
         }

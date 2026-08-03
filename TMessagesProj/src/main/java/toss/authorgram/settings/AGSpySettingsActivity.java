@@ -71,7 +71,7 @@ public class AGSpySettingsActivity extends BaseAGXSettingsActivity {
                     null,
                     "RegexFilters",
                     null,
-                    R.drawable.menu_tag_filter_solar,
+                    R.drawable.msg_folders,
                     true,
                     () -> presentFragment(new AGFiltersSettingsActivity())
             ));
