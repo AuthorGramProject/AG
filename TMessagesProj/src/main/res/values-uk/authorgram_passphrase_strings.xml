@@ -18,4 +18,6 @@
     <string name="AuthorGramPassphraseOperationFailed">Не вдалося створити власний ключ. Попередній ключ залишився активним.</string>
     <string name="AuthorGramUseSystemKeyWarning">Нові повідомлення використовуватимуть системний ключ AuthorGram. Попередній власний ключ залишиться захищено збереженим локально, щоб старі повідомлення читалися.</string>
     <string name="AuthorGramSystemKeyRestored">Системний ключ AuthorGram тепер активний.</string>
+    <string name="AuthorGramPlayCustomKeyOnly">Play-версія використовує лише створені користувачами ключі для кожного чату. Створіть однаковий ключ зі слова на обох пристроях перед увімкненням шифрування.</string>
+    <string name="AuthorGramPlayProtectedDialog">У Play-версії шифрування в цьому чаті недоступне.</string>
 </resources>
