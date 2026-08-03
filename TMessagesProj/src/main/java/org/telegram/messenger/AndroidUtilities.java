@@ -4196,6 +4196,137 @@ public class AndroidUtilities {
         return key_hash;
     }
 
+    private static final String MIME_TYPE_APK = "application/vnd.android.package-archive";
+    private static final String MIME_TYPE_GENERIC_BINARY = "application/octet-stream";
+
+    private static String getSafeFileExtension(String fileName) {
+        if (TextUtils.isEmpty(fileName)) {
+            return null;
+        }
+        int end = fileName.length();
+        int query = fileName.indexOf('?');
+        if (query >= 0) {
+            end = Math.min(end, query);
+        }
+        int fragment = fileName.indexOf('#');
+        if (fragment >= 0) {
+            end = Math.min(end, fragment);
+        }
+        int slash = Math.max(
+                fileName.lastIndexOf('/', end - 1),
+                fileName.lastIndexOf('\\', end - 1)
+        );
+        int dot = fileName.lastIndexOf('.', end - 1);
+        if (dot <= slash || dot + 1 >= end) {
+            return null;
+        }
+        String candidate = fileName.substring(dot + 1, end).trim();
+        int safeLength = 0;
+        while (safeLength < candidate.length()) {
+            char value = candidate.charAt(safeLength);
+            if (!Character.isLetterOrDigit(value)
+                    && value != '+'
+                    && value != '-'
+                    && value != '_') {
+                break;
+            }
+            safeLength++;
+        }
+        if (safeLength == 0) {
+            return null;
+        }
+        return candidate.substring(0, safeLength).toLowerCase(Locale.ROOT);
+    }
+
+    private static String normalizeDeclaredMimeType(String mimeType) {
+        if (TextUtils.isEmpty(mimeType)) {
+            return null;
+        }
+        int parameters = mimeType.indexOf(';');
+        String normalized = (parameters >= 0 ? mimeType.substring(0, parameters) : mimeType)
+                .trim()
+                .toLowerCase(Locale.ROOT);
+        int separator = normalized.indexOf('/');
+        if (separator <= 0 || separator == normalized.length() - 1) {
+            return null;
+        }
+        if (MIME_TYPE_GENERIC_BINARY.equals(normalized)
+                || "binary/octet-stream".equals(normalized)
+                || "application/unknown".equals(normalized)) {
+            return null;
+        }
+        return normalized;
+    }
+
+    private static String resolveFileMimeType(File file, String fileName, String declaredMimeType) {
+        String extension = getSafeFileExtension(fileName);
+        if (TextUtils.isEmpty(extension) && file != null) {
+            extension = getSafeFileExtension(file.getName());
+        }
+        if ("apk".equals(extension)) {
+            return MIME_TYPE_APK;
+        }
+        if (!TextUtils.isEmpty(extension)) {
+            String extensionMimeType =
+                    MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+            if (!TextUtils.isEmpty(extensionMimeType)) {
+                return extensionMimeType;
+            }
+        }
+        String normalizedDeclaredMimeType = normalizeDeclaredMimeType(declaredMimeType);
+        if (MIME_TYPE_APK.equals(normalizedDeclaredMimeType)
+                && !TextUtils.isEmpty(extension)
+                && !"apk".equals(extension)) {
+            return null;
+        }
+        return normalizedDeclaredMimeType;
+    }
+
+    private static boolean startActivityForView(
+            File file,
+            String mimeType,
+            Activity activity
+    ) {
+        try {
+            Uri uri = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+                    ? FileProvider.getUriForFile(
+                            activity,
+                            ApplicationLoader.getApplicationId() + ".provider",
+                            file
+                    )
+                    : Uri.fromFile(file);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, mimeType);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            activity.startActivityForResult(intent, 500);
+            return true;
+        } catch (Exception error) {
+            FileLog.e(error);
+            return false;
+        }
+    }
+
+    private static void showNoHandleAppInstalled(Activity activity, String mimeType) {
+        if (activity == null
+                || activity.isFinishing()
+                || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1
+                && activity.isDestroyed())) {
+            return;
+        }
+        try {
+            new AlertDialog.Builder(activity)
+                    .setMessage(LocaleController.formatString(
+                            "NoHandleAppInstalled",
+                            R.string.NoHandleAppInstalled,
+                            TextUtils.isEmpty(mimeType) ? "*/*" : mimeType
+                    ))
+                    .setPositiveButton(getString(R.string.OK), null)
+                    .show();
+        } catch (Exception error) {
+            FileLog.e(error);
+        }
+    }
+
     public static void openDocument(MessageObject message, Activity activity, BaseFragment parentFragment) {
         if (message == null) {
             return;
@@ -4229,112 +4360,51 @@ public class AndroidUtilities {
                     parentFragment.showDialog(builder.create());
                 }
             } else {
-                String realMimeType = null;
-                try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    MimeTypeMap myMime = MimeTypeMap.getSingleton();
-                    int idx = fileName.lastIndexOf('.');
-                    if (idx != -1) {
-                        String ext = fileName.substring(idx + 1);
-                        realMimeType = myMime.getMimeTypeFromExtension(ext.toLowerCase());
-                        if (realMimeType == null) {
-                            realMimeType = document.mime_type;
-                            if (realMimeType == null || realMimeType.length() == 0) {
-                                realMimeType = null;
-                            }
-                        }
-                    }
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        intent.setDataAndType(FileProvider.getUriForFile(activity, ApplicationLoader.getApplicationId() + ".provider", f), realMimeType != null ? realMimeType : "*/*");
-                    } else {
-                        intent.setDataAndType(Uri.fromFile(f), realMimeType != null ? realMimeType : "*/*");
-                    }
-                    if (realMimeType != null) {
-                        try {
-                            activity.startActivityForResult(intent, 500);
-                        } catch (Exception e) {
-                            if (Build.VERSION.SDK_INT >= 24) {
-                                intent.setDataAndType(FileProvider.getUriForFile(activity, ApplicationLoader.getApplicationId() + ".provider", f), "*/*");
-                            } else {
-                                intent.setDataAndType(Uri.fromFile(f), "*/*");
-                            }
-                            activity.startActivityForResult(intent, 500);
-                        }
-                    } else {
-                        activity.startActivityForResult(intent, 500);
-                    }
-                } catch (Exception e) {
-                    if (activity == null) {
-                        return;
-                    }
-                    AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-                    Map<String, Integer> colorsReplacement = new HashMap<>();
-                    colorsReplacement.put("info1.**", parentFragment.getThemedColor(Theme.key_dialogTopBackground));
-                    colorsReplacement.put("info2.**", parentFragment.getThemedColor(Theme.key_dialogTopBackground));
-                    builder.setTopAnimation(R.raw.not_available, AlertsCreator.NEW_DENY_DIALOG_TOP_ICON_SIZE, false, parentFragment.getThemedColor(Theme.key_dialogTopBackground), colorsReplacement);
-                    builder.setTopAnimationIsNew(true);
-                    builder.setPositiveButton(getString(R.string.OK), null);
-                    builder.setMessage(LocaleController.formatString("NoHandleAppInstalled", R.string.NoHandleAppInstalled, message.getDocument().mime_type));
-                    if (parentFragment != null) {
-                        parentFragment.showDialog(builder.create());
-                    } else {
-                        builder.show();
-                    }
-                }
+                openForView(
+                        f,
+                        fileName,
+                        document.mime_type,
+                        activity,
+                        null,
+                        false
+                );
             }
         }
     }
 
     public static boolean openForView(File f, String fileName, String mimeType, final Activity activity, Theme.ResourcesProvider resourcesProvider, boolean restrict) {
-        if (f != null && f.exists()) {
-            String realMimeType = null;
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            MimeTypeMap myMime = MimeTypeMap.getSingleton();
-            int idx = fileName == null ? -1 : fileName.lastIndexOf('.');
-            if (idx != -1) {
-                String ext = fileName.substring(idx + 1);
-                if (restrict && MessageObject.isV(ext)) {
-                    return true;
-                }
-                realMimeType = myMime.getMimeTypeFromExtension(ext.toLowerCase());
-                if (realMimeType == null) {
-                    realMimeType = mimeType;
-                    if (realMimeType == null || realMimeType.length() == 0) {
-                        realMimeType = null;
-                    }
-                }
+        if (f == null || !f.exists() || activity == null) {
+            return false;
+        }
+
+        String realMimeType = resolveFileMimeType(f, fileName, mimeType);
+        boolean apk = MIME_TYPE_APK.equals(realMimeType);
+        if (apk) {
+            if (restrict) {
+                return true;
             }
-            if (realMimeType != null && realMimeType.equals("application/vnd.android.package-archive")) {
-                if (restrict) return true;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !ApplicationLoader.applicationContext.getPackageManager().canRequestPackageInstalls()) {
-                    AlertsCreator.createApkRestrictedDialog(activity, resourcesProvider).show();
-                    return true;
-                }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    && !ApplicationLoader.applicationContext
+                    .getPackageManager()
+                    .canRequestPackageInstalls()) {
+                AlertsCreator.createApkRestrictedDialog(activity, resourcesProvider).show();
+                return true;
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                intent.setDataAndType(FileProvider.getUriForFile(activity, ApplicationLoader.getApplicationId() + ".provider", f), realMimeType != null ? realMimeType : "text/plain");
-            } else {
-                intent.setDataAndType(Uri.fromFile(f), realMimeType != null ? realMimeType : "text/plain");
-            }
-            if (realMimeType != null) {
-                try {
-                    activity.startActivityForResult(intent, 500);
-                } catch (Exception e) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        intent.setDataAndType(FileProvider.getUriForFile(activity, ApplicationLoader.getApplicationId() + ".provider", f), "text/plain");
-                    } else {
-                        intent.setDataAndType(Uri.fromFile(f), "text/plain");
-                    }
-                    activity.startActivityForResult(intent, 500);
-                }
-            } else {
-                activity.startActivityForResult(intent, 500);
-            }
+        }
+
+        String preferredMimeType =
+                TextUtils.isEmpty(realMimeType) ? "*/*" : realMimeType;
+        if (startActivityForView(f, preferredMimeType, activity)) {
             return true;
         }
-        return false;
+        if (!apk
+                && !"*/*".equals(preferredMimeType)
+                && startActivityForView(f, "*/*", activity)) {
+            return true;
+        }
+
+        showNoHandleAppInstalled(activity, preferredMimeType);
+        return true;
     }
 
     public static boolean openForView(MessageObject message, Activity activity, Theme.ResourcesProvider resourcesProvider, boolean restrict) {
@@ -4456,48 +4526,12 @@ public class AndroidUtilities {
             return false;
         }
         String fileName = FileLoader.getAttachFileName(media);
-        File f = FileLoader.getInstance(UserConfig.selectedAccount).getPathToAttach(media, true);
-        if (f != null && f.exists()) {
-            String realMimeType = null;
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            MimeTypeMap myMime = MimeTypeMap.getSingleton();
-            int idx = fileName.lastIndexOf('.');
-            if (idx != -1) {
-                String ext = fileName.substring(idx + 1);
-                realMimeType = myMime.getMimeTypeFromExtension(ext.toLowerCase());
-                if (realMimeType == null) {
-                    if (media instanceof TLRPC.TL_document) {
-                        realMimeType = ((TLRPC.TL_document) media).mime_type;
-                    }
-                    if (realMimeType == null || realMimeType.length() == 0) {
-                        realMimeType = null;
-                    }
-                }
-            }
-            if (Build.VERSION.SDK_INT >= 24) {
-                intent.setDataAndType(FileProvider.getUriForFile(activity, ApplicationLoader.getApplicationId() + ".provider", f), realMimeType != null ? realMimeType : "text/plain");
-            } else {
-                intent.setDataAndType(Uri.fromFile(f), realMimeType != null ? realMimeType : "text/plain");
-            }
-            if (realMimeType != null) {
-                try {
-                    activity.startActivityForResult(intent, 500);
-                } catch (Exception e) {
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        intent.setDataAndType(FileProvider.getUriForFile(activity, ApplicationLoader.getApplicationId() + ".provider", f), "text/plain");
-                    } else {
-                        intent.setDataAndType(Uri.fromFile(f), "text/plain");
-                    }
-                    activity.startActivityForResult(intent, 500);
-                }
-            } else {
-                activity.startActivityForResult(intent, 500);
-            }
-            return true;
-        } else {
-            return false;
-        }
+        File file = FileLoader.getInstance(UserConfig.selectedAccount)
+                .getPathToAttach(media, true);
+        String mimeType = media instanceof TLRPC.Document
+                ? ((TLRPC.Document) media).mime_type
+                : null;
+        return openForView(file, fileName, mimeType, activity, null, false);
     }
 
     public static boolean isBannedForever(TLRPC.TL_chatBannedRights rights) {
