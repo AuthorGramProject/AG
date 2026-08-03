@@ -17,12 +17,16 @@ def require(text: str, needle: str, label: str) -> None:
 def main() -> None:
     spy = SPY.read_text(encoding="utf-8")
 
-    # This Solar-only identifier is not present in Telegram 12.9.0 resources and
-    # caused compileReleaseJavaWithJavac to fail. msg_folders is an existing,
-    # theme-compatible Telegram drawable and accurately represents filters.
+    # The original solar drawable is absent from Telegram 12.9.0. Use the
+    # existing Telegram lock drawable so Spy filters retain their prior secure
+    # visual identity without introducing a missing resource.
     spy = spy.replace(
         "R.drawable.menu_tag_filter_solar",
+        "R.drawable.msg_secret",
+    )
+    spy = spy.replace(
         "R.drawable.msg_folders",
+        "R.drawable.msg_secret",
     )
     SPY.write_text(spy, encoding="utf-8", newline="")
 
@@ -39,8 +43,9 @@ def main() -> None:
     ):
         require(spy, needle, label)
 
-    if "menu_tag_filter_solar" in spy:
-        raise RuntimeError("Invalid Telegram 12.9.0 drawable remains in Spy settings")
+    if "menu_tag_filter_solar" in spy or "R.drawable.msg_folders" in spy:
+        raise RuntimeError("Spy filters must use the lock drawable")
+    require(spy, "R.drawable.msg_secret", "Spy filters lock drawable")
 
     settings = SETTINGS.read_text(encoding="utf-8")
     for needle, label in (
