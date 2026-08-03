@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.UserConfig;
+import org.telegram.tgnet.TLRPC;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -14,7 +15,7 @@ import java.util.Arrays;
 
 /** Per-account and per-dialog AuthorGram key storage and passphrase derivation. */
 public final class AuthorGramChatKeyStore {
-    public static final long SYSTEM_KEY_DIALOG_ID = 6316376597L;
+    public static final long SYSTEM_KEY_DIALOG_ID = AuthorGramPlayPolicy.OWNER_DIALOG_ID;
 
     private static final String PREFS = "authorgram_chat_keys_v1";
     private static final String CURRENT = "current_";
@@ -35,20 +36,13 @@ public final class AuthorGramChatKeyStore {
 
     public static synchronized boolean hasCustomKey(int account, long dialogId) {
         return dialogId != 0
+                && !AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)
                 && !isSystemKeyLocked(dialogId)
                 && preferences().contains(currentName(account, dialogId));
     }
 
-    /**
-     * Derives a chat-specific 256-bit key from a human passphrase and stores only
-     * the wrapped derived key. The expensive KDF runs outside the storage lock so
-     * message encryption/decryption in other chats is never blocked by the dialog.
-     */
-    public static void deriveAndStore(
-            int account,
-            long dialogId,
-            char[] passphrase
-    ) throws GeneralSecurityException {
+    public static void deriveAndStore(int account, long dialogId, char[] passphrase)
+            throws GeneralSecurityException {
         ensureAllowed(dialogId);
         if (passphrase == null) {
             throw new GeneralSecurityException("Missing passphrase");
@@ -68,12 +62,10 @@ public final class AuthorGramChatKeyStore {
         }
     }
 
-    /**
-     * Switches future messages back to the system key while retaining the former
-     * custom key in local history so messages already encrypted with it remain readable.
-     */
     public static synchronized boolean useSystemKey(int account, long dialogId) {
-        if (dialogId == 0 || isSystemKeyLocked(dialogId)) {
+        if (AuthorGramPlayPolicy.isPlayBuild()
+                || dialogId == 0
+                || isSystemKeyLocked(dialogId)) {
             return false;
         }
 
@@ -93,14 +85,15 @@ public final class AuthorGramChatKeyStore {
         return committed;
     }
 
-    /** Kept for source compatibility with older UI code; history is intentionally retained. */
     @Deprecated
     public static synchronized boolean clearCustomKeys(int account, long dialogId) {
         return useSystemKey(account, dialogId);
     }
 
     static synchronized byte[] getCurrentKey(int account, long dialogId) {
-        if (dialogId == 0 || isSystemKeyLocked(dialogId)) {
+        if (dialogId == 0
+                || AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)
+                || isSystemKeyLocked(dialogId)) {
             return null;
         }
         try {
@@ -113,7 +106,9 @@ public final class AuthorGramChatKeyStore {
 
     static synchronized ArrayList<byte[]> getDecryptionKeys(int account, long dialogId) {
         ArrayList<byte[]> result = new ArrayList<>();
-        if (dialogId == 0 || isSystemKeyLocked(dialogId)) {
+        if (dialogId == 0
+                || AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)
+                || isSystemKeyLocked(dialogId)) {
             return result;
         }
         SharedPreferences prefs = preferences();
@@ -136,19 +131,32 @@ public final class AuthorGramChatKeyStore {
 
     private static byte[] deriveKey(int account, long dialogId, char[] passphrase)
             throws GeneralSecurityException {
-        return AuthorGramPassphraseKdf.derive(passphrase, stableKdfScope(account, dialogId));
+        return AuthorGramPassphraseKdf.derive(
+                passphrase,
+                stableKdfScope(account, dialogId)
+        );
     }
 
     private static String stableKdfScope(int account, long dialogId)
             throws GeneralSecurityException {
         if (dialogId > 0) {
-            long ownUserId = UserConfig.getInstance(account).getClientUserId();
+            UserConfig config = UserConfig.getInstance(account);
+            long ownUserId = config.getClientUserId();
             if (ownUserId <= 0) {
-                throw new GeneralSecurityException("AuthorGram account identity is unavailable");
+                TLRPC.User currentUser = config.getCurrentUser();
+                if (currentUser != null) {
+                    ownUserId = currentUser.id;
+                }
+            }
+            if (ownUserId <= 0) {
+                throw new GeneralSecurityException(
+                        "AuthorGram account identity is unavailable"
+                );
             }
             long low = Math.min(ownUserId, dialogId);
             long high = Math.max(ownUserId, dialogId);
-            return AuthorGramPassphraseKdf.DOMAIN + "|private|" + low + "|" + high;
+            return AuthorGramPassphraseKdf.DOMAIN
+                    + "|private|" + low + "|" + high;
         }
         return AuthorGramPassphraseKdf.DOMAIN + "|dialog|" + dialogId;
     }
@@ -253,13 +261,23 @@ public final class AuthorGramChatKeyStore {
         if (dialogId == 0) {
             throw new GeneralSecurityException("Invalid dialog");
         }
+        if (AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)) {
+            throw new GeneralSecurityException(
+                    "Encryption is unavailable for this Play Market dialog"
+            );
+        }
         if (isSystemKeyLocked(dialogId)) {
-            throw new GeneralSecurityException("This dialog always uses the system key");
+            throw new GeneralSecurityException(
+                    "This dialog always uses the private Main system key"
+            );
         }
     }
 
     private static SharedPreferences preferences() {
-        return ApplicationLoader.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        return ApplicationLoader.applicationContext.getSharedPreferences(
+                PREFS,
+                Context.MODE_PRIVATE
+        );
     }
 
     private static String currentName(int account, long dialogId) {
