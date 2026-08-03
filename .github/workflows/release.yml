@@ -127,11 +127,8 @@ jobs:
               { owner, repo, per_page: 100 }
             );
             const cutoffMatches = runs.filter(run => {
-              const values = [
-                run.display_title,
-                run.name,
-                run.head_commit?.message,
-              ].filter(Boolean);
+              const values = [run.display_title, run.name, run.head_commit?.message]
+                .filter(Boolean);
               return values.some(value => value === cutoffTitle);
             });
             cutoffMatches.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
@@ -143,16 +140,12 @@ jobs:
             let deletedUnsuccessful = 0;
 
             for (const run of runs) {
-              if (Number(run.id) === Number(context.runId)) {
-                continue;
-              }
+              if (Number(run.id) === Number(context.runId)) continue;
               const runLabel = `${run.name ?? ''} ${run.display_title ?? ''}`;
               const beforeOrAtCutoff = Date.parse(run.created_at) <= cutoffTime;
               const isDesignerRun = designerPattern.test(runLabel);
               const isUnsuccessful = unsuccessful.has(run.conclusion);
-              if (!beforeOrAtCutoff && !isDesignerRun && !isUnsuccessful) {
-                continue;
-              }
+              if (!beforeOrAtCutoff && !isDesignerRun && !isUnsuccessful) continue;
 
               try {
                 await github.rest.actions.deleteWorkflowRun({
@@ -160,13 +153,9 @@ jobs:
                   repo,
                   run_id: run.id,
                 });
-                if (beforeOrAtCutoff) {
-                  deletedBeforeCutoff += 1;
-                } else if (isDesignerRun) {
-                  deletedDesignerRuns += 1;
-                } else {
-                  deletedUnsuccessful += 1;
-                }
+                if (beforeOrAtCutoff) deletedBeforeCutoff += 1;
+                else if (isDesignerRun) deletedDesignerRuns += 1;
+                else deletedUnsuccessful += 1;
               } catch (error) {
                 if (error.status !== 404) throw error;
               }
@@ -186,7 +175,8 @@ jobs:
             );
             if (remainingHistorical.length || remainingDesigner.length) {
               throw new Error(
-                `Workflow cleanup incomplete: historical=${remainingHistorical.length}, designers=${remainingDesigner.length}`
+                `Workflow cleanup incomplete: historical=${remainingHistorical.length}, `
+                + `designers=${remainingDesigner.length}`
               );
             }
 
@@ -226,24 +216,29 @@ jobs:
               'scripts/finalize_authorgram_source.py',
               'scripts/authorgram_guard.py',
               'scripts/authorgram_parity_guard.py',
+              'scripts/patch_authorgram_build_key.py',
+              'scripts/patch_authorgram_play_policy.py',
           ):
               source = Path(relative).read_text(encoding='utf-8')
               compile(source, relative, 'exec')
               print(f'Python syntax passed: {relative}')
           PY
 
-      - name: Apply exact launcher icon and complete private Spy
+      - name: Apply icon, crypto repair and Play publication policy
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/apply_authorgram_exact_icon_and_spy.py
           python3 scripts/fix_authorgram_adaptive_icon.py
+          python3 scripts/patch_authorgram_build_key.py
+          python3 scripts/patch_authorgram_play_policy.py
+          python3 scripts/authorgram_guard.py --expected-package "${MAIN_PACKAGE}"
           git diff --check
           git config user.name "AuthorGram Release Bot"
           git config user.email "actions@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "[skip ci] Apply exact AuthorGram icon and complete Spy revision"
+            git commit -m "[skip ci] Apply crypto repair and strict Play policy"
             git push origin HEAD:dev
           fi
 
@@ -253,13 +248,15 @@ jobs:
           set -euo pipefail
           bash scripts/final_release_12_9_1.sh
 
-      - name: Verify exactly two APK artifacts and no AAB
+      - name: Verify exactly two APKs, Play policy and no AAB
         shell: bash
         run: |
           set -euo pipefail
           artifact_dir="${RUNNER_TEMP}/authorgram-final/artifacts"
           mapfile -t apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.apk' -print | sort)
           mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print | sort)
+          mapfile -t play_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Play-*.apk' -print | sort)
+
           [[ "${#apks[@]}" -eq 2 ]] || {
             printf 'Expected exactly two APKs, found %s\n' "${#apks[@]}" >&2
             printf '%s\n' "${apks[@]}" >&2
@@ -270,6 +267,45 @@ jobs:
             printf '%s\n' "${aabs[@]}" >&2
             exit 1
           }
+          [[ "${#play_apks[@]}" -eq 1 ]] || {
+            printf 'Expected exactly one Play APK, found %s\n' "${#play_apks[@]}" >&2
+            exit 1
+          }
+
+          python3 - "${play_apks[0]}" <<'PY'
+          import hashlib
+          import re
+          import sys
+          import zipfile
+
+          play_apk = sys.argv[1]
+          forbidden_digest = "9b34369498a2715d50a94845eaff8d1f7f1ce6570422c8a3653284cffb79de1f"
+          candidates = 0
+          with zipfile.ZipFile(play_apk) as archive:
+              dex_names = [
+                  name for name in archive.namelist()
+                  if re.fullmatch(r"classes\d*\.dex", name)
+              ]
+              if not dex_names:
+                  raise SystemExit("Play APK contains no classes*.dex")
+              for name in dex_names:
+                  data = archive.read(name)
+                  for match in re.finditer(
+                      rb"(?i)(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])",
+                      data,
+                  ):
+                      candidates += 1
+                      normalized = match.group(0).lower()
+                      if hashlib.sha256(normalized).hexdigest() == forbidden_digest:
+                          raise SystemExit(
+                              "Private Main system encryption key is embedded in Play APK"
+                          )
+          print(
+              f"Play APK system-key scan passed across {len(dex_names)} dex file(s); "
+              f"checked {candidates} 64-hex candidate(s)"
+          )
+          PY
+
           printf 'Verified APK artifacts:\n%s\n' "${apks[*]}"
 
       - name: Upload Main and Play release APKs
@@ -291,7 +327,7 @@ jobs:
               sha: context.sha,
               state: 'success',
               context: 'authorgram/final-release',
-              description: 'Main and Play release APKs passed final verification',
+              description: 'Main and Play APKs passed crypto, policy and release verification',
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
 
