@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AuthorGramPassphraseSettings">AuthorGram-Verschlüsselungsschlüssel</string>
-    <string name="AuthorGramPassphraseSystemLocked">Dieser Chat verwendet immer den AuthorGram-Systemschlüssel. Ein eigener Schlüssel kann hier nicht erstellt werden.</string>
-    <string name="AuthorGramPassphraseCustomActive">Für diesen Chat ist ein eigener Verschlüsselungsschlüssel aktiv.</string>
-    <string name="AuthorGramPassphraseSystemActive">Dieser Chat verwendet derzeit den AuthorGram-Systemschlüssel.</string>
-    <string name="AuthorGramSetPassphrase">Eigenen Schlüssel erstellen</string>
-    <string name="AuthorGramChangePassphrase">Eigenen Schlüssel erstellen</string>
-    <string name="AuthorGramUseSystemKey">Systemschlüssel</string>
-    <string name="AuthorGramPassphraseInfo">Gib ein Verschlüsselungswort ein, auf dessen Grundlage der Schlüssel erstellt wird.</string>
+    <string name="AuthorGramPassphraseSettings">AuthorGram-Verschlüsselung</string>
+    <string name="AuthorGramPassphraseInfo">Gib auf beiden Geräten dasselbe Wort ein. Beim Speichern wird ein 256-Bit-Schlüssel erstellt und die Verschlüsselung aktiviert.</string>
+    <string name="AuthorGramEncryptionEnabledInfo">Die Verschlüsselung ist aktiv. Gib ein neues Wort ein, um den Schlüssel zu ersetzen, oder deaktiviere die Verschlüsselung.</string>
+    <string name="AuthorGramEncryptionReadyInfo">Für diesen Chat ist ein geschützter Schlüssel gespeichert. Tippe auf Aktivieren oder gib ein neues Wort ein, um ihn zu ersetzen.</string>
+    <string name="AuthorGramSetPassphrase">Wortschlüssel erstellen</string>
+    <string name="AuthorGramChangePassphrase">Schlüssel ändern</string>
+    <string name="AuthorGramSaveAndEnable">Speichern und aktivieren</string>
+    <string name="AuthorGramEnableEncryption">Verschlüsselung aktivieren</string>
+    <string name="AuthorGramDisableEncryption">Verschlüsselung deaktivieren</string>
+    <string name="AuthorGramEncryptionMenuOn">AuthorGram-Verschlüsselung: an</string>
+    <string name="AuthorGramEncryptionMenuOff">AuthorGram-Verschlüsselung: aus</string>
     <string name="AuthorGramPassphraseHint">Verschlüsselungswort</string>
+    <string name="AuthorGramNewPassphraseHint">Neues Verschlüsselungswort</string>
     <string name="AuthorGramPassphraseCaseNotice">Groß-/Kleinschreibung, innere Leerzeichen und Sonderzeichen sind relevant. Leerzeichen am Anfang und Ende werden ignoriert.</string>
     <string name="AuthorGramShowPassphrase">Verschlüsselungswort anzeigen</string>
-    <string name="AuthorGramDerivingPassphrase">Verschlüsselungsschlüssel wird erstellt…</string>
-    <string name="AuthorGramPassphraseSaved">Der eigene Schlüssel wurde erstellt. Die andere Person muss dasselbe Verschlüsselungswort eingeben.</string>
+    <string name="AuthorGramDerivingPassphrase">Schlüssel wird erstellt und geschützt…</string>
+    <string name="AuthorGramPassphraseSavedAndEnabled">Der Schlüssel wurde erstellt und die Verschlüsselung ist aktiv. Die andere Person muss dasselbe Wort eingeben.</string>
+    <string name="AuthorGramEncryptionEnabled">Die Verschlüsselung ist aktiv.</string>
+    <string name="AuthorGramEncryptionDisabled">Die Verschlüsselung ist deaktiviert.</string>
     <string name="AuthorGramPassphraseInvalid">Gib ein Verschlüsselungswort ein.</string>
     <string name="AuthorGramPassphraseTooLong">Das Verschlüsselungswort darf höchstens 256 Zeichen enthalten.</string>
-    <string name="AuthorGramPassphraseOperationFailed">Der eigene Schlüssel konnte nicht erstellt werden. Der vorherige Schlüssel bleibt aktiv.</string>
-    <string name="AuthorGramUseSystemKeyWarning">Neue Nachrichten verwenden den AuthorGram-Systemschlüssel. Der vorherige eigene Schlüssel bleibt lokal geschützt gespeichert, damit ältere Nachrichten lesbar bleiben.</string>
-    <string name="AuthorGramSystemKeyRestored">Der AuthorGram-Systemschlüssel ist jetzt aktiv.</string>
-    <string name="AuthorGramPlayCustomKeyOnly">Die Play-Version verwendet nur von Nutzern erstellte Schlüssel pro Chat. Erstellen Sie vor dem Aktivieren der Verschlüsselung auf beiden Geräten denselben Wortschlüssel.</string>
-    <string name="AuthorGramPlayProtectedDialog">In der Play-Version ist die Verschlüsselung in diesem Chat nicht verfügbar.</string>
+    <string name="AuthorGramPassphraseOperationFailed">Der Schlüssel konnte nicht erstellt werden. Die Verschlüsselungseinstellung wurde nicht geändert.</string>
 </resources>
