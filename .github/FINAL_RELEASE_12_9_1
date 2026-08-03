@@ -5,3 +5,4 @@ Build exactly two signed release APKs: Main and Play Market. Do not build or upl
 Delete workflow runs at or before the Actions run titled: Update/telegram 12.9.0 20260718 212239.
 Remove obsolete Designers workflow definitions and runs.
 Compile-fix revision: 2026-08-03T09:36+02:00.
+Crypto and Play-policy revision: 2026-08-03T11:32+02:00.
