@@ -18,4 +18,6 @@
     <string name="AuthorGramPassphraseOperationFailed">Der eigene Schlüssel konnte nicht erstellt werden. Der vorherige Schlüssel bleibt aktiv.</string>
     <string name="AuthorGramUseSystemKeyWarning">Neue Nachrichten verwenden den AuthorGram-Systemschlüssel. Der vorherige eigene Schlüssel bleibt lokal geschützt gespeichert, damit ältere Nachrichten lesbar bleiben.</string>
     <string name="AuthorGramSystemKeyRestored">Der AuthorGram-Systemschlüssel ist jetzt aktiv.</string>
+    <string name="AuthorGramPlayCustomKeyOnly">Die Play-Version verwendet nur von Nutzern erstellte Schlüssel pro Chat. Erstellen Sie vor dem Aktivieren der Verschlüsselung auf beiden Geräten denselben Wortschlüssel.</string>
+    <string name="AuthorGramPlayProtectedDialog">In der Play-Version ist die Verschlüsselung in diesem Chat nicht verfügbar.</string>
 </resources>

@@ -10,6 +10,7 @@ import android.text.TextUtils;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.R;
+import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;
 import org.telegram.ui.ActionBar.BaseFragment;
 
 import java.util.ArrayList;
@@ -93,6 +94,10 @@ public class AGSettingsRouter {
                     break;
                 case "ghostmode":
                 case "ghost":
+                    if (AuthorGramPlayPolicy.isPlayBuild()) {
+                        unknown.run();
+                        return;
+                    }
                     fragment = agxFragment = new GhostModeActivity();
                     break;
                 case "maintabs":
