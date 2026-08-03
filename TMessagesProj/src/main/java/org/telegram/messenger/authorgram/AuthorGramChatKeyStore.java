@@ -167,7 +167,18 @@ public final class AuthorGramChatKeyStore {
             throw new GeneralSecurityException("AuthorGram key must be 256 bits");
         }
 
-        byte[] existingKey = currentKey(account, dialogId);
+        byte[] existingKey = null;
+        boolean staleStoredKey = false;
+        try {
+            existingKey = currentKey(account, dialogId);
+        } catch (GeneralSecurityException exception) {
+            staleStoredKey = true;
+            FileLog.e(
+                    "AuthorGram: replacing an unreadable stored chat key",
+                    exception
+            );
+        }
+
         try {
             if (existingKey != null && MessageDigest.isEqual(existingKey, key)) {
                 return;
@@ -176,6 +187,12 @@ public final class AuthorGramChatKeyStore {
             if (existingKey != null) {
                 Arrays.fill(existingKey, (byte) 0);
             }
+        }
+
+        if (staleStoredKey && !removeStoredKeys(account, dialogId)) {
+            throw new GeneralSecurityException(
+                    "Unable to remove unreadable AuthorGram chat key"
+            );
         }
 
         SharedPreferences prefs = preferences();
@@ -190,6 +207,15 @@ public final class AuthorGramChatKeyStore {
         if (!editor.commit()) {
             throw new GeneralSecurityException("Unable to persist AuthorGram chat key");
         }
+    }
+
+    private static boolean removeStoredKeys(int account, long dialogId) {
+        SharedPreferences.Editor editor = preferences().edit()
+                .remove(currentName(account, dialogId));
+        for (int index = 0; index < HISTORY_LIMIT; index++) {
+            editor.remove(historyName(account, dialogId, index));
+        }
+        return editor.commit();
     }
 
     private static void putAtHistoryFront(
