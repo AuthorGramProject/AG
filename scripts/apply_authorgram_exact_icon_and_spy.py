@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RES = ROOT / "TMessagesProj/src/main/res"
-SIZE = 192
+SIZE = 512
 PAYLOAD_PARTS = tuple(
     ROOT / f"scripts/branding/icon_payload_{index:02d}.txt"
     for index in range(4)
@@ -22,21 +22,42 @@ ADAPTIVE_ICON = """<?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/authorgram_launcher_background" />
     <foreground android:drawable="@drawable/ic_launcher_authorgram_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_authorgram_monochrome" />
 </adaptive-icon>
 """
 
-FOREGROUND_INSET = """<?xml version="1.0" encoding="utf-8"?>
-<inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:drawable="@mipmap/ic_launcher_authorgram"
-    android:insetLeft="10dp"
-    android:insetTop="10dp"
-    android:insetRight="10dp"
-    android:insetBottom="10dp" />
+FOREGROUND_LAYER = """<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <bitmap
+            android:gravity="fill"
+            android:src="@drawable/authorgram_launcher_foreground" />
+    </item>
+</layer-list>
+"""
+
+MONOCHROME_ICON = """<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M16,52 L47,37 L39,68 L33,58 L16,52 M33,58 L47,37 L27,54 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M53,78 L69,29 L85,78 L76,78 L72.5,66 L64.5,66 L61,78 Z M67,58 L70,58 L68.5,51 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M86,37 C92,29 102,35 98,44 C95,50 89,54 86,57 C83,54 77,50 74,44 C70,35 80,29 86,37 Z" />
+</vector>
 """
 
 LAUNCHER_COLORS = """<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="authorgram_launcher_background">#101838</color>
+    <color name="authorgram_launcher_background">#101C83</color>
 </resources>
 """
 
@@ -80,7 +101,7 @@ def png_chunk(kind: bytes, data: bytes) -> bytes:
     return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", crc)
 
 
-def reconstruct_icon_png() -> bytes:
+def reconstruct_icon_rgba() -> bytes:
     encoded = "".join(path.read_text(encoding="ascii").strip() for path in PAYLOAD_PARTS)
     packed = zlib.decompress(base64.b64decode(encoded))
     expected = 768 + SIZE * SIZE * 2
@@ -98,13 +119,16 @@ def reconstruct_icon_png() -> bytes:
         rgba[rgba_offset + 1] = palette[palette_offset + 1]
         rgba[rgba_offset + 2] = palette[palette_offset + 2]
         rgba[rgba_offset + 3] = alpha[pixel]
+    return bytes(rgba)
 
-    stride = SIZE * 4
+
+def encode_png_rgba(size: int, rgba: bytes) -> bytes:
+    stride = size * 4
     scanlines = b"".join(
-        b"\x00" + bytes(rgba[row * stride : (row + 1) * stride])
-        for row in range(SIZE)
+        b"\x00" + rgba[row * stride : (row + 1) * stride]
+        for row in range(size)
     )
-    header = struct.pack(">IIBBBBB", SIZE, SIZE, 8, 6, 0, 0, 0)
+    header = struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0)
     return (
         b"\x89PNG\r\n\x1a\n"
         + png_chunk(b"IHDR", header)
@@ -112,6 +136,62 @@ def reconstruct_icon_png() -> bytes:
         + png_chunk(b"IEND", b"")
     )
 
+
+def axis_weights(source_size: int, target_size: int) -> list[tuple[tuple[int, float], ...]]:
+    scale = source_size / target_size
+    result: list[tuple[tuple[int, float], ...]] = []
+    for target in range(target_size):
+        start = target * scale
+        end = (target + 1) * scale
+        first = int(start)
+        last = min(source_size, int(end) + 1)
+        values: list[tuple[int, float]] = []
+        for source in range(first, last):
+            overlap = max(0.0, min(end, source + 1.0) - max(start, float(source)))
+            if overlap > 0:
+                values.append((source, overlap / scale))
+        result.append(tuple(values))
+    return result
+
+
+def resize_rgba_area(source: bytes, source_size: int, target_size: int) -> bytes:
+    if target_size == source_size:
+        return source
+    x_weights = axis_weights(source_size, target_size)
+    y_weights = axis_weights(source_size, target_size)
+    output = bytearray(target_size * target_size * 4)
+    for target_y, y_values in enumerate(y_weights):
+        for target_x, x_values in enumerate(x_weights):
+            sums = [0.0, 0.0, 0.0, 0.0]
+            for source_y, y_weight in y_values:
+                row = source_y * source_size
+                for source_x, x_weight in x_values:
+                    weight = x_weight * y_weight
+                    offset = (row + source_x) * 4
+                    sums[0] += source[offset] * weight
+                    sums[1] += source[offset + 1] * weight
+                    sums[2] += source[offset + 2] * weight
+                    sums[3] += source[offset + 3] * weight
+            destination = (target_y * target_size + target_x) * 4
+            for channel in range(4):
+                output[destination + channel] = max(
+                    0,
+                    min(255, int(sums[channel] + 0.5)),
+                )
+    return bytes(output)
+
+
+def circularize_rgba(source: bytes, size: int) -> bytes:
+    output = bytearray(source)
+    center = (size - 1) / 2.0
+    radius = size / 2.0 - 1.0
+    for y in range(size):
+        for x in range(size):
+            distance = ((x - center) ** 2 + (y - center) ** 2) ** 0.5
+            coverage = max(0.0, min(1.0, radius + 0.75 - distance))
+            alpha_offset = (y * size + x) * 4 + 3
+            output[alpha_offset] = int(output[alpha_offset] * coverage + 0.5)
+    return bytes(output)
 
 def patch_launcher_references() -> None:
     roots = (
@@ -151,18 +231,44 @@ def install_launcher_icon() -> None:
         for path in directory.glob("ic_launcher_authorgram*.png"):
             path.unlink()
 
-    png = reconstruct_icon_png()
-    for relative in (
-        "TMessagesProj/src/main/res/mipmap-nodpi/ic_launcher_authorgram.png",
-        "TMessagesProj/src/main/res/mipmap-nodpi/ic_launcher_authorgram_round.png",
-    ):
+    source_rgba = reconstruct_icon_rgba()
+    source_png = encode_png_rgba(SIZE, source_rgba)
+    round_png = encode_png_rgba(SIZE, circularize_rgba(source_rgba, SIZE))
+
+    exact_outputs = {
+        "TMessagesProj/src/main/ic_launcher_authorgram-playstore.png": source_png,
+        "TMessagesProj/src/main/res/mipmap-nodpi/ic_launcher_authorgram.png": source_png,
+        "TMessagesProj/src/main/res/mipmap-nodpi/ic_launcher_authorgram_round.png": round_png,
+        "TMessagesProj/src/main/res/mipmap-nodpi/authorgram_launcher_artwork.png": source_png,
+        "TMessagesProj/src/main/res/drawable-nodpi/authorgram_launcher_foreground.png": source_png,
+    }
+    for relative, payload in exact_outputs.items():
         path = ROOT / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(png)
+        path.write_bytes(payload)
+
+    densities = {
+        "mdpi": 48,
+        "hdpi": 72,
+        "xhdpi": 96,
+        "xxhdpi": 144,
+        "xxxhdpi": 192,
+    }
+    for density, size in densities.items():
+        rgba = resize_rgba_area(source_rgba, SIZE, size)
+        square = ROOT / f"TMessagesProj/src/main/res/mipmap-{density}/ic_launcher_authorgram.png"
+        rounded = ROOT / f"TMessagesProj/src/main/res/mipmap-{density}/ic_launcher_authorgram_round.png"
+        square.parent.mkdir(parents=True, exist_ok=True)
+        square.write_bytes(encode_png_rgba(size, rgba))
+        rounded.write_bytes(encode_png_rgba(size, circularize_rgba(rgba, size)))
 
     write_text(
         "TMessagesProj/src/main/res/drawable/ic_launcher_authorgram_foreground.xml",
-        FOREGROUND_INSET,
+        FOREGROUND_LAYER,
+    )
+    write_text(
+        "TMessagesProj/src/main/res/drawable/ic_launcher_authorgram_monochrome.xml",
+        MONOCHROME_ICON,
     )
     write_text(
         "TMessagesProj/src/main/res/mipmap-anydpi-v26/ic_launcher_authorgram.xml",
@@ -176,7 +282,6 @@ def install_launcher_icon() -> None:
         "TMessagesProj/src/main/res/values/authorgram_launcher_colors.xml",
         LAUNCHER_COLORS,
     )
-
 
 def patch_spy_navigation() -> None:
     settings_path = "TMessagesProj/src/main/java/toss/authorgram/settings/AGSettingsActivity.java"
@@ -249,11 +354,41 @@ def validate() -> None:
         "TMessagesProj/src/main/res/mipmap-nodpi/ic_launcher_authorgram.png",
         "TMessagesProj/src/main/res/mipmap-nodpi/ic_launcher_authorgram_round.png",
         "TMessagesProj/src/main/res/drawable/ic_launcher_authorgram_foreground.xml",
+        "TMessagesProj/src/main/res/drawable/ic_launcher_authorgram_monochrome.xml",
+        "TMessagesProj/src/main/res/drawable-nodpi/authorgram_launcher_foreground.png",
+        "TMessagesProj/src/main/ic_launcher_authorgram-playstore.png",
         "TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java",
     )
     for relative in required_files:
         if not (ROOT / relative).is_file():
             raise RuntimeError(f"Missing required file: {relative}")
+
+    expected_sizes = {
+        "mdpi": 48,
+        "hdpi": 72,
+        "xhdpi": 96,
+        "xxhdpi": 144,
+        "xxxhdpi": 192,
+    }
+    for density, expected_size in expected_sizes.items():
+        for suffix in ("", "_round"):
+            path = RES / f"mipmap-{density}/ic_launcher_authorgram{suffix}.png"
+            if not path.is_file():
+                raise RuntimeError(f"Missing density launcher icon: {path}")
+            header = path.read_bytes()[:24]
+            if header[:8] != b"\x89PNG\r\n\x1a\n":
+                raise RuntimeError(f"Invalid PNG launcher icon: {path}")
+            width, height = struct.unpack(">II", header[16:24])
+            if (width, height) != (expected_size, expected_size):
+                raise RuntimeError(
+                    f"Wrong launcher size for {path}: {width}x{height}"
+                )
+
+    adaptive = read_text(
+        "TMessagesProj/src/main/res/mipmap-anydpi-v26/ic_launcher_authorgram.xml"
+    )
+    if "<monochrome " not in adaptive:
+        raise RuntimeError("Android 13 monochrome launcher resource is missing")
 
     spy = read_text(
         "TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java"

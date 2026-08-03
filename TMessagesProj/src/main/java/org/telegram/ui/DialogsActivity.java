@@ -9218,7 +9218,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             previewMenu[0].addView(muteItem);
         }
 
-        if (!isCommunityCell) {
+        if (!isCommunityCell
+                && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialogId)) {
             ActionBarMenuSubItem deleteItem = new ActionBarMenuSubItem(getParentActivity(), false, true);
             deleteItem.setIconColor(getThemedColor(Theme.key_text_RedRegular));
             deleteItem.setTextColor(getThemedColor(Theme.key_text_RedBold));
@@ -10071,6 +10072,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     private void performDeleteOrClearDialogAction(int action, long selectedDialog, TLRPC.Chat chat, boolean isBot, boolean revoke) {
+        if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(selectedDialog)) {
+            return;
+        }
         if (action == clear) {
             getMessagesController().deleteDialog(selectedDialog, 1, revoke);
         } else {
@@ -10209,6 +10213,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         int canUnpinCount = 0;
         int canArchiveCount = 0;
         int communitiesCount = 0;
+        int protectedAuthorDialogsCount = 0;
         canDeletePsaSelected = false;
         canUnarchiveCount = 0;
         canUnmuteCount = 0;
@@ -10232,6 +10237,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
 
             long selectedDialog = dialog.id;
+            if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(selectedDialog)) {
+                protectedAuthorDialogsCount++;
+            }
             boolean pinned = isDialogPinned(dialog);
             boolean hasUnread = dialog.unread_count != 0 || dialog.unread_mark;
 
@@ -10322,14 +10330,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         }
         if (deleteItem != null) {
-            if (canDeleteCount != count || communitiesCount > 0) {
+            if (canDeleteCount != count || communitiesCount > 0
+                    || protectedAuthorDialogsCount > 0) {
                 deleteItem.setVisibility(View.GONE);
             } else {
                 deleteItem.setVisibility(View.VISIBLE);
             }
         }
         if (clearItem != null) {
-            if (canClearCacheCount != 0 && canClearCacheCount != count || canClearHistoryCount != 0 && canClearHistoryCount != count || communitiesCount > 0) {
+            if (canClearCacheCount != 0 && canClearCacheCount != count || canClearHistoryCount != 0 && canClearHistoryCount != count || communitiesCount > 0
+                    || protectedAuthorDialogsCount > 0) {
                 clearItem.setVisibility(View.GONE);
             } else {
                 clearItem.setVisibility(View.VISIBLE);

@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AuthorGramPassphraseSettings">Ключ шифрування AuthorGram</string>
-    <string name="AuthorGramPassphraseSystemLocked">Цей чат завжди використовує системний ключ AuthorGram. Власний ключ тут створити не можна.</string>
-    <string name="AuthorGramPassphraseCustomActive">Для цього чату активний власний ключ шифрування.</string>
-    <string name="AuthorGramPassphraseSystemActive">Цей чат зараз використовує системний ключ AuthorGram.</string>
-    <string name="AuthorGramSetPassphrase">Створити власний ключ</string>
-    <string name="AuthorGramChangePassphrase">Створити власний ключ</string>
-    <string name="AuthorGramUseSystemKey">Системний ключ</string>
-    <string name="AuthorGramPassphraseInfo">Введіть слово шифрування, на основі якого буде створено ключ.</string>
+    <string name="AuthorGramPassphraseSettings">Шифрування AuthorGram</string>
+    <string name="AuthorGramPassphraseInfo">Введіть однакове слово на обох пристроях. Після збереження буде створено 256-бітний ключ і ввімкнено шифрування.</string>
+    <string name="AuthorGramEncryptionEnabledInfo">Шифрування ввімкнено. Введіть нове слово, щоб замінити ключ, або вимкніть шифрування.</string>
+    <string name="AuthorGramEncryptionReadyInfo">Для цього чату збережено захищений ключ. Натисніть «Увімкнути» або введіть нове слово, щоб замінити його.</string>
+    <string name="AuthorGramSetPassphrase">Створити ключ зі слова</string>
+    <string name="AuthorGramChangePassphrase">Змінити ключ</string>
+    <string name="AuthorGramSaveAndEnable">Зберегти й увімкнути</string>
+    <string name="AuthorGramEnableEncryption">Увімкнути шифрування</string>
+    <string name="AuthorGramDisableEncryption">Вимкнути шифрування</string>
+    <string name="AuthorGramEncryptionMenuOn">Шифрування AuthorGram: увімкнено</string>
+    <string name="AuthorGramEncryptionMenuOff">Шифрування AuthorGram: вимкнено</string>
     <string name="AuthorGramPassphraseHint">Слово шифрування</string>
+    <string name="AuthorGramNewPassphraseHint">Нове слово шифрування</string>
     <string name="AuthorGramPassphraseCaseNotice">Регістр, внутрішні пробіли та символи мають значення. Пробіли на початку й у кінці ігноруються.</string>
     <string name="AuthorGramShowPassphrase">Показати слово шифрування</string>
-    <string name="AuthorGramDerivingPassphrase">Створюємо ключ шифрування…</string>
-    <string name="AuthorGramPassphraseSaved">Власний ключ створено. Співрозмовник має ввести те саме слово шифрування.</string>
+    <string name="AuthorGramDerivingPassphrase">Створюємо та захищаємо ключ…</string>
+    <string name="AuthorGramPassphraseSavedAndEnabled">Ключ створено, шифрування ввімкнено. Співрозмовник має ввести те саме слово.</string>
+    <string name="AuthorGramEncryptionEnabled">Шифрування ввімкнено.</string>
+    <string name="AuthorGramEncryptionDisabled">Шифрування вимкнено.</string>
     <string name="AuthorGramPassphraseInvalid">Введіть слово шифрування.</string>
     <string name="AuthorGramPassphraseTooLong">Слово шифрування може містити не більше 256 символів.</string>
-    <string name="AuthorGramPassphraseOperationFailed">Не вдалося створити власний ключ. Попередній ключ залишився активним.</string>
-    <string name="AuthorGramUseSystemKeyWarning">Нові повідомлення використовуватимуть системний ключ AuthorGram. Попередній власний ключ залишиться захищено збереженим локально, щоб старі повідомлення читалися.</string>
-    <string name="AuthorGramSystemKeyRestored">Системний ключ AuthorGram тепер активний.</string>
-    <string name="AuthorGramPlayCustomKeyOnly">Play-версія використовує лише створені користувачами ключі для кожного чату. Створіть однаковий ключ зі слова на обох пристроях перед увімкненням шифрування.</string>
-    <string name="AuthorGramPlayProtectedDialog">У Play-версії шифрування в цьому чаті недоступне.</string>
+    <string name="AuthorGramPassphraseOperationFailed">Не вдалося створити ключ. Налаштування шифрування не змінено.</string>
 </resources>

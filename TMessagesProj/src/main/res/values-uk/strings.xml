@@ -34,4 +34,5 @@
     <string name="AuthorGramInvalidKey">Введіть непорожнє слово або фразу довжиною до 256 символів.</string>
     <string name="AuthorGramNoCustomKey">Чат використовує системний ключ</string>
     <string name="AuthorGramKeyOperationFailed">Не вдалося змінити ключ чату</string>
+    <string name="DataSaverMode">Економія трафіку</string>
 </resources>

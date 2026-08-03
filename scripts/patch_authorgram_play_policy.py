@@ -97,23 +97,24 @@ def patch_messages_controller():
     changed = False
 
     signature = "    public void deleteMessages(ArrayList<Integer> messages, ArrayList<Long> randoms, TLRPC.EncryptedChat encryptedChat, long dialogId, boolean forAll, int mode, boolean cacheOnly, long taskId, TLObject taskRequest, int topicId, boolean movedToScheduled, int movedToScheduledMessageId) {\n"
-    guarded = signature + "        if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialogId)) {\n            FileLog.d(\"AuthorGram Play: blocked message deletion in protected dialog\");\n            return;\n        }\n"
-    if guarded not in content:
+    guard = "        if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(dialogId)) {\n"
+    guarded = signature + guard + "            FileLog.d(\"AuthorGram: blocked message deletion in the author dialog\");\n            return;\n        }\n"
+    if guard not in content:
         if content.count(signature) != 1:
             raise RuntimeError("Core deleteMessages signature changed: " + str(content.count(signature)))
         content = content.replace(signature, guarded, 1)
         changed = True
 
     signature = "    protected void deleteDialog(long did, int first, int onlyHistory, int max_id, boolean revoke, TLRPC.InputPeer peer, long taskId) {\n"
-    guarded = signature + "        if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(did)) {\n            FileLog.d(\"AuthorGram Play: blocked chat/history deletion in protected dialog\");\n            return;\n        }\n"
-    if guarded not in content:
+    guard = "        if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canDelete(did)) {\n"
+    guarded = signature + guard + "            FileLog.d(\"AuthorGram: blocked chat/history deletion in the author dialog\");\n            return;\n        }\n"
+    if guard not in content:
         if content.count(signature) != 1:
             raise RuntimeError("Core deleteDialog signature changed: " + str(content.count(signature)))
         content = content.replace(signature, guarded, 1)
         changed = True
 
     return write(relative, content) if changed else False
-
 
 def patch_build_integrity():
     relative = "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramBuildIntegrity.java"
@@ -134,7 +135,10 @@ def validate():
             raise RuntimeError("Play policy validation failed: " + item)
 
     controller = read("TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java")
-    for item in ("blocked message deletion in protected dialog", "blocked chat/history deletion in protected dialog"):
+    for item in (
+        "blocked message deletion in the author dialog",
+        "blocked chat/history deletion in the author dialog",
+    ):
         if controller.count(item) != 1:
             raise RuntimeError("MessagesController validation failed: " + item)
 
