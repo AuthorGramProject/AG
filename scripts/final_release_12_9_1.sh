@@ -110,7 +110,7 @@ verify_apk() {
   local certificate_output="$3"
   local aapt="${ANDROID_HOME}/build-tools/36.0.0/aapt"
   local apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
-  local badging package version_name version_code
+  local badging package version_name version_code permissions
 
   badging="$("${aapt}" dump badging "${apk}")"
   package="$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n 1)"
@@ -122,6 +122,14 @@ verify_apk() {
   [[ "${version_name}" == "${VERSION_NAME}" ]] || fail "APK versionName ${version_name} != ${VERSION_NAME}"
   if grep -q '^application-debuggable' <<<"${badging}"; then
     fail "Release APK is debuggable: ${apk}"
+  fi
+
+  permissions="$("${aapt}" dump permissions "${apk}")"
+  if [[ "${expected_package}" == "${MAIN_PACKAGE}" ]]; then
+    grep -q "android.permission.REQUEST_INSTALL_PACKAGES" <<<"${permissions}" \
+      || fail "Main APK cannot request user-approved APK installation"
+  elif grep -q "android.permission.REQUEST_INSTALL_PACKAGES" <<<"${permissions}"; then
+    fail "Play APK must not request REQUEST_INSTALL_PACKAGES"
   fi
 
   "${apksigner}" verify --verbose --print-certs "${apk}" | tee "${certificate_output}"
@@ -263,6 +271,7 @@ Verified invariants:
 - Encrypted-message replies cannot carry plaintext quote text or quote entities.
 - Legacy visible Nagram/Nekogram branding is rejected except exact legal upstream attribution.
 - Both APKs are signed, non-debuggable, minified and shrink resources.
+- Main can request user-approved APK installation; Play omits the restricted permission.
 - Main and Play APKs use the stable existing release signing identity.
 - Signing material is not included in APK artifacts or committed to Play source.
 - Deterministic AuthorGram passphrase KDF self-test passed.
