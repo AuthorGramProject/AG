@@ -16,9 +16,6 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 CUTOFF_TITLE = "Update/telegram 12.9.0 20260718 212239"
-# The actual Telegram 12.9 merge commit was created at this time. The title run
-# may already have been deleted, so this timestamp is the deterministic fallback.
-FALLBACK_CUTOFF_ISO = "2026-07-19T22:45:50Z"
 DESIGNER_PATTERN = re.compile(r"\bdesigners?\b", re.IGNORECASE)
 BRANCHES = ("dev", "main", "play-market")
 
@@ -231,6 +228,7 @@ def clean_runs(api: GitHubApi, current_run_id: int) -> int:
         f"current release run {current_run_id} remains until completion."
     )
     return deleted
+
 
 def main() -> None:
     if os.environ.get("GITHUB_ACTIONS") != "true":
