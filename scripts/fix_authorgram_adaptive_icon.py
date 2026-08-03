@@ -1,46 +1,58 @@
 #!/usr/bin/env python3
-"""Run final release repairs and separate the adaptive launcher foreground bitmap."""
+"""Validate the complete AuthorGram adaptive and legacy launcher resource graph."""
 
 from pathlib import Path
+import struct
 import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 RES = ROOT / "TMessagesProj/src/main/res"
-SOURCE = RES / "mipmap-nodpi/ic_launcher_authorgram.png"
-ARTWORK = RES / "mipmap-nodpi/authorgram_launcher_artwork.png"
 FOREGROUND = RES / "drawable/ic_launcher_authorgram_foreground.xml"
+MONOCHROME = RES / "drawable/ic_launcher_authorgram_monochrome.xml"
+ADAPTIVE = RES / "mipmap-anydpi-v26/ic_launcher_authorgram.xml"
+PLAY_STORE = ROOT / "TMessagesProj/src/main/ic_launcher_authorgram-playstore.png"
 
-# These helpers are intentionally executed from a script already called by the
-# verified release workflow. This also makes re-runs of the previous failed
-# workflow attempt use the corrected cleanup cutoff and Spy compile repair.
-for helper in (
-    ROOT / "scripts/cleanup_authorgram_actions.py",
-    ROOT / "scripts/fix_authorgram_spy_compile.py",
-):
-    subprocess.run([sys.executable, str(helper)], cwd=ROOT, check=True)
-
-if not SOURCE.is_file():
-    raise SystemExit(f"Missing launcher bitmap: {SOURCE}")
-
-ARTWORK.write_bytes(SOURCE.read_bytes())
-FOREGROUND.write_text(
-    """<?xml version="1.0" encoding="utf-8"?>
-<inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:drawable="@mipmap/authorgram_launcher_artwork"
-    android:insetLeft="10dp"
-    android:insetTop="10dp"
-    android:insetRight="10dp"
-    android:insetBottom="10dp" />
-""",
-    encoding="utf-8",
-    newline="",
+subprocess.run(
+    [sys.executable, str(ROOT / "scripts/fix_authorgram_spy_compile.py")],
+    cwd=ROOT,
+    check=True,
 )
 
-content = FOREGROUND.read_text(encoding="utf-8")
-if "@mipmap/ic_launcher_authorgram" in content:
-    raise SystemExit("Adaptive launcher foreground still references itself")
-if "@mipmap/authorgram_launcher_artwork" not in content:
-    raise SystemExit("Adaptive launcher artwork reference is missing")
 
-print("AuthorGram adaptive launcher resource graph validated.")
+def png_size(path: Path) -> tuple[int, int]:
+    header = path.read_bytes()[:24]
+    if header[:8] != b"\x89PNG\r\n\x1a\n":
+        raise SystemExit(f"Invalid PNG: {path}")
+    return struct.unpack(">II", header[16:24])
+
+
+required_sizes = {
+    "mdpi": 48,
+    "hdpi": 72,
+    "xhdpi": 96,
+    "xxhdpi": 144,
+    "xxxhdpi": 192,
+}
+for density, expected in required_sizes.items():
+    for suffix in ("", "_round"):
+        path = RES / f"mipmap-{density}/ic_launcher_authorgram{suffix}.png"
+        if not path.is_file():
+            raise SystemExit(f"Missing launcher variant: {path}")
+        if png_size(path) != (expected, expected):
+            raise SystemExit(
+                f"Wrong launcher dimensions for {path}: {png_size(path)}"
+            )
+
+if not PLAY_STORE.is_file() or png_size(PLAY_STORE) != (512, 512):
+    raise SystemExit("The 512x512 AuthorGram store artwork is missing")
+
+foreground = FOREGROUND.read_text(encoding="utf-8")
+if "@drawable/authorgram_launcher_foreground" not in foreground:
+    raise SystemExit("Adaptive launcher foreground bitmap is not wired correctly")
+
+adaptive = ADAPTIVE.read_text(encoding="utf-8")
+if "<monochrome " not in adaptive or not MONOCHROME.is_file():
+    raise SystemExit("Android 13 monochrome AuthorGram icon is missing")
+
+print("AuthorGram adaptive, monochrome, round and density launcher resources validated.")

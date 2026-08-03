@@ -2702,7 +2702,7 @@
     <string name="AutodownloadSizeLimitUpTo">up to %1$s</string>
     <string name="Streaming">Streaming</string>
     <string name="EnableStreaming">Stream Videos and Audio Files</string>
-    <string name="DataSaverMode">Економія трафіку</string>
+    <string name="DataSaverMode">Data Saver</string>
     <string name="EnableAllStreamingInfo">Some videos can\'t be streamed – e.g., all videos that were sent from Android using Telegram 4.7 and earlier versions.\n</string>
     <string name="TapToChangePhone">Tap to change phone number</string>
     <string name="ShowNotificationsFor">Show notifications for</string>

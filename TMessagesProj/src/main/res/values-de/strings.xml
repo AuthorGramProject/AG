@@ -34,4 +34,5 @@
     <string name="AuthorGramInvalidKey">Gib ein nicht leeres Wort oder eine Phrase mit höchstens 256 Zeichen ein.</string>
     <string name="AuthorGramNoCustomKey">Der Chat verwendet den Systemschlüssel</string>
     <string name="AuthorGramKeyOperationFailed">Der Chatschlüssel konnte nicht geändert werden</string>
+    <string name="DataSaverMode">Datensparmodus</string>
 </resources>

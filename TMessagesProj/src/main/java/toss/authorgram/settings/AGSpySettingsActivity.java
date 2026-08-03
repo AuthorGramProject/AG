@@ -71,7 +71,7 @@ public class AGSpySettingsActivity extends BaseAGXSettingsActivity {
                     null,
                     "RegexFilters",
                     null,
-                    R.drawable.msg_folders,
+                    R.drawable.msg_secret,
                     true,
                     () -> presentFragment(new AGFiltersSettingsActivity())
             ));

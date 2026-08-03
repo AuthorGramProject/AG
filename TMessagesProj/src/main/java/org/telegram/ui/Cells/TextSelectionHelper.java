@@ -44,7 +44,6 @@ import androidx.annotation.NonNull;
 import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import org.jetbrains.annotations.NotNull;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Emoji;
@@ -72,11 +71,6 @@ import org.telegram.ui.RestrictedLanguagesSelectActivity;
 import java.util.ArrayList;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.llm.LlmConfig;
-import tw.nekomimi.nekogram.translate.Translator;
-import tw.nekomimi.nekogram.translate.TranslatorKt;
-import tw.nekomimi.nekogram.utils.AlertUtil;
-import tw.nekomimi.nekogram.utils.ProxyUtil;
 import xyz.nextalone.nagram.NaConfig;
 import xyz.nextalone.nagram.helper.SystemAiServiceHelper;
 
@@ -1547,7 +1541,6 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         }
     }
 
-    private static final int TRANSLATE = 3;
     private static final int ADD_TO_FILTER = 4;
     private static final int SYSTEM_AI = 5;
     private ActionMode.Callback createActionCallback() {
@@ -1589,19 +1582,6 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                             "AI"
                     );
                 }
-
-                menu.add(
-                        Menu.NONE,
-                        TRANSLATE,
-                        6,
-                        LlmConfig.isLLMTranslatorAvailable()
-                                ? getString(
-                                        R.string.TranslateMessageLLM
-                                )
-                                : getString(
-                                        R.string.TranslateMessage
-                                )
-                );
 
                 menu.add(
                         Menu.NONE,
@@ -1713,32 +1693,6 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                     invalidate();
                     AndroidUtilities.cancelRunOnUIThread(showActionsRunnable);
                     AndroidUtilities.runOnUIThread(showActionsRunnable);
-                    return true;
-                } else if (itemId == TRANSLATE) {
-                    CharSequence textS = getSelectedText();
-                    if (textS == null) {
-                        return true;
-                    }
-                    String urlFinal = textS.toString();
-                    Activity activity = ProxyUtil.getOwnerActivity((((View) selectedView).getContext()));
-                    AlertDialog pro = AlertUtil.showProgress(activity);
-                    pro.show();
-                    Translator.translate(TranslatorKt.getCode2Locale(NekoConfig.translateToLang.String()), urlFinal, LlmConfig.isLLMTranslatorAvailable() ? Translator.providerLLMTranslator : 0, new Translator.Companion.TranslateCallBack() {
-                        @Override
-                        public void onSuccess(@NotNull String translation) {
-                            pro.dismiss();
-                            AlertUtil.showCopyAlert(activity, translation);
-                        }
-
-                        @Override
-                        public void onFailed(boolean unsupported, @NotNull String message) {
-                            pro.dismiss();
-                            AlertUtil.showTransFailedDialog(activity, unsupported, message, () -> {
-                                pro.show();
-                                Translator.translate(urlFinal, this);
-                            });
-                        }
-                    });
                     return true;
                 } else if (itemId == SYSTEM_AI) {
                     CharSequence str = getSelectedText();
