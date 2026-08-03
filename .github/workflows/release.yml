@@ -55,38 +55,115 @@ jobs:
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
 
-      - name: Clean historical and unsuccessful workflow runs
+      - name: Remove Designers workflow and clean historical runs
         uses: actions/github-script@v7
         with:
           script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
             const cutoffTitle = 'Update/telegram 12.9.0 20260718 212239';
-            const cutoffIso = '2026-07-19T10:47:18Z';
-            const cutoffTime = Date.parse(cutoffIso);
+            const fallbackCutoffIso = '2026-07-19T10:47:18Z';
+            const designerPattern = /\bdesigners?\b/i;
+            const branches = ['dev', 'main', 'play-market'];
+
+            let deletedDesignerFiles = 0;
+            for (const branch of branches) {
+              let entries;
+              try {
+                const response = await github.rest.repos.getContent({
+                  owner,
+                  repo,
+                  path: '.github/workflows',
+                  ref: branch,
+                });
+                entries = Array.isArray(response.data) ? response.data : [];
+              } catch (error) {
+                if (error.status === 404) {
+                  core.info(`No workflow directory on ${branch}.`);
+                  continue;
+                }
+                throw error;
+              }
+
+              for (const entry of entries) {
+                if (entry.type !== 'file' || !/\.(?:ya?ml)$/i.test(entry.name)) {
+                  continue;
+                }
+
+                let isDesignerWorkflow = designerPattern.test(entry.name);
+                if (!isDesignerWorkflow) {
+                  const file = await github.rest.repos.getContent({
+                    owner,
+                    repo,
+                    path: entry.path,
+                    ref: branch,
+                  });
+                  if (!Array.isArray(file.data) && file.data.content) {
+                    const source = Buffer.from(file.data.content, 'base64').toString('utf8');
+                    const topLevelName = source.match(/^name:\s*(.+)$/m)?.[1] ?? '';
+                    isDesignerWorkflow = designerPattern.test(topLevelName);
+                  }
+                }
+
+                if (!isDesignerWorkflow) {
+                  continue;
+                }
+
+                await github.rest.repos.deleteFile({
+                  owner,
+                  repo,
+                  path: entry.path,
+                  branch,
+                  sha: entry.sha,
+                  message: `[skip ci] Remove obsolete Designers workflow from ${branch}`,
+                });
+                deletedDesignerFiles += 1;
+                core.info(`Deleted obsolete workflow ${entry.path} from ${branch}.`);
+              }
+            }
+
             const runs = await github.paginate(
               github.rest.actions.listWorkflowRunsForRepo,
-              { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
+              { owner, repo, per_page: 100 }
             );
+            const cutoffMatches = runs.filter(run => {
+              const values = [
+                run.display_title,
+                run.name,
+                run.head_commit?.message,
+              ].filter(Boolean);
+              return values.some(value => value === cutoffTitle);
+            });
+            cutoffMatches.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+            const cutoffIso = cutoffMatches[0]?.created_at ?? fallbackCutoffIso;
+            const cutoffTime = Date.parse(cutoffIso);
             const unsuccessful = new Set(['failure', 'cancelled']);
             let deletedBeforeCutoff = 0;
+            let deletedDesignerRuns = 0;
             let deletedUnsuccessful = 0;
 
             for (const run of runs) {
               if (Number(run.id) === Number(context.runId)) {
                 continue;
               }
+              const runLabel = `${run.name ?? ''} ${run.display_title ?? ''}`;
               const beforeOrAtCutoff = Date.parse(run.created_at) <= cutoffTime;
+              const isDesignerRun = designerPattern.test(runLabel);
               const isUnsuccessful = unsuccessful.has(run.conclusion);
-              if (!beforeOrAtCutoff && !isUnsuccessful) {
+              if (!beforeOrAtCutoff && !isDesignerRun && !isUnsuccessful) {
                 continue;
               }
+
               try {
                 await github.rest.actions.deleteWorkflowRun({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
+                  owner,
+                  repo,
                   run_id: run.id,
                 });
                 if (beforeOrAtCutoff) {
                   deletedBeforeCutoff += 1;
+                } else if (isDesignerRun) {
+                  deletedDesignerRuns += 1;
                 } else {
                   deletedUnsuccessful += 1;
                 }
@@ -95,8 +172,28 @@ jobs:
               }
             }
 
+            const remainingRuns = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              { owner, repo, per_page: 100 }
+            );
+            const remainingHistorical = remainingRuns.filter(run =>
+              Number(run.id) !== Number(context.runId)
+              && Date.parse(run.created_at) <= cutoffTime
+            );
+            const remainingDesigner = remainingRuns.filter(run =>
+              Number(run.id) !== Number(context.runId)
+              && designerPattern.test(`${run.name ?? ''} ${run.display_title ?? ''}`)
+            );
+            if (remainingHistorical.length || remainingDesigner.length) {
+              throw new Error(
+                `Workflow cleanup incomplete: historical=${remainingHistorical.length}, designers=${remainingDesigner.length}`
+              );
+            }
+
             core.info(`Cleanup cutoff: ${cutoffIso} — ${cutoffTitle}`);
-            core.info(`Deleted ${deletedBeforeCutoff} remaining run(s) at or before the cutoff.`);
+            core.info(`Deleted ${deletedDesignerFiles} Designers workflow file(s).`);
+            core.info(`Deleted ${deletedBeforeCutoff} run(s) at or before the cutoff.`);
+            core.info(`Deleted ${deletedDesignerRuns} newer Designers run(s).`);
             core.info(`Deleted ${deletedUnsuccessful} newer failed/cancelled run(s).`);
 
       - name: Set up Java 21
