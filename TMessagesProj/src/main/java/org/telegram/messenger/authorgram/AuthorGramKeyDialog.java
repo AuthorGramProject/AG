@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.res.ColorStateList;
 import android.os.Build;
+import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.view.Gravity;
@@ -190,9 +191,10 @@ public final class AuthorGramKeyDialog {
 
             dialog.getButton(DialogInterface.BUTTON_POSITIVE)
                     .setOnClickListener(view -> {
-                        char[] passphrase =
-                                input.getText().toString().toCharArray();
-                        input.setText("");
+                        Editable editable = input.getText();
+                        char[] passphrase = new char[editable.length()];
+                        editable.getChars(0, editable.length(), passphrase, 0);
+                        editable.clear();
 
                         if (passphrase.length == 0 && !enabled && hasCustomKey) {
                             AuthorGramChatState.setEnabled(
