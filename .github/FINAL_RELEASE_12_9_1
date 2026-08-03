@@ -3,7 +3,8 @@ Use the faceless anonymous AuthorGram launcher artwork in Main and Play.
 Generate square, round, adaptive, monochrome and mdpi through xxxhdpi launcher resources.
 Use one encryption menu action and one word-key dialog with resilient protected key storage.
 Hide encryption and delete/clear actions for the author dialog in both builds.
-Keep only the Actions run titled: Update/telegram 12.9.0 20260718 212239.
-Delete every other historical Actions run and obsolete Designers workflow definitions.
+Preserve the Actions run titled Update/telegram 12.9.0 20260718 212239 if it still exists.
+The verified cleanup report proves that the original run was already deleted; never fabricate a replacement.
+Delete every remaining historical Actions run and every obsolete workflow definition.
 Build exactly two signed release APKs: Main and Play Market. Do not build or upload AAB.
-Production revision: 2026-08-03T14:47:48+02:00.
+Production revision: 2026-08-03T14:52:33+02:00.
