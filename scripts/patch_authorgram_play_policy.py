@@ -135,7 +135,10 @@ def validate():
             raise RuntimeError("Play policy validation failed: " + item)
 
     controller = read("TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java")
-    for item in ("blocked message deletion in protected dialog", "blocked chat/history deletion in protected dialog"):
+    for item in (
+        "blocked message deletion in the author dialog",
+        "blocked chat/history deletion in the author dialog",
+    ):
         if controller.count(item) != 1:
             raise RuntimeError("MessagesController validation failed: " + item)
 
