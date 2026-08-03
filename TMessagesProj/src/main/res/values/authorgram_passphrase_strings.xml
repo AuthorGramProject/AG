@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AuthorGramPassphraseSettings">AuthorGram encryption key</string>
-    <string name="AuthorGramPassphraseSystemLocked">This chat always uses the AuthorGram system key. A custom key cannot be created here.</string>
-    <string name="AuthorGramPassphraseCustomActive">A custom encryption key is active for this chat.</string>
-    <string name="AuthorGramPassphraseSystemActive">This chat currently uses the AuthorGram system key.</string>
-    <string name="AuthorGramSetPassphrase">Create custom key</string>
-    <string name="AuthorGramChangePassphrase">Create custom key</string>
-    <string name="AuthorGramUseSystemKey">System key</string>
-    <string name="AuthorGramPassphraseInfo">Enter an encryption word that will be used to create the key.</string>
+    <string name="AuthorGramPassphraseSettings">AuthorGram encryption</string>
+    <string name="AuthorGramPassphraseInfo">Enter the same word on both devices. Saving creates a 256-bit key and enables encryption.</string>
+    <string name="AuthorGramEncryptionEnabledInfo">Encryption is on. Enter a new word to replace the key, or turn encryption off.</string>
+    <string name="AuthorGramEncryptionReadyInfo">A protected key is saved for this chat. Tap Enable, or enter a new word to replace it.</string>
+    <string name="AuthorGramSetPassphrase">Create word key</string>
+    <string name="AuthorGramChangePassphrase">Change key</string>
+    <string name="AuthorGramSaveAndEnable">Save and enable</string>
+    <string name="AuthorGramEnableEncryption">Enable encryption</string>
+    <string name="AuthorGramDisableEncryption">Turn off encryption</string>
+    <string name="AuthorGramEncryptionMenuOn">AuthorGram encryption: on</string>
+    <string name="AuthorGramEncryptionMenuOff">AuthorGram encryption: off</string>
     <string name="AuthorGramPassphraseHint">Encryption word</string>
+    <string name="AuthorGramNewPassphraseHint">New encryption word</string>
     <string name="AuthorGramPassphraseCaseNotice">Uppercase, lowercase, internal spaces and symbols matter. Leading and trailing spaces are ignored.</string>
     <string name="AuthorGramShowPassphrase">Show encryption word</string>
-    <string name="AuthorGramDerivingPassphrase">Creating encryption key…</string>
-    <string name="AuthorGramPassphraseSaved">Custom key created. The other participant must enter the same encryption word.</string>
+    <string name="AuthorGramDerivingPassphrase">Creating and protecting the key…</string>
+    <string name="AuthorGramPassphraseSavedAndEnabled">The key was created and encryption is on. The other participant must enter the same word.</string>
+    <string name="AuthorGramEncryptionEnabled">Encryption is on.</string>
+    <string name="AuthorGramEncryptionDisabled">Encryption is off.</string>
     <string name="AuthorGramPassphraseInvalid">Enter an encryption word.</string>
     <string name="AuthorGramPassphraseTooLong">The encryption word can contain at most 256 characters.</string>
-    <string name="AuthorGramPassphraseOperationFailed">The custom key could not be created. The previous key remains active.</string>
-    <string name="AuthorGramUseSystemKeyWarning">New messages will use the AuthorGram system key. The previous custom key will remain protected locally so older messages stay readable.</string>
-    <string name="AuthorGramSystemKeyRestored">The AuthorGram system key is now active.</string>
-    <string name="AuthorGramPlayCustomKeyOnly">The Play version uses only keys created by users for each chat. Create the same word key on both devices before enabling encryption.</string>
-    <string name="AuthorGramPlayProtectedDialog">Encryption is unavailable in this chat in the Play version.</string>
+    <string name="AuthorGramPassphraseOperationFailed">The key could not be created. No encryption setting was changed.</string>
 </resources>
