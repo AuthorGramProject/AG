@@ -34134,33 +34134,11 @@ public class ChatActivity extends BaseFragment implements
                         popupLayout.addView(new ActionBarPopupWindow.GapView(contentView.getContext(), themeDelegate), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
                     }
                 }
-                // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW
-                // Telegram-iOS-style targeted preview: selected author and
-                // bounded message content are shown before the action list.
-                if (selectedObject != null
-                        && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
-                        && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool()) {
-                    org.telegram.ui.Components.IOSMessageMenuPreview iosPreview =
-                            new org.telegram.ui.Components.IOSMessageMenuPreview(
-                                    getParentActivity(),
-                                    contentView,
-                                    currentAccount,
-                                    selectedObject,
-                                    themeDelegate
-                            );
-                    LinearLayout.LayoutParams iosPreviewParams = LayoutHelper.createLinear(
-                            LayoutHelper.MATCH_PARENT,
-                            LayoutHelper.WRAP_CONTENT
-                    );
-                    iosPreviewParams.leftMargin = AndroidUtilities.dp(6);
-                    iosPreviewParams.rightMargin = AndroidUtilities.dp(6);
-                    iosPreviewParams.topMargin = AndroidUtilities.dp(6);
-                    iosPreviewParams.bottomMargin = AndroidUtilities.dp(8);
-                    popupLayout.addView(iosPreview, iosPreviewParams);
-                }
-
                 scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];
-                final boolean hasGroupedIcons = GroupedIconsView.useGroupedIcons();
+                // AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_ACTIONS
+                final boolean hasGroupedIcons = GroupedIconsView.useGroupedIcons()
+                        || (org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
+                                && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool());
                 for (int a = 0, N = items.size(); a < N; a++) {
                     ActionBarMenuSubItem cell = new ActionBarMenuSubItem(getParentActivity(), a == 0, a == N - 1, themeDelegate);
                     cell.setMinimumWidth(AndroidUtilities.dp(200));
@@ -34823,7 +34801,13 @@ public class ChatActivity extends BaseFragment implements
             }
             chatListView.stopScroll();
             chatLayoutManager.setCanScrollVertically(false);
-            dimBehindView(v, true);
+            // AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_SCRIM
+            dimBehindView(
+                    v,
+                    org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
+                            && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool(),
+                    true
+            );
             hideHints(false);
             if (topUndoView != null) {
                 topUndoView.hide(true, 1);
