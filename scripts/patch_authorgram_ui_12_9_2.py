@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Apply the final AuthorGram 12.9.2 UI repairs idempotently.
+"""Apply final AuthorGram 12.9.2 UI repairs idempotently.
 
-The large Telegram/Nagram sources are patched from tightly scoped anchors so the
-release workflow can validate and commit the exact generated source before build.
-No package names, product names, existing features or Main/Play policy are changed.
+The release workflow runs this patch before building Main and Play.  Every change
+is tied to a narrow source anchor and validated after application.  Branding,
+existing feature names and the Main/Play policy split are not changed.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ def read(relative: str) -> str:
 
 
 def write(relative: str, text: str) -> None:
-    (ROOT / relative).write_text(text, encoding="utf-8")
+    (ROOT / relative).write_text(text, encoding="utf-8", newline="")
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -26,6 +26,14 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     if count != 1:
         raise SystemExit(f"{label}: expected exactly one anchor, found {count}")
     return text.replace(old, new, 1)
+
+
+def replace_all(text: str, old: str, new: str, label: str) -> str:
+    count = text.count(old)
+    if count < 1:
+        raise SystemExit(f"{label}: expected at least one anchor, found 0")
+    print(f"{label}: patched {count} path(s)")
+    return text.replace(old, new)
 
 
 def patch_dialog_badges() -> None:
@@ -54,11 +62,7 @@ def patch_dialog_badges() -> None:
         "    // AUTHORGRAM_PROTECTED_DIALOG_BADGE: IDs are resolved by the signed-build policy.\n",
         "DialogCell legacy raw badge set",
     )
-    for expression in (
-        "currentDialogId",
-        "chat.id",
-        "user.id",
-    ):
+    for expression in ("currentDialogId", "chat.id", "user.id"):
         text = replace_once(
             text,
             f"AUTHOR_BADGE_IDS.contains({expression})",
@@ -106,8 +110,8 @@ def patch_authorgram_settings() -> None:
         "AuthorGram settings local folders row",
     )
 
-    # Keep only the overflow button in the action bar. Search remains available as
-    # the first overflow action and therefore can never overlap a long title.
+    # Only the overflow button remains in the action bar. Search is the first
+    # overflow command, so it cannot overlap a long AuthorGram title.
     text = replace_once(
         text,
         "        menu.addItem(MENU_SEARCH, R.drawable.ic_ab_search, resourcesProvider);\n"
@@ -141,7 +145,7 @@ def patch_authorgram_settings() -> None:
         "                    if (position == chatRow) {\n"
         "                        textCell.setTextAndIcon(getString(R.string.Chat), R.drawable.msg_discussion, true);\n"
         "                    } else if (position == localFoldersRow) {\n"
-        "                        textCell.setTextAndIcon(getString(R.string.Filters), R.drawable.msg_folders, true);\n"
+        "                        textCell.setTextAndIcon(getString(R.string.BuiltInFolders), R.drawable.msg_folders, true);\n"
         "                    } else if (position == generalRow) {\n",
         "AuthorGram settings local folders cell",
     )
@@ -165,8 +169,8 @@ def patch_chat_input() -> None:
     guard = (
         "        // AUTHORGRAM_IOS_INPUT_MENU_GUARD\n"
         "        // A delayed MENU-state animation could leave the media container translated\n"
-        "        // over the chat avatar while text is present.  Remove both rendering and\n"
-        "        // touch interception whenever the send button owns this slot.\n"
+        "        // over the chat avatar. Remove rendering and touch interception whenever\n"
+        "        // the send button owns this slot.\n"
         "        if (isIOSInputStyle() && shownSendButton && audioVideoButtonContainer != null) {\n"
         "            audioVideoButtonContainer.animate().cancel();\n"
         "            audioVideoButtonContainer.setVisibility(GONE);\n"
@@ -178,8 +182,7 @@ def patch_chat_input() -> None:
         "        } else if (audioVideoButtonContainer != null) {\n"
         "            audioVideoButtonContainer.setClickable(true);\n"
         "            audioVideoButtonContainer.setEnabled(true);\n"
-        "        }\n"
-        "\n"
+        "        }\n\n"
     )
     text = replace_once(text, anchor, guard + anchor, "iOS input ghost menu guard")
     write(path, text)
@@ -197,7 +200,7 @@ def patch_message_menu() -> None:
         )
         replacement = (
             "                // AUTHORGRAM_COMPACT_MENU_LIMIT: at most two rows of four icons;\n"
-            "                // remaining options stay as normal scrollable text actions.\n"
+            "                // overflow actions remain available as normal scrollable rows.\n"
             "                if (compactIndices.size() > 8) {\n"
             "                    int compactCount = 0;\n"
             "                    for (int index = 0; index < items.size(); index++) {\n"
@@ -210,14 +213,14 @@ def patch_message_menu() -> None:
             "                if (!compactIndices.isEmpty()) {\n"
             "                    int n = compactIndices.size();\n"
         )
-        text = replace_once(text, anchor, replacement, "compact message menu icon limit")
+        text = replace_all(text, anchor, replacement, "compact message menu icon limit")
 
     if "AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW" not in text:
         anchor = "                scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];\n"
         preview = (
             "                // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW\n"
-            "                // Mirror Telegram-iOS' targeted preview: the selected message's\n"
-            "                // author and bounded content are shown before the action list.\n"
+            "                // Telegram-iOS-style targeted preview: selected author and\n"
+            "                // bounded message content are shown before the action list.\n"
             "                if (selectedObject != null) {\n"
             "                    org.telegram.ui.Components.IOSMessageMenuPreview iosPreview =\n"
             "                            new org.telegram.ui.Components.IOSMessageMenuPreview(\n"
@@ -236,10 +239,9 @@ def patch_message_menu() -> None:
             "                    iosPreviewParams.topMargin = AndroidUtilities.dp(6);\n"
             "                    iosPreviewParams.bottomMargin = AndroidUtilities.dp(8);\n"
             "                    popupLayout.addView(iosPreview, iosPreviewParams);\n"
-            "                }\n"
-            "\n"
+            "                }\n\n"
         )
-        text = replace_once(text, anchor, preview + anchor, "iOS message menu preview")
+        text = replace_all(text, anchor, preview + anchor, "iOS message menu preview")
 
     write(path, text)
 
@@ -257,10 +259,11 @@ def validate() -> None:
         "search in overflow": "overflowItem.addSubItem(MENU_SEARCH" in settings
         and "menu.addItem(MENU_SEARCH" not in settings,
         "local folders entry": "AUTHORGRAM_LOCAL_FOLDERS_ROW" in settings
-        and "new FiltersSetupActivity()" in settings,
+        and "new FiltersSetupActivity()" in settings
+        and "R.string.BuiltInFolders" in settings,
         "iOS input guard": "AUTHORGRAM_IOS_INPUT_MENU_GUARD" in enter,
-        "compact menu cap": "AUTHORGRAM_COMPACT_MENU_LIMIT" in chat,
-        "iOS message preview integration": "AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW" in chat,
+        "compact menu cap": chat.count("AUTHORGRAM_COMPACT_MENU_LIMIT") >= 1,
+        "iOS message preview integration": chat.count("AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW") >= 1,
         "iOS message preview implementation": "class IOSMessageMenuPreview" in preview
         and "BluredView" in preview,
     }
