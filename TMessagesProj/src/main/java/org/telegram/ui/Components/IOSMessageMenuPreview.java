@@ -16,6 +16,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.UserObject;
+import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
@@ -39,6 +40,14 @@ public final class IOSMessageMenuPreview extends FrameLayout {
             Theme.ResourcesProvider resourcesProvider
     ) {
         super(context);
+
+        // Defense in depth: this component is inert in the Play package even if a
+        // future caller accidentally bypasses the guarded creation site.
+        if (!AuthorGramPlayPolicy.canUseIosUi()) {
+            setVisibility(GONE);
+            return;
+        }
+
         setClipChildren(true);
         setClipToPadding(true);
         setPadding(
