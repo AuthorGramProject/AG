@@ -57,8 +57,9 @@ public final class AuthorGramPlayPolicy {
         // Do not bypass Telegram content restrictions in the Play package.
         values.put("ignoreContentRestrictions", false);
 
-        // NagramXF-authored interface variant is intentionally Main-only.
+        // AuthorGram iOS-inspired interface variants are intentionally Main-only.
         values.put("iOSMessageInputField", false);
+        values.put("iOSMessageMenu", false);
 
         LOCKED_CONFIGS = Collections.unmodifiableMap(values);
     }
@@ -68,6 +69,11 @@ public final class AuthorGramPlayPolicy {
 
     public static boolean isPlayBuild() {
         return PLAY_PACKAGE.equals(BuildConfig.APPLICATION_ID);
+    }
+
+    /** Single policy boundary for every AuthorGram iOS-inspired interface feature. */
+    public static boolean canUseIosUi() {
+        return !isPlayBuild();
     }
 
     public static boolean hasEmbeddedSystemKey() {
