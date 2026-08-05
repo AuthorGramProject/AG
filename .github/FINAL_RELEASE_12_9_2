@@ -10,6 +10,13 @@ Build exactly two signed release APKs: Main and Play Market. Do not build or upl
 Resolve APK and external documents by their safe file extension before generic server MIME.
 Main may request user-approved APK installation; Play must omit the restricted install permission.
 Protect author_badge identifiers with keyed tokens and bind the badge to trusted release integrity.
+Normalize negative Telegram dialog IDs before author_badge token evaluation.
+Cover author_badge in dialog cells, profile headers, chat headers and shared status components.
+Move AuthorGram settings search into the overflow menu and expose Local Folders explicitly.
+Constrain message menus to the visible work area and retain overflow actions as scrollable rows.
+Prevent the iOS input ghost-menu icon and its invisible touch interception while text is present.
+Enable iOS Message Menu and every iOS-inspired UI feature only in Main; keep them inert and hidden in Play.
+Verify all protected HMAC badge tokens before Android SDK setup.
 Verify modern APK signatures, zip alignment, matching Main/Play certificates and absence of raw author_badge IDs in DEX.
-Verified integration tree: 4fb679600b5cba3b7e8963a5cc490f34cd115734.
-Final release request: 2026-08-05T11:35:00Z.
+Verified integration tree: bf1d3a76b789a554b73e6db225662e117b3cec90.
+Final UI repair release request: 2026-08-05T15:25:00Z.

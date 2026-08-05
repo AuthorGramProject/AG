@@ -48,6 +48,7 @@ import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.DocumentSelectActivity;
+import org.telegram.ui.FiltersSetupActivity;
 import org.telegram.ui.LaunchActivity;
 
 import java.io.File;
@@ -80,6 +81,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
     private int spyRow;
     private int translatorRow;
     private int chatRow;
+    private int localFoldersRow; // AUTHORGRAM_LOCAL_FOLDERS_ROW
     private int passcodeRow;
     private int experimentRow;
     private int categoriesEndRow;
@@ -106,6 +108,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
         }
         translatorRow = addRow();
         chatRow = addRow();
+        localFoldersRow = addRow();
         if (!PasscodeHelper.isSettingsHidden()) {
             passcodeRow = addRow();
         } else {
@@ -128,9 +131,10 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
         View view = super.createView(context);
 
         ActionBarMenu menu = actionBar.createMenu();
-        menu.addItem(MENU_SEARCH, R.drawable.ic_ab_search, resourcesProvider);
         overflowItem = menu.addItem(MENU_OVERFLOW, R.drawable.ic_ab_other, resourcesProvider);
         overflowItem.setContentDescription(getString(R.string.AccDescrMoreOptions));
+        overflowItem.addSubItem(MENU_SEARCH, R.drawable.ic_ab_search, getString(R.string.Search));
+        overflowItem.addColoredGap();
         overflowItem.addSubItem(MENU_IMPORT, R.drawable.import_solar, getString(R.string.ImportSettings));
         overflowItem.addSubItem(MENU_EXPORT, R.drawable.export_solar, getString(R.string.BackupSettings));
         overflowItem.addColoredGap();
@@ -403,6 +407,8 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
     protected void onItemClick(View view, int position, float x, float y) {
         if (position == chatRow) {
             presentFragment(new AGChatSettingsActivity());
+        } else if (position == localFoldersRow) {
+            presentFragment(new FiltersSetupActivity());
         } else if (position == generalRow) {
             presentFragment(new AGGeneralSettingsActivity());
         } else if (position == appearanceRow) {
@@ -458,6 +464,8 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                     TextCell textCell = (TextCell) holder.itemView;
                     if (position == chatRow) {
                         textCell.setTextAndIcon(getString(R.string.Chat), R.drawable.msg_discussion, true);
+                    } else if (position == localFoldersRow) {
+                        textCell.setTextAndIcon(getString(R.string.BuiltInFolders), R.drawable.msg_folders, true);
                     } else if (position == generalRow) {
                         textCell.setTextAndIcon(getString(R.string.General), R.drawable.msg_media, true);
                     } else if (position == appearanceRow) {
@@ -491,7 +499,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
         public int getItemViewType(int position) {
             if (position == categoriesEndRow || position == agSettingsEndRow) {
                 return TYPE_SHADOW;
-            } else if (position == chatRow || position == generalRow || position == appearanceRow || position == spyRow || position == passcodeRow || position == experimentRow || position == translatorRow ||
+            } else if (position == chatRow || position == localFoldersRow || position == generalRow || position == appearanceRow || position == spyRow || position == passcodeRow || position == experimentRow || position == translatorRow ||
                     position == importSettingsRow || position == exportSettingsRow || position == resetSettingsRow || position == appRestartRow ||
                     position == aboutRow) {
                 return TYPE_TEXT;

@@ -27,8 +27,12 @@ public final class AuthorGramBuildIntegrity {
     }
 
     /**
-     * Returns true only for a non-debuggable official build whose installed
-     * package metadata and signing certificate match the release configuration.
+     * Returns true only for a non-debuggable official build whose package and
+     * signing certificate match the release configuration.
+     *
+     * Version metadata is deliberately not used as an identity primitive: OEM
+     * package managers can expose incomplete PackageInfo metadata, while package
+     * name + release flags + APK signer are the stable anti-repack boundary.
      */
     public static boolean isTrustedBuild() {
         if (!BuildConfig.OFFICIAL_BUILD || BuildConfig.DEBUG) {
@@ -89,6 +93,15 @@ public final class AuthorGramBuildIntegrity {
 
         try {
             PackageManager manager = context.getPackageManager();
+            ApplicationInfo applicationInfo = manager.getApplicationInfo(
+                    BuildConfig.APPLICATION_ID,
+                    0
+            );
+            if ((applicationInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                    || (applicationInfo.flags & ApplicationInfo.FLAG_TEST_ONLY) != 0) {
+                return false;
+            }
+
             PackageInfo info;
             Signature[] signatures;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -114,23 +127,8 @@ public final class AuthorGramBuildIntegrity {
             }
 
             if (!BuildConfig.APPLICATION_ID.equals(info.packageName)
-                    || !BuildConfig.VERSION_NAME.equals(info.versionName)) {
-                return false;
-            }
-            long installedVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
-                    ? info.getLongVersionCode()
-                    : info.versionCode;
-            if (installedVersionCode != BuildConfig.VERSION_CODE) {
-                return false;
-            }
-
-            ApplicationInfo applicationInfo = info.applicationInfo;
-            if (applicationInfo == null
-                    || (applicationInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0
-                    || (applicationInfo.flags & ApplicationInfo.FLAG_TEST_ONLY) != 0) {
-                return false;
-            }
-            if (signatures == null || signatures.length == 0) {
+                    || signatures == null
+                    || signatures.length == 0) {
                 return false;
             }
 

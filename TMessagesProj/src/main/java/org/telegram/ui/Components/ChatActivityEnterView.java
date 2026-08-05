@@ -10106,6 +10106,23 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 }
             }
         }
+        // AUTHORGRAM_IOS_INPUT_MENU_GUARD
+        // A delayed MENU-state animation could leave the media container translated
+        // over the chat avatar. Remove rendering and touch interception whenever
+        // the send button owns this slot.
+        if (isIOSInputStyle() && shownSendButton && audioVideoButtonContainer != null) {
+            audioVideoButtonContainer.animate().cancel();
+            audioVideoButtonContainer.setVisibility(GONE);
+            audioVideoButtonContainer.setAlpha(0.0f);
+            audioVideoButtonContainer.setClickable(false);
+            audioVideoButtonContainer.setEnabled(false);
+            audioVideoButtonContainer.setTranslationX(0.0f);
+            audioVideoButtonContainer.setTranslationY(0.0f);
+        } else if (audioVideoButtonContainer != null) {
+            audioVideoButtonContainer.setClickable(true);
+            audioVideoButtonContainer.setEnabled(true);
+        }
+
         if (isStories && suggestButton != null) {
             if (animated) {
                 suggestButton.animate().translationX(shownSendButton ? -Math.max(0, sendButton.width() - dp(64)) : dp(42)).setDuration(320).setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).start();
@@ -16412,7 +16429,12 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     }
 
     private boolean computeIOSInputStyle() {
-        if (!NekoConfig.iOSMessageInputField.Bool() || isStories || parentFragment == null || parentFragment.isInPreviewMode()) {
+        // AUTHORGRAM_MAIN_ONLY_IOS_INPUT
+        if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
+                || !NekoConfig.iOSMessageInputField.Bool()
+                || isStories
+                || parentFragment == null
+                || parentFragment.isInPreviewMode()) {
             return false;
         }
         final TLRPC.Chat chat = parentFragment.getCurrentChat();
