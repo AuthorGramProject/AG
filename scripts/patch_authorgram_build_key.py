@@ -4,14 +4,22 @@ import runpy
 
 root = Path(__file__).resolve().parents[1]
 
-# Apply the idempotent UI repairs in the same release-source stage that is
-# already executed and committed by release.yml. This avoids an extra workflow
-# and guarantees Main and Play are built from identical repaired UI sources.
-for relative in (
+# Compile every chained source patch before executing the first one. This keeps a
+# syntax regression from partially mutating the release checkout.
+source_patches = (
     "scripts/patch_authorgram_ui_12_9_2.py",
     "scripts/patch_authorgram_popup_bounds.py",
     "scripts/patch_authorgram_badge_surfaces.py",
-):
+)
+for relative in source_patches:
+    source = (root / relative).read_text(encoding="utf-8")
+    compile(source, relative, "exec")
+    print(f"Python syntax passed: {relative}")
+
+# Apply the idempotent UI repairs in the same release-source stage that is
+# already executed and committed by release.yml. This avoids an extra workflow
+# and guarantees Main and Play are built from identical repaired UI sources.
+for relative in source_patches:
     runpy.run_path(str(root / relative), run_name="__main__")
 
 # Use the existing Nagram string that explicitly names the feature rather than
