@@ -34134,6 +34134,43 @@ public class ChatActivity extends BaseFragment implements
                         popupLayout.addView(new ActionBarPopupWindow.GapView(contentView.getContext(), themeDelegate), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
                     }
                 }
+                // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW
+                // AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW
+                // The selected message is a snapshot of the real ChatMessageCell.
+                // It stays independent between reactions and the action panel.
+                if (selectedObject != null
+                        && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
+                        && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool()) {
+                    org.telegram.ui.Components.IOSMessageMenuPreview iosPreview =
+                            new org.telegram.ui.Components.IOSMessageMenuPreview(
+                                    getParentActivity(),
+                                    contentView,
+                                    messageCell,
+                                    themeDelegate
+                            );
+                    LinearLayout.LayoutParams iosPreviewParams = LayoutHelper.createLinear(
+                            LayoutHelper.MATCH_PARENT,
+                            LayoutHelper.WRAP_CONTENT
+                    );
+                    iosPreviewParams.leftMargin = 0;
+                    iosPreviewParams.rightMargin = 0;
+                    iosPreviewParams.topMargin = AndroidUtilities.dp(2);
+                    iosPreviewParams.bottomMargin = 0;
+                    popupLayout.addView(iosPreview, iosPreviewParams);
+
+                    org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView iosMessageGap =
+                            new org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView(
+                                    getParentActivity(),
+                                    android.graphics.Color.TRANSPARENT,
+                                    android.graphics.Color.TRANSPARENT
+                            );
+                    iosMessageGap.setTag("AUTHORGRAM_IOS_MESSAGE_ACTION_GAP");
+                    popupLayout.addView(iosMessageGap, LayoutHelper.createLinear(
+                            LayoutHelper.MATCH_PARENT,
+                            8
+                    ));
+                }
+
                 scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];
                 // AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_ACTIONS
                 final boolean hasGroupedIcons = GroupedIconsView.useGroupedIcons()
@@ -34801,13 +34838,7 @@ public class ChatActivity extends BaseFragment implements
             }
             chatListView.stopScroll();
             chatLayoutManager.setCanScrollVertically(false);
-            // AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_SCRIM
-            dimBehindView(
-                    v,
-                    org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
-                            && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool(),
-                    true
-            );
+            dimBehindView(v, true);
             hideHints(false);
             if (topUndoView != null) {
                 topUndoView.hide(true, 1);
