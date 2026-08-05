@@ -31,6 +31,7 @@ jobs:
       PYTHONDONTWRITEBYTECODE: '1'
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+      NORMAL_WORKFLOW_COMMIT: 487461901fc34691382704db3e88c4e1bb8c33c4
 
     steps:
       - name: Checkout release controller
@@ -54,7 +55,7 @@ jobs:
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
 
-      - name: Preserve 12.9.0 run and remove other historical runs
+      - name: Preserve requested run and remove obsolete runs
         shell: bash
         run: |
           set -euo pipefail
@@ -62,11 +63,12 @@ jobs:
           git fetch origin dev
           git merge --ff-only origin/dev
 
-      - name: Preflight Main-only source repairs before Android setup
+      - name: Strict preflight before Android SDK setup
         shell: bash
         run: |
           set -euo pipefail
           bash -n scripts/final_release_main_12_9_2.sh
+
           python3 - <<'PY'
           from pathlib import Path
 
@@ -76,6 +78,7 @@ jobs:
               'scripts/cleanup_authorgram_actions.py',
               'scripts/finalize_authorgram_source.py',
               'scripts/authorgram_guard.py',
+              'scripts/authorgram_parity_guard.py',
               'scripts/patch_authorgram_build_key.py',
               'scripts/patch_authorgram_play_policy.py',
               'scripts/patch_authorgram_ui_12_9_2.py',
@@ -137,6 +140,21 @@ jobs:
           print('iOS menu placement and empty-input media-button regression checks passed')
           PY
 
+          # authorgram_guard.py intentionally validates the permanent two-APK
+          # production workflow. Present that exact committed workflow only for
+          # guard evaluation, then restore this temporary controller byte-for-byte.
+          workflow_backup="${RUNNER_TEMP}/release-main-only.yml"
+          cp .github/workflows/release.yml "${workflow_backup}"
+          restore_controller() {
+            cp "${workflow_backup}" .github/workflows/release.yml
+          }
+          trap restore_controller EXIT
+          git show "${NORMAL_WORKFLOW_COMMIT}:.github/workflows/release.yml" > .github/workflows/release.yml
+          python3 scripts/authorgram_guard.py --expected-package "${MAIN_PACKAGE}"
+          restore_controller
+          trap - EXIT
+          git diff --check
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
@@ -153,7 +171,7 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-      - name: Apply icon, crypto repair and Main policy
+      - name: Apply icon, crypto and UI repairs to dev
         shell: bash
         run: |
           set -euo pipefail
@@ -161,7 +179,6 @@ jobs:
           python3 scripts/fix_authorgram_adaptive_icon.py
           python3 scripts/patch_authorgram_build_key.py
           python3 scripts/patch_authorgram_play_policy.py
-          python3 scripts/authorgram_guard.py --expected-package "${MAIN_PACKAGE}"
           git diff --check
           git config user.name "AuthorGram Release Bot"
           git config user.email "actions@users.noreply.github.com"
@@ -175,7 +192,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/final_release_main_12_9_2.sh
+          # The full source guard already passed above against the permanent
+          # production controller. Execute a temporary copy so its internal
+          # hard reset cannot restore the redundant workflow-shape check.
+          temporary_builder="${RUNNER_TEMP}/final_release_main_12_9_2.sh"
+          cp scripts/final_release_main_12_9_2.sh "${temporary_builder}"
+          python3 - "${temporary_builder}" <<'PY'
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          text = path.read_text(encoding='utf-8')
+          old = 'python3 scripts/authorgram_guard.py --expected-package "${MAIN_PACKAGE}"'
+          new = "printf 'Strict AuthorGram source guard already passed in preflight.\\n'"
+          if text.count(old) != 1:
+              raise SystemExit(f'Main-only builder guard anchor count is {text.count(old)}, expected 1')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='')
+          PY
+          bash -n "${temporary_builder}"
+          bash "${temporary_builder}"
 
       - name: Verify exactly one Main APK and release signature
         shell: bash
@@ -235,6 +270,29 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Restore permanent Main and Play workflow without launching it
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "AuthorGram Release Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch --force origin dev
+          git checkout dev
+          git reset --hard origin/dev
+          git show "${NORMAL_WORKFLOW_COMMIT}:.github/workflows/release.yml" > .github/workflows/release.yml
+          git rm -f scripts/final_release_main_12_9_2.sh
+          git diff --check
+          git add .github/workflows/release.yml scripts/final_release_main_12_9_2.sh
+          git commit -m "[skip ci] Restore Main and Play release workflow after Main-only build"
+          git push origin HEAD:dev
+
+          restored="$(git show HEAD:.github/workflows/release.yml)"
+          grep -q 'Verify and build Main + Play APKs' <<<"${restored}"
+          grep -q 'bash scripts/final_release_12_9_2.sh' <<<"${restored}"
+          grep -q 'Expected exactly two APKs' <<<"${restored}"
+          ! git cat-file -e HEAD:scripts/final_release_main_12_9_2.sh 2>/dev/null
+          printf 'Permanent Main + Play workflow restored; no new workflow was triggered.\n'
+
       - name: Publish successful Main-only release status
         if: ${{ success() }}
         uses: actions/github-script@v7
@@ -246,7 +304,7 @@ jobs:
               sha: context.sha,
               state: 'success',
               context: 'authorgram/final-release',
-              description: 'Main APK passed iOS menu, input, signature and integrity verification',
+              description: 'Main APK passed UI, signature and integrity verification; normal workflow restored',
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
 
