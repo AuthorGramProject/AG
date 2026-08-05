@@ -5,24 +5,13 @@ import android.view.View;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.authorgram.AuthorGramAuthorBadge;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.Premium.PremiumGradient;
 
-import java.util.HashSet;
-import java.util.Set;
-
 public class StatusBadgeComponent {
-
-    // AuthorGram: decorative developer badge (same icon as app icon).
-    // Shown ONLY for the specified three IDs, does not affect real verified logic.
-    private static final Set<Long> AUTHOR_BADGE_IDS = new HashSet<>();
-    static {
-        AUTHOR_BADGE_IDS.add(6316376597L);
-        AUTHOR_BADGE_IDS.add(2021861896L);
-        AUTHOR_BADGE_IDS.add(2815463434L);
-    }
 
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable statusDrawable;
     private Drawable verifiedDrawable;
@@ -50,11 +39,16 @@ public class StatusBadgeComponent {
         if (user != null) {
             objectId = user.id;
         } else if (chat != null) {
+            // Telegram stores the underlying channel/group identifier here,
+            // without the Bot API -100 prefix.
             objectId = chat.id;
         }
-        if (AUTHOR_BADGE_IDS.contains(objectId)) {
+        if (AuthorGramAuthorBadge.matches(objectId)) {
             if (authorBadgeDrawable == null) {
-                authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
+                authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext
+                        .getResources()
+                        .getDrawable(org.telegram.messenger.R.drawable.ic_author_badge)
+                        .mutate();
             }
             statusDrawable.set(authorBadgeDrawable, animated);
             statusDrawable.setColor(null);
