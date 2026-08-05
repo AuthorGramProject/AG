@@ -1,0 +1,72 @@
+name: Codex AuthorGram source diff
+
+on:
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - .github/CODEX_SOURCE_SNAPSHOT
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-authorgram-source-diff-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  source-diff:
+    name: Export current AuthorGram custom patch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      AUTHORGRAM_BASE_COMMIT: 2d6e9b868255edc800bfe93fee3ada56a5770790
+
+    steps:
+      - name: Check out the exact pull-request head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          filter: blob:none
+          persist-credentials: true
+
+      - name: Fetch the AuthorGram 12.9.0 base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --filter=blob:none --depth=1 origin "${AUTHORGRAM_BASE_COMMIT}"
+          git cat-file -e "${AUTHORGRAM_BASE_COMMIT}^{commit}"
+
+      - name: Create a binary-safe custom patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_dir="${RUNNER_TEMP}/authorgram-source-diff"
+          mkdir -p "${output_dir}"
+
+          head_commit="$(git rev-parse HEAD)"
+          head_tree="$(git rev-parse "HEAD^{tree}")"
+          git diff             --binary             --full-index             --find-renames=50%             "${AUTHORGRAM_BASE_COMMIT}"             "${head_commit}"             > "${output_dir}/authorgram-custom.patch"
+          git diff             --name-status             --find-renames=50%             "${AUTHORGRAM_BASE_COMMIT}"             "${head_commit}"             > "${output_dir}/authorgram-custom-files.txt"
+
+          {
+            printf 'base_commit=%s\n' "${AUTHORGRAM_BASE_COMMIT}"
+            printf 'head_commit=%s\n' "${head_commit}"
+            printf 'head_tree=%s\n' "${head_tree}"
+            printf 'changed_files=%s\n' "$(wc -l < "${output_dir}/authorgram-custom-files.txt")"
+            sha256sum "${output_dir}/authorgram-custom.patch"
+          } > "${output_dir}/manifest.txt"
+
+          git diff --check "${AUTHORGRAM_BASE_COMMIT}" "${head_commit}"
+          test -s "${output_dir}/authorgram-custom.patch"
+          cat "${output_dir}/manifest.txt"
+
+      - name: Upload source diff
+        uses: actions/upload-artifact@v4
+        with:
+          name: authorgram-current-source-diff
+          path: ${{ runner.temp }}/authorgram-source-diff/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 9
