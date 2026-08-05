@@ -1,6 +1,7 @@
 package org.telegram.messenger.authorgram;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
@@ -17,44 +18,58 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Verifies the installed release signature before shared system-key access. */
+/** Verifies the installed AuthorGram release identity before protected features run. */
 public final class AuthorGramBuildIntegrity {
     private static volatile Boolean trusted;
+    private static volatile boolean failureLogged;
 
     private AuthorGramBuildIntegrity() {
     }
 
-    public static boolean canUseSystemKey() {
-        if (!AuthorGramPlayPolicy.hasEmbeddedSystemKey()) {
+    /**
+     * Returns true only for a non-debuggable official build whose installed
+     * package metadata and signing certificate match the release configuration.
+     */
+    public static boolean isTrustedBuild() {
+        if (!BuildConfig.OFFICIAL_BUILD || BuildConfig.DEBUG) {
             return false;
         }
-        if (!BuildConfig.OFFICIAL_BUILD) {
-            return true;
-        }
+
         Boolean cached = trusted;
         if (cached != null) {
             return cached;
         }
+
+        Context context = ApplicationLoader.applicationContext;
+        if (context == null) {
+            return false;
+        }
+
         synchronized (AuthorGramBuildIntegrity.class) {
             if (trusted == null) {
-                trusted = verifyInstalledSignature();
-                if (!trusted) {
-                    FileLog.e("AuthorGram: APK signature verification failed; system-key crypto disabled");
+                trusted = verifyInstalledRelease(context);
+                if (!trusted && !failureLogged) {
+                    failureLogged = true;
+                    FileLog.e("AuthorGram: release integrity verification failed; protected features disabled");
                 }
             }
             return trusted;
         }
     }
 
-    private static boolean verifyInstalledSignature() {
+    public static boolean canUseSystemKey() {
+        return AuthorGramPlayPolicy.hasEmbeddedSystemKey() && isTrustedBuild();
+    }
+
+    private static boolean verifyInstalledRelease(Context context) {
         String configured = BuildConfig.TRUSTED_SIGNING_CERT_SHA256;
         if (configured == null || configured.trim().isEmpty()) {
             return false;
         }
-        Context context = ApplicationLoader.applicationContext;
-        if (context == null) {
+        if (!BuildConfig.APPLICATION_ID.equals(context.getPackageName())) {
             return false;
         }
+
         List<byte[]> expected = new ArrayList<>();
         for (String item : configured.split(",")) {
             byte[] digest = decodeDigest(item);
@@ -65,13 +80,14 @@ public final class AuthorGramBuildIntegrity {
         if (expected.isEmpty()) {
             return false;
         }
+
         try {
             PackageManager manager = context.getPackageManager();
             PackageInfo info;
             Signature[] signatures;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 info = manager.getPackageInfo(
-                        context.getPackageName(),
+                        BuildConfig.APPLICATION_ID,
                         PackageManager.GET_SIGNING_CERTIFICATES
                 );
                 SigningInfo signingInfo = info.signingInfo;
@@ -83,13 +99,35 @@ public final class AuthorGramBuildIntegrity {
                         : signingInfo.getSigningCertificateHistory();
             } else {
                 //noinspection deprecation
-                info = manager.getPackageInfo(context.getPackageName(), PackageManager.GET_SIGNATURES);
+                info = manager.getPackageInfo(
+                        BuildConfig.APPLICATION_ID,
+                        PackageManager.GET_SIGNATURES
+                );
                 //noinspection deprecation
                 signatures = info.signatures;
+            }
+
+            if (!BuildConfig.APPLICATION_ID.equals(info.packageName)
+                    || !BuildConfig.VERSION_NAME.equals(info.versionName)) {
+                return false;
+            }
+            long installedVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                    ? info.getLongVersionCode()
+                    : info.versionCode;
+            if (installedVersionCode != BuildConfig.VERSION_CODE) {
+                return false;
+            }
+
+            ApplicationInfo applicationInfo = info.applicationInfo;
+            if (applicationInfo == null
+                    || (applicationInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                    || (applicationInfo.flags & ApplicationInfo.FLAG_TEST_ONLY) != 0) {
+                return false;
             }
             if (signatures == null || signatures.length == 0) {
                 return false;
             }
+
             MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
             for (Signature signature : signatures) {
                 byte[] actual = sha256.digest(signature.toByteArray());
@@ -100,7 +138,7 @@ public final class AuthorGramBuildIntegrity {
                 }
             }
         } catch (PackageManager.NameNotFoundException | NoSuchAlgorithmException exception) {
-            FileLog.e("AuthorGram: unable to verify APK signature", exception);
+            FileLog.e("AuthorGram: unable to verify installed release identity", exception);
         }
         return false;
     }
