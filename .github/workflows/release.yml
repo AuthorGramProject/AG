@@ -82,6 +82,7 @@ jobs:
               'scripts/patch_authorgram_play_policy.py',
               'scripts/patch_authorgram_ui_12_9_2.py',
               'scripts/patch_authorgram_popup_bounds.py',
+              'scripts/patch_authorgram_badge_surfaces.py',
           )
           for relative in python_scripts:
               source = Path(relative).read_text(encoding='utf-8')
@@ -91,6 +92,7 @@ jobs:
 
           python3 scripts/patch_authorgram_ui_12_9_2.py
           python3 scripts/patch_authorgram_popup_bounds.py
+          python3 scripts/patch_authorgram_badge_surfaces.py
           python3 scripts/patch_authorgram_play_policy.py
           git diff --check
 
@@ -128,8 +130,14 @@ jobs:
           chat_activity = Path(
               'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java'
           ).read_text(encoding='utf-8')
+          enter_view = Path(
+              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java'
+          ).read_text(encoding='utf-8')
           icon_view = Path(
               'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java'
+          ).read_text(encoding='utf-8')
+          preview_view = Path(
+              'TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java'
           ).read_text(encoding='utf-8')
 
           for required in (
@@ -145,12 +153,29 @@ jobs:
               raise SystemExit('iOS Message Menu setting is not connected to ChatActivity')
           if 'AuthorGramPlayPolicy.canUseIosUi()' not in chat_activity:
               raise SystemExit('iOS Message Menu is not gated to Main')
-          if 'AuthorGramPlayPolicy.canUseIosUi() && NekoConfig.iOSMessageInputField.Bool()' not in icon_view:
-              raise SystemExit('iOS input rendering is not gated to Main')
-          if 'compactIndices.remove(Integer.valueOf(index))' not in chat_activity:
-              raise SystemExit('Compact message menu does not remove overflow actions by value')
-          if 'compactIndices.remove(index);' in chat_activity:
-              raise SystemExit('Unsafe compact menu index removal remains')
+          if 'AUTHORGRAM_MAIN_ONLY_IOS_INPUT' not in enter_view:
+              raise SystemExit('Central iOS input layout is not gated to Main')
+          if 'AuthorGramPlayPolicy.canUseIosUi()' not in enter_view:
+              raise SystemExit('Central iOS input policy call is missing')
+          if (
+              'AuthorGramPlayPolicy.canUseIosUi()' not in icon_view
+              or 'NekoConfig.iOSMessageInputField.Bool()' not in icon_view
+          ):
+              raise SystemExit('iOS input icon rendering is not gated to Main')
+          if 'AuthorGramPlayPolicy.canUseIosUi()' not in preview_view:
+              raise SystemExit('iOS message preview component is not inert in Play')
+
+          compact_source_exists = (
+              'GridLayout compactIconBar = null;' in chat_activity
+              or 'AUTHORGRAM_COMPACT_MENU_LIMIT' in chat_activity
+          )
+          if compact_source_exists:
+              if 'AUTHORGRAM_COMPACT_MENU_LIMIT' not in chat_activity:
+                  raise SystemExit('Available compact iOS menu source was not capped')
+              if 'compactIndices.remove(Integer.valueOf(index))' not in chat_activity:
+                  raise SystemExit('Compact message menu does not remove overflow actions by value')
+              if 'compactIndices.remove(index);' in chat_activity:
+                  raise SystemExit('Unsafe compact menu index removal remains')
 
           print('Protected author_badge and Main-only iOS UI source validation passed')
           PY
