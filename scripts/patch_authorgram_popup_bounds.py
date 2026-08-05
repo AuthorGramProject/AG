@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Constrain chat context menus to the actual visible work area."""
+"""Constrain chat context menus and validate protected badge surfaces."""
 
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,7 +49,7 @@ if MARKER not in text:
     if text.count(old_setter) != 1:
         raise SystemExit(f"popup max-height setter anchor count is {text.count(old_setter)}, expected 1")
     text = text.replace(old_setter, new_setter, 1)
-    PATH.write_text(text, encoding="utf-8")
+    PATH.write_text(text, encoding="utf-8", newline="")
 
 check = PATH.read_text(encoding="utf-8")
 required = (
@@ -60,3 +61,11 @@ missing = [item for item in required if item not in check]
 if missing:
     raise SystemExit(f"adaptive popup bounds validation failed: {missing}")
 print("Adaptive chat popup bounds patch passed")
+
+# release.yml executes this lightweight script before Java/Gradle/Android SDK.
+# Running the badge patch here guarantees profile/header badge anchors are also
+# validated during that early, inexpensive preflight stage.
+runpy.run_path(
+    str(ROOT / "scripts/patch_authorgram_badge_surfaces.py"),
+    run_name="__main__",
+)
