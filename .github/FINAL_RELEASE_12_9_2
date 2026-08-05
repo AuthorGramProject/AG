@@ -9,5 +9,7 @@ Delete every remaining historical Actions run and every obsolete workflow defini
 Build exactly two signed release APKs: Main and Play Market. Do not build or upload AAB.
 Resolve APK and external documents by their safe file extension before generic server MIME.
 Main may request user-approved APK installation; Play must omit the restricted install permission.
+Protect author_badge identifiers with keyed tokens and bind the badge to trusted release integrity.
+Verify modern APK signatures, zip alignment, matching Main/Play certificates and absence of raw author_badge IDs in DEX.
 Verified integration tree: 4fb679600b5cba3b7e8963a5cc490f34cd115734.
-Final release request: 2026-08-05T11:26:00Z.
+Final release request: 2026-08-05T11:35:00Z.
