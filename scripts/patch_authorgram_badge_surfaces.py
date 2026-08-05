@@ -74,7 +74,14 @@ def patch_chat_header() -> None:
         "                authorBadgeObjectId = badgeChat.id;\n"
         "            }\n"
         "        }\n"
-        "        boolean authorBadge = AuthorGramAuthorBadge.matches(authorBadgeObjectId);\n\n"
+        "        boolean authorBadge = AuthorGramAuthorBadge.matches(authorBadgeObjectId);\n"
+        "        if (!authorBadge\n"
+        "                && authorBadgeDrawable != null\n"
+        "                && titleTextView.getRightDrawable2() == authorBadgeDrawable) {\n"
+        "            titleTextView.setRightDrawable2(null);\n"
+        "            rightDrawableIsScamOrVerified = false;\n"
+        "            rightDrawable2ContentDescription = null;\n"
+        "        }\n\n"
         "        if (scam || fake) {\n",
         "ChatAvatarContainer badge target",
     )
@@ -152,6 +159,7 @@ def validate_chat_header(text: str) -> None:
         CHAT_HEADER_MARKER,
         "import org.telegram.messenger.authorgram.AuthorGramAuthorBadge;",
         "AuthorGramAuthorBadge.matches(authorBadgeObjectId)",
+        "titleTextView.getRightDrawable2() == authorBadgeDrawable",
         "R.drawable.ic_author_badge",
         "private Drawable authorBadgeDrawable;",
     )
