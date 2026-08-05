@@ -5,6 +5,11 @@ import tw.nekomimi.nekogram.llm.preset.LlmPresetRegistry
 
 object LlmModelUtil {
 
+    private val gemma4ThoughtTagRegex = Regex(
+        "<thought>.*?</thought>",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    )
+
     @JvmStatic
     fun getBaseModelName(model: String?): String {
         if (model.isNullOrBlank()) {
@@ -25,8 +30,15 @@ object LlmModelUtil {
         return base.contains("gemma4") || base.contains("gemma-4")
     }
 
+    @JvmStatic
     fun isGemini3(model: String?): Boolean {
         return getBaseModelName(model).lowercase().startsWith("gemini-3")
+    }
+
+    @JvmStatic
+    fun isGeminiLegacy(model: String?): Boolean {
+        val base = getBaseModelName(model).lowercase()
+        return base.startsWith("gemini-2") || base.startsWith("gemini-3-") || base.startsWith("gemini-3.1")
     }
 
     @JvmStatic
@@ -34,6 +46,7 @@ object LlmModelUtil {
         return getBaseModelName(model).lowercase().startsWith("deepseek-v4")
     }
 
+    @JvmStatic
     fun isReasoning(model: String?): Boolean {
         return isOpenaiCompatibleReasoning(model) || isGemma4(model) || isDeepSeekV4(model)
     }
@@ -42,10 +55,15 @@ object LlmModelUtil {
     fun isOpenaiCompatibleReasoning(model: String?): Boolean {
         val base = getBaseModelName(model).lowercase()
         return base.contains("gemini") && base.contains("flash")
-                || base.startsWith("nemotron-3")
-                || base.startsWith("grok-4.3")
-                || base.startsWith("gpt-oss")
                 || (base.startsWith("gpt-5") && !base.contains("instant") && !base.contains("chat"))
+                || base.startsWith("gpt-oss")
+                || base.startsWith("grok-4.3")
+                || base.startsWith("glm-5")
+                || base.startsWith("hy3")
+                || base.startsWith("inkling")
+                || base.startsWith("kimi-k2.5") || base.startsWith("kimi-k2.6") || base.startsWith("kimi-k3")
+                || base.startsWith("nemotron-3")
+                || base.startsWith("qwen3")
     }
 
     @JvmStatic
@@ -55,6 +73,7 @@ object LlmModelUtil {
             base.startsWith("gpt-oss") -> "low"
             base.startsWith("gpt-5.") -> "none"
             base.startsWith("gpt-5") -> "minimal"
+            base.startsWith("gemini") && (base.endsWith("latest") || !isGeminiLegacy(model)) -> "minimal"
             isGemma4(model) -> "minimal"
             else -> "none"
         }
@@ -97,6 +116,10 @@ object LlmModelUtil {
         return when (providerPreset) {
             LlmPresetRegistry.OPENROUTER -> {
                 when (routerProvider) {
+                    "google" -> {
+                        requestJson.put("reasoning", JSONObject().put("effort", getReasoningEffort(model)))
+                        return true
+                    }
                     "openai" -> {
                         if (model?.contains("gpt-oss") ?: return false) {
                             requestJson.put("reasoning", JSONObject().put("effort", "minimal"))
@@ -161,7 +184,7 @@ object LlmModelUtil {
     @JvmStatic
     fun supportsTemperature(model: String?): Boolean {
         val base = getBaseModelName(model).lowercase()
-        return !base.startsWith("gpt-5")
+        return !base.startsWith("gpt-5") && (!base.startsWith("gemini") || isGeminiLegacy(model))
     }
 
     @JvmStatic
@@ -191,5 +214,17 @@ object LlmModelUtil {
             return false
         }
         return modelId.trim().endsWith(":free", ignoreCase = true)
+    }
+
+    @JvmStatic
+    fun sanitizeResponse(model: String?, content: String?): String {
+        if (content.isNullOrBlank()) {
+            return ""
+        }
+        var sanitized = content.trim()
+        if (isGemma4(model)) {
+            sanitized = gemma4ThoughtTagRegex.replace(sanitized, "").trim()
+        }
+        return sanitized
     }
 }

@@ -600,6 +600,10 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
         return false;
     }
 
+    public boolean useSeparateAvatarPill() {
+        return glassMode && isCentered() && !isPreviewMode();
+    }
+
     protected boolean canSearch() {
         return false;
     }
@@ -1006,37 +1010,12 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
                         + avatarImageView.getMeasuredHeight()
         );
 
-        int l =
-                leftPadding
-                        + (
-                                avatarImageView.getVisibility() == VISIBLE
-                                        && !isCentered()
-                                        ? dp(
-                                                glassMode
-                                                        ? 49.66f
-                                                        : 55
-                                        )
-                                        : (
-                                                isCentered()
-                                                        ? 0
-                                                        : dp(
-                                                                glassMode
-                                                                        ? 13
-                                                                        : 1
-                                                        )
-                                        )
-                        )
-                        + rightAvatarPadding;
-
-        if (isPreviewMode()
-                && isCentered()) {
-
-            l +=
-                    dp(
-                            AndroidUtilities.isTablet()
-                                    ? 80
-                                    : 72
-                    ) / 2;
+        int l = leftPadding + (avatarImageView.getVisibility() == VISIBLE && !isCentered() ? dp(glassMode ? 49.66f : 55) : (isCentered() ? 0 : dp(glassMode ? 13 : 1))) + (isCentered() ? 0 : rightAvatarPadding);
+        if (isCentered() && glassMode && !isPreviewMode()) {
+            l += dp(6);
+        }
+        if (isPreviewMode() && isCentered()) {
+            l += dp(AndroidUtilities.isTablet() ? 80 : 72) / 2;
         }
 
         SimpleTextView titleTextLargerCopyView = this.titleTextLargerCopyView.get();

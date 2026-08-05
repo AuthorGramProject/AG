@@ -210,6 +210,7 @@
     <string name="AIChat">AI Chat</string>
     <string name="AIChatInfo">Setup Services, Roles, and History</string>
     <string name="AIChatServices">Services</string>
+    <string name="AIChatUseLlmProvider">Use AI Translator Provider</string>
     <string name="AIChatRoles">Roles</string>
     <string name="AIChatMessageHistory">Message History</string>
     <string name="AIChatHistoryInfo">When enabled, the AI will remember previous messages in the conversation.</string>
@@ -232,6 +233,9 @@
     <string name="AIChatFetchModels">Fetch Models</string>
     <string name="AIChatTestConnection">Test Connection</string>
     <string name="AIChatTestSuccess">Connection successful</string>
+    <string name="AIChatReasoning">Reasoning Mode</string>
+    <string name="AIChatReasoningInfo">Enable extended thinking for reasoning models (o1, o3, Gemini Thinking, etc.)</string>
+    <string name="AIChatTemperature">Temperature</string>
     <string name="AIChatAddRole">Add Role</string>
     <string name="AIChatRolesInfo">Roles define the AI personality and behavior.</string>
     <string name="AIChatSuggestedRoles">Suggested</string>
@@ -270,4 +274,31 @@
     <string name="AIError502Info">The server is temporarily unavailable.</string>
     <string name="AIError503">Service Unavailable</string>
     <string name="AIError503Info">The service is overloaded. Try again later.</string>
+    <string name="TabStyleStroke">Tab Indicator Stroke</string>
+    <!-- AyuGram feature-gap completion -->
+    <string name="SuggestGhostModeBeforeViewingStory">Suggest ghost mode before viewing stories</string>
+    <string name="SuggestGhostModeBeforeStoryTitle">Ghost mode</string>
+    <string name="SuggestGhostModeBeforeStoryMessage">Viewing this story will reveal your online status. Enable ghost mode first?</string>
+    <string name="SuggestGhostModeBeforeStoryEnable">Enable ghost mode</string>
+    <string name="SuggestGhostModeBeforeStorySkip">View anyway</string>
+    <string name="SaveReadDate">Save read receipts</string>
+    <string name="SaveReadDateAbout">Record when your outgoing messages are read. The read time is shown in the message info.</string>
+    <string name="AyuReadDate">Read</string>
+    <string name="AyuReadDateUnknown">Unknown</string>
+    <!-- Built-in local folders -->
+    <string name="BuiltInFolders">Built-in Folders</string>
+    <string name="BuiltInFoldersInfo">Built-in folders are generated on this device and are not synced to Telegram. Their name and icon can\'t be changed.</string>
+    <string name="LocalFolder">Local folder</string>
+    <string name="LocalFolderEditInfo">Built-in folders can\'t be edited. Remove it here and add it again to change your mind.</string>
+    <string name="BuiltInFolderUnread">Unread</string>
+    <string name="BuiltInFolderUnmuted">Unmuted</string>
+    <string name="BuiltInFolderBasicGroups">Basic Groups</string>
+    <string name="BuiltInFolderSupergroups">Supergroups</string>
+    <string name="BuiltInFolderAdmin">Administrator</string>
+    <!-- Sidebar menu manager -->
+    <string name="MainMenuItems">Sidebar items</string>
+    <string name="MainMenuHiddenItems">Hidden items</string>
+    <string name="MainMenuAddDivider">Add divider</string>
+    <string name="MainMenuDivider">Divider</string>
+    <string name="MainMenuItemsInfo">Long-press and drag to reorder. Tap an item to hide it, or tap a hidden item to bring it back. Tap a divider to remove it.</string>
 </resources>

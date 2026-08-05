@@ -1,10 +1,10 @@
-name: AuthorGram 12.9.1 Final Verified Release
+name: AuthorGram 12.9.2 Final Verified Release
 
 on:
   workflow_dispatch:
   push:
     branches: [dev]
-    paths: [.github/FINAL_RELEASE_12_9_1]
+    paths: [.github/FINAL_RELEASE_12_9_2]
 
 permissions:
   actions: write
@@ -12,7 +12,7 @@ permissions:
   statuses: write
 
 concurrency:
-  group: authorgram-12-9-1-final-release
+  group: authorgram-12-9-2-final-release
   cancel-in-progress: true
 
 jobs:
@@ -20,14 +20,14 @@ jobs:
     name: Verify and build Main + Play APKs
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'Run final AuthorGram 12.9.1 release'
+      github.event.head_commit.message == 'Run final AuthorGram 12.9.2 release'
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
       MAIN_PACKAGE: fork.risin42.nagramx
       PLAY_PACKAGE: toss.authorgram.apk
-      VERSION_NAME: 12.9.1
-      VERSION_CODE: '6967'
+      VERSION_NAME: 12.9.2
+      VERSION_CODE: '6991'
       NATIVE_TARGET: arm64-v8a
       PYTHONDONTWRITEBYTECODE: '1'
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
@@ -83,7 +83,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash -n scripts/final_release_12_9_1.sh
+          bash -n scripts/final_release_12_9_2.sh
           python3 - <<'PY'
           from pathlib import Path
 
@@ -124,7 +124,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/final_release_12_9_1.sh
+          bash scripts/final_release_12_9_2.sh
 
       - name: Verify exactly two APKs, Play policy and no AAB
         shell: bash
@@ -189,7 +189,7 @@ jobs:
       - name: Upload Main and Play release APKs
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-12.9.1-Main-and-Play-Release-APKs
+          name: AuthorGram-12.9.2-Main-and-Play-Release-APKs
           path: ${{ runner.temp }}/authorgram-final/artifacts/
           if-no-files-found: error
           retention-days: 30

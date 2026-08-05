@@ -17,20 +17,28 @@ import android.graphics.RectF;
 import android.graphics.drawable.ShapeDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.TextPaint;
+import android.text.style.ReplacementSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.ColorUtils;
+import androidx.core.graphics.Insets;
 import androidx.core.math.MathUtils;
 import androidx.core.view.WindowInsetsCompat;
 
@@ -38,6 +46,8 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ContactsController;
+import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.LocaleController;
@@ -51,6 +61,7 @@ import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.EdgeToEdgeSupportMode;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.messenger.Emoji;
@@ -60,7 +71,6 @@ import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.messenger.AvatarCornerHelper;
 import org.telegram.ui.Components.Bulletin;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.FolderDrawable;
 import org.telegram.ui.Components.HintsController;
@@ -78,7 +88,6 @@ import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceRenderNode
 import org.telegram.ui.Components.chat.ViewPositionWatcher;
 import org.telegram.ui.Components.glass.GlassTabView;
 import org.telegram.ui.Stories.recorder.HintView2;
-import org.telegram.ui.web.WebBrowserSettings;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,8 +95,7 @@ import java.util.List;
 
 import me.vkryl.android.animator.BoolAnimator;
 import me.vkryl.android.animator.FactorAnimator;
-import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.helpers.AppRestartHelper;
+import tw.nekomimi.nekogram.folder.FolderIconHelper;
 import tw.nekomimi.nekogram.helpers.MainTabsHelper;
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 import toss.authorgram.settings.GhostModeActivity;
@@ -234,10 +242,26 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
             @Override
             protected void dispatchDraw(@NonNull Canvas canvas) {
+                final int color = getEstBackgroundColor();
+                if (insetLeft != 0) {
+                    canvas.drawRect(0, 0, insetLeft, getHeight(), Theme.fillingPaint(color));
+                }
+                if (insetRight != 0) {
+                    canvas.drawRect(getWidth() - insetRight, 0, getWidth(), getHeight(), Theme.fillingPaint(color));
+                }
+
                 super.dispatchDraw(canvas);
                 blur3_invalidateBlur();
+                blur3_updateFadeColors();
             }
         };
+    }
+
+    private int getEstBackgroundColor() {
+        return ColorUtils.blendARGB(
+                getThemedColor(Theme.key_windowBackgroundGray),
+                getThemedColor(Theme.key_windowBackgroundWhite),
+                viewPager != null ? viewPager.getPositionVisibility(0) : 1);
     }
 
     private boolean tabletLayout;
@@ -444,7 +468,75 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             : 0;
     }
 
-    public void openAccountSelector(View button) {
+    private boolean hasUnmutedUnreadDialogs(MessagesController.DialogFilter folder) {
+        final MessagesController messagesController = getMessagesController();
+        final ArrayList<TLRPC.Dialog> dialogs = folder.isDefault()
+                ? messagesController.getDialogs(0)
+                : messagesController.getAllDialogs();
+        for (int i = 0; i < dialogs.size(); i++) {
+            final TLRPC.Dialog dialog = dialogs.get(i);
+            if (!folder.isDefault()) {
+                long dialogId = dialog.id;
+                if (DialogObject.isEncryptedDialog(dialogId)) {
+                    final TLRPC.EncryptedChat encryptedChat = messagesController.getEncryptedChat(DialogObject.getEncryptedChatId(dialogId));
+                    if (encryptedChat != null) {
+                        dialogId = encryptedChat.user_id;
+                    }
+                }
+                if (!folder.includesDialog(getAccountInstance(), dialogId, dialog)) {
+                    continue;
+                }
+            }
+            if ((messagesController.getDialogUnreadCount(dialog) > 0 || dialog.unread_mark)
+                    && !messagesController.isDialogMuted(dialog.id, 0)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private class FolderCounterSpan extends ReplacementSpan {
+
+        private static final float HEIGHT_DP = 17.333f;
+        private final String count;
+        private final boolean hasUnmutedUnreadDialogs;
+        private final TextPaint textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final float counterWidth;
+
+        FolderCounterSpan(int count, boolean hasUnmutedUnreadDialogs) {
+            this.count = String.valueOf(count);
+            this.hasUnmutedUnreadDialogs = hasUnmutedUnreadDialogs;
+            textPaint.setTextSize(AndroidUtilities.dpf2(11));
+            textPaint.setTypeface(AndroidUtilities.bold());
+            counterWidth = Math.max(dp(HEIGHT_DP - 10), textPaint.measureText(this.count)) + dp(10);
+        }
+
+        @Override
+        public int getSize(@NonNull Paint paint, CharSequence text, int start, int end, @Nullable Paint.FontMetricsInt fm) {
+            return (int) Math.ceil(dp(5) + counterWidth);
+        }
+
+        @Override
+        public void draw(@NonNull Canvas canvas, CharSequence text, int start, int end, float x, int top, int y, int bottom, @NonNull Paint paint) {
+            final float left = x + dp(5);
+            final float centerY = (top + bottom) / 2f + dp(1);
+            final float halfHeight = dp(HEIGHT_DP) / 2f;
+            backgroundPaint.setColor(getThemedColor(
+                hasUnmutedUnreadDialogs ?
+                    Theme.key_featuredStickers_addButton :
+                    Theme.key_chats_tabUnreadUnactiveBackground
+            ));
+            textPaint.setColor(getThemedColor(Theme.key_actionBarDefault));
+            AndroidUtilities.rectTmp.set(left, centerY - halfHeight, left + counterWidth, centerY + halfHeight);
+            canvas.drawRoundRect(AndroidUtilities.rectTmp, halfHeight, halfHeight, backgroundPaint);
+            final Paint.FontMetrics fontMetrics = textPaint.getFontMetrics();
+            final float baseline = centerY - (fontMetrics.ascent + fontMetrics.descent) / 2f;
+            canvas.drawText(count, left + (counterWidth - textPaint.measureText(count)) / 2f, baseline, textPaint);
+        }
+    }
+
+    public boolean openAccountSelector(View button) {
         final ArrayList<Integer> accountNumbers = new ArrayList<>();
 
         accountNumbers.clear();
@@ -513,6 +605,8 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         o.show();
 
         HintsController.Hint.AccountSwitchHint.doNotShowAgain();
+
+        return true;
     }
 
     public LinearLayout accountView(int account, boolean selected) {
@@ -599,6 +693,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
         checkUi_fadeView();
         blur3_invalidateBlur();
+        contentView.invalidate();
     }
 
     @Override
@@ -923,11 +1018,18 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private int navigationBarHeight;
+    private int insetLeft;
+    private int insetRight;
 
     @NonNull
     @Override
     protected WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
-        navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
+        final Insets systemInsets = AndroidUtilities.getDefaultWindowInsets(insets, false);
+
+        insetLeft = systemInsets.left;
+        insetRight = systemInsets.right;
+
+        navigationBarHeight = systemInsets.bottom;
         final boolean isUpdateLayoutVisible = updateLayoutWrapper.isUpdateLayoutVisible();
         final int updateLayoutHeight = isUpdateLayoutVisible ? dp(UpdateLayoutWrapper.HEIGHT) : 0;
         updateLayoutWrapper.setPadding(0, 0, 0, navigationBarHeight);
@@ -949,13 +1051,15 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                 bottomMargin = Math.max(bottomMargin, navigationBarHeight + dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS));
             }
             lp = (ViewGroup.MarginLayoutParams) viewPager.getLayoutParams();
-            if (lp.bottomMargin != bottomMargin) {
+            if (lp.bottomMargin != bottomMargin || lp.leftMargin != systemInsets.left || lp.rightMargin != systemInsets.right) {
+                lp.leftMargin = systemInsets.left;
+                lp.rightMargin = systemInsets.right;
                 lp.bottomMargin = bottomMargin;
                 viewPager.setLayoutParams(lp);
             }
         }
 
-        tabsViewWrapper.setPadding(0, 0, 0, navigationBarHeight);
+        tabsViewWrapper.setPadding(systemInsets.left, 0, systemInsets.right, navigationBarHeight);
 
         final WindowInsetsCompat consumed = isUpdateLayoutVisible ?
             insets.inset(0, 0, 0, navigationBarHeight) : insets;
@@ -1250,8 +1354,15 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         iBlur3SourceTabGlass.updateDisplayListIfNeeded();
     }
 
+    private void blur3_updateFadeColors() {
+        iBlur3SourceColor.setColor(getEstBackgroundColor());
+        if (fadeView != null) {
+            fadeView.invalidate();
+        }
+    }
+
     private void blur3_updateColors() {
-        iBlur3SourceColor.setColor(getThemedColor(Theme.key_windowBackgroundWhite));
+        blur3_updateFadeColors();
         if (tabsViewBackground != null) {
             tabsViewBackground.updateColors();
         }
@@ -1320,58 +1431,6 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             openAccountSelector(button);
             return true;
         }
-        final boolean drawerOn = NekoConfig.navigationDrawerEnabled.Bool();
-        if (tabType == MainTabsConfigManager.TabType.SETTINGS) {
-            final boolean showGhost = NekoConfig.showGhostInDrawer.Bool();
-            final boolean ghostInDrawer = drawerOn && showGhost;
-            final boolean nSettingsInDrawer = drawerOn && NaConfig.INSTANCE.getDrawerItemNSettings().Bool();
-            final boolean browserInDrawer = drawerOn && NaConfig.INSTANCE.getDrawerItemBrowser().Bool();
-            final boolean restartInDrawer = drawerOn && NaConfig.INSTANCE.getDrawerItemRestartApp().Bool();
-
-            ItemOptions o = ItemOptions.makeOptions(this, button);
-            boolean addedAny = false;
-            if (showGhost && !ghostInDrawer) {
-                final String msg = NekoConfig.isGhostModeActive()
-                    ? getString(R.string.DisableGhostMode)
-                    : getString(R.string.EnableGhostMode);
-                o.add(R.drawable.ayu_ghost, msg, () -> presentFragment(new GhostModeActivity()), () -> {
-                    final String toggleMsg = NekoConfig.isGhostModeActive()
-                        ? getString(R.string.GhostModeDisabled)
-                        : getString(R.string.GhostModeEnabled);
-                    NekoConfig.toggleGhostMode();
-                    BulletinFactory.of(contentView, resourceProvider).createSuccessBulletin(toggleMsg).show();
-                    NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
-                });
-                o.addGap();
-                addedAny = true;
-            }
-            if (!nSettingsInDrawer) {
-                o.add(R.drawable.msg_settings, getString(R.string.NekoSettings), () -> presentFragment(new AGSettingsActivity()));
-                addedAny = true;
-            }
-            if (!browserInDrawer) {
-                o.add(R.drawable.web_browser, getString(R.string.InappBrowser), () -> presentFragment(new WebBrowserSettings(null)), () -> BrowserUtils.openBrowserHome(null, true));
-                addedAny = true;
-            }
-            if (!restartInDrawer) {
-                if (addedAny) {
-                    o.addGap();
-                }
-                o.add(R.drawable.msg_retry, getString(R.string.RestartApp), () ->
-                    AppRestartHelper.triggerRebirth(
-                        ApplicationLoader.applicationContext,
-                        new Intent(ApplicationLoader.applicationContext, LaunchActivity.class)
-                    )
-                );
-                addedAny = true;
-            }
-            if (!addedAny) {
-                return false;
-            }
-            setupPopupMenuStyle(o);
-            o.show();
-            return true;
-        }
         if (tabType == MainTabsConfigManager.TabType.CONTACTS) {
             return openContactsSelector(button);
         }
@@ -1385,31 +1444,58 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         final ArrayList<MessagesController.DialogFilter> filters = getMessagesController().getDialogFilters();
         final boolean hasFolders = filters != null && filters.size() > 1;
 
-        final boolean archivedInDrawer = drawerOn && NaConfig.INSTANCE.getDrawerItemArchivedChats().Bool();
-        final boolean savedInDrawer = drawerOn && NaConfig.INSTANCE.getDrawerItemSaved().Bool();
-        final boolean showBookmarks = NaConfig.INSTANCE.getShowAddToBookmark().Bool();
-        final boolean bookmarksInDrawer = drawerOn && showBookmarks;
-
         ItemOptions o = ItemOptions.makeOptions(this, button);
 
+        ActionBarMenuSubItem checkedItem = null;
         if (hasFolders) {
+            final int selectedFolderIndex = dialogsActivity != null ? dialogsActivity.getSelectedFilterIndex() : -1;
             for (int i = 0; i < filters.size(); i++) {
                 final MessagesController.DialogFilter folder = filters.get(i);
-                final ActionBarMenuSubItem folderItem = new ActionBarMenuSubItem(getParentActivity(), 2, false, false, getResourceProvider());
+                final boolean checked = i == selectedFolderIndex;
+                final ActionBarMenuSubItem folderItem = new ActionBarMenuSubItem(getParentActivity(), 2, i == 0, i == filters.size() - 1, getResourceProvider());
                 folderItem.setPadding(dp(18), 0, dp(18), 0);
+                folderItem.setChecked(checked);
+                if (checked) {
+                    checkedItem = folderItem;
+                }
                 CharSequence title = folder.isDefault() ? getString(R.string.FilterAllChats) : folder.name;
                 title = Emoji.replaceEmoji(title, folderItem.getTextView().getPaint().getFontMetricsInt(), false);
                 if (!folder.isDefault()) {
                     title = MessageObject.replaceAnimatedEmoji(title, folder.entities, folderItem.getTextView().getPaint().getFontMetricsInt());
                 }
+                final int unreadCount = folder.isDefault()
+                        ? MessagesStorage.getInstance(currentAccount).getMainUnreadCount()
+                        : folder.unreadCount;
+                if (unreadCount > 0) {
+                    final SpannableStringBuilder titleWithCounter = new SpannableStringBuilder(title);
+                    final int counterStart = titleWithCounter.length();
+                    titleWithCounter.append(String.valueOf(unreadCount));
+                    titleWithCounter.setSpan(
+                            new FolderCounterSpan(unreadCount, hasUnmutedUnreadDialogs(folder)),
+                            counterStart,
+                            titleWithCounter.length(),
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    );
+                    title = titleWithCounter;
+                    folderItem.setContentDescription(
+                            TextUtils.concat(
+                                    folder.isDefault() ? getString(R.string.FilterAllChats) : folder.name,
+                                    "\n",
+                                    LocaleController.formatPluralString("AccDescrUnreadCount", unreadCount)
+                            )
+                    );
+                }
                 folderItem.setEmojiCacheType(folder.title_noanimate ? AnimatedEmojiDrawable.CACHE_TYPE_NOANIMATE_FOLDER : AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES);
                 final int color = getMessagesController().folderTags ? folder.color : -1;
-                folderItem.setTextAndIcon(title, 0, new FolderDrawable(getContext(), R.drawable.msg_folders, color));
+                folderItem.setTextAndIcon(title, 0, new FolderDrawable(getContext(), FolderIconHelper.getTabIcon(folder.isDefault() ? "\uD83D\uDCAC" : folder.emoticon), color));
                 folderItem.getTextView().setEmojiColor(getThemedColor(Theme.key_featuredStickers_addButton));
                 folderItem.setMinimumWidth(160);
                 int folderId = folder.id;
                 folderItem.setOnClickListener(e -> {
                     o.dismiss();
+                    if (checked) {
+                        return;
+                    }
                     if (dialogsActivity != null && viewPager != null) {
                         int chatsPosition = getTabIndex(MainTabsConfigManager.TabType.CHATS);
                         if (viewPager.getCurrentPosition() == chatsPosition) {
@@ -1430,30 +1516,37 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         o.add(R.drawable.tabs_reorder, getString(R.string.MainTabsCustomize), () ->
             presentFragment(new MainTabsCustomizeActivity())
         );
-        final boolean hasAnyExtra = !archivedInDrawer || !savedInDrawer || (showBookmarks && !bookmarksInDrawer);
-        if (hasAnyExtra) {
-            o.addGap();
-        }
-        if (!archivedInDrawer) {
-            o.add(R.drawable.msg_archive, getString(R.string.ArchivedChats), () -> {
-                Bundle args = new Bundle();
-                args.putInt("folderId", 1);
-                presentFragment(new DialogsActivity(args));
-            });
-        }
-        if (!savedInDrawer) {
-            o.add(R.drawable.msg_saved, getString(R.string.SavedMessages), () -> {
-                Bundle args = new Bundle();
-                args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
-                presentFragment(new ChatActivity(args));
-            });
-        }
-        if (showBookmarks && !bookmarksInDrawer) {
-            o.add(R.drawable.msg_fave, getString(R.string.BookmarksManager), () -> presentFragment(new BookmarkManagerActivity()));
-        }
         setupPopupMenuStyle(o);
+        o.translate(-dp(8), 0);
+        o.setMaxHeight(dp(400));
+        o.setGravity(Gravity.LEFT);
         o.show();
+
+        if (checkedItem != null) {
+            final ActionBarMenuSubItem item = checkedItem;
+            item.post(() -> scrollItemIntoView(item));
+        }
         return true;
+    }
+
+    private static void scrollItemIntoView(View item) {
+        ViewParent parent = item.getParent();
+        while (parent != null && !(parent instanceof ScrollView)) {
+            parent = parent.getParent();
+        }
+        if (!(parent instanceof ScrollView)) {
+            return;
+        }
+        final ScrollView scrollView = (ScrollView) parent;
+        final int top = item.getTop();
+        final int bottom = item.getBottom();
+        final int scrollY = scrollView.getScrollY();
+        final int height = scrollView.getHeight();
+        if (top < scrollY) {
+            scrollView.smoothScrollTo(0, top);
+        } else if (bottom > scrollY + height) {
+            scrollView.smoothScrollTo(0, bottom - height);
+        }
     }
 
     private void setupPopupMenuStyle(ItemOptions options) {
@@ -1570,5 +1663,10 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             }
         }
         repositionSearchButton();
+    }
+
+    @Override
+    public EdgeToEdgeSupportMode getEdgeToEdgeSupportMode() {
+        return EdgeToEdgeSupportMode.FULL;
     }
 }

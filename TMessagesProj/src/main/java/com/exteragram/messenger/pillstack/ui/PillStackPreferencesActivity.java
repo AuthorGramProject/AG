@@ -4,26 +4,18 @@ import static org.telegram.messenger.LocaleController.getString;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
-import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.exteragram.messenger.pillstack.core.PillRegistry;
 import com.exteragram.messenger.pillstack.core.PillStackConfig;
 
-import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
-import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextCheckCell;
 
@@ -34,10 +26,10 @@ import java.util.List;
 
 import androidx.recyclerview.widget.DiffUtil;
 
-import toss.authorgram.settings.BaseAGSettingsActivity;
+import toss.authorgram.settings.BaseReorderManagerActivity;
 import tw.nekomimi.nekogram.ui.cells.HeaderCell;
 
-public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
+public class PillStackPreferencesActivity extends BaseReorderManagerActivity {
 
     private static final int MENU_RESET = 1;
 
@@ -55,9 +47,7 @@ public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
 
     private final HashMap<Integer, ItemInfo> itemDetails = new HashMap<>();
 
-    private Drawable reorderIcon;
     private ActionBarMenuItem resetItem;
-    private ItemTouchHelper itemTouchHelper;
 
     private static final class ItemInfo {
         final CharSequence name;
@@ -79,6 +69,11 @@ public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
     }
 
     @Override
+    protected String getKey() {
+        return "pillstack";
+    }
+
+    @Override
     public boolean onFragmentCreate() {
         for (PillRegistry.PillInfo info : PillRegistry.getRegisteredPills()) {
             itemDetails.put(info.id(), new ItemInfo(info.name(), info.iconRes(), info.iconColorTop(), info.iconColorBottom()));
@@ -89,18 +84,64 @@ public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
     @Override
     public View createView(Context context) {
         View view = super.createView(context);
-        reorderIcon = ContextCompat.getDrawable(context, R.drawable.list_reorder);
 
-        resetItem = actionBar.createMenu().addItem(MENU_RESET, R.drawable.msg_reset);
-        resetItem.setContentDescription(getString(R.string.Reset));
+        resetItem = addResetMenuItem(MENU_RESET);
         resetItem.setOnClickListener(v -> resetToDefault());
         updateResetButtonVisibility();
 
-        // Drag-to-reorder within either the active or hidden section.
-        itemTouchHelper = new ItemTouchHelper(new ReorderCallback());
-        itemTouchHelper.attachToRecyclerView(listView);
+        attachReorder(new ReorderDelegate() {
+            @Override
+            public boolean isDraggable(int position) {
+                return isInActiveSection(position) || isInHiddenSection(position);
+            }
+
+            @Override
+            public boolean isSameSection(int from, int to) {
+                return (isInActiveSection(from) && isInActiveSection(to))
+                        || (isInHiddenSection(from) && isInHiddenSection(to));
+            }
+
+            @Override
+            public void onMove(int from, int to) {
+                if (isInActiveSection(from) && isInActiveSection(to)) {
+                    int a = from - activeRowStart;
+                    int b = to - activeRowStart;
+                    if (a >= 0 && a < PillStackConfig.activePills.size()
+                            && b >= 0 && b < PillStackConfig.activePills.size()) {
+                        Integer moved = PillStackConfig.activePills.remove(a);
+                        PillStackConfig.activePills.add(b, moved);
+                        listAdapter.notifyItemMoved(from, to);
+                    }
+                } else if (isInHiddenSection(from) && isInHiddenSection(to)) {
+                    int a = from - hiddenRowStart;
+                    int b = to - hiddenRowStart;
+                    if (a >= 0 && a < PillStackConfig.hiddenPills.size()
+                            && b >= 0 && b < PillStackConfig.hiddenPills.size()) {
+                        Integer moved = PillStackConfig.hiddenPills.remove(a);
+                        PillStackConfig.hiddenPills.add(b, moved);
+                        listAdapter.notifyItemMoved(from, to);
+                    }
+                }
+            }
+
+            @Override
+            public void onReorderFinished() {
+                PillStackConfig.savePillsLayout();
+                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.pillStackLayoutChanged);
+                updateResetButtonVisibility();
+                listAdapter.notifyDataSetChanged();
+            }
+        });
 
         return view;
+    }
+
+    private boolean isInActiveSection(int position) {
+        return activeRowStart != -1 && position >= activeRowStart && position <= activeRowEnd;
+    }
+
+    private boolean isInHiddenSection(int position) {
+        return hiddenRowStart != -1 && position >= hiddenRowStart && position <= hiddenRowEnd;
     }
 
     @Override
@@ -128,7 +169,7 @@ public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
             activeHeaderRow = addRow();
             activeRowStart = rowCount;
             for (int i = 0; i < PillStackConfig.activePills.size(); i++) {
-                addRow("active_" + PillStackConfig.activePills.get(i));
+                addRow();
             }
             activeRowEnd = rowCount - 1;
         }
@@ -137,7 +178,7 @@ public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
             hiddenHeaderRow = addRow();
             hiddenRowStart = rowCount;
             for (int i = 0; i < PillStackConfig.hiddenPills.size(); i++) {
-                addRow("hidden_" + PillStackConfig.hiddenPills.get(i));
+                addRow();
             }
             hiddenRowEnd = rowCount - 1;
         }
@@ -280,13 +321,8 @@ public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
     }
 
     private void updateResetButtonVisibility() {
-        if (resetItem == null) return;
         boolean isDefault = PillStackConfig.activePills.equals(PillStackConfig.getDefaultActivePills());
-        if (!isDefault && resetItem.getVisibility() == View.GONE) {
-            AndroidUtilities.updateViewVisibilityAnimated(resetItem, true, 0.5f, true);
-        } else if (isDefault && resetItem.getVisibility() == View.VISIBLE) {
-            AndroidUtilities.updateViewVisibilityAnimated(resetItem, false, 0.5f, true);
-        }
+        updateResetButtonVisibility(resetItem, isDefault);
     }
 
     private void resetToDefault() {
@@ -301,101 +337,6 @@ public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
         saveAndRefresh();
     }
 
-    private class ReorderCallback extends ItemTouchHelper.Callback {
-        @Override
-        public boolean isLongPressDragEnabled() {
-            return true;
-        }
-
-        @Override
-        public int getMovementFlags(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
-            int position = viewHolder.getAdapterPosition();
-            if (isInActiveSection(position) || isInHiddenSection(position)) {
-                return makeMovementFlags(ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0);
-            }
-            return 0;
-        }
-
-        @Override
-        public boolean canDropOver(@NonNull RecyclerView recyclerView,
-                                   @NonNull RecyclerView.ViewHolder current,
-                                   @NonNull RecyclerView.ViewHolder target) {
-            int from = current.getAdapterPosition();
-            int to = target.getAdapterPosition();
-            return (isInActiveSection(from) && isInActiveSection(to))
-                    || (isInHiddenSection(from) && isInHiddenSection(to));
-        }
-
-        @Override
-        public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
-            int from = viewHolder.getAdapterPosition();
-            int to = target.getAdapterPosition();
-
-            if (isInActiveSection(from) && isInActiveSection(to)) {
-                int a = from - activeRowStart;
-                int b = to - activeRowStart;
-                if (a >= 0 && a < PillStackConfig.activePills.size()
-                        && b >= 0 && b < PillStackConfig.activePills.size()) {
-                    Integer moved = PillStackConfig.activePills.remove(a);
-                    PillStackConfig.activePills.add(b, moved);
-                    listAdapter.notifyItemMoved(from, to);
-                    return true;
-                }
-            } else if (isInHiddenSection(from) && isInHiddenSection(to)) {
-                int a = from - hiddenRowStart;
-                int b = to - hiddenRowStart;
-                if (a >= 0 && a < PillStackConfig.hiddenPills.size()
-                        && b >= 0 && b < PillStackConfig.hiddenPills.size()) {
-                    Integer moved = PillStackConfig.hiddenPills.remove(a);
-                    PillStackConfig.hiddenPills.add(b, moved);
-                    listAdapter.notifyItemMoved(from, to);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        @Override
-        public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-        }
-
-        @Override
-        public void onSelectedChanged(RecyclerView.ViewHolder viewHolder, int actionState) {
-            super.onSelectedChanged(viewHolder, actionState);
-            if (actionState != ItemTouchHelper.ACTION_STATE_IDLE) {
-                listView.hideSelector(false);
-                if (viewHolder != null) {
-                    listView.setDraggingChild(viewHolder.itemView);
-                    viewHolder.itemView.setBackground(Theme.createRoundRectDrawable(
-                            AndroidUtilities.dp(16), getThemedColor(Theme.key_windowBackgroundWhite)));
-                    viewHolder.itemView.setPressed(true);
-                    viewHolder.itemView.bringToFront();
-                }
-            }
-        }
-
-        @Override
-        public void clearView(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
-            super.clearView(recyclerView, viewHolder);
-            listView.setDraggingChild(null);
-            viewHolder.itemView.setPressed(false);
-            viewHolder.itemView.setBackground(null);
-            listView.hideSelector(false);
-            PillStackConfig.savePillsLayout();
-            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.pillStackLayoutChanged);
-            updateResetButtonVisibility();
-            listAdapter.notifyDataSetChanged();
-        }
-
-        private boolean isInActiveSection(int position) {
-            return activeRowStart != -1 && position >= activeRowStart && position <= activeRowEnd;
-        }
-
-        private boolean isInHiddenSection(int position) {
-            return hiddenRowStart != -1 && position >= hiddenRowStart && position <= hiddenRowEnd;
-        }
-    }
-
     private class ListAdapter extends BaseListAdapter {
         ListAdapter(Context context) {
             super(context);
@@ -405,11 +346,7 @@ public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             RecyclerView.ViewHolder holder = super.onCreateViewHolder(parent, viewType);
-            // Remove individual white backgrounds so the section decoration's
-            // rounded white background is visible (matching ayuGram's setApplyBackground(false)).
-            if (viewType != TYPE_INFO_PRIVACY && viewType != TYPE_SHADOW) {
-                holder.itemView.setBackground(null);
-            }
+            clearRowBackgroundForRoundedSection(holder, viewType);
             return holder;
         }
 
@@ -453,13 +390,9 @@ public class PillStackPreferencesActivity extends BaseAGSettingsActivity {
                     if (info != null) {
                         cell.setText(info.name, shouldDrawDivider(position));
                         cell.setColorfulIcon(info.iconColorTop, info.iconColorBottom, info.iconRes);
-                        ImageView iv = cell.getValueImageView();
-                        if (iv != null) {
-                            iv.setVisibility(View.VISIBLE);
-                            iv.setImageDrawable(reorderIcon);
-                            iv.setColorFilter(new PorterDuffColorFilter(
-                                    getThemedColor(Theme.key_stickers_menu), PorterDuff.Mode.MULTIPLY));
-                        }
+                        applyReorderHandle(cell);
+                    } else {
+                        cell.setText("", shouldDrawDivider(position));
                     }
                     break;
                 }
