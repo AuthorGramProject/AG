@@ -10,6 +10,7 @@ root = Path(__file__).resolve().parents[1]
 for relative in (
     "scripts/patch_authorgram_ui_12_9_2.py",
     "scripts/patch_authorgram_popup_bounds.py",
+    "scripts/patch_authorgram_badge_surfaces.py",
 ):
     runpy.run_path(str(root / relative), run_name="__main__")
 
