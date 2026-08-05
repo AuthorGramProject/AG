@@ -187,7 +187,7 @@ def patch_ios_message_menu_setting() -> None:
     settings_path = "TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java"
     settings = read(settings_path)
 
-    legacy_helper = (
+    input_helper = (
         "    private AbstractConfigCell appendIOSMessageInputFieldRow() {\n"
         "        if (AuthorGramPlayPolicy.isPlayBuild()) {\n"
         "            return null;\n"
@@ -198,21 +198,10 @@ def patch_ios_message_menu_setting() -> None:
         "        ));\n"
         "    }\n"
     )
-    main_only_helper = (
-        "    private AbstractConfigCell appendIOSMessageInputFieldRow() {\n"
-        "        if (!AuthorGramPlayPolicy.canUseIosUi()) {\n"
-        "            return null;\n"
-        "        }\n"
-        "        return cellGroup.appendCell(new ConfigCellTextCheck(\n"
-        "                NekoConfig.iOSMessageInputField,\n"
-        "                getString(R.string.iOSMessageInputFieldNotice)\n"
-        "        ));\n"
-        "    }\n"
-    )
-    helpers = main_only_helper + (
+    helpers = input_helper + (
         "\n"
         "    private AbstractConfigCell appendIOSMessageMenuRow() {\n"
-        "        if (!AuthorGramPlayPolicy.canUseIosUi()) {\n"
+        "        if (AuthorGramPlayPolicy.isPlayBuild()) {\n"
         "            return null;\n"
         "        }\n"
         "        return cellGroup.appendCell(new ConfigCellTextCheck(\n"
@@ -223,12 +212,9 @@ def patch_ios_message_menu_setting() -> None:
     )
 
     if "appendIOSMessageMenuRow()" not in settings:
-        if legacy_helper in settings:
-            settings = settings.replace(legacy_helper, helpers, 1)
-        elif main_only_helper in settings:
-            settings = settings.replace(main_only_helper, helpers, 1)
-        else:
+        if input_helper not in settings:
             raise SystemExit("iOS settings helper anchor changed")
+        settings = settings.replace(input_helper, helpers, 1)
 
     if "private final AbstractConfigCell iOSMessageMenuRow" not in settings:
         settings = replace_once(
@@ -381,7 +367,7 @@ def validate() -> None:
         "iOS message menu strings": 'name="iOSMessageMenu"' in strings
         and 'name="iOSMessageMenuNotice"' in strings,
         "Main-only iOS settings": "appendIOSMessageMenuRow()" in chat_settings
-        and chat_settings.count("AuthorGramPlayPolicy.canUseIosUi()") >= 2,
+        and chat_settings.count("AuthorGramPlayPolicy.isPlayBuild()") >= 2,
         "iOS input guard": "AUTHORGRAM_IOS_INPUT_MENU_GUARD" in enter,
         "iOS input policy": "AuthorGramPlayPolicy.canUseIosUi() && NekoConfig.iOSMessageInputField.Bool()" in icon,
         "compact menu cap": chat.count("AUTHORGRAM_COMPACT_MENU_LIMIT") >= 1
