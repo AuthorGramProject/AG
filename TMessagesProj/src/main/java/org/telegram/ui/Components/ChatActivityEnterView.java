@@ -10118,6 +10118,18 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             audioVideoButtonContainer.setEnabled(false);
             audioVideoButtonContainer.setTranslationX(0.0f);
             audioVideoButtonContainer.setTranslationY(0.0f);
+        } else if (isIOSInputStyle() && audioVideoButtonContainer != null) {
+            // AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE
+            // Clearing the editor must reverse every property changed above.
+            audioVideoButtonContainer.animate().cancel();
+            audioVideoButtonContainer.setVisibility(VISIBLE);
+            audioVideoButtonContainer.setAlpha(1.0f);
+            audioVideoButtonContainer.setScaleX(1.0f);
+            audioVideoButtonContainer.setScaleY(1.0f);
+            audioVideoButtonContainer.setTranslationX(0.0f);
+            audioVideoButtonContainer.setTranslationY(0.0f);
+            audioVideoButtonContainer.setClickable(true);
+            audioVideoButtonContainer.setEnabled(true);
         } else if (audioVideoButtonContainer != null) {
             audioVideoButtonContainer.setClickable(true);
             audioVideoButtonContainer.setEnabled(true);

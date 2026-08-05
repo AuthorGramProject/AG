@@ -1,24 +1,10 @@
-AuthorGram 12.9.2 final production release trigger.
-Use the faceless anonymous AuthorGram launcher artwork in Main and Play.
-Generate square, round, adaptive, monochrome and mdpi through xxxhdpi launcher resources.
-Use one encryption menu action and one word-key dialog with resilient protected key storage.
-Hide encryption and delete/clear actions for the author dialog in both builds.
-Preserve the Actions run titled Update/telegram 12.9.0 20260718 212239 if it still exists.
-The verified cleanup report proves that the original run was already deleted; never fabricate a replacement.
-Delete every remaining historical Actions run and every obsolete workflow definition.
-Build exactly two signed release APKs: Main and Play Market. Do not build or upload AAB.
-Resolve APK and external documents by their safe file extension before generic server MIME.
-Main may request user-approved APK installation; Play must omit the restricted install permission.
-Protect author_badge identifiers with keyed tokens and bind the badge to trusted release integrity.
-Normalize negative Telegram dialog IDs before author_badge token evaluation.
-Cover author_badge in dialog cells, profile headers, chat headers and shared status components.
-Move AuthorGram settings search into the overflow menu and expose Local Folders explicitly.
-Constrain message menus to the visible work area and retain overflow actions as scrollable rows.
-Prevent the iOS input ghost-menu icon and its invisible touch interception while text is present.
-Enable iOS Message Menu and every iOS-inspired UI feature only in Main; keep them inert and hidden in Play.
-Render the actual selected ChatMessageCell over native blur; never duplicate it inside the popup.
-Force the existing GroupedIconsView quick-action bar for Main iOS Message Menu.
-Verify all protected HMAC badge tokens before Android SDK setup.
-Verify modern APK signatures, zip alignment, matching Main/Play certificates and absence of raw author_badge IDs in DEX.
-Verified integration tree: bf1d3a76b789a554b73e6db225662e117b3cec90.
-Native iOS message-menu correction release request: 2026-08-05T16:58:00Z.
+AuthorGram 12.9.2 verified Main-only correction trigger.
+Build exactly one signed Main release APK and do not compile or upload Play or AAB artifacts in this run.
+Keep the Main-only iOS Message Menu selected-message preview inside popupLayout between the reaction row and the action list.
+Do not elevate or retain the original selected ChatMessageCell at its old position in the chat.
+Restore the iOS input mic/video-round button container to VISIBLE with full alpha and scale after all entered text is cleared.
+Preserve every existing AuthorGram feature, package identity, signing identity, protected author_badge policy and launcher artwork.
+Run the strict permanent production source guard before Android SDK setup.
+Verify the resulting Main APK package, version, modern signature, zip alignment, integrity markers and absence of raw protected badge identifiers.
+After successful artifact upload, restore the permanent Main and Play workflow without triggering another run.
+Main-only correction release request: 2026-08-05T21:15:00+02:00.

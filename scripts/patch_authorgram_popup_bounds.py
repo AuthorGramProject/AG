@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Constrain chat context menus and apply the native Main-only iOS menu."""
+"""Constrain chat context menus and repair the Main-only iOS menu/input UI."""
 
 import runpy
 from pathlib import Path
@@ -7,32 +7,33 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PATH = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java"
 CHAT_PATH = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
+ENTER_PATH = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
 MARKER = "AUTHORGRAM_ADAPTIVE_POPUP_BOUNDS"
 NATIVE_MENU_MARKER = "AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_ACTIONS"
 NATIVE_SCRIM_MARKER = "AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_SCRIM"
+PREVIEW_MARKER = "AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW"
+INPUT_RESTORE_MARKER = "AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE"
 
 
 def patch_native_ios_message_menu() -> None:
-    """Use Telegram's real selected cell instead of a duplicated preview card."""
+    """Keep the selected-message preview between reactions and menu actions."""
     text = CHAT_PATH.read_text(encoding="utf-8")
 
-    # The previous repair inserted a synthetic sender/message card into the old
-    # popup. Remove that whole block. Telegram already keeps the selected
-    # ChatMessageCell above its scrim, preserving the actual bubble, quote,
-    # avatar, timestamp, reactions and theme-specific rendering.
-    preview_start = "                // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW\n"
-    items_anchor = "                scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];\n"
-    if preview_start in text:
-        start = text.index(preview_start)
-        end = text.find(items_anchor, start)
-        if end < 0:
-            raise SystemExit("synthetic iOS preview end anchor is missing")
-        text = text[:start] + text[end:]
+    # patch_authorgram_ui_12_9_2.py inserts the bounded preview immediately
+    # before scrimPopupWindowItems, which is exactly between the reaction row
+    # and the action list. It must remain there; the original chat cell must not
+    # be elevated at its old on-screen position.
+    required_preview = (
+        PREVIEW_MARKER,
+        "new org.telegram.ui.Components.IOSMessageMenuPreview(",
+        "popupLayout.addView(iosPreview, iosPreviewParams);",
+        "scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];",
+    )
+    missing_preview = [item for item in required_preview if item not in text]
+    if missing_preview:
+        raise SystemExit(f"iOS message preview insertion is missing: {missing_preview}")
 
-    # Reuse Nagram's existing GroupedIconsView. It moves the canonical quick
-    # actions into a compact horizontal bottom bar without deleting any other
-    # menu action. The ordinary user preference still works; iOS mode simply
-    # guarantees the bar in trusted Main builds.
+    # Reuse Nagram's existing GroupedIconsView for the compact bottom actions.
     grouped_old = (
         "                final boolean hasGroupedIcons = GroupedIconsView.useGroupedIcons();\n"
     )
@@ -48,15 +49,11 @@ def patch_native_ios_message_menu() -> None:
             raise SystemExit(f"grouped message-menu anchor count is {count}, expected 1")
         text = text.replace(grouped_old, grouped_new, 1)
 
-    # The two-argument overload only dims the chat. The three-argument overload
-    # enables Telegram's native blur while retaining the real selected message
-    # cell above the scrim. Play always evaluates canUseIosUi() to false.
-    scrim_old = (
-        "            chatLayoutManager.setCanScrollVertically(false);\n"
-        "            dimBehindView(v, true);\n"
-        "            hideHints(false);\n"
-    )
-    scrim_new = (
+    # A previous implementation used the three-argument overload to keep the
+    # real ChatMessageCell above the scrim. That leaves the message pinned at
+    # its old chat position. Restore Telegram's normal dimming here; the copied
+    # preview inside popupLayout is now the only selected message shown.
+    elevated_scrim = (
         "            chatLayoutManager.setCanScrollVertically(false);\n"
         "            // AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_SCRIM\n"
         "            dimBehindView(\n"
@@ -67,38 +64,117 @@ def patch_native_ios_message_menu() -> None:
         "            );\n"
         "            hideHints(false);\n"
     )
-    if NATIVE_SCRIM_MARKER not in text:
-        count = text.count(scrim_old)
-        if count != 1:
-            raise SystemExit(f"native chat scrim anchor count is {count}, expected 1")
-        text = text.replace(scrim_old, scrim_new, 1)
+    normal_scrim = (
+        "            chatLayoutManager.setCanScrollVertically(false);\n"
+        "            dimBehindView(v, true);\n"
+        "            hideHints(false);\n"
+    )
+    if elevated_scrim in text:
+        text = text.replace(elevated_scrim, normal_scrim, 1)
+    elif normal_scrim not in text:
+        raise SystemExit("normal chat scrim anchor is missing")
 
     CHAT_PATH.write_text(text, encoding="utf-8", newline="")
 
     check = CHAT_PATH.read_text(encoding="utf-8")
     required = (
         NATIVE_MENU_MARKER,
-        NATIVE_SCRIM_MARKER,
+        PREVIEW_MARKER,
         "GroupedIconsView.useGroupedIcons()",
         "AuthorGramPlayPolicy.canUseIosUi()",
         "NekoConfig.iOSMessageMenu.Bool()",
-        "dimBehindView(\n                    v,",
+        "popupLayout.addView(iosPreview, iosPreviewParams);",
+        "dimBehindView(v, true);",
     )
     missing = [item for item in required if item not in check]
     if missing:
         raise SystemExit(f"native iOS message menu validation failed: {missing}")
     forbidden = (
-        "AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW",
-        "new org.telegram.ui.Components.IOSMessageMenuPreview",
-        "popupLayout.addView(iosPreview",
+        NATIVE_SCRIM_MARKER,
+        "dimBehindView(\n                    v,",
     )
     remaining = [item for item in forbidden if item in check]
     if remaining:
-        raise SystemExit(f"synthetic iOS message preview remains in ChatActivity: {remaining}")
-    print("Native Main-only iOS message menu patch passed")
+        raise SystemExit(f"old-position selected-message elevation remains: {remaining}")
+    print("Main-only iOS message preview placement passed")
+
+
+def patch_ios_input_media_restore() -> None:
+    """Restore the mic/video-round button after the iOS input becomes empty."""
+    text = ENTER_PATH.read_text(encoding="utf-8")
+
+    broken_guard = (
+        "        // AUTHORGRAM_IOS_INPUT_MENU_GUARD\n"
+        "        // A delayed MENU-state animation could leave the media container translated\n"
+        "        // over the chat avatar. Remove rendering and touch interception whenever\n"
+        "        // the send button owns this slot.\n"
+        "        if (isIOSInputStyle() && shownSendButton && audioVideoButtonContainer != null) {\n"
+        "            audioVideoButtonContainer.animate().cancel();\n"
+        "            audioVideoButtonContainer.setVisibility(GONE);\n"
+        "            audioVideoButtonContainer.setAlpha(0.0f);\n"
+        "            audioVideoButtonContainer.setClickable(false);\n"
+        "            audioVideoButtonContainer.setEnabled(false);\n"
+        "            audioVideoButtonContainer.setTranslationX(0.0f);\n"
+        "            audioVideoButtonContainer.setTranslationY(0.0f);\n"
+        "        } else if (audioVideoButtonContainer != null) {\n"
+        "            audioVideoButtonContainer.setClickable(true);\n"
+        "            audioVideoButtonContainer.setEnabled(true);\n"
+        "        }\n"
+    )
+    fixed_guard = (
+        "        // AUTHORGRAM_IOS_INPUT_MENU_GUARD\n"
+        "        // A delayed MENU-state animation could leave the media container translated\n"
+        "        // over the chat avatar. Remove rendering and touch interception whenever\n"
+        "        // the send button owns this slot.\n"
+        "        if (isIOSInputStyle() && shownSendButton && audioVideoButtonContainer != null) {\n"
+        "            audioVideoButtonContainer.animate().cancel();\n"
+        "            audioVideoButtonContainer.setVisibility(GONE);\n"
+        "            audioVideoButtonContainer.setAlpha(0.0f);\n"
+        "            audioVideoButtonContainer.setClickable(false);\n"
+        "            audioVideoButtonContainer.setEnabled(false);\n"
+        "            audioVideoButtonContainer.setTranslationX(0.0f);\n"
+        "            audioVideoButtonContainer.setTranslationY(0.0f);\n"
+        "        } else if (isIOSInputStyle() && audioVideoButtonContainer != null) {\n"
+        "            // AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE\n"
+        "            // Clearing the editor must reverse every property changed above.\n"
+        "            audioVideoButtonContainer.animate().cancel();\n"
+        "            audioVideoButtonContainer.setVisibility(VISIBLE);\n"
+        "            audioVideoButtonContainer.setAlpha(1.0f);\n"
+        "            audioVideoButtonContainer.setScaleX(1.0f);\n"
+        "            audioVideoButtonContainer.setScaleY(1.0f);\n"
+        "            audioVideoButtonContainer.setTranslationX(0.0f);\n"
+        "            audioVideoButtonContainer.setTranslationY(0.0f);\n"
+        "            audioVideoButtonContainer.setClickable(true);\n"
+        "            audioVideoButtonContainer.setEnabled(true);\n"
+        "        } else if (audioVideoButtonContainer != null) {\n"
+        "            audioVideoButtonContainer.setClickable(true);\n"
+        "            audioVideoButtonContainer.setEnabled(true);\n"
+        "        }\n"
+    )
+
+    if INPUT_RESTORE_MARKER not in text:
+        count = text.count(broken_guard)
+        if count != 1:
+            raise SystemExit(f"iOS input media restore anchor count is {count}, expected 1")
+        text = text.replace(broken_guard, fixed_guard, 1)
+        ENTER_PATH.write_text(text, encoding="utf-8", newline="")
+
+    check = ENTER_PATH.read_text(encoding="utf-8")
+    required = (
+        INPUT_RESTORE_MARKER,
+        "audioVideoButtonContainer.setVisibility(VISIBLE);",
+        "audioVideoButtonContainer.setAlpha(1.0f);",
+        "audioVideoButtonContainer.setScaleX(1.0f);",
+        "audioVideoButtonContainer.setScaleY(1.0f);",
+    )
+    missing = [item for item in required if item not in check]
+    if missing:
+        raise SystemExit(f"iOS input media restore validation failed: {missing}")
+    print("Main-only iOS input mic/video restore passed")
 
 
 patch_native_ios_message_menu()
+patch_ios_input_media_restore()
 
 text = PATH.read_text(encoding="utf-8")
 if MARKER not in text:
