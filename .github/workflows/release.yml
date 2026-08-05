@@ -63,6 +63,98 @@ jobs:
           git fetch origin dev
           git merge --ff-only origin/dev
 
+      - name: Preflight source repairs before Android setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/final_release_12_9_2.sh
+          python3 - <<'PY'
+          from pathlib import Path
+
+          python_scripts = (
+              'scripts/apply_authorgram_exact_icon_and_spy.py',
+              'scripts/fix_authorgram_adaptive_icon.py',
+              'scripts/cleanup_authorgram_actions.py',
+              'scripts/finalize_authorgram_source.py',
+              'scripts/authorgram_guard.py',
+              'scripts/authorgram_parity_guard.py',
+              'scripts/patch_authorgram_build_key.py',
+              'scripts/patch_authorgram_play_policy.py',
+              'scripts/patch_authorgram_ui_12_9_2.py',
+              'scripts/patch_authorgram_popup_bounds.py',
+          )
+          for relative in python_scripts:
+              source = Path(relative).read_text(encoding='utf-8')
+              compile(source, relative, 'exec')
+              print(f'Python syntax passed: {relative}')
+          PY
+
+          python3 scripts/patch_authorgram_ui_12_9_2.py
+          python3 scripts/patch_authorgram_popup_bounds.py
+          python3 scripts/patch_authorgram_play_policy.py
+          git diff --check
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          badge_sources = (
+              Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java'),
+              Path('TMessagesProj/src/main/java/org/telegram/ui/Components/StatusBadgeComponent.java'),
+              Path('TMessagesProj/src/main/java/org/telegram/ui/Cells/DialogCell.java'),
+          )
+          forbidden_badge_ids = (
+              '6802848305', '6822670748', '8470484374', '8154455619',
+              '7913929703', '8856346711', '8357439344', '8548193112',
+              '8395237407', '8925149503', '-1003781500049',
+              '-1004297907963', '3781500049', '4297907963',
+          )
+          badge_text = '\n'.join(path.read_text(encoding='utf-8') for path in badge_sources)
+          leaked = [item for item in forbidden_badge_ids if item in badge_text]
+          if leaked:
+              raise SystemExit(f'Raw author_badge identifiers remain in application source: {leaked}')
+          if 'AuthorGramAuthorBadge.matches(objectId)' not in badge_text:
+              raise SystemExit('StatusBadgeComponent is not connected to protected author_badge policy')
+          if badge_text.count('AuthorGramAuthorBadge.matches(') < 4:
+              raise SystemExit('DialogCell is not fully connected to protected author_badge policy')
+          if 'AuthorGramBuildIntegrity.isTrustedBuild()' not in badge_text:
+              raise SystemExit('author_badge is not bound to release signature integrity')
+
+          play_policy = Path(
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java'
+          ).read_text(encoding='utf-8')
+          chat_settings = Path(
+              'TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java'
+          ).read_text(encoding='utf-8')
+          chat_activity = Path(
+              'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java'
+          ).read_text(encoding='utf-8')
+          icon_view = Path(
+              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java'
+          ).read_text(encoding='utf-8')
+
+          for required in (
+              'values.put("iOSMessageInputField", false)',
+              'values.put("iOSMessageMenu", false)',
+              'public static boolean canUseIosUi()',
+          ):
+              if required not in play_policy:
+                  raise SystemExit(f'Main-only iOS policy invariant is missing: {required}')
+          if chat_settings.count('AuthorGramPlayPolicy.isPlayBuild()') < 2:
+              raise SystemExit('Play settings can expose an iOS interface option')
+          if 'NekoConfig.iOSMessageMenu.Bool()' not in chat_activity:
+              raise SystemExit('iOS Message Menu setting is not connected to ChatActivity')
+          if 'AuthorGramPlayPolicy.canUseIosUi()' not in chat_activity:
+              raise SystemExit('iOS Message Menu is not gated to Main')
+          if 'AuthorGramPlayPolicy.canUseIosUi() && NekoConfig.iOSMessageInputField.Bool()' not in icon_view:
+              raise SystemExit('iOS input rendering is not gated to Main')
+          if 'compactIndices.remove(Integer.valueOf(index))' not in chat_activity:
+              raise SystemExit('Compact message menu does not remove overflow actions by value')
+          if 'compactIndices.remove(index);' in chat_activity:
+              raise SystemExit('Unsafe compact menu index removal remains')
+
+          print('Protected author_badge and Main-only iOS UI source validation passed')
+          PY
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
@@ -79,49 +171,6 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-      - name: Validate release controller scripts
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash -n scripts/final_release_12_9_2.sh
-          python3 - <<'PY'
-          from pathlib import Path
-
-          for relative in (
-              'scripts/apply_authorgram_exact_icon_and_spy.py',
-              'scripts/fix_authorgram_adaptive_icon.py',
-              'scripts/cleanup_authorgram_actions.py',
-              'scripts/finalize_authorgram_source.py',
-              'scripts/authorgram_guard.py',
-              'scripts/authorgram_parity_guard.py',
-              'scripts/patch_authorgram_build_key.py',
-              'scripts/patch_authorgram_play_policy.py',
-          ):
-              source = Path(relative).read_text(encoding='utf-8')
-              compile(source, relative, 'exec')
-              print(f'Python syntax passed: {relative}')
-
-          badge_sources = (
-              Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java'),
-              Path('TMessagesProj/src/main/java/org/telegram/ui/Components/StatusBadgeComponent.java'),
-          )
-          forbidden_badge_ids = (
-              '6802848305', '6822670748', '8470484374', '8154455619',
-              '7913929703', '8856346711', '8357439344', '8548193112',
-              '8395237407', '8925149503', '-1003781500049',
-              '-1004297907963', '3781500049', '4297907963',
-          )
-          badge_text = '\n'.join(path.read_text(encoding='utf-8') for path in badge_sources)
-          leaked = [item for item in forbidden_badge_ids if item in badge_text]
-          if leaked:
-              raise SystemExit(f'Raw author_badge identifiers remain in application source: {leaked}')
-          if 'AuthorGramAuthorBadge.matches(objectId)' not in badge_text:
-              raise SystemExit('StatusBadgeComponent is not connected to protected author_badge policy')
-          if 'AuthorGramBuildIntegrity.isTrustedBuild()' not in badge_text:
-              raise SystemExit('author_badge is not bound to release signature integrity')
-          print('Protected author_badge source validation passed')
-          PY
-
       - name: Apply icon, crypto repair and Play publication policy
         shell: bash
         run: |
@@ -136,7 +185,7 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "[skip ci] Apply crypto repair and strict Play policy"
+            git commit -m "[skip ci] Apply crypto, UI repair and strict Play policy"
             git push origin HEAD:dev
           fi
 
@@ -283,7 +332,7 @@ jobs:
               sha: context.sha,
               state: 'success',
               context: 'authorgram/final-release',
-              description: 'Main and Play APKs passed crypto, policy, integrity and author_badge verification',
+              description: 'Main and Play APKs passed crypto, UI, policy, integrity and author_badge verification',
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
 
