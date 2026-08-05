@@ -65,20 +65,24 @@ public final class AuthorGramAuthorBadge {
     }
 
     public static boolean matches(long objectId) {
-        if (objectId <= 0 || !AuthorGramBuildIntegrity.isTrustedBuild()) {
+        // User IDs and chat.id values are positive, while Telegram dialog IDs for
+        // groups/channels are negative. Normalize both forms to the same internal
+        // peer identifier before evaluating the protected token.
+        long normalizedId = objectId == Long.MIN_VALUE ? 0 : Math.abs(objectId);
+        if (normalizedId == 0 || !AuthorGramBuildIntegrity.isTrustedBuild()) {
             return false;
         }
 
         synchronized (CACHE) {
-            Boolean cached = CACHE.get(objectId);
+            Boolean cached = CACHE.get(normalizedId);
             if (cached != null) {
                 return cached;
             }
         }
 
-        boolean allowed = matchesToken(objectId);
+        boolean allowed = matchesToken(normalizedId);
         synchronized (CACHE) {
-            CACHE.put(objectId, allowed);
+            CACHE.put(normalizedId, allowed);
         }
         return allowed;
     }
