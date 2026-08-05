@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="BuiltInFolders">Локальні папки</string>
     <string name="iOSMessageMenu">Меню повідомлень у стилі iOS</string>
     <string name="iOSMessageMenuNotice">Показує вибране повідомлення з ім’ям і аватаром автора над розмитим адаптивним меню дій. Доступно лише в Main-версії</string>
 </resources>
