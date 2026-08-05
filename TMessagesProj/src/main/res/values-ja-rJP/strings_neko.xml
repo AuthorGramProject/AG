@@ -266,4 +266,6 @@
     <string name="EmojiUseDefault">システム絵文字を使用</string>
     <string name="Chat">チャット</string>
     <string name="Appearance">外観</string>
+    <string name="iOSMessageInputField">iOS スタイルのメッセージ入力欄</string>
+    <string name="iOSMessageInputFieldNotice">添付アイコンを左側に移動し、ボタンを個別のバブルに分割します。有効な間、添付メニューモードは上書きされます</string>
 </resources>

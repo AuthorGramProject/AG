@@ -130,7 +130,7 @@ def patch_build_integrity():
 
 def validate():
     policy = read("TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java")
-    for item in ('values.put("hideSponsoredMessage", false)', 'values.put("HideProxySponsorChannel", false)', 'values.put("localPremium", false)', 'values.put("EnableSaveDeletedMessages", false)', 'values.put("EnableSaveEditsHistory", false)', 'values.put("sendReadMessagePackets", true)', 'values.put("ignoreContentRestrictions", false)', "OWNER_DIALOG_ID = 6316376597L"):
+    for item in ('values.put("hideSponsoredMessage", false)', 'values.put("HideProxySponsorChannel", false)', 'values.put("localPremium", false)', 'values.put("EnableSaveDeletedMessages", false)', 'values.put("EnableSaveEditsHistory", false)', 'values.put("sendReadMessagePackets", true)', 'values.put("ignoreContentRestrictions", false)', 'values.put("iOSMessageInputField", false)', "OWNER_DIALOG_ID = 6316376597L", "return !isPlayBuild();"):
         if item not in policy:
             raise RuntimeError("Play policy validation failed: " + item)
 

@@ -57,6 +57,9 @@ public final class AuthorGramPlayPolicy {
         // Do not bypass Telegram content restrictions in the Play package.
         values.put("ignoreContentRestrictions", false);
 
+        // NagramXF-authored interface variant is intentionally Main-only.
+        values.put("iOSMessageInputField", false);
+
         LOCKED_CONFIGS = Collections.unmodifiableMap(values);
     }
 
@@ -84,8 +87,9 @@ public final class AuthorGramPlayPolicy {
         if (dialogId == 0 || isEncryptionForbidden(dialogId)) {
             return false;
         }
-        return !isPlayBuild()
-                || AuthorGramChatKeyStore.hasCustomKey(account, dialogId);
+        // Custom wire-format encryption is Main-only: Telegram clients that do not
+        // implement AuthorGram's format must never receive unreadable Play messages.
+        return !isPlayBuild();
     }
 
     public static boolean canDelete(long dialogId) {

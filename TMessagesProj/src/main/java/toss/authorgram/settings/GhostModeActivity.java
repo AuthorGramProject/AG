@@ -117,7 +117,6 @@ public class GhostModeActivity extends BaseAGXSettingsActivity {
     private final AbstractConfigCell useScheduledMessagesNoticeRow = cellGroup.appendCell(new ConfigCellCustom("UseScheduledMessagesDescription", CellGroup.ITEM_TYPE_TEXT, false));
     private final AbstractConfigCell sendWithoutSoundRow = cellGroup.appendCell(new ConfigCellCustom("SilentMessageByDefault", CellGroup.ITEM_TYPE_TEXT_CHECK, true));
     private final AbstractConfigCell sendWithoutSoundNoticeRow = cellGroup.appendCell(new ConfigCellCustom("SendWithoutSoundRowNotice", CellGroup.ITEM_TYPE_TEXT, false));
-    private final AbstractConfigCell showGhostInDrawerRow = cellGroup.appendCell(new ConfigCellCustom("GhostModeInDrawer", CellGroup.ITEM_TYPE_TEXT_CHECK, true));
     private final AbstractConfigCell showGhostModeStatusRow = cellGroup.appendCell(new ConfigCellCustom("GhostModeStatusIndicator", CellGroup.ITEM_TYPE_TEXT_CHECK, true));
 
     public GhostModeActivity() {
@@ -245,10 +244,6 @@ public class GhostModeActivity extends BaseAGXSettingsActivity {
         } else if (row == sendWithoutSoundRow) {
             NaConfig.INSTANCE.getSilentMessageByDefault().toggleConfigBool();
             ((TextCheckCell) view).setChecked(NaConfig.INSTANCE.getSilentMessageByDefault().Bool());
-        } else if (row == showGhostInDrawerRow) {
-            NekoConfig.showGhostInDrawer.toggleConfigBool();
-            ((TextCheckCell) view).setChecked(NekoConfig.showGhostInDrawer.Bool());
-            NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
         } else if (row == showGhostModeStatusRow) {
             NekoConfig.showGhostModeStatus.toggleConfigBool();
             ((TextCheckCell) view).setChecked(NekoConfig.showGhostModeStatus.Bool());
@@ -337,10 +332,6 @@ public class GhostModeActivity extends BaseAGXSettingsActivity {
                 TextCheckCell textCheckCell = (TextCheckCell) holder.itemView;
                 textCheckCell.setEnabled(true, null);
                 textCheckCell.setTextAndCheck(getString(R.string.SilentMessageByDefault), NaConfig.INSTANCE.getSilentMessageByDefault().Bool(), true);
-            } else if (row == showGhostInDrawerRow) {
-                TextCheckCell textCheckCell = (TextCheckCell) holder.itemView;
-                textCheckCell.setEnabled(true, null);
-                textCheckCell.setTextAndCheck(getString(R.string.GhostModeInDrawer), NekoConfig.showGhostInDrawer.Bool(), true);
             } else if (row == showGhostModeStatusRow) {
                 TextCheckCell textCheckCell = (TextCheckCell) holder.itemView;
                 textCheckCell.setEnabled(true, null);

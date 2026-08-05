@@ -1,0 +1,12 @@
+AuthorGram 12.9.2 final production release trigger.
+Use the faceless anonymous AuthorGram launcher artwork in Main and Play.
+Generate square, round, adaptive, monochrome and mdpi through xxxhdpi launcher resources.
+Use one encryption menu action and one word-key dialog with resilient protected key storage.
+Hide encryption and delete/clear actions for the author dialog in both builds.
+Preserve the Actions run titled Update/telegram 12.9.0 20260718 212239 if it still exists.
+The verified cleanup report proves that the original run was already deleted; never fabricate a replacement.
+Delete every remaining historical Actions run and every obsolete workflow definition.
+Build exactly two signed release APKs: Main and Play Market. Do not build or upload AAB.
+Resolve APK and external documents by their safe file extension before generic server MIME.
+Main may request user-approved APK installation; Play must omit the restricted install permission.
+Production revision: 2026-08-03T22:38:35+02:00.

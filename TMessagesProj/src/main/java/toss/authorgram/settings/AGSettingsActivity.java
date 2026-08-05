@@ -37,6 +37,8 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
+import org.telegram.ui.ActionBar.ActionBarMenuItem;
+import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.BasePermissionsActivity;
@@ -65,7 +67,13 @@ import tw.nekomimi.nekogram.utils.AlertUtil;
 public class AGSettingsActivity extends BaseAGSettingsActivity {
 
     private static final int MENU_SEARCH = 1;
+    private static final int MENU_OVERFLOW = 2;
+    private static final int MENU_IMPORT = 3;
+    private static final int MENU_EXPORT = 4;
+    private static final int MENU_RESET = 5;
     private static final String PLAY_PACKAGE = "toss.authorgram.apk";
+
+    private ActionBarMenuItem overflowItem;
 
     private int generalRow;
     private int appearanceRow;
@@ -121,6 +129,17 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
 
         ActionBarMenu menu = actionBar.createMenu();
         menu.addItem(MENU_SEARCH, R.drawable.ic_ab_search, resourcesProvider);
+        overflowItem = menu.addItem(MENU_OVERFLOW, R.drawable.ic_ab_other, resourcesProvider);
+        overflowItem.setContentDescription(getString(R.string.AccDescrMoreOptions));
+        overflowItem.addSubItem(MENU_IMPORT, R.drawable.import_solar, getString(R.string.ImportSettings));
+        overflowItem.addSubItem(MENU_EXPORT, R.drawable.export_solar, getString(R.string.BackupSettings));
+        overflowItem.addColoredGap();
+        ActionBarMenuSubItem resetSub = overflowItem.addSubItem(MENU_RESET, R.drawable.msg_reset, getString(R.string.ResetSettings));
+        int red = Theme.getColor(Theme.key_text_RedRegular, resourcesProvider);
+        resetSub.setColors(red, red);
+        resetSub.setSelectorColor(Theme.multAlpha(red, .12f));
+        overflowItem.setOnClickListener(v -> showOverflowMenu());
+        overflowItem.setLongClickEnabled(false);
 
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
@@ -129,6 +148,19 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                     finishFragment();
                 } else if (id == MENU_SEARCH) {
                     showSettingsSearchDialog();
+                } else if (id == MENU_IMPORT) {
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        openFilePicker();
+                    } else {
+                        DocumentSelectActivity activity = getDocumentSelectActivity(getParentActivity());
+                        if (activity != null) {
+                            presentFragment(activity);
+                        }
+                    }
+                } else if (id == MENU_EXPORT) {
+                    SettingsBackupHelper.backupSettings(getParentActivity(), resourcesProvider);
+                } else if (id == MENU_RESET) {
+                    showResetConfirmation();
                 }
             }
         });
@@ -331,6 +363,36 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                 || !PLAY_PACKAGE.equals(ApplicationLoader.applicationContext.getPackageName());
     }
 
+    private void showOverflowMenu() {
+        if (overflowItem == null || getContext() == null) {
+            return;
+        }
+        ActionBarMenuSubItem restartItem = new ActionBarMenuSubItem(getContext(), false, true, true, resourcesProvider);
+        restartItem.setTextAndIcon(getString(R.string.RestartApp), R.drawable.msg_retry);
+        restartItem.setMinimumWidth(AndroidUtilities.dp(196));
+        restartItem.setOnClickListener(view -> {
+            overflowItem.closeSubMenu();
+            AppRestartHelper.triggerRebirth(getParentActivity(), new Intent(getParentActivity(), LaunchActivity.class));
+        });
+        overflowItem.toggleSubMenu(restartItem, overflowItem);
+    }
+
+    private void showResetConfirmation() {
+        AlertUtil.showConfirm(getParentActivity(),
+                getString(R.string.ResetSettingsAlert),
+                R.drawable.msg_reset,
+                getString(R.string.Reset),
+                true,
+                () -> {
+                    ApplicationLoader.applicationContext.getSharedPreferences("nekocloud", Activity.MODE_PRIVATE).edit().clear().commit();
+                    ApplicationLoader.applicationContext.getSharedPreferences("nekox_config", Activity.MODE_PRIVATE).edit().clear().commit();
+                    ApplicationLoader.applicationContext.getSharedPreferences("aichatconfig", Activity.MODE_PRIVATE).edit().clear().commit();
+                    ApplicationLoader.applicationContext.getSharedPreferences("pillstackconfig", Activity.MODE_PRIVATE).edit().clear().commit();
+                    NekoConfig.getPreferences().edit().clear().commit();
+                    AppRestartHelper.triggerRebirth(getParentActivity(), new Intent(getParentActivity(), LaunchActivity.class));
+                });
+    }
+
     @Override
     protected String getActionBarTitle() {
         return getString(R.string.AGSettings);
@@ -365,19 +427,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                 }
             }
         } else if (position == resetSettingsRow) {
-            AlertUtil.showConfirm(getParentActivity(),
-                    getString(R.string.ResetSettingsAlert),
-                    R.drawable.msg_reset,
-                    getString(R.string.Reset),
-                    true,
-                    () -> {
-                        ApplicationLoader.applicationContext.getSharedPreferences("nekocloud", Activity.MODE_PRIVATE).edit().clear().commit();
-                        ApplicationLoader.applicationContext.getSharedPreferences("nekox_config", Activity.MODE_PRIVATE).edit().clear().commit();
-                        ApplicationLoader.applicationContext.getSharedPreferences("aichatconfig", Activity.MODE_PRIVATE).edit().clear().commit();
-                        ApplicationLoader.applicationContext.getSharedPreferences("pillstackconfig", Activity.MODE_PRIVATE).edit().clear().commit();
-                        NekoConfig.getPreferences().edit().clear().commit();
-                        AppRestartHelper.triggerRebirth(getParentActivity(), new Intent(getParentActivity(), LaunchActivity.class));
-                    });
+            showResetConfirmation();
         } else if (position == exportSettingsRow) {
             SettingsBackupHelper.backupSettings(getParentActivity(), resourceProvider);
         } else if (position == appRestartRow) {
@@ -421,9 +471,9 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                     } else if (position == experimentRow) {
                         textCell.setTextAndIcon(getString(R.string.Experimental), R.drawable.msg_fave, true);
                     } else if (position == importSettingsRow) {
-                        textCell.setTextAndIcon(getString(R.string.ImportSettings), R.drawable.msg_photo_settings, true);
+                        textCell.setTextAndIcon(getString(R.string.ImportSettings), R.drawable.import_solar, true);
                     } else if (position == exportSettingsRow) {
-                        textCell.setTextAndIcon(getString(R.string.BackupSettings), R.drawable.msg_instant_link, true);
+                        textCell.setTextAndIcon(getString(R.string.BackupSettings), R.drawable.export_solar, true);
                     } else if (position == resetSettingsRow) {
                         textCell.setTextAndIcon(getString(R.string.ResetSettings), R.drawable.msg_reset, true);
                     } else if (position == appRestartRow) {
