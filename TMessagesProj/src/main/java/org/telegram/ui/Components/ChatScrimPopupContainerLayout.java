@@ -39,7 +39,21 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int constrainedHeightSpec = maxHeight != 0 ? MeasureSpec.makeMeasureSpec(maxHeight, MeasureSpec.AT_MOST) : heightMeasureSpec;
+        // AUTHORGRAM_ADAPTIVE_POPUP_BOUNDS
+        // Some OEM/window combinations pass an effectively unbounded measure spec.
+        // Always cap the menu to the real display/work-area height so the internal
+        // ScrollView scrolls instead of the popup escaping below the screen.
+        int parentMode = MeasureSpec.getMode(heightMeasureSpec);
+        int parentHeight = MeasureSpec.getSize(heightMeasureSpec);
+        int displayHeight = Math.max(AndroidUtilities.dp(240), AndroidUtilities.displaySize.y);
+        int availableHeight = parentMode == MeasureSpec.UNSPECIFIED || parentHeight <= 0
+                ? displayHeight
+                : Math.min(parentHeight, displayHeight);
+        availableHeight = Math.max(AndroidUtilities.dp(160), availableHeight - AndroidUtilities.dp(16));
+        int effectiveMaxHeight = maxHeight > 0
+                ? Math.min(maxHeight, availableHeight)
+                : availableHeight;
+        int constrainedHeightSpec = MeasureSpec.makeMeasureSpec(effectiveMaxHeight, MeasureSpec.AT_MOST);
         int adjustedWidthSpec = widthMeasureSpec;
         super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);
         if (popupWindowLayout == null) {
@@ -236,7 +250,9 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
     }
 
     public void setMaxHeight(int maxHeight) {
-        this.maxHeight = maxHeight;
+        int safeDisplayHeight = Math.max(AndroidUtilities.dp(160), AndroidUtilities.displaySize.y - AndroidUtilities.dp(16));
+        this.maxHeight = maxHeight > 0 ? Math.min(maxHeight, safeDisplayHeight) : safeDisplayHeight;
+        requestLayout();
     }
 
     public void setExpandSize(float expandSize) {

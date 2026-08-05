@@ -43,6 +43,7 @@ import com.radolyn.ayugram.utils.LastSeenHelper;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.authorgram.AuthorGramAuthorBadge;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.Emoji;
@@ -1250,6 +1251,26 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
         titleTextView.setText(value);
         titleTextView.setScrollNonFitText(scrollable || isCentered());
 
+        // AUTHORGRAM_PROTECTED_CHAT_HEADER_BADGE
+        long authorBadgeObjectId = 0;
+        if (parentFragment != null) {
+            TLRPC.User badgeUser = parentFragment.getCurrentUser();
+            TLRPC.Chat badgeChat = parentFragment.getCurrentChat();
+            if (badgeUser != null) {
+                authorBadgeObjectId = badgeUser.id;
+            } else if (badgeChat != null) {
+                authorBadgeObjectId = badgeChat.id;
+            }
+        }
+        boolean authorBadge = AuthorGramAuthorBadge.matches(authorBadgeObjectId);
+        if (!authorBadge
+                && authorBadgeDrawable != null
+                && titleTextView.getRightDrawable2() == authorBadgeDrawable) {
+            titleTextView.setRightDrawable2(null);
+            rightDrawableIsScamOrVerified = false;
+            rightDrawable2ContentDescription = null;
+        }
+
         if (scam || fake) {
             if (!(titleTextView.getRightDrawable() instanceof ScamDrawable)) {
                 ScamDrawable drawable = new ScamDrawable(11, scam ? 0 : 1);
@@ -1259,6 +1280,13 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
                 rightDrawable2ContentDescription = getString(R.string.ScamMessage);
                 rightDrawableIsScamOrVerified = true;
             }
+        } else if (authorBadge) {
+            if (authorBadgeDrawable == null) {
+                authorBadgeDrawable = getResources().getDrawable(R.drawable.ic_author_badge).mutate();
+            }
+            titleTextView.setRightDrawable2(authorBadgeDrawable);
+            rightDrawableIsScamOrVerified = true;
+            rightDrawable2ContentDescription = getString(R.string.AccDescrVerified);
         } else if (verified) {
             verifiedBackground = getResources().getDrawable(R.drawable.verified_area).mutate();
             verifiedBackground.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_profile_verifiedBackground), PorterDuff.Mode.MULTIPLY));
@@ -1301,6 +1329,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
     }
 
     private Drawable emojiStatusDefaultDrawable;
+    private Drawable authorBadgeDrawable;
     private Drawable verifiedBackground;
     private Drawable verifiedCheck;
 

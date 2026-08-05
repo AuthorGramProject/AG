@@ -7,6 +7,7 @@ import androidx.annotation.Nullable;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +20,8 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
     private final int sizeDp;
 
     private static boolean iosInput() {
-        return NekoConfig.iOSMessageInputField.Bool();
+        return AuthorGramPlayPolicy.canUseIosUi()
+                && NekoConfig.iOSMessageInputField.Bool();
     }
 
     private Map<TransitState, RLottieDrawable> stateMap = new HashMap<TransitState, RLottieDrawable>() {
