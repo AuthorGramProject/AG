@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Constrain chat context menus and validate protected badge surfaces."""
+"""Constrain chat context menus and validate protected badge implementation."""
 
 import runpy
 from pathlib import Path
@@ -63,9 +63,10 @@ if missing:
 print("Adaptive chat popup bounds patch passed")
 
 # release.yml executes this lightweight script before Java/Gradle/Android SDK.
-# Running the badge patch here guarantees profile/header badge anchors are also
-# validated during that early, inexpensive preflight stage.
-runpy.run_path(
-    str(ROOT / "scripts/patch_authorgram_badge_surfaces.py"),
-    run_name="__main__",
-)
+# These scripts therefore validate all profile/header surfaces and every HMAC
+# token during the early, inexpensive preflight stage.
+for relative in (
+    "scripts/patch_authorgram_badge_surfaces.py",
+    "scripts/verify_authorgram_badge_tokens.py",
+):
+    runpy.run_path(str(ROOT / relative), run_name="__main__")
