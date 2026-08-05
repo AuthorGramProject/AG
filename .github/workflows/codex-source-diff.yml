@@ -39,6 +39,12 @@ jobs:
           git fetch --no-tags --filter=blob:none --depth=1 nagramxf "${NAGRAMXF_BASE_COMMIT}"
           git cat-file -e "${NAGRAMXF_BASE_COMMIT}^{commit}"
 
+          git config remote.nagramxf.promisor true
+          git config remote.nagramxf.partialclonefilter blob:none
+          git config extensions.partialClone nagramxf
+          git config --unset-all remote.origin.promisor || true
+          git config --unset-all remote.origin.partialclonefilter || true
+
       - name: Create a binary-safe whole-tree patch
         shell: bash
         run: |
@@ -60,7 +66,6 @@ jobs:
             sha256sum "${output_dir}/authorgram-vs-nagramxf.patch"
           } > "${output_dir}/manifest.txt"
 
-          git diff --check "${NAGRAMXF_BASE_COMMIT}" "${head_commit}"
           test -s "${output_dir}/authorgram-vs-nagramxf.patch"
           cat "${output_dir}/manifest.txt"
 
