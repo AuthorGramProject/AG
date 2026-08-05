@@ -258,37 +258,75 @@ def patch_chat_input() -> None:
 
 
 def patch_ios_input_policy_gate() -> None:
-    path = "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java"
-    text = read(path)
+    icon_path = (
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/"
+        "ChatActivityEnterViewAnimatedIconView.java"
+    )
+    icon = read(icon_path)
     import_line = "import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;\n"
-    if import_line not in text:
-        text = replace_once(
-            text,
+    if import_line not in icon:
+        icon = replace_once(
+            icon,
             "import org.telegram.messenger.R;\n",
             "import org.telegram.messenger.R;\n" + import_line,
             "iOS input policy import",
         )
     old = "        return NekoConfig.iOSMessageInputField.Bool();\n"
-    new = "        return AuthorGramPlayPolicy.canUseIosUi() && NekoConfig.iOSMessageInputField.Bool();\n"
-    if new not in text:
-        text = replace_once(text, old, new, "iOS input Main-only policy gate")
-    write(path, text)
+    new = (
+        "        return AuthorGramPlayPolicy.canUseIosUi()\n"
+        "                && NekoConfig.iOSMessageInputField.Bool();\n"
+    )
+    legacy_new = (
+        "        return AuthorGramPlayPolicy.canUseIosUi() && "
+        "NekoConfig.iOSMessageInputField.Bool();\n"
+    )
+    if legacy_new in icon:
+        icon = icon.replace(legacy_new, new, 1)
+    elif new not in icon:
+        icon = replace_once(icon, old, new, "iOS input Main-only icon policy gate")
+    write(icon_path, icon)
+
+    enter_path = "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
+    enter = read(enter_path)
+    marker = "AUTHORGRAM_MAIN_ONLY_IOS_INPUT"
+    if marker not in enter:
+        old = (
+            "    private boolean computeIOSInputStyle() {\n"
+            "        if (!NekoConfig.iOSMessageInputField.Bool() || isStories || "
+            "parentFragment == null || parentFragment.isInPreviewMode()) {\n"
+        )
+        new = (
+            "    private boolean computeIOSInputStyle() {\n"
+            "        // AUTHORGRAM_MAIN_ONLY_IOS_INPUT\n"
+            "        if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()\n"
+            "                || !NekoConfig.iOSMessageInputField.Bool()\n"
+            "                || isStories\n"
+            "                || parentFragment == null\n"
+            "                || parentFragment.isInPreviewMode()) {\n"
+        )
+        enter = replace_once(enter, old, new, "central iOS input Main-only policy gate")
+        write(enter_path, enter)
 
 
 def patch_message_menu() -> None:
     path = "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
     text = read(path)
 
-    if "AUTHORGRAM_COMPACT_MENU_LIMIT" not in text:
-        anchor = (
-            "                GridLayout compactIconBar = null;\n"
-            "                if (!compactIndices.isEmpty()) {\n"
-            "                    int n = compactIndices.size();\n"
-        )
-        replacement = (
-            "                // AUTHORGRAM_COMPACT_MENU_LIMIT: at most two rows of four icons;\n"
-            "                // overflow actions remain available as normal scrollable rows.\n"
-            "                if (compactIndices.size() > 8) {\n"
+    # Some upstream variants expose compact icon rows while this source revision
+    # does not. Patch them only when the exact block exists; absence is valid and
+    # must never stop the release before compilation.
+    compact_anchor = (
+        "                GridLayout compactIconBar = null;\n"
+        "                if (!compactIndices.isEmpty()) {\n"
+        "                    int n = compactIndices.size();\n"
+    )
+    if "AUTHORGRAM_COMPACT_MENU_LIMIT" not in text and compact_anchor in text:
+        compact_replacement = (
+            "                // AUTHORGRAM_COMPACT_MENU_LIMIT\n"
+            "                // iOS compact rows are Main-only and capped at two rows of four.\n"
+            "                if (org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()\n"
+            "                        && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool()\n"
+            "                        && compactIndices.size() > 8) {\n"
             "                    int compactCount = 0;\n"
             "                    for (int index = 0; index < items.size(); index++) {\n"
             "                        if (compactIndices.contains(index) && ++compactCount > 8) {\n"
@@ -296,11 +334,9 @@ def patch_message_menu() -> None:
             "                        }\n"
             "                    }\n"
             "                }\n"
-            "                GridLayout compactIconBar = null;\n"
-            "                if (!compactIndices.isEmpty()) {\n"
-            "                    int n = compactIndices.size();\n"
+            + compact_anchor
         )
-        text = replace_all(text, anchor, replacement, "compact message menu icon limit")
+        text = text.replace(compact_anchor, compact_replacement)
 
     preview_comment = (
         "                // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW\n"
@@ -347,13 +383,40 @@ def patch_message_menu() -> None:
 def validate() -> None:
     dialog = read("TMessagesProj/src/main/java/org/telegram/ui/Cells/DialogCell.java")
     settings = read("TMessagesProj/src/main/java/toss/authorgram/settings/AGSettingsActivity.java")
-    chat_settings = read("TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java")
+    chat_settings = read(
+        "TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java"
+    )
+    policy = read(
+        "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/"
+        "AuthorGramPlayPolicy.java"
+    )
     config = read("TMessagesProj/src/main/java/tw/nekomimi/nekogram/NekoConfig.java")
     strings = read("TMessagesProj/src/main/res/values/strings_neko.xml")
-    enter = read("TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java")
-    icon = read("TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java")
+    enter = read(
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
+    )
+    icon = read(
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/"
+        "ChatActivityEnterViewAnimatedIconView.java"
+    )
     chat = read("TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java")
-    preview = read("TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java")
+    preview = read(
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java"
+    )
+
+    compact_source_exists = (
+        "GridLayout compactIconBar = null;" in chat or "AUTHORGRAM_COMPACT_MENU_LIMIT" in chat
+    )
+    compact_ok = (
+        not compact_source_exists
+        or (
+            "AUTHORGRAM_COMPACT_MENU_LIMIT" in chat
+            and "AuthorGramPlayPolicy.canUseIosUi()" in chat
+            and "NekoConfig.iOSMessageMenu.Bool()" in chat
+            and "compactIndices.remove(Integer.valueOf(index))" in chat
+            and "compactIndices.remove(index);" not in chat
+        )
+    )
 
     required = {
         "protected dialog badges": "AUTHORGRAM_PROTECTED_DIALOG_BADGE" in dialog
@@ -363,21 +426,28 @@ def validate() -> None:
         "local folders entry": "AUTHORGRAM_LOCAL_FOLDERS_ROW" in settings
         and "new FiltersSetupActivity()" in settings
         and "R.string.BuiltInFolders" in settings,
+        "Main-only iOS policy": 'values.put("iOSMessageInputField", false)' in policy
+        and 'values.put("iOSMessageMenu", false)' in policy
+        and "public static boolean canUseIosUi()" in policy,
         "iOS message menu config": 'addConfig("iOSMessageMenu", configTypeBool, true)' in config,
         "iOS message menu strings": 'name="iOSMessageMenu"' in strings
         and 'name="iOSMessageMenuNotice"' in strings,
         "Main-only iOS settings": "appendIOSMessageMenuRow()" in chat_settings
         and chat_settings.count("AuthorGramPlayPolicy.isPlayBuild()") >= 2,
-        "iOS input guard": "AUTHORGRAM_IOS_INPUT_MENU_GUARD" in enter,
-        "iOS input policy": "AuthorGramPlayPolicy.canUseIosUi() && NekoConfig.iOSMessageInputField.Bool()" in icon,
-        "compact menu cap": chat.count("AUTHORGRAM_COMPACT_MENU_LIMIT") >= 1
-        and "compactIndices.remove(Integer.valueOf(index))" in chat
-        and "compactIndices.remove(index);" not in chat,
-        "Main-only iOS message preview": chat.count("AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW") >= 1
+        "iOS input ghost guard": "AUTHORGRAM_IOS_INPUT_MENU_GUARD" in enter,
+        "central Main-only iOS input": "AUTHORGRAM_MAIN_ONLY_IOS_INPUT" in enter
+        and "AuthorGramPlayPolicy.canUseIosUi()" in enter,
+        "iOS input icon policy": "AuthorGramPlayPolicy.canUseIosUi()" in icon
+        and "NekoConfig.iOSMessageInputField.Bool()" in icon,
+        "optional compact menu cap": compact_ok,
+        "Main-only iOS message preview": chat.count(
+            "AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW"
+        ) >= 1
         and chat.count("AuthorGramPlayPolicy.canUseIosUi()") >= 1
         and chat.count("NekoConfig.iOSMessageMenu.Bool()") >= 1,
         "iOS message preview implementation": "class IOSMessageMenuPreview" in preview
-        and "BluredView" in preview,
+        and "BluredView" in preview
+        and "AuthorGramPlayPolicy.canUseIosUi()" in preview,
     }
     failed = [name for name, ok in required.items() if not ok]
     if failed:
