@@ -24,7 +24,7 @@ import org.telegram.ui.ActionBar.Theme;
  * Compact iOS-inspired header for the long-press message menu.
  *
  * The selected message is represented independently from the action rows: avatar,
- * sender and a bounded text/caption preview.  A live blurred layer is sampled from
+ * sender and a bounded text/caption preview. A live blurred layer is sampled from
  * the chat content when a source view is available; older/unsupported layouts keep
  * a translucent themed fallback without changing menu behaviour.
  */
@@ -53,27 +53,48 @@ public final class IOSMessageMenuPreview extends FrameLayout {
             setOutlineProvider(new ViewOutlineProvider() {
                 @Override
                 public void getOutline(View view, Outline outline) {
-                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), AndroidUtilities.dp(CORNER_RADIUS_DP));
+                    outline.setRoundRect(
+                            0,
+                            0,
+                            view.getWidth(),
+                            view.getHeight(),
+                            AndroidUtilities.dp(CORNER_RADIUS_DP)
+                    );
                 }
             });
         }
 
         if (blurSource != null && blurSource != this) {
             BluredView blurredView = new BluredView(context, blurSource, resourcesProvider);
-            addView(blurredView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+            addView(blurredView, LayoutHelper.createFrame(
+                    LayoutHelper.MATCH_PARENT,
+                    LayoutHelper.MATCH_PARENT
+            ));
         }
 
         View tint = new View(context);
         tint.setBackground(Theme.createRoundRectDrawable(
                 AndroidUtilities.dp(CORNER_RADIUS_DP),
-                Theme.multAlpha(Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground, resourcesProvider), 0.86f)
+                Theme.multAlpha(
+                        Theme.getColor(
+                                Theme.key_actionBarDefaultSubmenuBackground,
+                                resourcesProvider
+                        ),
+                        0.78f
+                )
         ));
-        addView(tint, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        addView(tint, LayoutHelper.createFrame(
+                LayoutHelper.MATCH_PARENT,
+                LayoutHelper.MATCH_PARENT
+        ));
 
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.TOP);
-        addView(row, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        addView(row, LayoutHelper.createFrame(
+                LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT
+        ));
 
         BackupImageView avatar = new BackupImageView(context);
         avatar.setRoundRadius(AndroidUtilities.dp(20));
@@ -81,25 +102,40 @@ public final class IOSMessageMenuPreview extends FrameLayout {
 
         LinearLayout textColumn = new LinearLayout(context);
         textColumn.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams textColumnParams = new LinearLayout.LayoutParams(0, LayoutHelper.WRAP_CONTENT, 1.0f);
+        LinearLayout.LayoutParams textColumnParams = new LinearLayout.LayoutParams(
+                0,
+                LayoutHelper.WRAP_CONTENT,
+                1.0f
+        );
         textColumnParams.leftMargin = AndroidUtilities.dp(10);
         row.addView(textColumn, textColumnParams);
+
+        int primaryTextColor = Theme.getColor(
+                Theme.key_actionBarDefaultSubmenuItem,
+                resourcesProvider
+        );
 
         TextView sender = new TextView(context);
         sender.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
         sender.setTypeface(AndroidUtilities.bold());
         sender.setSingleLine(true);
         sender.setEllipsize(TextUtils.TruncateAt.END);
-        sender.setTextColor(Theme.getColor(Theme.key_actionBarDefaultSubmenuItem, resourcesProvider));
-        textColumn.addView(sender, new LinearLayout.LayoutParams(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        sender.setTextColor(primaryTextColor);
+        textColumn.addView(sender, new LinearLayout.LayoutParams(
+                LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT
+        ));
 
         TextView body = new TextView(context);
         body.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         body.setMaxLines(4);
         body.setEllipsize(TextUtils.TruncateAt.END);
         body.setLineSpacing(0, 1.04f);
-        body.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
-        LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT);
+        body.setTextColor(Theme.multAlpha(primaryTextColor, 0.72f));
+        LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
+                LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT
+        );
         bodyParams.topMargin = AndroidUtilities.dp(2);
         textColumn.addView(body, bodyParams);
 
@@ -120,6 +156,10 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         }
 
         long fromId = messageObject.getFromChatId();
+        if (fromId == 0) {
+            fromId = messageObject.getDialogId();
+        }
+
         TLObject peer = null;
         String senderName = null;
         MessagesController controller = MessagesController.getInstance(currentAccount);
