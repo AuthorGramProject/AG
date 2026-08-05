@@ -58,7 +58,13 @@ public final class AuthorGramBuildIntegrity {
     }
 
     public static boolean canUseSystemKey() {
-        return AuthorGramPlayPolicy.hasEmbeddedSystemKey() && isTrustedBuild();
+        if (!AuthorGramPlayPolicy.hasEmbeddedSystemKey()) {
+            return false;
+        }
+        if (!BuildConfig.OFFICIAL_BUILD) {
+            return false;
+        }
+        return isTrustedBuild();
     }
 
     private static boolean verifyInstalledRelease(Context context) {
