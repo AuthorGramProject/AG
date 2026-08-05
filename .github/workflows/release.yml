@@ -100,6 +100,26 @@ jobs:
               source = Path(relative).read_text(encoding='utf-8')
               compile(source, relative, 'exec')
               print(f'Python syntax passed: {relative}')
+
+          badge_sources = (
+              Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java'),
+              Path('TMessagesProj/src/main/java/org/telegram/ui/Components/StatusBadgeComponent.java'),
+          )
+          forbidden_badge_ids = (
+              '6802848305', '6822670748', '8470484374', '8154455619',
+              '7913929703', '8856346711', '8357439344', '8548193112',
+              '8395237407', '8925149503', '-1003781500049',
+              '-1004297907963', '3781500049', '4297907963',
+          )
+          badge_text = '\n'.join(path.read_text(encoding='utf-8') for path in badge_sources)
+          leaked = [item for item in forbidden_badge_ids if item in badge_text]
+          if leaked:
+              raise SystemExit(f'Raw author_badge identifiers remain in application source: {leaked}')
+          if 'AuthorGramAuthorBadge.matches(objectId)' not in badge_text:
+              raise SystemExit('StatusBadgeComponent is not connected to protected author_badge policy')
+          if 'AuthorGramBuildIntegrity.isTrustedBuild()' not in badge_text:
+              raise SystemExit('author_badge is not bound to release signature integrity')
+          print('Protected author_badge source validation passed')
           PY
 
       - name: Apply icon, crypto repair and Play publication policy
@@ -126,13 +146,14 @@ jobs:
           set -euo pipefail
           bash scripts/final_release_12_9_2.sh
 
-      - name: Verify exactly two APKs, Play policy and no AAB
+      - name: Verify two APKs, signatures, integrity and protected author badges
         shell: bash
         run: |
           set -euo pipefail
           artifact_dir="${RUNNER_TEMP}/authorgram-final/artifacts"
           mapfile -t apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.apk' -print | sort)
           mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print | sort)
+          mapfile -t main_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Main-*.apk' -print | sort)
           mapfile -t play_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Play-*.apk' -print | sort)
 
           [[ "${#apks[@]}" -eq 2 ]] || {
@@ -145,27 +166,84 @@ jobs:
             printf '%s\n' "${aabs[@]}" >&2
             exit 1
           }
+          [[ "${#main_apks[@]}" -eq 1 ]] || {
+            printf 'Expected exactly one Main APK, found %s\n' "${#main_apks[@]}" >&2
+            exit 1
+          }
           [[ "${#play_apks[@]}" -eq 1 ]] || {
             printf 'Expected exactly one Play APK, found %s\n' "${#play_apks[@]}" >&2
             exit 1
           }
 
-          python3 - "${play_apks[0]}" <<'PY'
+          apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
+          zipalign="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
+          for apk in "${apks[@]}"; do
+            "${zipalign}" -c -P 16 4 "${apk}"
+            signer_report="$("${apksigner}" verify --verbose --print-certs "${apk}")"
+            printf '%s\n' "${signer_report}"
+            grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer_report}" || {
+              printf 'APK does not have a verified modern APK signature scheme: %s\n' "${apk}" >&2
+              exit 1
+            }
+          done
+
+          main_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Main-CERTIFICATE.txt" | head -n 1)"
+          play_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Play-CERTIFICATE.txt" | head -n 1)"
+          [[ -n "${main_cert}" && "${main_cert}" == "${play_cert}" ]] || {
+            printf 'Main and Play signing identities differ or are missing.\n' >&2
+            exit 1
+          }
+
+          python3 - "${play_apks[0]}" "${apks[@]}" <<'PY'
           import hashlib
           import re
           import sys
           import zipfile
 
           play_apk = sys.argv[1]
+          apks = sys.argv[2:]
           forbidden_digest = "9b34369498a2715d50a94845eaff8d1f7f1ce6570422c8a3653284cffb79de1f"
+          forbidden_badge_ids = (
+              b"6802848305", b"6822670748", b"8470484374", b"8154455619",
+              b"7913929703", b"8856346711", b"8357439344", b"8548193112",
+              b"8395237407", b"8925149503", b"-1003781500049",
+              b"-1004297907963", b"3781500049", b"4297907963",
+          )
+          required_markers = (
+              b"release integrity verification failed; protected features disabled",
+              b"unable to evaluate author badge token",
+          )
+
+          for apk in apks:
+              with zipfile.ZipFile(apk) as archive:
+                  dex_names = sorted(
+                      name for name in archive.namelist()
+                      if re.fullmatch(r"classes\d*\.dex", name)
+                  )
+                  if not dex_names:
+                      raise SystemExit(f"{apk} contains no classes*.dex")
+                  dex_data = b"".join(archive.read(name) for name in dex_names)
+                  leaked = [item.decode() for item in forbidden_badge_ids if item in dex_data]
+                  if leaked:
+                      raise SystemExit(
+                          f"Raw author_badge identifiers leaked into {apk}: {leaked}"
+                      )
+                  missing = [item.decode() for item in required_markers if item not in dex_data]
+                  if missing:
+                      raise SystemExit(
+                          f"Protected badge/integrity implementation missing from {apk}: {missing}"
+                      )
+                  print(
+                      f"{apk}: protected author_badge and runtime integrity markers passed "
+                      f"across {len(dex_names)} dex file(s)"
+                  )
+
           candidates = 0
           with zipfile.ZipFile(play_apk) as archive:
               dex_names = [
                   name for name in archive.namelist()
                   if re.fullmatch(r"classes\d*\.dex", name)
               ]
-              if not dex_names:
-                  raise SystemExit("Play APK contains no classes*.dex")
               for name in dex_names:
                   data = archive.read(name)
                   for match in re.finditer(
@@ -205,7 +283,7 @@ jobs:
               sha: context.sha,
               state: 'success',
               context: 'authorgram/final-release',
-              description: 'Main and Play APKs passed crypto, policy and release verification',
+              description: 'Main and Play APKs passed crypto, policy, integrity and author_badge verification',
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
 
