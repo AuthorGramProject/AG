@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import runpy
 
 root = Path(__file__).resolve().parents[1]
+
+# Apply the idempotent UI repairs in the same release-source stage that is
+# already executed and committed by release.yml. This avoids an extra workflow
+# and guarantees Main and Play are built from identical repaired UI sources.
+for relative in (
+    "scripts/patch_authorgram_ui_12_9_2.py",
+    "scripts/patch_authorgram_popup_bounds.py",
+):
+    runpy.run_path(str(root / relative), run_name="__main__")
+
 path = root / "TMessagesProj/build.gradle"
 text = path.read_text(encoding="utf-8")
 key = "6b8ce70d889daed80852c204106d51bf" + "91f114ad32936b6b17068e7b399ef3fa"
