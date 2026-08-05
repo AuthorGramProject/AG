@@ -4,6 +4,7 @@ Keep the Main-only iOS Message Menu selected-message preview inside popupLayout 
 Do not elevate or retain the original selected ChatMessageCell at its old position in the chat.
 Restore the iOS input mic/video-round button container to VISIBLE with full alpha and scale after all entered text is cleared.
 Preserve every existing AuthorGram feature, package identity, signing identity, protected author_badge policy and launcher artwork.
-Run source-level regression checks before Android SDK setup.
+Run the strict permanent production source guard before Android SDK setup.
 Verify the resulting Main APK package, version, modern signature, zip alignment, integrity markers and absence of raw protected badge identifiers.
-Main-only correction release request: 2026-08-05T20:45:00+02:00.
+After successful artifact upload, restore the permanent Main and Play workflow without triggering another run.
+Main-only correction release request: 2026-08-05T21:15:00+02:00.
