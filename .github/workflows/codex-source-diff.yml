@@ -16,11 +16,11 @@ concurrency:
 
 jobs:
   source-diff:
-    name: Export current AuthorGram custom patch
+    name: Export current AuthorGram tree against NagramXF base
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      AUTHORGRAM_BASE_COMMIT: 2d6e9b868255edc800bfe93fee3ada56a5770790
+      NAGRAMXF_BASE_COMMIT: 140d86610e5ee58e8b25a3db9d75e4eed9d7946d
 
     steps:
       - name: Check out the exact pull-request head
@@ -31,14 +31,15 @@ jobs:
           filter: blob:none
           persist-credentials: true
 
-      - name: Fetch the AuthorGram 12.9.0 base
+      - name: Fetch the exact NagramXF 12.9.0 base tree
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags --filter=blob:none --depth=1 origin "${AUTHORGRAM_BASE_COMMIT}"
-          git cat-file -e "${AUTHORGRAM_BASE_COMMIT}^{commit}"
+          git remote add nagramxf https://github.com/Keeperorowner/NagramXF.git
+          git fetch --no-tags --filter=blob:none --depth=1 nagramxf "${NAGRAMXF_BASE_COMMIT}"
+          git cat-file -e "${NAGRAMXF_BASE_COMMIT}^{commit}"
 
-      - name: Create a binary-safe custom patch
+      - name: Create a binary-safe whole-tree patch
         shell: bash
         run: |
           set -euo pipefail
@@ -47,25 +48,26 @@ jobs:
 
           head_commit="$(git rev-parse HEAD)"
           head_tree="$(git rev-parse "HEAD^{tree}")"
-          git diff             --binary             --full-index             --find-renames=50%             "${AUTHORGRAM_BASE_COMMIT}"             "${head_commit}"             > "${output_dir}/authorgram-custom.patch"
-          git diff             --name-status             --find-renames=50%             "${AUTHORGRAM_BASE_COMMIT}"             "${head_commit}"             > "${output_dir}/authorgram-custom-files.txt"
+
+          git diff --binary --full-index --find-renames=50%             "${NAGRAMXF_BASE_COMMIT}" "${head_commit}"             > "${output_dir}/authorgram-vs-nagramxf.patch"
+          git diff --name-status --find-renames=50%             "${NAGRAMXF_BASE_COMMIT}" "${head_commit}"             > "${output_dir}/authorgram-vs-nagramxf-files.txt"
 
           {
-            printf 'base_commit=%s\n' "${AUTHORGRAM_BASE_COMMIT}"
-            printf 'head_commit=%s\n' "${head_commit}"
-            printf 'head_tree=%s\n' "${head_tree}"
-            printf 'changed_files=%s\n' "$(wc -l < "${output_dir}/authorgram-custom-files.txt")"
-            sha256sum "${output_dir}/authorgram-custom.patch"
+            printf 'nagramxf_base_commit=%s\n' "${NAGRAMXF_BASE_COMMIT}"
+            printf 'authorgram_head_commit=%s\n' "${head_commit}"
+            printf 'authorgram_head_tree=%s\n' "${head_tree}"
+            printf 'changed_files=%s\n' "$(wc -l < "${output_dir}/authorgram-vs-nagramxf-files.txt")"
+            sha256sum "${output_dir}/authorgram-vs-nagramxf.patch"
           } > "${output_dir}/manifest.txt"
 
-          git diff --check "${AUTHORGRAM_BASE_COMMIT}" "${head_commit}"
-          test -s "${output_dir}/authorgram-custom.patch"
+          git diff --check "${NAGRAMXF_BASE_COMMIT}" "${head_commit}"
+          test -s "${output_dir}/authorgram-vs-nagramxf.patch"
           cat "${output_dir}/manifest.txt"
 
       - name: Upload source diff
         uses: actions/upload-artifact@v4
         with:
-          name: authorgram-current-source-diff
+          name: authorgram-tree-vs-nagramxf
           path: ${{ runner.temp }}/authorgram-source-diff/
           if-no-files-found: error
           retention-days: 1
