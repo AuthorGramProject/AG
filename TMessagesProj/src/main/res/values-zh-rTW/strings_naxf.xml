@@ -234,6 +234,7 @@
     <string name="AIChat">AI 聊天</string>
     <string name="AIChatInfo">設定服務、角色與歷史記錄</string>
     <string name="AIChatServices">服務</string>
+    <string name="AIChatUseLlmProvider">與 AI 翻譯共用服務商</string>
     <string name="AIChatRoles">角色</string>
     <string name="AIChatMessageHistory">訊息歷史</string>
     <string name="AIChatHistoryInfo">啟用後，AI 將記住對話中的先前訊息。</string>
@@ -258,6 +259,9 @@
     <string name="AIChatFetchModels">取得模型清單</string>
     <string name="AIChatTestConnection">測試連線</string>
     <string name="AIChatTestSuccess">連線成功</string>
+    <string name="AIChatReasoning">推理模式</string>
+    <string name="AIChatReasoningInfo">為推理模型啟用延伸思考（o1、o3、Gemini Thinking 等）</string>
+    <string name="AIChatTemperature">溫度</string>
     <string name="AIChatAddRole">新增角色</string>
     <string name="AIChatAddRoleHint">點擊新增自訂角色</string>
     <string name="AIChatRolesInfo">角色定義 AI 的個性與行為。</string>
@@ -294,4 +298,28 @@
     <string name="AIError502Info">伺服器暫時無法使用。</string>
     <string name="AIError503">服務無法使用</string>
     <string name="AIError503Info">服務超載，請稍後再試。</string>
+    <string name="TabStyleStroke">分頁指示器描邊</string>
+    <string name="SuggestGhostModeBeforeViewingStory">查看 Story 前提示開啟幽靈模式</string>
+    <string name="SuggestGhostModeBeforeStoryTitle">幽靈模式</string>
+    <string name="SuggestGhostModeBeforeStoryMessage">查看此 Story 會暴露你的線上狀態。是否先開啟幽靈模式？</string>
+    <string name="SuggestGhostModeBeforeStoryEnable">開啟幽靈模式</string>
+    <string name="SuggestGhostModeBeforeStorySkip">仍然查看</string>
+    <string name="SaveReadDate">儲存已讀回執</string>
+    <string name="SaveReadDateAbout">記錄你的發出訊息被閱讀的時間，該時間會顯示在訊息資訊中。</string>
+    <string name="AyuReadDate">已讀</string>
+    <string name="AyuReadDateUnknown">未知</string>
+    <string name="BuiltInFolders">內置文件夾</string>
+    <string name="BuiltInFoldersInfo">內置文件夾在本機生成，不會同步到 Telegram，名稱和圖示也不可修改。</string>
+    <string name="LocalFolder">本機文件夾</string>
+    <string name="LocalFolderEditInfo">內置文件夾不可編輯。如需調整，可以在這裡刪除後重新新增。</string>
+    <string name="BuiltInFolderUnread">未讀</string>
+    <string name="BuiltInFolderUnmuted">未靜音</string>
+    <string name="BuiltInFolderBasicGroups">一般群組</string>
+    <string name="BuiltInFolderSupergroups">超級群組</string>
+    <string name="BuiltInFolderAdmin">管理員</string>
+    <string name="MainMenuItems">側邊欄項目</string>
+    <string name="MainMenuHiddenItems">已隱藏項目</string>
+    <string name="MainMenuAddDivider">新增分隔線</string>
+    <string name="MainMenuDivider">分隔線</string>
+    <string name="MainMenuItemsInfo">長按拖曳可排序，點按項目可將其隱藏，點按已隱藏項目可將其復原，點按分隔線可將其移除。</string>
 </resources>

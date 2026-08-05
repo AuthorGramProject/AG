@@ -203,6 +203,7 @@
     <string name="AIChat">AI 聊天</string>
     <string name="AIChatInfo">配置服务，角色和历史记录</string>
     <string name="AIChatServices">服务</string>
+    <string name="AIChatUseLlmProvider">与 AI 翻译共用服务商</string>
     <string name="AIChatRoles">角色</string>
     <string name="AIChatMessageHistory">消息历史</string>
     <string name="AIChatHistoryInfo">启用后，AI 将记住对话中的先前消息。</string>
@@ -227,6 +228,9 @@
     <string name="AIChatFetchModels">获取模型列表</string>
     <string name="AIChatTestConnection">测试连接</string>
     <string name="AIChatTestSuccess">连接成功</string>
+    <string name="AIChatReasoning">推理模式</string>
+    <string name="AIChatReasoningInfo">为推理模型启用扩展思考（o1、o3、Gemini Thinking 等）</string>
+    <string name="AIChatTemperature">温度</string>
     <string name="AIChatAddRole">添加角色</string>
     <string name="AIChatAddRoleHint">点击添加自定义角色</string>
     <string name="AIChatRolesInfo">角色定义 AI 的个性和行为。</string>
@@ -261,4 +265,30 @@
     <string name="AIError502Info">服务器暂时不可用。</string>
     <string name="AIError503">服务不可用</string>
     <string name="AIError503Info">服务过载，请稍后重试。</string>
+    <string name="TabStyleStroke">标签指示器描边</string>
+    <string name="SuggestGhostModeBeforeViewingStory">查看 Story 前提示开启幽灵模式</string>
+    <string name="SuggestGhostModeBeforeStoryTitle">幽灵模式</string>
+    <string name="SuggestGhostModeBeforeStoryMessage">查看此 Story 会暴露你的在线状态。是否先开启幽灵模式？</string>
+    <string name="SuggestGhostModeBeforeStoryEnable">开启幽灵模式</string>
+    <string name="SuggestGhostModeBeforeStorySkip">仍然查看</string>
+    <string name="SaveReadDate">保存已读回执</string>
+    <string name="SaveReadDateAbout">记录你的发出消息被阅读的时间，该时间会显示在消息信息中。</string>
+    <string name="AyuReadDate">已读</string>
+    <string name="AyuReadDateUnknown">未知</string>
+    <!-- Built-in local folders -->
+    <string name="BuiltInFolders">内置文件夹</string>
+    <string name="BuiltInFoldersInfo">内置文件夹在本机生成，不会同步到 Telegram，名称和图标也不可修改。</string>
+    <string name="LocalFolder">本地文件夹</string>
+    <string name="LocalFolderEditInfo">内置文件夹不可编辑。如需调整，可以在这里删除后重新添加。</string>
+    <string name="BuiltInFolderUnread">未读</string>
+    <string name="BuiltInFolderUnmuted">未静音</string>
+    <string name="BuiltInFolderBasicGroups">普通群组</string>
+    <string name="BuiltInFolderSupergroups">超级群组</string>
+    <string name="BuiltInFolderAdmin">管理员</string>
+    <!-- Sidebar menu manager -->
+    <string name="MainMenuItems">侧边栏项目</string>
+    <string name="MainMenuHiddenItems">已隐藏项目</string>
+    <string name="MainMenuAddDivider">添加分隔线</string>
+    <string name="MainMenuDivider">分隔线</string>
+    <string name="MainMenuItemsInfo">长按拖拽可排序，点按项目可将其隐藏，点按已隐藏项目可将其恢复，点按分隔线可将其移除。</string>
 </resources>

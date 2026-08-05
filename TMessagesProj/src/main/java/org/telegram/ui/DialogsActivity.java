@@ -90,6 +90,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
+import androidx.core.graphics.Insets;
 import androidx.core.math.MathUtils;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -162,6 +163,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Adapters.DialogsAdapter;
 import org.telegram.ui.Adapters.DialogsSearchAdapter;
+import org.telegram.ui.Adapters.DrawerLayoutAdapter;
 import org.telegram.ui.Adapters.FiltersView;
 import org.telegram.ui.Cells.ActiveGiftAuctionsHintCell;
 import org.telegram.ui.Cells.AnimatedStatusView;
@@ -298,9 +300,9 @@ import tw.nekomimi.nekogram.helpers.MainTabsHelper;
 import tw.nekomimi.nekogram.ChatHistoryActivity;
 import tw.nekomimi.nekogram.helpers.PasscodeHelper;
 import tw.nekomimi.nekogram.helpers.TypefaceHelper;
-import toss.authorgram.settings.MainTabsCustomizeActivity;
-import tw.nekomimi.nekogram.ui.BookmarkManagerActivity;
 import xyz.nextalone.nagram.NaConfig;
+import xyz.nextalone.nagram.helper.DrawerMenuHelper;
+import xyz.nextalone.nagram.helper.MainMenuActions;
 import xyz.nextalone.nagram.ui.folders.FoldersHelper;
 
 public class DialogsActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate, FloatingDebugProvider, FactorAnimator.Target, MainTabsActivity.TabFragmentDelegate {
@@ -1148,7 +1150,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     blurredView.draw(canvas);
                 }
             }
-            if (!hasMainTabs) {
+            if (!hasMainTabs && communityId == 0) {
                 AndroidUtilities.drawNavigationBarProtection(canvas, this, getThemedColor(Theme.key_windowBackgroundWhite), navigationBarHeight);
             }
             wasDrawn = true;
@@ -1261,6 +1263,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             int keyboardSize = measureKeyboardHeight();
             setBottomClip(paddingBottom);
 
+            final int W = getMeasuredWidth();
+            final int H = getMeasuredHeight();
+
             for (int i = 0; i < count; i++) {
                 final View child = getChildAt(i);
                 if (child == null || child.getVisibility() == GONE) {
@@ -1284,10 +1289,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
                 switch (absoluteGravity & Gravity.HORIZONTAL_GRAVITY_MASK) {
                     case Gravity.CENTER_HORIZONTAL:
-                        childLeft = (r - l - width) / 2 + lp.leftMargin - lp.rightMargin;
+                        childLeft = (W - width) / 2 + lp.leftMargin - lp.rightMargin;
                         break;
                     case Gravity.RIGHT:
-                        childLeft = r - width - lp.rightMargin;
+                        childLeft = W - width - lp.rightMargin;
                         break;
                     case Gravity.LEFT:
                     default:
@@ -1299,10 +1304,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         childTop = lp.topMargin + getPaddingTop();
                         break;
                     case Gravity.CENTER_VERTICAL:
-                        childTop = ((b - paddingBottom) - t - height) / 2 + lp.topMargin - lp.bottomMargin;
+                        childTop = ((H - paddingBottom) - height) / 2 + lp.topMargin - lp.bottomMargin;
                         break;
                     case Gravity.BOTTOM:
-                        childTop = ((b - paddingBottom) - t) - height - lp.bottomMargin;
+                        childTop = ((H - paddingBottom)) - height - lp.bottomMargin;
                         break;
                     default:
                         childTop = lp.topMargin;
@@ -3784,9 +3789,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         builder.setMessage(LocaleController.getString(R.string.FilterDeleteAlert));
                         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
                         builder.setPositiveButton(LocaleController.getString(R.string.Delete), (dialog2, which2) -> {
-                            TLRPC.TL_messages_updateDialogFilter req = new TLRPC.TL_messages_updateDialogFilter();
-                            req.id = dialogFilter.id;
-                            getConnectionsManager().sendRequest(req, null);
+                            // NagramX: local folders only exist on this device, drop them without an RPC
+                            if (!dialogFilter.local) {
+                                TLRPC.TL_messages_updateDialogFilter req = new TLRPC.TL_messages_updateDialogFilter();
+                                req.id = dialogFilter.id;
+                                getConnectionsManager().sendRequest(req, null);
+                            }
                             getMessagesController().removeFilter(dialogFilter);
                             getMessagesStorage().deleteDialogFilter(dialogFilter);
                         });
@@ -4006,7 +4014,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                                 filterTabsView.setIsEditing(true);
                                 showDoneItem(true);
                             })
-                            .add(R.drawable.msg_edit, defaultTab ? LocaleController.getString(R.string.FilterEditAll) : LocaleController.getString(R.string.FilterEdit), () -> {
+                            // NagramX: a built-in local folder is defined by its type, editing it would be reverted
+                            .addIf(defaultTab || dialogFilter == null || !dialogFilter.local, R.drawable.msg_edit, defaultTab ? LocaleController.getString(R.string.FilterEditAll) : LocaleController.getString(R.string.FilterEdit), () -> {
                                 presentFragment(defaultTab ? new FiltersSetupActivity() : new FilterCreateActivity(dialogFilter));
                             })
                             .addIf(dialogFilter != null && !dialogs.isEmpty(), muteAll ? R.drawable.msg_mute : R.drawable.msg_unmute, muteAll ? getString(R.string.FilterMuteAll) : getString(R.string.FilterUnmuteAll), () -> {
@@ -5109,7 +5118,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     topPanelLayout.setViewVisible(fragmentLocationContextViewWrapper, visibility == VISIBLE);
                 }
             };
-            fragmentLocationContextView.isInsideBubble = true;
             fragmentLocationContextViewWrapper.addView(fragmentLocationContextView);
 
             fragmentContextView = new FragmentContextView(context, this, false) {
@@ -5118,8 +5126,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     topPanelLayout.setViewVisible(fragmentContextViewWrapper, visibility == VISIBLE);
                 }
             };
-            fragmentContextView.isInsideBubble = true;
             fragmentContextViewWrapper.addView(fragmentContextView);
+            topPanelLayout.setCallFragmentContextView(fragmentContextView);
 
             dialogsHintCell = new DialogsHintCell(context);
             dialogsHintCell.setBackground(Theme.getSelectorDrawable(false));
@@ -7182,6 +7190,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
     }
 
+    public int getSelectedFilterIndex() {
+        return filterTabsView != null ? filterTabsView.getCurrentTabId() : -1;
+    }
+
     public void switchToCurrentSelectedMode(boolean animated) {
         for (int a = 0; a < viewPages.length; a++) {
             viewPages[a].listView.stopScroll();
@@ -8428,7 +8440,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
 
 
-            if ((!getMessagesController().isForum(dialogId) || isBotForumWithEmptyTopics(dialogId)) && (!selectedDialogs.isEmpty() || (initialDialogsType == DIALOGS_TYPE_FORWARD && selectAlertString != null))) {
+            if ((!getMessagesController().isForum(dialogId) && !getMessagesController().isCommunity(dialogId) || isBotForumWithEmptyTopics(dialogId)) && (!selectedDialogs.isEmpty() || (initialDialogsType == DIALOGS_TYPE_FORWARD && selectAlertString != null))) {
                 if (!selectedDialogs.contains(dialogId) && !checkCanWrite(dialogId)) {
                     return;
                 }
@@ -12192,6 +12204,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         return folderId == 1;
     }
 
+    public boolean isCommunity() {
+        return communityId != 0;
+    }
+
     public int getType() {
         return initialDialogsType;
     }
@@ -14303,35 +14319,54 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
     }
 
-    private boolean addHiddenMainTabsShortcuts(ItemOptions io) {
-        if (mainTabsActivityController == null || NaConfig.INSTANCE.getMainTabsDisplayMode().Int() != MainTabsHelper.BOTTOM_BAR_MODE_HIDE) {
-            return false;
+    /**
+     * Populates the overflow ("three dots") menu with the configured main-menu items,
+     * driven by the same {@link DrawerMenuHelper} layout as the navigation drawer —
+     * mirroring ayuGram, where one layout drives both surfaces. Used when the drawer
+     * is disabled, so these shortcuts live in the overflow menu instead.
+     */
+    private void addConfiguredMainMenuItems(ItemOptions io) {
+        boolean lastWasGap = true;
+        boolean addedAny = false;
+        for (int id : DrawerMenuHelper.getLayout()) {
+            if (id == DrawerMenuHelper.DIVIDER) {
+                if (addedAny && !lastWasGap) {
+                    io.addGap();
+                    lastWasGap = true;
+                }
+                continue;
+            }
+            if (!MainMenuActions.isSupported(id)) {
+                continue;
+            }
+            DrawerMenuHelper.Entry entry = DrawerMenuHelper.entryFor(id);
+            if (entry == null) {
+                continue;
+            }
+            final String label;
+            if (id == DrawerLayoutAdapter.agbtnGhostMode) {
+                label = NekoConfig.isGhostModeActive()
+                        ? getString(R.string.DisableGhostMode)
+                        : getString(R.string.EnableGhostMode);
+            } else {
+                label = getString(entry.getLabelRes());
+            }
+            final int itemId = id;
+            if (!addedAny) {
+                // Lead the section with a gap only when it actually yields an item; otherwise
+                // the gap would dangle at the bottom of the overflow menu (visible in dark theme).
+                io.addGap();
+            }
+            if (id == DrawerLayoutAdapter.agbtnGhostMode || id == DrawerLayoutAdapter.agbtnBrowser) {
+                io.add(entry.getIconRes(), label,
+                        () -> MainMenuActions.longClickItem(itemId, DialogsActivity.this, currentAccount),
+                        () -> MainMenuActions.openItem(itemId, DialogsActivity.this, currentAccount));
+            } else {
+                io.add(entry.getIconRes(), label, () -> MainMenuActions.openItem(itemId, DialogsActivity.this, currentAccount));
+            }
+            addedAny = true;
+            lastWasGap = false;
         }
-
-        io.addGap();
-        io.add(R.drawable.tabs_reorder, getString(R.string.MainTabsCustomize), () -> presentFragment(new MainTabsCustomizeActivity()));
-        io.add(R.drawable.msg_archive, getString(R.string.ArchivedChats), () -> {
-            Bundle args = new Bundle();
-            args.putInt("folderId", 1);
-            presentFragment(new DialogsActivity(args));
-        });
-        if (MainTabsConfigManager.isTabEnabled(MainTabsConfigManager.TabType.CONTACTS)) {
-            io.add(R.drawable.msg_contacts, getString(R.string.MainTabsContacts), () -> {
-                Bundle args = new Bundle();
-                args.putBoolean("needPhonebook", true);
-                args.putBoolean("needFinishFragment", false);
-                presentFragment(new ContactsActivity(args));
-            });
-        }
-        if (MainTabsConfigManager.isTabEnabled(MainTabsConfigManager.TabType.CALLS)) {
-            io.add(R.drawable.msg_calls, getString(R.string.MainTabsCalls), () -> {
-                Bundle args = new Bundle();
-                args.putBoolean("needFinishFragment", false);
-                presentFragment(new CallLogActivity(args));
-            });
-        }
-        io.add(R.drawable.msg_settings_old, getString(R.string.Settings), () -> presentFragment(new SettingsActivity()));
-        return true;
     }
 
     private void showItemOptions() {
@@ -14381,11 +14416,20 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             return;
         }
 
-        if (!isArchive()) {
+        if (isArchive()) {
+            io.add(R.drawable.msg_customize, getString(R.string.ArchiveSettings), () -> presentFragment(new ArchiveSettingsActivity()));
+            io.add(R.drawable.msg_help, getString(R.string.HowDoesItWork), this::showArchiveHelp);
+            io.show();
+            io.setTranslationY(-dp(64));
+            return;
+        }
+
+        if (NekoConfig.navigationDrawerEnabled.Bool()) {
             io.add(R.drawable.msg_recent, getString(R.string.RecentChats), () -> {
                 presentFragment(new ChatHistoryActivity());
             });
             io.addGap();
+        }
 
             final boolean isCurrentThemeDark;
             if (resourceProvider != null) {
@@ -14434,7 +14478,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                             presentFragment(new ThemeActivity(ThemeActivity.THEME_TYPE_NIGHT));
                         });
                     });
-            io.addGap();
+        // Only separate from the theme-switch row when the drawer-enabled shortcut rows below
+        // actually exist; the drawer-off section leads its own gap (addConfiguredMainMenuItems).
+        io.addGapIf(NekoConfig.navigationDrawerEnabled.Bool());
+        if (NekoConfig.navigationDrawerEnabled.Bool()) {
             io.add(R.drawable.outline_groups_24, getString(R.string.NewGroup), () -> {
                 Bundle args = new Bundle();
                 presentFragment(new GroupCreateActivity(args));
@@ -14457,58 +14504,43 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     presentFragment(new ContactsActivity(args));
                 });
             }
-            io.add(R.drawable.outline_saved_24, getString(R.string.SavedMessages), () -> {
-                Bundle args = new Bundle();
-                args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
-                presentFragment(new ChatActivity(args));
-            });
-            if (mainTabsActivityController != null
-                    && NaConfig.INSTANCE.getMainTabsDisplayMode().Int() == MainTabsHelper.BOTTOM_BAR_MODE_HIDE
-                    && NaConfig.INSTANCE.getShowAddToBookmark().Bool()) {
-                io.add(R.drawable.msg_fave, getString(R.string.BookmarksManager), () -> {
-                    presentFragment(new BookmarkManagerActivity());
-                });
-            }
-            final boolean addedHiddenMainTabsShortcuts = addHiddenMainTabsShortcuts(io);
-            if (ApplicationLoader.applicationLoaderInstance != null) {
-                ApplicationLoader.applicationLoaderInstance.addItemOptions(io);
-            }
-            TLRPC.TL_attachMenuBots menuBots = MediaDataController.getInstance(UserConfig.selectedAccount).getAttachMenuBots();
-            if (launchActivity != null && menuBots != null && menuBots.bots != null && !menuBots.bots.isEmpty()) {
-                for (TLRPC.TL_attachMenuBot attachMenuBot : menuBots.bots) {
-                    if (attachMenuBot.show_in_side_menu) {
-                        io.addBot(attachMenuBot, () -> {
-                            if (attachMenuBot.inactive || attachMenuBot.side_menu_disclaimer_needed) {
-                                WebAppDisclaimerAlert.show(getContext(), (allowSendMessage) -> {
-                                    TLRPC.TL_messages_toggleBotInAttachMenu botRequest = new TLRPC.TL_messages_toggleBotInAttachMenu();
-                                    botRequest.bot = MessagesController.getInstance(currentAccount).getInputUser(attachMenuBot.bot_id);
-                                    botRequest.enabled = true;
-                                    botRequest.write_allowed = true;
-                                    ConnectionsManager.getInstance(currentAccount).sendRequest(botRequest, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
-                                        attachMenuBot.inactive = attachMenuBot.side_menu_disclaimer_needed = false;
-                                        LaunchActivity.showAttachMenuBot(launchActivity, currentAccount, attachMenuBot, null, true);
-                                        MediaDataController.getInstance(currentAccount).updateAttachMenuBotsInCache();
-                                    }), ConnectionsManager.RequestFlagInvokeAfter | ConnectionsManager.RequestFlagFailOnServerErrors);
-                                }, null, null);
-                            } else {
-                                LaunchActivity.showAttachMenuBot(launchActivity, currentAccount, attachMenuBot, null, true);
-                            }
-                        }, () -> BotWebViewSheet.deleteBot(currentAccount, attachMenuBot.bot_id, null));
-                    }
+        }
+        if (!NekoConfig.navigationDrawerEnabled.Bool()) {
+            addConfiguredMainMenuItems(io);
+        }
+        if (ApplicationLoader.applicationLoaderInstance != null) {
+            ApplicationLoader.applicationLoaderInstance.addItemOptions(io);
+        }
+        TLRPC.TL_attachMenuBots menuBots = MediaDataController.getInstance(UserConfig.selectedAccount).getAttachMenuBots();
+        if (launchActivity != null && menuBots != null && menuBots.bots != null && !menuBots.bots.isEmpty()) {
+            for (TLRPC.TL_attachMenuBot attachMenuBot : menuBots.bots) {
+                if (attachMenuBot.show_in_side_menu) {
+                    io.addBot(attachMenuBot, () -> {
+                        if (attachMenuBot.inactive || attachMenuBot.side_menu_disclaimer_needed) {
+                            WebAppDisclaimerAlert.show(getContext(), (allowSendMessage) -> {
+                                TLRPC.TL_messages_toggleBotInAttachMenu botRequest = new TLRPC.TL_messages_toggleBotInAttachMenu();
+                                botRequest.bot = MessagesController.getInstance(currentAccount).getInputUser(attachMenuBot.bot_id);
+                                botRequest.enabled = true;
+                                botRequest.write_allowed = true;
+                                ConnectionsManager.getInstance(currentAccount).sendRequest(botRequest, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
+                                    attachMenuBot.inactive = attachMenuBot.side_menu_disclaimer_needed = false;
+                                    LaunchActivity.showAttachMenuBot(launchActivity, currentAccount, attachMenuBot, null, true);
+                                    MediaDataController.getInstance(currentAccount).updateAttachMenuBotsInCache();
+                                }), ConnectionsManager.RequestFlagInvokeAfter | ConnectionsManager.RequestFlagFailOnServerErrors);
+                            }, null, null);
+                        } else {
+                            LaunchActivity.showAttachMenuBot(launchActivity, currentAccount, attachMenuBot, null, true);
+                        }
+                    }, () -> BotWebViewSheet.deleteBot(currentAccount, attachMenuBot.bot_id, null));
                 }
             }
-            if (getUserConfig().showCallsTab && !addedHiddenMainTabsShortcuts) {
-                io.add(R.drawable.msg_settings_old, getString(R.string.Settings), () -> {
-                    presentFragment(new SettingsActivity());
-                });
-            }
-
-            if (proxyMenuSubItem != null) {
-                proxyMenuSubItem.subtextView.setTextColor(getThemedColor(Theme.key_groupcreate_sectionText));
-                proxyMenuSubItem.setOnClickListener(v -> {
-                    io.dismiss();
-                    presentFragment(new ProxyListActivity());
-                });
+        }
+        if (proxyMenuSubItem != null) {
+            proxyMenuSubItem.subtextView.setTextColor(getThemedColor(Theme.key_groupcreate_sectionText));
+            proxyMenuSubItem.setOnClickListener(v -> {
+                io.dismiss();
+                presentFragment(new ProxyListActivity());
+            });
 
                 final SharedPreferences preferences = ApplicationLoader.applicationContext
                         .getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
@@ -14522,10 +14554,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     io.add(proxyMenuSubItem);
                 }
             }
-        } else {
-            io.add(R.drawable.msg_customize, getString(R.string.ArchiveSettings), () -> presentFragment(new ArchiveSettingsActivity()));
-            io.add(R.drawable.msg_help, getString(R.string.HowDoesItWork), this::showArchiveHelp);
-        }
 
         io.show();
         io.setTranslationY(-dp(64));
@@ -14550,8 +14578,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
         windowInsetsStateHolder.setInsets(insets);
 
-        statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
-        navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
+        final Insets systemInsets = AndroidUtilities.getDefaultWindowInsets(insets, false);
+        statusBarHeight = systemInsets.top;
+        navigationBarHeight = systemInsets.bottom;
         final int imeInsetHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
         if (this.imeInsetHeight != imeInsetHeight) {
             this.imeInsetHeight = imeInsetHeight;

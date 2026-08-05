@@ -3714,10 +3714,10 @@ public class MessageObject {
         final boolean manualTranslated = translateController.isManualTranslated(this);
         final boolean autoTranslated = TranslateController.isTranslatable(this) && translateController.isTranslatingDialog(getDialogId());
         final int translatorMode = NaConfig.INSTANCE.getTranslatorMode().Int();
-        final boolean showInline = autoTranslated || (manualTranslated && (voiceTranscriptionOpen || messageOwner != null && messageOwner.translatedPoll != null || translatorMode == MessageTransKt.TRANSLATE_MODE_REPLACE));
+        final boolean keepOriginal = MessageHelper.shouldKeepOriginalForDisplay(translatorMode, manualTranslated, autoTranslated);
         final TLRPC.TL_textWithEntities translatedText = messageOwner != null ? (voiceTranscriptionOpen ? messageOwner.translatedVoiceTranscription : messageOwner.translatedText) : null;
         final TLRPC.TL_textWithEntities summarizedText = messageOwner != null && messageOwner.summarizedOpen ? messageOwner.summaryText : null;
-        final TLRPC.TL_textWithEntities summarizeTranslatedText = messageOwner != null && messageOwner.summarizedOpen ? messageOwner.translatedSummaryText : null;
+        final TLRPC.TL_textWithEntities summarizeTranslatedText = messageOwner != null && messageOwner.summarizedOpen && !MessageHelper.isLegacyTranslatedSummary(summarizedText, messageOwner.translatedSummaryText) ? messageOwner.translatedSummaryText : null;
         final boolean showSummarizedTranslated =
             summarizeTranslatedText != null &&
             messageOwner != null &&
@@ -3734,12 +3734,17 @@ public class MessageObject {
                 )
             );
         if (showSummarizedTranslated) {
-            if (summarized && translated) {
+            final String translatedSummaryText = MessageHelper.buildTranslatedDisplayText(
+                summarizedText != null ? summarizedText.text : null,
+                summarizeTranslatedText,
+                keepOriginal
+            );
+            if (summarized && translated && TextUtils.equals(messageText, translatedSummaryText)) {
                 return replyUpdated || false;
             }
             summarized = true;
             translated = true;
-            applyNewText(summarizeTranslatedText.text);
+            applyNewText(translatedSummaryText);
             generateCaption();
             return replyUpdated || true;
         } else if (
@@ -3748,7 +3753,7 @@ public class MessageObject {
             TranslateController.isSummarizable(this) &&
             summarizedText != null
         ) {
-            if (summarized && !translated) {
+            if (summarized && !translated && TextUtils.equals(messageText, summarizedText.text)) {
                 return replyUpdated || false;
             }
             summarized = true;
@@ -3757,7 +3762,7 @@ public class MessageObject {
             generateCaption();
             return replyUpdated || true;
         } else if (
-            showInline &&
+            (autoTranslated || manualTranslated) &&
             messageOwner != null &&
             (
                     translatedText != null
@@ -3784,7 +3789,9 @@ public class MessageObject {
                     )
 
         ) {
-            if (translated && !summarized) {
+            final boolean shouldKeepOriginalText = keepOriginal && !voiceTranscriptionOpen && messageOwner.translatedPoll == null;
+            final String translatedDisplayText = translatedText != null ? MessageHelper.buildTranslatedDisplayText(messageOwner.message, translatedText, shouldKeepOriginalText) : null;
+            if (translated && !summarized && (translatedDisplayText == null || TextUtils.equals(messageText, translatedDisplayText))) {
                 return replyUpdated || false;
             }
             translated = true;
@@ -3792,7 +3799,7 @@ public class MessageObject {
             if (type == TYPE_ARTICLE) {
                 generateLayout(null);
             } else if (translatedText != null) {
-                applyNewText(translatedText.text);
+                applyNewText(translatedDisplayText);
                 generateCaption();
             }
             return replyUpdated || true;
@@ -4342,6 +4349,10 @@ public class MessageObject {
 
     public boolean isAyuDeleted() {
         return messageOwner != null && messageOwner.ayuDeleted;
+    }
+
+    public boolean isRich() {
+        return messageOwner != null && messageOwner.rich_message != null;
     }
 
     public boolean isTranslated() {
@@ -7651,12 +7662,6 @@ public class MessageObject {
 
     public void generateCaption() {
         if (isRoundVideo()) return;
-        if (caption != null &&
-            (translated && (messageOwner.translatedText != null || summarized && messageOwner.translatedSummaryText != null)) == captionTranslated &&
-            summarized == captionSummarized
-        ) {
-            return;
-        }
         String text = messageOwner.message;
         ArrayList<TLRPC.MessageEntity> entities = messageOwner.entities;
         boolean forceManualEntities = false;
@@ -7672,29 +7677,48 @@ public class MessageObject {
         } else if (hasExtendedMedia()) {
             text = messageOwner.message = messageOwner.media.description;
         }
+        boolean newCaptionTranslated = false;
+        boolean newCaptionSummarized = false;
         if (messageOwner.translatedSummaryText != null && summarized && translated) {
-            captionSummarized = true;
-            captionTranslated = true;
-            text = messageOwner.translatedSummaryText.text;
-            entities = messageOwner.translatedSummaryText.entities;
+            newCaptionSummarized = true;
+            newCaptionTranslated = true;
+            text = messageText != null ? messageText.toString() : messageOwner.translatedSummaryText.text;
         } else if (messageOwner.summaryText != null && summarized) {
-            captionSummarized = true;
-            captionTranslated = false;
+            newCaptionSummarized = true;
+            newCaptionTranslated = false;
             text = messageOwner.summaryText.text;
-            entities = messageOwner.summaryText.entities;
         } else if (messageOwner.translatedText != null && translated) {
-            captionSummarized = false;
-            captionTranslated = true;
-            text = messageOwner.translatedText.text;
-            // entities = messageOwner.translatedText.entities;
-            entities = MessageHelper.reparseMessageEntities(messageOwner.translatedText.entities);
+            newCaptionSummarized = false;
+            newCaptionTranslated = true;
+            text = messageText != null ? messageText.toString() : messageOwner.translatedText.text;
         } else if (messageOwner.translated) {
             // NekoX Translate
+            newCaptionSummarized = false;
+            newCaptionTranslated = false;
             text = messageOwner.translatedMessage;
-            entities = MessageHelper.getEntitiesForText(this, text, summarized);
         } else {
-            captionSummarized = false;
-            captionTranslated = false;
+            newCaptionSummarized = false;
+            newCaptionTranslated = false;
+        }
+        if (caption != null &&
+            newCaptionTranslated == captionTranslated &&
+            newCaptionSummarized == captionSummarized &&
+            TextUtils.equals(caption, text)
+        ) {
+            return;
+        }
+        captionTranslated = newCaptionTranslated;
+        captionSummarized = newCaptionSummarized;
+
+        if (messageOwner.translatedSummaryText != null && summarized && translated) {
+            entities = MessageHelper.getEntitiesForText(this, text, true);
+        } else if (messageOwner.summaryText != null && summarized) {
+            entities = messageOwner.summaryText.entities;
+        } else if (messageOwner.translatedText != null && translated) {
+            entities = MessageHelper.getEntitiesForText(this, text, false);
+        } else if (messageOwner.translated) {
+            // NekoX Translate
+            entities = MessageHelper.getEntitiesForText(this, text, summarized);
         }
         if (!isMediaEmpty() && !(getMedia(messageOwner) instanceof TLRPC.TL_messageMediaGame) && !TextUtils.isEmpty(text)) {
             caption = Emoji.replaceEmoji(text, Theme.chat_msgTextPaint.getFontMetricsInt(), false);

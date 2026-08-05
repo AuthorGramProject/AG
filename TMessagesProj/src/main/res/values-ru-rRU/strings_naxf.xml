@@ -226,6 +226,7 @@
     <string name="AIChat">ИИ-чат</string>
     <string name="AIChatInfo">Настройка сервисов, ролей и истории</string>
     <string name="AIChatServices">Сервисы</string>
+    <string name="AIChatUseLlmProvider">Провайдер ИИ-переводчика</string>
     <string name="AIChatRoles">Роли</string>
     <string name="AIChatMessageHistory">История сообщений</string>
     <string name="AIChatHistoryInfo">Если включено, ИИ будет помнить предыдущие сообщения в диалоге.</string>
@@ -250,6 +251,9 @@
     <string name="AIChatFetchModels">Получить список моделей</string>
     <string name="AIChatTestConnection">Проверить подключение</string>
     <string name="AIChatTestSuccess">Подключение успешно</string>
+    <string name="AIChatReasoning">Режим рассуждения</string>
+    <string name="AIChatReasoningInfo">Включить расширенное мышление для моделей рассуждения (o1, o3, Gemini Thinking и др.)</string>
+    <string name="AIChatTemperature">Температура</string>
     <string name="AIChatAddRole">Добавить роль</string>
     <string name="AIChatAddRoleHint">Нажмите, чтобы добавить свою роль</string>
     <string name="AIChatRolesInfo">Роли определяют характер и поведение ИИ.</string>
@@ -289,4 +293,35 @@
     <string name="HideAiEditor">Скрыть AI-редактор</string>
     <string name="HideAiSummary">Скрыть AI-сводку</string>
     <string name="AiHideHeader">Скрыть AI-функции</string>
+    <string name="TabStyleStroke">Обводка индикатора вкладок</string>
+
+    <!-- AyuGram feature-gap completion -->
+    <string name="SuggestGhostModeBeforeViewingStory">Предупреждать перед просмотром историй</string>
+    <string name="SuggestGhostModeBeforeStoryTitle">Режим «Призрака»</string>
+    <string name="SuggestGhostModeBeforeStoryMessage">Просмотр этой истории покажет ваш онлайн-статус. Включить режим «Призрака»?</string>
+    <string name="SuggestGhostModeBeforeStoryEnable">Включить</string>
+    <string name="SuggestGhostModeBeforeStorySkip">Просмотреть</string>
+    <string name="SaveReadDate">Сохранять дату прочтения</string>
+    <string name="SaveReadDateAbout">Сохранять дату, когда ваши исходящие сообщения были прочитаны. Время отображается в информации о сообщении.</string>
+    <string name="AyuReadDate">Прочитано</string>
+    <string name="AyuReadDateUnknown">Неизвестно</string>
+    <string name="BuiltInFolders">Встроенные папки</string>
+    <string name="BuiltInFoldersInfo">Встроенные папки создаются на этом устройстве и не синхронизируются с Telegram. Их название и значок нельзя изменить.</string>
+    <string name="LocalFolder">Локальная папка</string>
+    <string name="LocalFolderEditInfo">Встроенные папки нельзя редактировать. Если передумали, удалите её здесь и добавьте заново.</string>
+    <string name="BuiltInFolderUnread">Непрочитанные</string>
+    <string name="BuiltInFolderUnmuted">Со звуком</string>
+    <string name="BuiltInFolderBasicGroups">Обычные группы</string>
+    <string name="BuiltInFolderSupergroups">Супергруппы</string>
+    <string name="BuiltInFolderAdmin">Администратор</string>
+    <string name="MainMenuItems">Элементы бокового меню</string>
+    <string name="MainMenuHiddenItems">Скрытые элементы</string>
+    <string name="MainMenuAddDivider">Добавить разделитель</string>
+    <string name="MainMenuDivider">Разделитель</string>
+    <string name="MainMenuItemsInfo">Нажмите и перетащите, чтобы изменить порядок. Нажмите на элемент, чтобы скрыть его, или на скрытый элемент, чтобы вернуть его. Нажмите на разделитель, чтобы удалить его.</string>
+    <string name="NowPlayingStatsFmUsername">Имя пользователя Stats.fm</string>
+    <string name="NowPlayingNotWhitelistedInfo">Ваша карточка видна только на этом устройстве. Карточки суппортеров из белого списка видны всем.</string>
+    <string name="NowPlayingBindSuccess">Привязано</string>
+    <string name="AyuSpySettings">Настройки слежки</string>
+    <string name="AyuMomentsCustomHeader">Своё</string>
 </resources>

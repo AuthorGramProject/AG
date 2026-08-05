@@ -2259,7 +2259,15 @@ public class ViewPagerFixed extends FrameLayout {
                 ArrayList<MessagesController.DialogFilter> filters = MessagesController.getInstance(UserConfig.selectedAccount).dialogFilters;
                 for (int a = 0, N = filters.size(); a < N; a++) {
                     MessagesController.DialogFilter filter = filters.get(a);
-                    req.order.add(filters.get(a).id);
+                    // NagramX: the server does not know local folders, sending their ids breaks the order
+                    if (filter.local) {
+                        continue;
+                    }
+                    if (filter.isDefault()) {
+                        req.order.add(0);
+                    } else {
+                        req.order.add(filter.id);
+                    }
                 }
                 ConnectionsManager.getInstance(UserConfig.selectedAccount).sendRequest(req, (response, error) -> {
 
