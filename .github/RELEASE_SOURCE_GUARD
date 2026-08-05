@@ -1,4 +1,4 @@
-AuthorGram release guard.
-Do not accept a release synchronization that rewrites legally required upstream attribution.
-Guard revision: 2026-08-02T10:55+02:00
-A corrected source finalizer must preserve upstream project names only inside legal credits and notices.
+AuthorGram source guard: release automation must use the resource-safe branding finalizer.
+Guard revision: 2026-08-02T10:51+02:00
+Stale release automation must fail by non-fast-forward before changing dev, main, or play-market.
+Final trigger commit: db31a0cca6b37c736f561b05759f6c34cef3b742.

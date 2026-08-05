@@ -130,6 +130,9 @@ def main() -> int:
     launch_activity = read(
         "TMessagesProj/src/main/java/org/telegram/ui/LaunchActivity.java"
     )
+    chat_activity = read(
+        "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
+    )
     settings_backup = read(
         "TMessagesProj/src/main/java/tw/nekomimi/nekogram/helpers/SettingsBackupHelper.java"
     )
@@ -212,6 +215,7 @@ def main() -> int:
         'values.put("sendReadStoriesPackets", true)',
         'values.put("sendOnlinePackets", true)',
         'values.put("ignoreContentRestrictions", false)',
+        'values.put("iOSMessageInputField", false)',
         "OWNER_DIALOG_ID = 6316376597L",
         "canEnableEncryption",
         "canDelete",
@@ -219,6 +223,64 @@ def main() -> int:
     )
     for item in required_play_policy:
         require(item in play_policy, f"Play policy invariant missing: {item}", failures)
+    require("return !isPlayBuild();" in play_policy,
+            "Play must not send AuthorGram custom-wire encrypted messages", failures)
+
+    chat_settings = read(
+        "TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java"
+    )
+    na_config = read(
+        "TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/NaConfig.kt"
+    )
+    dialogs_activity = read(
+        "TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java"
+    )
+    drawer_layout_container = read(
+        "TMessagesProj/src/main/java/org/telegram/ui/ActionBar/"
+        "DrawerLayoutContainer.java"
+    )
+    require(
+        "appendIOSMessageInputFieldRow" in chat_settings
+        and "AuthorGramPlayPolicy.isPlayBuild()" in chat_settings,
+        "NagramXF-authored iOS input must be hidden from Play",
+        failures,
+    )
+    require(
+        "AyuGhostConfig" not in dialogs_activity,
+        "Removed AyuGhostConfig compatibility layer is still referenced",
+        failures,
+    )
+    require(
+        drawer_layout_container.count(
+            "protected void dispatchDraw(@NonNull Canvas canvas)"
+        ) == 1
+        and "actionBarLayout.parentDraw(this, canvas);" in drawer_layout_container
+        and "parentActionBarLayout.drawCurrentPreviewFragment" in drawer_layout_container,
+        "Drawer drawing integration must preserve both upstream tabs and previews",
+        failures,
+    )
+    for config_name, config_key in (
+        ("shortcutsAdministrators", "ChannelAdministrators"),
+        ("shortcutsRecentActions", "EventLog"),
+        ("shortcutsStatistics", "Statistics"),
+        ("shortcutsPermissions", "ChannelPermissions"),
+        ("shortcutsMembers", "GroupMembers"),
+    ):
+        getter = "get" + config_name[0].upper() + config_name[1:] + "()"
+        require(
+            f"val {config_name} =" in na_config
+            and f'"{config_key}"' in na_config
+            and getter in chat_activity
+            and getter in chat_settings,
+            f"Existing AuthorGram chat shortcut setting was lost: {config_name}",
+            failures,
+        )
+    require(
+        "AuthorGramPlayPolicy\n                .canEnableEncryption(currentAccount, dialog_id)"
+        in chat_activity,
+        "Play chat UI must not expose AuthorGram custom-wire encryption",
+        failures,
+    )
 
     require(config_item.count("AuthorGramPlayPolicy.sanitizeConfigValue") >= 8,
             "Play settings are not centrally write-protected", failures)
@@ -305,8 +367,8 @@ def main() -> int:
 
     workflow = read(".github/workflows/release.yml")
     cleanup_script = read("scripts/cleanup_authorgram_actions.py")
-    release_script = read("scripts/final_release_12_9_1.sh")
-    require("scripts/final_release_12_9_1.sh" in workflow,
+    release_script = read("scripts/final_release_12_9_2.sh")
+    require("scripts/final_release_12_9_2.sh" in workflow,
             "Release workflow must execute the plain release script", failures)
     require("patch_authorgram_build_key.py" in workflow,
             "Workflow does not explicitly apply package-specific keys", failures)

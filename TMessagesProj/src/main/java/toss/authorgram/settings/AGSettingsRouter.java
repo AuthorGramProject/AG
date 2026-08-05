@@ -7,6 +7,8 @@ import android.app.Activity;
 import android.net.Uri;
 import android.text.TextUtils;
 
+import com.exteragram.messenger.pillstack.ui.PillStackPreferencesActivity;
+
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.R;
@@ -130,6 +132,14 @@ public class AGSettingsRouter {
                 case "tabs":
                     fragment = agxFragment = new MainTabsCustomizeActivity();
                     break;
+                case "sidebar":
+                case "drawer":
+                    fragment = agFragment = new SidebarMenuActivity();
+                    break;
+                case "pillstack":
+                case "pills":
+                    fragment = agFragment = new PillStackPreferencesActivity();
+                    break;
                 case "regexfilters":
                 case "regex":
                     fragment = agxFragment = new AGFiltersSettingsActivity();
@@ -142,11 +152,17 @@ public class AGSettingsRouter {
                     return;
             }
         }
-        callback.presentFragment(fragment);
         var row = uri.getQueryParameter("r");
         if (TextUtils.isEmpty(row)) {
             row = uri.getQueryParameter("row");
         }
+        // The drawer toggle moved into the sidebar manager; preserve old AuthorGram links.
+        if (fragment instanceof AGAppearanceSettingsActivity
+                && "navigationDrawerEnabled".equals(row)) {
+            fragment = agFragment = new SidebarMenuActivity();
+            agxFragment = null;
+        }
+        callback.presentFragment(fragment);
         var value = uri.getQueryParameter("v");
         if (TextUtils.isEmpty(value)) {
             value = uri.getQueryParameter("value");

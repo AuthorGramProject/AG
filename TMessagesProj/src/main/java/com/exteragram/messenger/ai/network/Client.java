@@ -1,5 +1,7 @@
 package com.exteragram.messenger.ai.network;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.text.TextUtils;
 import android.util.Base64;
 
@@ -8,7 +10,6 @@ import com.exteragram.messenger.ai.AiController;
 import com.exteragram.messenger.ai.data.Message;
 import com.exteragram.messenger.ai.data.Role;
 import com.exteragram.messenger.ai.data.Service;
-import com.exteragram.messenger.utils.network.ExteraHttpClient;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -17,51 +18,41 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.SharedConfig;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+
+import okhttp3.Call;
+import tw.nekomimi.nekogram.llm.net.OpenAICompatClient;
+import tw.nekomimi.nekogram.llm.utils.LlmModelUtil;
+import tw.nekomimi.nekogram.llm.utils.LlmUrlNormalizer;
+import tw.nekomimi.nekogram.llm.utils.ReasoningContentFilter;
+import tw.nekomimi.nekogram.utils.HttpClient;
 
 public class Client {
 
     private static final int STREAM_SYMBOLS_LIMIT = SharedConfig.getDevicePerformanceClass() >= 1 ? 10 : 20;
-    private static final MediaType JSON_TYPE = MediaType.parse("application/json");
+    private static final int MAX_IMAGE_SIZE = 4 * 1024 * 1024;
+    private static final int MAX_HISTORY_MESSAGES = 32;
+    private static final int MAX_HISTORY_CHARS = 24000;
 
-    private static final ExecutorService SHARED_EXECUTOR = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "AiClientWorker");
-        t.setDaemon(true);
-        return t;
-    });
-
-    private final OkHttpClient httpClient;
     private final Service serviceOverride;
     private final Role roleOverride;
     private final AtomicBoolean isGenerating = new AtomicBoolean(false);
-    private final ConcurrentHashMap<String, Boolean> activeRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ExecutorService> activeRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Call> activeCalls = new ConcurrentHashMap<>();
 
     private Client(Builder builder) {
         this.serviceOverride = builder.serviceOverride;
         this.roleOverride = builder.roleOverride;
-        this.httpClient = ExteraHttpClient.INSTANCE.getClient().newBuilder()
-                .connectTimeout(1, TimeUnit.MINUTES)
-                .readTimeout(5, TimeUnit.MINUTES)
-                .build();
     }
 
     private Service getSelectedService() {
@@ -74,8 +65,9 @@ public class Client {
 
     public String getResponse(String prompt, boolean useHistory, boolean stream, String imagePath, GenerationCallback callback) {
         String requestId = UUID.randomUUID().toString();
-        activeRequests.put(requestId, true);
-        SHARED_EXECUTOR.execute(() -> executeRequest(prompt, stream, useHistory, imagePath, requestId, callback));
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        activeRequests.put(requestId, executor);
+        executor.execute(() -> executeRequest(prompt, stream, useHistory, imagePath, requestId, callback));
         return requestId;
     }
 
@@ -85,94 +77,107 @@ public class Client {
             byte[] imageData = null;
             String mimeType = null;
             if (AiController.canSendImage(imagePath)) {
-                imageData = loadImageToByteArray(imagePath);
-                mimeType = getMimeType(imagePath);
+                ImagePayload payload = loadImagePayload(imagePath);
+                if (payload != null) {
+                    imageData = payload.data;
+                    mimeType = payload.mimeType;
+                }
             }
 
             Service service = getSelectedService();
-            ArrayList<Message> conversationHistory = useHistory
-                    ? new ArrayList<>(AiConfig.getConversationHistory())
-                    : new ArrayList<>();
+            String baseUrl = resolveBaseUrl(service);
+            ArrayList<Message> conversationHistory = new ArrayList<>();
+            if (useHistory) {
+                conversationHistory.addAll(trimConversationHistory(AiConfig.getConversationHistory()));
+            }
 
-            Request request = createRequest(service, prompt, stream, conversationHistory, imageData, mimeType);
-            if (request == null) {
-                stopRequest(requestId);
-                AndroidUtilities.runOnUIThread(() -> callback.onError(500, "Failed to create request body"));
+            Message userMessage = new Message("user", prompt, imageData, mimeType);
+            String requestJson = createRequestJson(service, baseUrl, userMessage, stream, useHistory, conversationHistory);
+            if (baseUrl == null || requestJson == null) {
+                notifyErrorAndFinish(requestId, callback, 500, "Failed to create request body");
                 return;
             }
 
-            try (Response response = httpClient.newCall(request).execute()) {
-                if (!response.isSuccessful()) {
-                    if (response.body() != null) {
-                        try {
-                            FileLog.e("AI_ERROR_RESPONSE_BODY (" + response.code() + "): " + response.body().string());
-                        } catch (IOException e) {
-                            FileLog.e("AI_ERROR_READING_RESPONSE_BODY: ", e);
-                        }
-                    }
-                    stopRequest(requestId);
-                    final int code = response.code();
-                    final String msg = response.message().toLowerCase(Locale.ROOT);
-                    AndroidUtilities.runOnUIThread(() -> callback.onError(code, msg));
-                    return;
-                }
+            Call call = OpenAICompatClient.newChatCompletionsCall(HttpClient.INSTANCE.getLlmStreamInstance(), baseUrl, service.getKey(), requestJson);
+            if (call == null) {
+                notifyErrorAndFinish(requestId, callback, 500, "Failed to create request");
+                return;
+            }
+            activeCalls.put(requestId, call);
 
-                ResponseBody body = response.body();
-                if (body == null) {
-                    stopRequest(requestId);
-                    AndroidUtilities.runOnUIThread(() -> callback.onError(500, "Response body is null"));
-                    return;
-                }
-
-                if (stream) {
-                    handleStreamResponse(body, service, requestId, useHistory, conversationHistory, callback);
-                } else {
-                    String content = parseResponseContent(body.string(), false, service.getProtocol());
+            if (stream) {
+                streamResponse(call, requestId, useHistory, conversationHistory, callback);
+            } else {
+                OpenAICompatClient.LlmResponse<String> response = OpenAICompatClient.executeChatCompletions(call);
+                if (!activeRequests.containsKey(requestId)) return;
+                if (response.isSuccess()) {
+                    String content = ReasoningContentFilter.stripReasoningMarkup(response.data());
                     if (content == null || content.trim().isEmpty()) {
-                        stopRequest(requestId);
-                        AndroidUtilities.runOnUIThread(() -> callback.onError(500, "Failed to parse response"));
+                        notifyErrorAndFinish(requestId, callback, 500, "Failed to parse response");
                     } else {
                         if (useHistory) {
                             conversationHistory.add(new Message("assistant", content));
                             AiConfig.saveConversationHistory(conversationHistory);
                         }
-                        final String result = content.trim();
-                        AndroidUtilities.runOnUIThread(() -> {
-                            callback.onResponse(result);
-                            stopRequest(requestId);
-                        });
+                        notifyResponseAndFinish(requestId, callback, content.trim());
                     }
+                } else {
+                    FileLog.e("AI Error: " + response.error());
+                    notifyErrorAndFinish(requestId, callback, response.httpCode() != 0 ? response.httpCode() : 500, response.error());
                 }
             }
         } catch (Exception e) {
             FileLog.e("AI Error: ", e);
-            stopRequest(requestId);
-            AndroidUtilities.runOnUIThread(() -> callback.onError(500, e.getMessage() != null ? e.getMessage() : "Unknown error"));
+            notifyErrorAndFinish(requestId, callback, 500, e.getMessage() != null ? e.getMessage() : "Unknown error");
         }
     }
 
-    // ===== Request Creation =====
+    private void streamResponse(Call call, String requestId, boolean useHistory,
+                                ArrayList<Message> conversationHistory, GenerationCallback callback) {
+        OpenAICompatClient.streamChatCompletions(call, STREAM_SYMBOLS_LIMIT, new OpenAICompatClient.StreamCallback() {
+            @Override
+            public void onChunk(String chunk) {
+                sendStreamChunk(requestId, chunk, callback);
+            }
 
-    private Request createRequest(Service service, String prompt, boolean stream, ArrayList<Message> conversationHistory, byte[] imageData, String mimeType) {
-        switch (service.getProtocol()) {
-            case Service.PROTOCOL_CLAUDE:
-                return createClaudeRequest(service, prompt, stream, conversationHistory, imageData, mimeType);
-            case Service.PROTOCOL_GEMINI:
-                return createGeminiRequest(service, prompt, stream, conversationHistory, imageData, mimeType);
-            default:
-                return createOpenAIRequest(service, prompt, stream, conversationHistory, imageData, mimeType);
-        }
+            @Override
+            public void onThinking() {
+                notifyThinking(requestId, callback);
+            }
+
+            @Override
+            public void onComplete(String fullContent) {
+                if (TextUtils.isEmpty(fullContent)) {
+                    finishRequest(requestId);
+                    return;
+                }
+                if (useHistory) {
+                    conversationHistory.add(new Message("assistant", fullContent));
+                    AiConfig.saveConversationHistory(conversationHistory);
+                }
+                notifyResponseAndFinish(requestId, callback, fullContent);
+            }
+
+            @Override
+            public void onError(int code, String error) {
+                FileLog.e("AI Stream Error: " + error);
+                notifyErrorAndFinish(requestId, callback, code != 0 ? code : 500, error);
+            }
+        });
     }
 
-    // --- OpenAI format ---
 
-    private Request createOpenAIRequest(Service service, String prompt, boolean stream, ArrayList<Message> conversationHistory, byte[] imageData, String mimeType) {
+    private static String resolveBaseUrl(Service service) {
         String url = service.getUrl();
         if (TextUtils.isEmpty(url)) return null;
+        if (url.contains("generativelanguage.googleapis")) {
+            url = "https://generativelanguage.googleapis.com/v1beta/openai";
+        }
+        String normalized = LlmUrlNormalizer.normalizeBaseUrl(url);
+        return TextUtils.isEmpty(normalized) ? null : normalized;
+    }
 
-        String endpoint = url.endsWith("/") ? url + "chat/completions" : url + "/chat/completions";
-        boolean useHistory = !conversationHistory.isEmpty();
-
+    private String createRequestJson(Service service, String baseUrl, Message userMessage, boolean stream, boolean useHistory, ArrayList<Message> conversationHistory) {
         try {
             JSONObject json = new JSONObject();
             JSONArray messages = new JSONArray();
@@ -187,34 +192,31 @@ public class Client {
 
             if (useHistory) {
                 for (Message msg : conversationHistory) {
-                    messages.put(createOpenAIMessageObject(msg));
+                    messages.put(createMessageObject(msg));
                 }
-                Message userMsg = new Message("user", prompt, imageData, mimeType);
-                conversationHistory.add(userMsg);
-                messages.put(createOpenAIMessageObject(userMsg));
-            } else {
-                messages.put(createOpenAIMessageObject(new Message("user", prompt, imageData, mimeType)));
+                conversationHistory.add(userMessage);
             }
+            messages.put(createMessageObject(userMessage));
 
-            json.put("model", service.getModel());
+            String model = service.getModel();
+            json.put("model", model);
             json.put("messages", messages);
             json.put("stream", stream);
-            json.put("temperature", 1.0);
+            if (LlmModelUtil.supportsTemperature(model)) {
+                json.put("temperature", AiConfig.temperature / 10.0f);
+            }
             json.put("max_tokens", 4096);
-
-            return new Request.Builder()
-                    .url(endpoint)
-                    .addHeader("Content-Type", "application/json")
-                    .addHeader("Authorization", "Bearer " + service.getKey())
-                    .post(RequestBody.create(json.toString(), JSON_TYPE))
-                    .build();
+            if (!service.isReasoningEnabled()) {
+                LlmModelUtil.applyReasoningParameters(json, baseUrl, model);
+            }
+            return json.toString();
         } catch (Exception e) {
             FileLog.e(e);
             return null;
         }
     }
 
-    private JSONObject createOpenAIMessageObject(Message message) throws JSONException {
+    private JSONObject createMessageObject(Message message) throws JSONException {
         JSONObject obj = new JSONObject();
         obj.put("role", message.role());
         if (message.getImageData() != null && !TextUtils.isEmpty(message.getMimeType())) {
@@ -233,343 +235,156 @@ public class Client {
         return obj;
     }
 
-    // --- Claude format ---
 
-    private Request createClaudeRequest(Service service, String prompt, boolean stream, ArrayList<Message> conversationHistory, byte[] imageData, String mimeType) {
-        String url = service.getUrl();
-        if (TextUtils.isEmpty(url)) return null;
+    private ArrayList<Message> trimConversationHistory(ArrayList<Message> history) {
+        ArrayList<Message> trimmed = new ArrayList<>();
+        int charCount = 0;
+        for (int i = history.size() - 1; i >= 0 && trimmed.size() < MAX_HISTORY_MESSAGES; i--) {
+            Message msg = history.get(i);
+            if (msg == null || TextUtils.isEmpty(msg.role()) || TextUtils.isEmpty(msg.content())) continue;
+            charCount += msg.content().length();
+            if (charCount > MAX_HISTORY_CHARS && !trimmed.isEmpty()) break;
+            trimmed.add(0, new Message(msg.role(), msg.content()));
+        }
+        while (!trimmed.isEmpty() && "assistant".equals(trimmed.get(0).role())) {
+            trimmed.remove(0);
+        }
+        return trimmed;
+    }
 
-        String endpoint = url.endsWith("/") ? url + "messages" : url + "/messages";
-        boolean useHistory = !conversationHistory.isEmpty();
 
-        try {
-            JSONObject json = new JSONObject();
-            JSONArray messages = new JSONArray();
+    private static ImagePayload loadImagePayload(String path) {
+        if (TextUtils.isEmpty(path)) return null;
+        File file = new File(path);
+        if (!file.exists() || !file.isFile() || file.length() == 0) return null;
 
-            Role selectedRole = roleOverride;
-            if (selectedRole == null) {
-                selectedRole = serviceOverride == null ? AiController.getInstance().getSelectedRole() : null;
+        if (file.length() > MAX_IMAGE_SIZE) {
+            return compressImage(path);
+        }
+
+        try (FileInputStream fis = new FileInputStream(file);
+             ByteArrayOutputStream bos = new ByteArrayOutputStream((int) Math.min(file.length(), MAX_IMAGE_SIZE))) {
+            byte[] buf = new byte[4096];
+            int read;
+            while ((read = fis.read(buf)) != -1) {
+                bos.write(buf, 0, read);
             }
-            if (selectedRole != null && !TextUtils.isEmpty(selectedRole.getPrompt())) {
-                json.put("system", selectedRole.getPrompt());
-            }
-
-            if (useHistory) {
-                for (Message msg : conversationHistory) {
-                    messages.put(createClaudeMessageObject(msg));
-                }
-                Message userMsg = new Message("user", prompt, imageData, mimeType);
-                conversationHistory.add(userMsg);
-                messages.put(createClaudeMessageObject(userMsg));
-            } else {
-                messages.put(createClaudeMessageObject(new Message("user", prompt, imageData, mimeType)));
-            }
-
-            json.put("model", service.getModel());
-            json.put("messages", messages);
-            json.put("max_tokens", 4096);
-            if (stream) {
-                json.put("stream", true);
-            }
-
-            return new Request.Builder()
-                    .url(endpoint)
-                    .addHeader("Content-Type", "application/json")
-                    .addHeader("x-api-key", service.getKey())
-                    .addHeader("anthropic-version", "2023-06-01")
-                    .post(RequestBody.create(json.toString(), JSON_TYPE))
-                    .build();
-        } catch (Exception e) {
-            FileLog.e(e);
+            return new ImagePayload(bos.toByteArray(), getMimeType(path));
+        } catch (IOException e) {
+            FileLog.e("Error loading image: " + path, e);
             return null;
         }
     }
 
-    private JSONObject createClaudeMessageObject(Message message) throws JSONException {
-        JSONObject obj = new JSONObject();
-        String role = message.role();
-        // Claude only supports "user" and "assistant" roles
-        if ("system".equals(role)) role = "user";
-        obj.put("role", role);
-
-        if (message.getImageData() != null && !TextUtils.isEmpty(message.getMimeType())) {
-            JSONArray content = new JSONArray();
-            content.put(new JSONObject()
-                    .put("type", "image")
-                    .put("source", new JSONObject()
-                            .put("type", "base64")
-                            .put("media_type", message.getMimeType())
-                            .put("data", Base64.encodeToString(message.getImageData(), Base64.NO_WRAP))));
-            if (!TextUtils.isEmpty(message.content())) {
-                content.put(new JSONObject().put("type", "text").put("text", message.content()));
-            }
-            obj.put("content", content);
-        } else {
-            obj.put("content", message.content());
-        }
-        return obj;
-    }
-
-    // --- Gemini format ---
-
-    private Request createGeminiRequest(Service service, String prompt, boolean stream, ArrayList<Message> conversationHistory, byte[] imageData, String mimeType) {
-        String url = service.getUrl();
-        if (TextUtils.isEmpty(url)) return null;
-
-        String baseUrl = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
-        String endpoint;
-        if (stream) {
-            endpoint = baseUrl + "/models/" + service.getModel() + ":streamGenerateContent?alt=sse";
-        } else {
-            endpoint = baseUrl + "/models/" + service.getModel() + ":generateContent";
-        }
-
-        String key = service.getKey();
-        if (!TextUtils.isEmpty(key)) {
-            endpoint += (endpoint.contains("?") ? "&" : "?") + "key=" + key;
-        }
-
-        boolean useHistory = !conversationHistory.isEmpty();
-
+    private static ImagePayload compressImage(String path) {
         try {
-            JSONObject json = new JSONObject();
-            JSONArray contents = new JSONArray();
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(path, bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
 
-            Role selectedRole = roleOverride;
-            if (selectedRole == null) {
-                selectedRole = serviceOverride == null ? AiController.getInstance().getSelectedRole() : null;
-            }
-            if (selectedRole != null && !TextUtils.isEmpty(selectedRole.getPrompt())) {
-                json.put("systemInstruction", new JSONObject()
-                        .put("parts", new JSONArray().put(new JSONObject().put("text", selectedRole.getPrompt()))));
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inSampleSize = 1;
+            while (bounds.outWidth / opts.inSampleSize > 2048 || bounds.outHeight / opts.inSampleSize > 2048) {
+                opts.inSampleSize *= 2;
             }
 
-            if (useHistory) {
-                for (Message msg : conversationHistory) {
-                    contents.put(createGeminiContentObject(msg));
+            Bitmap bitmap = BitmapFactory.decodeFile(path, opts);
+            if (bitmap == null) return null;
+
+            try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+                int quality = 85;
+                do {
+                    bos.reset();
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, bos);
+                    quality -= 10;
+                } while (bos.size() > MAX_IMAGE_SIZE && quality >= 55);
+
+                if (bos.size() <= MAX_IMAGE_SIZE) {
+                    return new ImagePayload(bos.toByteArray(), "image/jpeg");
                 }
-                Message userMsg = new Message("user", prompt, imageData, mimeType);
-                conversationHistory.add(userMsg);
-                contents.put(createGeminiContentObject(userMsg));
-            } else {
-                contents.put(createGeminiContentObject(new Message("user", prompt, imageData, mimeType)));
+                return null;
+            } finally {
+                bitmap.recycle();
             }
-
-            json.put("contents", contents);
-            json.put("generationConfig", new JSONObject().put("maxOutputTokens", 4096).put("temperature", 1.0));
-
-            return new Request.Builder()
-                    .url(endpoint)
-                    .addHeader("Content-Type", "application/json")
-                    .post(RequestBody.create(json.toString(), JSON_TYPE))
-                    .build();
         } catch (Exception e) {
-            FileLog.e(e);
+            FileLog.e("Error compressing image: " + path, e);
             return null;
         }
     }
 
-    private JSONObject createGeminiContentObject(Message message) throws JSONException {
-        JSONObject obj = new JSONObject();
-        // Gemini uses "user" and "model" roles
-        String role = "assistant".equals(message.role()) ? "model" : "user";
-        obj.put("role", role);
 
-        JSONArray parts = new JSONArray();
-        if (message.getImageData() != null && !TextUtils.isEmpty(message.getMimeType())) {
-            parts.put(new JSONObject()
-                    .put("inlineData", new JSONObject()
-                            .put("mimeType", message.getMimeType())
-                            .put("data", Base64.encodeToString(message.getImageData(), Base64.NO_WRAP))));
-        }
-        if (!TextUtils.isEmpty(message.content())) {
-            parts.put(new JSONObject().put("text", message.content()));
-        }
-        obj.put("parts", parts);
-        return obj;
-    }
-
-    // ===== Stream Response Handling =====
-
-    private void handleStreamResponse(ResponseBody body, Service service, String requestId, boolean useHistory, ArrayList<Message> conversationHistory, GenerationCallback callback) {
-        StringBuilder fullResponse = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(body.byteStream()))) {
-            int chunkSize = 0;
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!activeRequests.containsKey(requestId)) break;
-                if (TextUtils.isEmpty(line)) continue;
-
-                // Handle SSE event types for Claude
-                if (line.startsWith("event: ")) continue;
-
-                if (!line.startsWith("data: ")) continue;
-
-                String data = line.substring(6).trim();
-                if (data.equals("[DONE]")) {
-                    if (chunkSize > 0) {
-                        sendStreamChunk(fullResponse.toString(), callback);
-                    }
-                    break;
-                }
-
-                String content = parseStreamChunk(data, service.getProtocol());
-                if (TextUtils.isEmpty(content)) {
-                    // Check for Claude stop event
-                    if (isClaudeStopEvent(data, service.getProtocol())) {
-                        if (chunkSize > 0) {
-                            sendStreamChunk(fullResponse.toString(), callback);
-                        }
-                        break;
-                    }
-                    continue;
-                }
-
-                fullResponse.append(content);
-                chunkSize += content.length();
-                if (chunkSize >= STREAM_SYMBOLS_LIMIT) {
-                    sendStreamChunk(fullResponse.toString(), callback);
-                    chunkSize = 0;
-                }
-            }
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-
-        String finalResponse = fullResponse.toString().trim();
-        if (!TextUtils.isEmpty(finalResponse)) {
-            if (useHistory) {
-                conversationHistory.add(new Message("assistant", finalResponse));
-                AiConfig.saveConversationHistory(conversationHistory);
-            }
-            AndroidUtilities.runOnUIThread(() -> {
-                callback.onResponse(finalResponse);
-                stopRequest(requestId);
-            });
-        } else {
-            stopRequest(requestId);
-        }
-    }
-
-    private String parseStreamChunk(String data, int protocol) {
-        switch (protocol) {
-            case Service.PROTOCOL_CLAUDE:
-                return parseClaudeStreamChunk(data);
-            case Service.PROTOCOL_GEMINI:
-                return parseGeminiContent(data);
-            default:
-                return parseResponseContent(data, true, Service.PROTOCOL_OPENAI);
-        }
-    }
-
-    private boolean isClaudeStopEvent(String data, int protocol) {
-        if (protocol != Service.PROTOCOL_CLAUDE) return false;
-        try {
-            JSONObject json = new JSONObject(data);
-            String type = json.optString("type");
-            return "message_stop".equals(type) || "message_delta".equals(type);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private String parseClaudeStreamChunk(String data) {
-        try {
-            JSONObject json = new JSONObject(data);
-            String type = json.optString("type");
-            if ("content_block_delta".equals(type)) {
-                JSONObject delta = json.optJSONObject("delta");
-                if (delta != null) {
-                    return delta.optString("text", null);
-                }
-            }
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-        return null;
-    }
-
-    private String parseGeminiContent(String data) {
-        try {
-            JSONObject json = new JSONObject(data);
-            JSONArray candidates = json.optJSONArray("candidates");
-            if (candidates != null && candidates.length() > 0) {
-                JSONObject content = candidates.getJSONObject(0).optJSONObject("content");
-                if (content != null) {
-                    JSONArray parts = content.optJSONArray("parts");
-                    if (parts != null && parts.length() > 0) {
-                        return parts.getJSONObject(0).optString("text", null);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-        return null;
-    }
-
-    // ===== Response Parsing =====
-
-    private String parseResponseContent(String body, boolean isStream, int protocol) {
-        switch (protocol) {
-            case Service.PROTOCOL_CLAUDE:
-                return parseClaudeResponse(body);
-            case Service.PROTOCOL_GEMINI:
-                return parseGeminiContent(body);
-            default:
-                return parseOpenAIResponse(body, isStream);
-        }
-    }
-
-    private String parseOpenAIResponse(String body, boolean isStream) {
-        try {
-            JSONObject json = new JSONObject(body);
-            JSONArray choices = json.optJSONArray("choices");
-            if (choices != null && choices.length() > 0) {
-                JSONObject msgObj = choices.getJSONObject(0).optJSONObject(isStream ? "delta" : "message");
-                if (msgObj != null && msgObj.has("content")) {
-                    return msgObj.optString("content", null);
-                }
-            }
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-        return null;
-    }
-
-    private String parseClaudeResponse(String body) {
-        try {
-            JSONObject json = new JSONObject(body);
-            JSONArray content = json.optJSONArray("content");
-            if (content != null) {
-                StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < content.length(); i++) {
-                    JSONObject block = content.getJSONObject(i);
-                    if ("text".equals(block.optString("type"))) {
-                        sb.append(block.optString("text", ""));
-                    }
-                }
-                return sb.toString();
-            }
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-        return null;
-    }
-
-    // ===== Utility =====
-
-    private void sendStreamChunk(String chunk, GenerationCallback callback) {
+    private void sendStreamChunk(String requestId, String chunk, GenerationCallback callback) {
         if (TextUtils.isEmpty(chunk)) return;
-        AndroidUtilities.runOnUIThread(() -> callback.onChunk(chunk));
+        AndroidUtilities.runOnUIThread(() -> {
+            if (activeRequests.containsKey(requestId) && callback != null) {
+                callback.onChunk(chunk);
+            }
+        });
+    }
+
+    private void notifyThinking(String requestId, GenerationCallback callback) {
+        AndroidUtilities.runOnUIThread(() -> {
+            if (activeRequests.containsKey(requestId) && callback != null) {
+                callback.onThinking();
+            }
+        });
+    }
+
+    private void notifyResponseAndFinish(String requestId, GenerationCallback callback, String response) {
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                if (activeRequests.containsKey(requestId) && callback != null) {
+                    callback.onResponse(response);
+                }
+            } finally {
+                finishRequest(requestId);
+            }
+        });
+    }
+
+    private void notifyErrorAndFinish(String requestId, GenerationCallback callback, int code, String message) {
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                if (activeRequests.containsKey(requestId) && callback != null) {
+                    callback.onError(code, message);
+                }
+            } finally {
+                finishRequest(requestId);
+            }
+        });
     }
 
     public boolean isGenerating() {
         return isGenerating.get();
     }
 
+    private void finishRequest(String requestId) {
+        activeCalls.remove(requestId);
+        ExecutorService executor = activeRequests.remove(requestId);
+        if (executor != null) {
+            executor.shutdown();
+        }
+        if (activeRequests.isEmpty()) {
+            isGenerating.set(false);
+        }
+    }
+
     public void stopRequest(String requestId) {
-        activeRequests.remove(requestId);
+        if (TextUtils.isEmpty(requestId)) return;
+        Call call = activeCalls.remove(requestId);
+        if (call != null) {
+            call.cancel();
+        }
+        ExecutorService executor = activeRequests.remove(requestId);
+        if (executor != null) {
+            executor.shutdownNow();
+            try {
+                executor.awaitTermination(500, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
         if (activeRequests.isEmpty()) {
             isGenerating.set(false);
         }
@@ -584,25 +399,17 @@ public class Client {
         return "image/jpeg";
     }
 
-    public static byte[] loadImageToByteArray(String path) {
-        if (TextUtils.isEmpty(path)) return null;
-        File file = new File(path);
-        if (!file.exists() || !file.isFile() || file.length() == 0) return null;
-        try (FileInputStream fis = new FileInputStream(file);
-             ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-            byte[] buf = new byte[4096];
-            int read;
-            while ((read = fis.read(buf)) != -1) {
-                bos.write(buf, 0, read);
-            }
-            return bos.toByteArray();
-        } catch (IOException e) {
-            FileLog.e("Error loading image: " + path, e);
-            return null;
+
+    private static class ImagePayload {
+        final byte[] data;
+        final String mimeType;
+
+        ImagePayload(byte[] data, String mimeType) {
+            this.data = data;
+            this.mimeType = mimeType;
         }
     }
 
-    // ===== Builder =====
 
     public static class Builder {
         private Service serviceOverride;

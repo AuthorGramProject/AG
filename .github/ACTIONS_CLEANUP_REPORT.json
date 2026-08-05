@@ -1,0 +1,25 @@
+{
+  "verified_at": "2026-08-03T09:12:14.277Z",
+  "verification_run_id": 30800295238,
+  "cutoff_title": "Update/telegram 12.9.0 20260718 212239",
+  "cutoff_iso": "2026-07-19T22:45:50Z",
+  "earliest_remaining_run": "2026-07-19T22:46:23Z",
+  "remaining_run_count_excluding_current": 86,
+  "remaining_historical_run_ids": [],
+  "remaining_designers_run_ids": [],
+  "remaining_failed_or_cancelled_run_ids": [],
+  "remaining_designers_workflow_files": [],
+  "workflow_files_by_branch": {
+    "dev": [
+      ".github/workflows/actions-cleanup-verification.yml",
+      ".github/workflows/release.yml"
+    ],
+    "main": [
+      ".github/workflows/release.yml"
+    ],
+    "play-market": [
+      ".github/workflows/release.yml"
+    ]
+  },
+  "result": "success"
+}

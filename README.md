@@ -30,10 +30,11 @@ In this project, **ToS** means **Terms of Service**. It is a legal publication d
 
 ## Build
 
-1. Obtain `TELEGRAM_APP_ID` and `TELEGRAM_APP_HASH` from the Telegram developer portal.
-2. Put the credentials in `local.properties`.
-3. Provide your own signing keystore and Google services configuration when building a production release.
-4. Build the release variant:
+1. Clone with submodules (`--recursive`), or run `git submodule update --init` in an existing clone. The native libraries (`dav1d`, `ffmpeg`, `libvpx`) under `TMessagesProj/jni/third_party/` are required for native builds.
+2. Obtain `TELEGRAM_APP_ID` and `TELEGRAM_APP_HASH` from the Telegram developer portal.
+3. Put the credentials in `local.properties`.
+4. Provide your own signing keystore and Google services configuration when building a production release.
+5. Build the release variant:
 
 ```bash
 ./gradlew TMessagesProj:assembleRelease
