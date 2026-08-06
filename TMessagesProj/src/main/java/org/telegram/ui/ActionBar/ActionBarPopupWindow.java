@@ -194,6 +194,15 @@ public class ActionBarPopupWindow extends PopupWindow {
                         }
                     });
                     scrollView.setVerticalScrollBarEnabled(false);
+                    // AUTHORGRAM_RELIABLE_POPUP_SCROLL
+                    // Keep the content naturally tall and constrain only the viewport.
+                    // This prevents the final action from being measured out or clipped.
+                    scrollView.setFillViewport(false);
+                    scrollView.setScrollContainer(true);
+                    scrollView.setNestedScrollingEnabled(true);
+                    scrollView.setClipToPadding(false);
+                    scrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+                    scrollView.setPadding(0, 0, 0, dp(8));
                     if (swipeBackLayout != null) {
                         swipeBackLayout.addView(scrollView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, shownFromBottom ? Gravity.BOTTOM : Gravity.TOP));
                     } else {
