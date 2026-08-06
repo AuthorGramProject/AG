@@ -1,0 +1,5 @@
+AuthorGram 12.9.2 final synchronize marker.
+Build exactly one signed Main arm64-v8a release APK and one signed Play arm64-v8a release APK from canonical dev.
+Verify the ordinary chat header, responsive chat overflow menu, Main-only iOS Message Menu, Main-only iOS Input, full-screen blur, reactions, adaptive long-message scrolling and strict Play policy.
+Upload one ZIP and no AAB files.
+Requested 2026-08-06T21:35:00+02:00.
