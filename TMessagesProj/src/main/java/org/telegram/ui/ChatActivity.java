@@ -34136,7 +34136,8 @@ public class ChatActivity extends BaseFragment implements
                 }
                 // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW
                 // AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW
-                // Snapshot the actual long-pressed Telegram message cell.
+                // Reactions remain in Telegram's native row above this block.
+                // The selected message preview is independent from the action card.
                 if (selectedObject != null
                         && v instanceof org.telegram.ui.Cells.ChatMessageCell
                         && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
@@ -34146,7 +34147,8 @@ public class ChatActivity extends BaseFragment implements
                     org.telegram.ui.Components.IOSMessageMenuPreview iosPreview =
                             new org.telegram.ui.Components.IOSMessageMenuPreview(
                                     getParentActivity(),
-                                    contentView,
+                                    currentAccount,
+                                    selectedObject,
                                     selectedMessageCell,
                                     themeDelegate
                             );
@@ -34840,7 +34842,15 @@ public class ChatActivity extends BaseFragment implements
             }
             chatListView.stopScroll();
             chatLayoutManager.setCanScrollVertically(false);
-            dimBehindView(v, true);
+            // AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR
+            // Passing no exempt source cell blurs the complete chat surface.
+            // The independent popup preview stays sharp above that background.
+            if (org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
+                    && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool()) {
+                dimBehindView(null, true, true);
+            } else {
+                dimBehindView(v, true);
+            }
             hideHints(false);
             if (topUndoView != null) {
                 topUndoView.hide(true, 1);
