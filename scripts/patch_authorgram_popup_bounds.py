@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Validate retained popup repairs and apply the final iOS menu v2 patch.
+"""Apply and validate AuthorGram's final iOS menu/input repairs.
 
-The adaptive popup bounds and grouped-action repairs are already canonical in
-source. This preflight wrapper keeps those invariants strict, executes the new
-native-message/typing repair before Android SDK setup, and then runs the badge
-surface/token checks used by the verified release workflow.
+The adaptive popup bounds and grouped-action repairs are canonical in source.
+This wrapper applies the sender identity, full-screen blur and composer-menu
+invariant before Android SDK setup, then runs badge verification.
 """
 
 from __future__ import annotations
@@ -14,9 +13,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Apply the final native ChatMessageCell preview, transparent panel segmentation
-# and Main+Play typing-overlay repair before any expensive build setup.
-runpy.run_path(str(ROOT / "scripts/patch_authorgram_ios_menu_v2.py"), run_name="__main__")
+runpy.run_path(
+    str(ROOT / "scripts/patch_authorgram_ios_menu_v2.py"),
+    run_name="__main__",
+)
 
 checks = {
     "adaptive popup bounds": (
@@ -27,20 +27,24 @@ checks = {
             "requestLayout();",
         ),
     ),
-    "native grouped message actions": (
+    "native grouped message actions and full blur": (
         ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java",
         (
             "AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_ACTIONS",
             "GroupedIconsView.useGroupedIcons()",
-            "dimBehindView(v, true);",
             "AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW",
+            "AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR",
+            "dimBehindView(null, true, true);",
         ),
     ),
-    "input restore and overlay guard": (
+    "input restore and persistent overlay guard": (
         ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java",
         (
             "AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE",
-            "AUTHORGRAM_TYPING_OVERLAY_GUARD_V2",
+            "AUTHORGRAM_TYPING_OVERLAY_GUARD_V3",
+            "AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER",
+            "authorGramEnforceInputMenuInvariant();",
+            "audioVideoButtonContainer.clearAnimation();",
             "audioVideoButtonContainer.setVisibility(VISIBLE);",
             "audioVideoButtonContainer.setVisibility(GONE);",
         ),
@@ -50,6 +54,15 @@ checks = {
         (
             "AUTHORGRAM_IOS_PREVIEW_TRANSPARENT_BACKGROUND",
             "authorGramNativeMessagePreview && a == 0",
+        ),
+    ),
+    "sender identity preview": (
+        ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java",
+        (
+            "AUTHORGRAM_IOS_MESSAGE_SENDER_IDENTITY",
+            "BackupImageView avatarView",
+            "TextView senderNameView",
+            "MessagesController.getInstance(currentAccount)",
         ),
     ),
 }

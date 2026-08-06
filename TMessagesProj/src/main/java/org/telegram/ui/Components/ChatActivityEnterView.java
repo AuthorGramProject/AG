@@ -9151,7 +9151,53 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         return isInScheduleMode() || animatorEphemeralMessageVisibility.getValue();
     }
 
+    // AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER
+    private final Runnable authorGramInputMenuInvariantRunnable =
+            this::authorGramEnforceInputMenuInvariant;
+
+    private void authorGramEnforceInputMenuInvariant() {
+        if (!isIOSInputStyle()
+                || audioVideoButtonContainer == null
+                || recordingAudioVideo) {
+            return;
+        }
+
+        final boolean hasComposerText = messageEditText != null
+                && messageEditText.length() > 0;
+        audioVideoButtonContainer.animate().cancel();
+        audioVideoButtonContainer.clearAnimation();
+        audioVideoButtonContainer.setTranslationX(0.0f);
+        audioVideoButtonContainer.setTranslationY(0.0f);
+        audioVideoButtonContainer.setScaleX(1.0f);
+        audioVideoButtonContainer.setScaleY(1.0f);
+
+        if (hasComposerText) {
+            audioVideoButtonContainer.setVisibility(GONE);
+            audioVideoButtonContainer.setAlpha(0.0f);
+            audioVideoButtonContainer.setClickable(false);
+            audioVideoButtonContainer.setEnabled(false);
+        } else if (editingMessageObject == null) {
+            // AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE
+            audioVideoButtonContainer.setVisibility(VISIBLE);
+            audioVideoButtonContainer.setAlpha(1.0f);
+            audioVideoButtonContainer.setClickable(true);
+            audioVideoButtonContainer.setEnabled(true);
+        }
+    }
+
+    private void authorGramScheduleInputMenuInvariant() {
+        authorGramEnforceInputMenuInvariant();
+        if (audioVideoButtonContainer == null) {
+            return;
+        }
+        audioVideoButtonContainer.removeCallbacks(authorGramInputMenuInvariantRunnable);
+        audioVideoButtonContainer.post(authorGramInputMenuInvariantRunnable);
+        audioVideoButtonContainer.postDelayed(authorGramInputMenuInvariantRunnable, 260L);
+    }
+
     public void checkSendButton(boolean animated) {
+        // Enforce before any animation-state early return.
+        authorGramEnforceInputMenuInvariant();
         if (editingMessageObject != null || recordingAudioVideo) {
             return;
         }
@@ -10107,47 +10153,10 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             }
         }
         // AUTHORGRAM_IOS_INPUT_MENU_GUARD
-        // AUTHORGRAM_TYPING_OVERLAY_GUARD_V2
-        // The media/menu icon must never survive or intercept the chat header
-        // after the composer receives text. Apply this to Main and Play.
-        final boolean authorGramComposerHasText = messageEditText != null
-                && messageEditText.length() > 0;
-        if (authorGramComposerHasText && audioVideoButtonContainer != null) {
-            audioVideoButtonContainer.animate().cancel();
-            audioVideoButtonContainer.setVisibility(GONE);
-            audioVideoButtonContainer.setAlpha(0.0f);
-            audioVideoButtonContainer.setScaleX(1.0f);
-            audioVideoButtonContainer.setScaleY(1.0f);
-            audioVideoButtonContainer.setTranslationX(0.0f);
-            audioVideoButtonContainer.setTranslationY(0.0f);
-            audioVideoButtonContainer.setClickable(false);
-            audioVideoButtonContainer.setEnabled(false);
-            // Some icon-state animations finish after checkSendButton(). Enforce
-            // the invariant once more on the next UI frame.
-            audioVideoButtonContainer.post(() -> {
-                if (messageEditText != null && messageEditText.length() > 0
-                        && audioVideoButtonContainer != null) {
-                    audioVideoButtonContainer.animate().cancel();
-                    audioVideoButtonContainer.setVisibility(GONE);
-                    audioVideoButtonContainer.setAlpha(0.0f);
-                    audioVideoButtonContainer.setTranslationX(0.0f);
-                    audioVideoButtonContainer.setTranslationY(0.0f);
-                    audioVideoButtonContainer.setClickable(false);
-                    audioVideoButtonContainer.setEnabled(false);
-                }
-            });
-        } else if (audioVideoButtonContainer != null) {
-            // AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE
-            audioVideoButtonContainer.animate().cancel();
-            audioVideoButtonContainer.setVisibility(VISIBLE);
-            audioVideoButtonContainer.setAlpha(1.0f);
-            audioVideoButtonContainer.setScaleX(1.0f);
-            audioVideoButtonContainer.setScaleY(1.0f);
-            audioVideoButtonContainer.setTranslationX(0.0f);
-            audioVideoButtonContainer.setTranslationY(0.0f);
-            audioVideoButtonContainer.setClickable(true);
-            audioVideoButtonContainer.setEnabled(true);
-        }
+        // AUTHORGRAM_TYPING_OVERLAY_GUARD_V3
+        // Re-run after all send-button mutations and again after delayed
+        // icon animations. This also keeps the header menu touchable.
+        authorGramScheduleInputMenuInvariant();
 
         if (isStories && suggestButton != null) {
             if (animated) {

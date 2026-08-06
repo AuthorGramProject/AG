@@ -5,31 +5,43 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.text.TextUtils;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.UserObject;
 import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;
+import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
 
 /**
  * Main-only native message preview used by the iOS-style long-press menu.
  *
- * This class does not rebuild a message from text fields. It snapshots the real
- * ChatMessageCell, including Telegram's avatar, sender, reply block, media,
- * bubble, timestamp and delivery state, and draws that exact native rendering
- * over the blurred chat. The action panel is separated by a transparent gap in
- * ChatActivity/ActionBarPopupWindow.
+ * The actual Telegram ChatMessageCell is snapshotted for message content while
+ * the sender identity is rendered explicitly, so an avatar and a readable
+ * sender/channel name are always present even when the source cell omits them.
+ *
+ * Full-screen blur is owned by ChatActivity. Do not add a local BluredView:
+ * constraining blur to this preview was the reason the chat stayed sharp.
  */
 public final class IOSMessageMenuPreview extends FrameLayout {
     public static final String NATIVE_PREVIEW_TAG = "AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW";
+    public static final String SENDER_IDENTITY_TAG = "AUTHORGRAM_IOS_MESSAGE_SENDER_IDENTITY";
 
     private final NativeCellSnapshotView snapshotView;
 
     public IOSMessageMenuPreview(
             Context context,
-            View blurSource,
+            int currentAccount,
+            MessageObject messageObject,
             ChatMessageCell sourceCell,
             Theme.ResourcesProvider resourcesProvider
     ) {
@@ -45,34 +57,135 @@ public final class IOSMessageMenuPreview extends FrameLayout {
             return;
         }
 
-        // Cover the popup's ordinary submenu paint with the same live blurred
-        // chat background used by Telegram surfaces. The real message snapshot
-        // then remains an independent bubble, not a header inside the menu.
-        if (blurSource != null && blurSource != this) {
-            BluredView blurredView = new BluredView(context, blurSource, resourcesProvider);
-            addView(blurredView, LayoutHelper.createFrame(
-                    LayoutHelper.MATCH_PARENT,
-                    LayoutHelper.MATCH_PARENT
-            ));
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.TOP);
+        row.setPadding(
+                AndroidUtilities.dp(6),
+                AndroidUtilities.dp(4),
+                AndroidUtilities.dp(6),
+                AndroidUtilities.dp(4)
+        );
+        addView(row, LayoutHelper.createFrame(
+                LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT
+        ));
+
+        SenderIdentity identity = resolveSender(currentAccount, messageObject);
+
+        AvatarDrawable avatarDrawable = new AvatarDrawable();
+        BackupImageView avatarView = new BackupImageView(context);
+        avatarView.setTag(SENDER_IDENTITY_TAG);
+        avatarView.setRoundRadius(AndroidUtilities.dp(21));
+
+        if (identity.user != null) {
+            avatarDrawable.setInfo(currentAccount, identity.user);
+            avatarView.setForUserOrChat(identity.user, avatarDrawable);
+        } else if (identity.chat != null) {
+            avatarDrawable.setInfo(currentAccount, identity.chat);
+            avatarView.setForUserOrChat(identity.chat, avatarDrawable);
+        } else {
+            avatarDrawable.setInfo(0, identity.name, null);
+            avatarView.setImageDrawable(avatarDrawable);
         }
 
-        View dim = new View(context);
-        dim.setBackgroundColor(0x16000000);
-        addView(dim, LayoutHelper.createFrame(
+        LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(
+                AndroidUtilities.dp(42),
+                AndroidUtilities.dp(42)
+        );
+        avatarParams.topMargin = AndroidUtilities.dp(2);
+        avatarParams.rightMargin = AndroidUtilities.dp(8);
+        row.addView(avatarView, avatarParams);
+
+        LinearLayout messageColumn = new LinearLayout(context);
+        messageColumn.setOrientation(LinearLayout.VERTICAL);
+        messageColumn.setClipChildren(false);
+        messageColumn.setClipToPadding(false);
+        row.addView(messageColumn, new LinearLayout.LayoutParams(
+                0,
+                LayoutHelper.WRAP_CONTENT,
+                1.0f
+        ));
+
+        TextView senderNameView = new TextView(context);
+        senderNameView.setTag(SENDER_IDENTITY_TAG);
+        senderNameView.setText(identity.name);
+        senderNameView.setTextSize(15);
+        senderNameView.setTextColor(Theme.getColor(
+                Theme.key_windowBackgroundWhiteBlackText,
+                resourcesProvider
+        ));
+        senderNameView.setTypeface(AndroidUtilities.bold());
+        senderNameView.setSingleLine(true);
+        senderNameView.setEllipsize(TextUtils.TruncateAt.END);
+        senderNameView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        senderNameView.setPadding(
+                AndroidUtilities.dp(2),
+                0,
+                AndroidUtilities.dp(2),
+                AndroidUtilities.dp(2)
+        );
+        messageColumn.addView(senderNameView, new LinearLayout.LayoutParams(
                 LayoutHelper.MATCH_PARENT,
-                LayoutHelper.MATCH_PARENT
+                AndroidUtilities.dp(24)
         ));
 
         snapshotView = new NativeCellSnapshotView(context, sourceCell);
-        addView(snapshotView, LayoutHelper.createFrame(
+        messageColumn.addView(snapshotView, new LinearLayout.LayoutParams(
                 LayoutHelper.MATCH_PARENT,
                 LayoutHelper.WRAP_CONTENT
         ));
     }
 
+    private static SenderIdentity resolveSender(int currentAccount, MessageObject messageObject) {
+        long senderId = messageObject == null ? 0 : messageObject.getFromChatId();
+        if (senderId == 0 && messageObject != null && messageObject.isOutOwner()) {
+            senderId = UserConfig.getInstance(currentAccount).getClientUserId();
+        }
+        if (senderId == 0 && messageObject != null) {
+            senderId = messageObject.getDialogId();
+        }
+
+        TLRPC.User user = senderId > 0
+                ? MessagesController.getInstance(currentAccount).getUser(senderId)
+                : null;
+        TLRPC.Chat chat = senderId < 0
+                ? MessagesController.getInstance(currentAccount).getChat(-senderId)
+                : null;
+
+        if (user == null && chat == null && messageObject != null && messageObject.isOutOwner()) {
+            user = UserConfig.getInstance(currentAccount).getCurrentUser();
+        }
+
+        String name = null;
+        if (user != null) {
+            name = UserObject.getUserName(user);
+        } else if (chat != null) {
+            name = chat.title;
+        }
+        if (TextUtils.isEmpty(name)) {
+            name = "Telegram";
+        }
+        return new SenderIdentity(user, chat, name);
+    }
+
+    private static final class SenderIdentity {
+        final TLRPC.User user;
+        final TLRPC.Chat chat;
+        final String name;
+
+        SenderIdentity(TLRPC.User user, TLRPC.Chat chat, String name) {
+            this.user = user;
+            this.chat = chat;
+            this.name = name;
+        }
+    }
+
     private static final class NativeCellSnapshotView extends View {
         private static final int ALPHA_THRESHOLD = 8;
-        private final Paint bitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        private final Paint bitmapPaint = new Paint(
+                Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG
+        );
         private Bitmap snapshot;
         private final Rect destination = new Rect();
 
@@ -89,16 +202,18 @@ public final class IOSMessageMenuPreview extends FrameLayout {
                     MeasureSpec.getSize(widthMeasureSpec)
             );
             if (snapshot == null || snapshot.getWidth() <= 0 || snapshot.getHeight() <= 0) {
-                setMeasuredDimension(availableWidth, AndroidUtilities.dp(64));
+                setMeasuredDimension(availableWidth, AndroidUtilities.dp(48));
                 return;
             }
 
             int horizontalInset = AndroidUtilities.dp(2);
-            int targetWidth = Math.min(snapshot.getWidth(), availableWidth - horizontalInset * 2);
+            int targetWidth = Math.max(
+                    1,
+                    Math.min(snapshot.getWidth(), availableWidth - horizontalInset * 2)
+            );
             float scale = targetWidth / (float) snapshot.getWidth();
             int targetHeight = Math.max(1, Math.round(snapshot.getHeight() * scale));
-            int measuredHeight = targetHeight + AndroidUtilities.dp(4);
-            setMeasuredDimension(availableWidth, measuredHeight);
+            setMeasuredDimension(availableWidth, targetHeight + AndroidUtilities.dp(4));
         }
 
         @Override
@@ -112,7 +227,7 @@ public final class IOSMessageMenuPreview extends FrameLayout {
             int targetWidth = Math.min(snapshot.getWidth(), maxWidth);
             float scale = targetWidth / (float) snapshot.getWidth();
             int targetHeight = Math.max(1, Math.round(snapshot.getHeight() * scale));
-            int left = (getWidth() - targetWidth) / 2;
+            int left = 0;
             int top = Math.max(0, (getHeight() - targetHeight) / 2);
             destination.set(left, top, left + targetWidth, top + targetHeight);
             canvas.drawBitmap(snapshot, null, destination, bitmapPaint);
