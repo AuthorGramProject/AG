@@ -1,0 +1,5 @@
+Trigger exactly one verified Main + Play release build for AuthorGram 12.9.2.
+Canonical build source: dev at or after commit 8f8a2a1e9503bcb8044adc349d2fd8c8ad1f47bd.
+Use the compatibility-aware popup-bounds orchestrator that preserves Telegram's valid getSendButtonInternal() API.
+Required artifact: AuthorGram-12.9.2-Final-Main-and-Play-Release.
+Requested at 2026-08-06T19:33:00+02:00.
