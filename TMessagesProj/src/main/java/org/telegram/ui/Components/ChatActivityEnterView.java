@@ -3766,9 +3766,9 @@ public class ChatActivityEnterView extends FrameLayout implements
             paidMessagesPrice *= getMessagesCount();
         }
         if (this.paidMessagesPrice != paidMessagesPrice) {
-            final View oldSendButton = getSendButtonInternal();
+            final View oldSendButton = sendButton;
             this.paidMessagesPrice = paidMessagesPrice;
-            final View newSendButton = getSendButtonInternal();
+            final View newSendButton = sendButton;
             if (oldSendButton != newSendButton) {
                 newSendButton.setVisibility(oldSendButton.getVisibility());
                 newSendButton.setAlpha(oldSendButton.getAlpha());
@@ -9153,6 +9153,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
 
     // AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER
     // AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT
+    // AUTHORGRAM_IOS_SEND_BUTTON_COMPILE_FIX
     private final Runnable authorGramInputMenuInvariantRunnable =
             this::authorGramEnforceInputMenuInvariant;
 
@@ -9179,7 +9180,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         audioVideoButtonContainer.setScaleX(1.0f);
         audioVideoButtonContainer.setScaleY(1.0f);
 
-        View sendButtonView = getSendButtonInternal();
+        View sendButtonView = sendButton;
         if (hasComposerText && !finiteSlowModeOwnsSlot) {
             audioVideoButtonContainer.setVisibility(GONE);
             audioVideoButtonContainer.setAlpha(0.0f);
@@ -9207,6 +9208,9 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
 
     private void authorGramScheduleInputMenuInvariant() {
         authorGramEnforceInputMenuInvariant();
+        if (audioVideoButtonContainer == null) {
+            return;
+        }
         audioVideoButtonContainer.removeCallbacks(authorGramInputMenuInvariantRunnable);
         audioVideoButtonContainer.post(authorGramInputMenuInvariantRunnable);
         audioVideoButtonContainer.postDelayed(authorGramInputMenuInvariantRunnable, 260L);
@@ -9354,7 +9358,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                             animators.add(ObjectAnimator.ofFloat(expandStickersButton, View.SCALE_Y, 0.1f));
                             animators.add(ObjectAnimator.ofFloat(expandStickersButton, View.ALPHA, 0.0f));
                         }
-                        if (getSendButtonInternal().getVisibility() == VISIBLE) {
+                        if (sendButton.getVisibility() == VISIBLE) {
                             animators.add(animateSendButton(false));
                         }
                         if (cancelBotButton.getVisibility() == VISIBLE) {
@@ -9373,7 +9377,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                             @Override
                             public void onAnimationEnd(Animator animation) {
                                 if (animation.equals(runningAnimation)) {
-                                    getSendButtonInternal().setVisibility(GONE);
+                                    sendButton.setVisibility(GONE);
                                     cancelBotButton.setVisibility(GONE);
                                     audioVideoButtonContainer.setVisibility(GONE);
                                     if (expandStickersButton != null) {
@@ -9403,10 +9407,10 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                         audioVideoSendButton.setAlpha(0.0f);
                         audioVideoButtonContainer.setVisibility(GONE);
 
-                        getSendButtonInternal().setScaleX(0.1f);
-                        getSendButtonInternal().setScaleY(0.1f);
-                        getSendButtonInternal().setAlpha(0.0f);
-                        getSendButtonInternal().setVisibility(GONE);
+                        sendButton.setScaleX(0.1f);
+                        sendButton.setScaleY(0.1f);
+                        sendButton.setAlpha(0.0f);
+                        sendButton.setVisibility(GONE);
 
                         cancelBotButton.setScaleX(0.1f);
                         cancelBotButton.setScaleY(0.1f);
@@ -9464,7 +9468,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         } else if (message.length() > 0 || forceShowSendButton || richDraftActive || audioToSend != null || videoToSendMessageObject != null || slowModeTimer == Integer.MAX_VALUE && !isSlowModeIgnored() || isLiveComment && getStarsPrice() > 0 || animatorIsBlockedByStreaming.getValue()) {
             shownSendButton = true;
             final String caption = messageEditText == null ? null : messageEditText.getCaption();
-            boolean showBotButton = caption != null && (getSendButtonInternal().getVisibility() == VISIBLE || expandStickersButton != null && expandStickersButton.getVisibility() == VISIBLE);
+            boolean showBotButton = caption != null && (sendButton.getVisibility() == VISIBLE || expandStickersButton != null && expandStickersButton.getVisibility() == VISIBLE);
             boolean showSendButton = caption == null && (cancelBotButton.getVisibility() == VISIBLE || expandStickersButton != null && expandStickersButton.getVisibility() == VISIBLE);
             int color;
             if (slowModeTimer == Integer.MAX_VALUE && !isSlowModeIgnored()) {
@@ -9633,7 +9637,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                     } else {
                         runningAnimationType = 1;
                         animators.add(animateSendButton(true));
-                        getSendButtonInternal().setVisibility(VISIBLE);
+                        sendButton.setVisibility(VISIBLE);
                     }
 
                     runningAnimation.playTogether(animators);
@@ -9649,9 +9653,9 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                                  updateFieldRight(1);
                                 if (caption != null) {
                                     cancelBotButton.setVisibility(VISIBLE);
-                                    getSendButtonInternal().setVisibility(GONE);
+                                    sendButton.setVisibility(GONE);
                                 } else {
-                                    getSendButtonInternal().setVisibility(VISIBLE);
+                                    sendButton.setVisibility(VISIBLE);
                                     cancelBotButton.setVisibility(GONE);
                                 }
                                 audioVideoButtonContainer.setVisibility(GONE);
@@ -9684,10 +9688,10 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                         setSlowModeButtonVisible(false);
                     }
                     if (caption != null) {
-                        getSendButtonInternal().setScaleX(0.1f);
-                        getSendButtonInternal().setScaleY(0.1f);
-                        getSendButtonInternal().setAlpha(0.0f);
-                        getSendButtonInternal().setVisibility(GONE);
+                        sendButton.setScaleX(0.1f);
+                        sendButton.setScaleY(0.1f);
+                        sendButton.setAlpha(0.0f);
+                        sendButton.setVisibility(GONE);
                         cancelBotButton.setScaleX(1.0f);
                         cancelBotButton.setScaleY(1.0f);
                         cancelBotButton.setAlpha(1.0f);
@@ -9696,10 +9700,10 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                         cancelBotButton.setScaleX(0.1f);
                         cancelBotButton.setScaleY(0.1f);
                         cancelBotButton.setAlpha(0.0f);
-                        getSendButtonInternal().setVisibility(VISIBLE);
-                        getSendButtonInternal().setScaleX(1.0f);
-                        getSendButtonInternal().setScaleY(1.0f);
-                        getSendButtonInternal().setAlpha(1.0f);
+                        sendButton.setVisibility(VISIBLE);
+                        sendButton.setScaleX(1.0f);
+                        sendButton.setScaleY(1.0f);
+                        sendButton.setAlpha(1.0f);
                         cancelBotButton.setVisibility(GONE);
                     }
                     if (expandStickersButton != null && expandStickersButton.getVisibility() == VISIBLE) {
@@ -9868,9 +9872,9 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                     animators.add(ObjectAnimator.ofFloat(slowModeButton, View.SCALE_Y, 0.1f));
                     animators.add(ObjectAnimator.ofFloat(slowModeButton, View.ALPHA, 0.0f));
                 } else {
-                    animators.add(ObjectAnimator.ofFloat(getSendButtonInternal(), View.SCALE_X, 0.1f));
-                    animators.add(ObjectAnimator.ofFloat(getSendButtonInternal(), View.SCALE_Y, 0.1f));
-                    animators.add(ObjectAnimator.ofFloat(getSendButtonInternal(), View.ALPHA, 0.0f));
+                    animators.add(ObjectAnimator.ofFloat(sendButton, View.SCALE_X, 0.1f));
+                    animators.add(ObjectAnimator.ofFloat(sendButton, View.SCALE_Y, 0.1f));
+                    animators.add(ObjectAnimator.ofFloat(sendButton, View.ALPHA, 0.0f));
                 }
 
                 runningAnimation.playTogether(animators);
@@ -9879,7 +9883,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                     @Override
                     public void onAnimationEnd(Animator animation) {
                         if (animation.equals(runningAnimation)) {
-                            getSendButtonInternal().setVisibility(GONE);
+                            sendButton.setVisibility(GONE);
                             cancelBotButton.setVisibility(GONE);
                             setSlowModeButtonVisible(false);
                             audioVideoButtonContainer.setVisibility(GONE);
@@ -9902,10 +9906,10 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 slowModeButton.setScaleY(0.1f);
                 slowModeButton.setAlpha(0.0f);
                 setSlowModeButtonVisible(false);
-                getSendButtonInternal().setScaleX(0.1f);
-                getSendButtonInternal().setScaleY(0.1f);
-                getSendButtonInternal().setAlpha(0.0f);
-                getSendButtonInternal().setVisibility(GONE);
+                sendButton.setScaleX(0.1f);
+                sendButton.setScaleY(0.1f);
+                sendButton.setAlpha(0.0f);
+                sendButton.setVisibility(GONE);
                 cancelBotButton.setScaleX(0.1f);
                 cancelBotButton.setScaleY(0.1f);
                 cancelBotButton.setAlpha(0.0f);
@@ -9948,7 +9952,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 updateAttachButtonSlowModeState(slowModeTimer > 0 && slowModeTimer != Integer.MAX_VALUE && !isSlowModeIgnored());
             }
         } else if (
-            getSendButtonInternal().getVisibility() == VISIBLE ||
+            sendButton.getVisibility() == VISIBLE ||
             cancelBotButton.getVisibility() == VISIBLE ||
             expandStickersButton != null && expandStickersButton.getVisibility() == VISIBLE ||
             slowModeButton.getVisibility() == VISIBLE
@@ -10079,9 +10083,9 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                     animators.add(ObjectAnimator.ofFloat(slowModeButton, View.SCALE_Y, 0.1f));
                     animators.add(ObjectAnimator.ofFloat(slowModeButton, View.ALPHA, 0.0f));
                 } else {
-                    animators.add(ObjectAnimator.ofFloat(getSendButtonInternal(), View.SCALE_X, 0.1f));
-                    animators.add(ObjectAnimator.ofFloat(getSendButtonInternal(), View.SCALE_Y, 0.1f));
-                    animators.add(ObjectAnimator.ofFloat(getSendButtonInternal(), View.ALPHA, 0.0f));
+                    animators.add(ObjectAnimator.ofFloat(sendButton, View.SCALE_X, 0.1f));
+                    animators.add(ObjectAnimator.ofFloat(sendButton, View.SCALE_Y, 0.1f));
+                    animators.add(ObjectAnimator.ofFloat(sendButton, View.ALPHA, 0.0f));
                 }
 
                 runningAnimation.playTogether(animators);
@@ -10113,10 +10117,10 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 slowModeButton.setScaleY(0.1f);
                 slowModeButton.setAlpha(0.0f);
                 setSlowModeButtonVisible(false);
-                getSendButtonInternal().setScaleX(0.1f);
-                getSendButtonInternal().setScaleY(0.1f);
-                getSendButtonInternal().setAlpha(0.0f);
-                getSendButtonInternal().setVisibility(GONE);
+                sendButton.setScaleX(0.1f);
+                sendButton.setScaleY(0.1f);
+                sendButton.setAlpha(0.0f);
+                sendButton.setVisibility(GONE);
                 cancelBotButton.setScaleX(0.1f);
                 cancelBotButton.setScaleY(0.1f);
                 cancelBotButton.setAlpha(0.0f);
@@ -11350,7 +11354,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             lastSavedBusinessLinkMessage = calculateBusinessLinkPresetMessage();
 
             setAllowStickersAndGifs(true, false, false);
-            getSendButtonInternal().setVisibility(GONE);
+            sendButton.setVisibility(GONE);
             setSlowModeButtonVisible(false);
             cancelBotButton.setVisibility(GONE);
             audioVideoButtonContainer.setVisibility(GONE);
@@ -11559,7 +11563,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 layoutParams.rightMargin = 0;
                 recordedAudioPanel.setLayoutParams(layoutParams);
             }
-            getSendButtonInternal().setVisibility(GONE);
+            sendButton.setVisibility(GONE);
             setSlowModeButtonVisible(false);
             cancelBotButton.setVisibility(GONE);
             audioVideoButtonContainer.setVisibility(GONE);
@@ -11590,19 +11594,19 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             cancelBotButton.setVisibility(GONE);
             if (slowModeTimer > 0 && !isInScheduleMode()) {
                 if (slowModeTimer == Integer.MAX_VALUE) {
-                    getSendButtonInternal().setScaleX(1.0f);
-                    getSendButtonInternal().setScaleY(1.0f);
-                    getSendButtonInternal().setAlpha(1.0f);
-                    getSendButtonInternal().setVisibility(VISIBLE);
+                    sendButton.setScaleX(1.0f);
+                    sendButton.setScaleY(1.0f);
+                    sendButton.setAlpha(1.0f);
+                    sendButton.setVisibility(VISIBLE);
                     slowModeButton.setScaleX(0.1f);
                     slowModeButton.setScaleY(0.1f);
                     slowModeButton.setAlpha(0.0f);
                     setSlowModeButtonVisible(false);
                 } else {
-                    getSendButtonInternal().setScaleX(0.1f);
-                    getSendButtonInternal().setScaleY(0.1f);
-                    getSendButtonInternal().setAlpha(0.0f);
-                    getSendButtonInternal().setVisibility(GONE);
+                    sendButton.setScaleX(0.1f);
+                    sendButton.setScaleY(0.1f);
+                    sendButton.setAlpha(0.0f);
+                    sendButton.setVisibility(GONE);
                     slowModeButton.setScaleX(1.0f);
                     slowModeButton.setScaleY(1.0f);
                     slowModeButton.setAlpha(1.0f);
@@ -11622,10 +11626,10 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 audioVideoButtonContainer.setAlpha(0.0f);
                 audioVideoButtonContainer.setVisibility(GONE);
             } else {
-                getSendButtonInternal().setScaleX(0.1f);
-                getSendButtonInternal().setScaleY(0.1f);
-                getSendButtonInternal().setAlpha(0.0f);
-                getSendButtonInternal().setVisibility(GONE);
+                sendButton.setScaleX(0.1f);
+                sendButton.setScaleY(0.1f);
+                sendButton.setAlpha(0.0f);
+                sendButton.setVisibility(GONE);
                 slowModeButton.setScaleX(0.1f);
                 slowModeButton.setScaleY(0.1f);
                 slowModeButton.setAlpha(0.0f);
@@ -11791,10 +11795,10 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     }
 
     public View getSendButton() {
-        return getSendButtonInternal().getVisibility() == VISIBLE ? getSendButtonInternal() : audioVideoButtonContainer;
+        return sendButton.getVisibility() == VISIBLE ? sendButton : audioVideoButtonContainer;
     }
 
-    public View getSendButtonInternal() {
+    public View sendButton {
         return sendButton;
     }
 
@@ -11807,21 +11811,21 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     }
 
     public ValueAnimator animateSendButton(boolean show) {
-        final float fromAlpha = getSendButtonInternal().getAlpha();
+        final float fromAlpha = sendButton.getAlpha();
         final float toAlpha = show ? 1.0f : 0.0f;
-        final float fromScaleX = /*show ? 1 :*/ getSendButtonInternal().getScaleX();
+        final float fromScaleX = /*show ? 1 :*/ sendButton.getScaleX();
         final float toScaleX = show ? 1.0f : 0.1f;
-        final float fromScaleY = /*show ? 1 :*/ getSendButtonInternal().getScaleY();
+        final float fromScaleY = /*show ? 1 :*/ sendButton.getScaleY();
         final float toScaleY = show ? 1.0f : 0.1f;
-        if (show && fromAlpha < 0.25f && getSendButtonInternal() instanceof SendButton) {
-            ((SendButton) getSendButtonInternal()).appear();
+        if (show && fromAlpha < 0.25f && sendButton instanceof SendButton) {
+            ((SendButton) sendButton).appear();
         }
         ValueAnimator a = ValueAnimator.ofFloat(0, 1);
         a.addUpdateListener(anm -> {
             final float t = (float) anm.getAnimatedValue();
-            getSendButtonInternal().setAlpha(lerp(fromAlpha, toAlpha, t));
-            getSendButtonInternal().setScaleX(lerp(fromScaleX, toScaleX, t));
-            getSendButtonInternal().setScaleY(lerp(fromScaleY, toScaleY, t));
+            sendButton.setAlpha(lerp(fromAlpha, toAlpha, t));
+            sendButton.setScaleX(lerp(fromScaleX, toScaleX, t));
+            sendButton.setScaleY(lerp(fromScaleY, toScaleY, t));
         });
         return a;
     }

@@ -257,8 +257,8 @@ Play APK intentionally not rebuilt.
 Verified invariants:
 - ChatActivity always uses the ordinary non-centered Telegram header in Main and Play.
 - CenterActionBarTitle remains available on non-chat screens.
-- The Main-only iOS selected-message preview is fixed outside the actions ScrollView.
-- Only the action menu scrolls; normal and iOS message menus can reach the final item.
+- Short Main-only iOS selected-message previews stay fixed above the action menu.
+- Long selected-message previews scroll together with every action; the final item remains reachable.
 - The bottom quick-action block matches the menu width.
 - The iOS composer restores the send icon whenever entered text owns the slot.
 - Main-only iOS UI remains disabled by policy in Play.

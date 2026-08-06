@@ -23,12 +23,13 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
 
 /**
- * Main-only fixed selected-message preview for the iOS-style context menu.
+ * Main-only adaptive selected-message preview for the iOS-style context menu.
  *
  * AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK: avatar, sender and the native Telegram
- * message rendering are one coherent message item. The parent scrim owns this
- * view outside the actions ScrollView, so the quote never moves while actions
- * are scrolled.
+ * message rendering are one coherent message item.
+ * AUTHORGRAM_ADAPTIVE_IOS_MESSAGE_PREVIEW: a short preview stays fixed above
+ * the actions; a tall preview joins the action ScrollView so all content can
+ * be reached by one continuous scroll without clipping the final menu item.
  * AUTHORGRAM_FINAL_PREVIEW_COMPAT: no preview-local BluredView is used; blur
  * remains owned by ChatActivity across the complete chat surface.
  */
@@ -37,6 +38,7 @@ public final class IOSMessageMenuPreview extends FrameLayout {
     public static final String SENDER_IDENTITY_TAG = "AUTHORGRAM_IOS_MESSAGE_SENDER_IDENTITY";
 
     private final NativeCellSnapshotView snapshotView;
+    private final boolean scrollWithActions;
 
     public IOSMessageMenuPreview(
             Context context,
@@ -54,6 +56,7 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         if (!AuthorGramPlayPolicy.canUseIosUi()) {
             setVisibility(GONE);
             snapshotView = null;
+            scrollWithActions = false;
             return;
         }
 
@@ -142,10 +145,15 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         ));
 
         snapshotView = new NativeCellSnapshotView(context, sourceCell);
+        scrollWithActions = snapshotView.shouldScrollWithActions();
         unifiedMessage.addView(snapshotView, new LinearLayout.LayoutParams(
                 LayoutHelper.MATCH_PARENT,
                 LayoutHelper.WRAP_CONTENT
         ));
+    }
+
+    public boolean shouldScrollWithActions() {
+        return scrollWithActions;
     }
 
     private static SenderIdentity resolveSender(int currentAccount, MessageObject messageObject) {
@@ -203,6 +211,30 @@ public final class IOSMessageMenuPreview extends FrameLayout {
             super(context);
             setWillNotDraw(false);
             snapshot = captureNativeCell(sourceCell);
+        }
+
+        boolean shouldScrollWithActions() {
+            if (snapshot == null || snapshot.getWidth() <= 0 || snapshot.getHeight() <= 0) {
+                return false;
+            }
+            int viewportHeight = Math.max(
+                    AndroidUtilities.dp(320),
+                    AndroidUtilities.displaySize.y
+            );
+            int threshold = Math.max(
+                    AndroidUtilities.dp(156),
+                    Math.min(AndroidUtilities.dp(232), Math.round(viewportHeight * 0.28f))
+            );
+            int previewWidth = Math.max(
+                    AndroidUtilities.dp(160),
+                    AndroidUtilities.displaySize.x - AndroidUtilities.dp(104)
+            );
+            int targetWidth = Math.max(1, Math.min(snapshot.getWidth(), previewWidth));
+            int targetHeight = Math.max(
+                    1,
+                    Math.round(snapshot.getHeight() * (targetWidth / (float) snapshot.getWidth()))
+            );
+            return targetHeight + AndroidUtilities.dp(31) > threshold;
         }
 
         @Override
