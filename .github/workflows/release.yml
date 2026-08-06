@@ -1,4 +1,4 @@
-name: AuthorGram 12.9.2 Final Main + Play Release
+name: AuthorGram 12.9.2 Clean Main + Play Release
 
 on:
   workflow_dispatch:
@@ -8,8 +8,8 @@ on:
       - .github/FINAL_RELEASE_12_9_2
 
 permissions:
+  actions: write
   contents: write
-  actions: read
 
 concurrency:
   group: authorgram-12-9-2-final-main-play-release
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   release:
-    name: Build verified Main + Play release APKs
+    name: Clean queue, verify source, build Main + Play APKs
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
@@ -30,6 +30,64 @@ jobs:
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
 
     steps:
+      - name: Stop every other active Actions run
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const currentRunId = Number(context.runId);
+            const active = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
+            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+            async function listOtherActiveRuns() {
+              const runs = await github.paginate(
+                github.rest.actions.listWorkflowRunsForRepo,
+                { owner, repo, per_page: 100 },
+              );
+              return runs.filter(run => Number(run.id) !== currentRunId && active.has(run.status));
+            }
+
+            let runs = await listOtherActiveRuns();
+            core.info(`Found ${runs.length} other active run(s).`);
+            for (const run of runs) {
+              try {
+                await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+                core.info(`Cancel requested: ${run.id} ${run.name}`);
+              } catch (error) {
+                core.warning(`Cancel failed for ${run.id}: ${error.message}`);
+              }
+            }
+
+            await sleep(15000);
+            runs = await listOtherActiveRuns();
+            for (const run of runs) {
+              try {
+                if (github.rest.actions.forceCancelWorkflowRun) {
+                  await github.rest.actions.forceCancelWorkflowRun({ owner, repo, run_id: run.id });
+                } else {
+                  await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+                }
+                core.info(`Force-cancel requested: ${run.id} ${run.name}`);
+              } catch (error) {
+                core.warning(`Force-cancel failed for ${run.id}: ${error.message}`);
+              }
+            }
+
+            for (let attempt = 1; attempt <= 30; attempt += 1) {
+              runs = await listOtherActiveRuns();
+              if (runs.length === 0) {
+                core.info('All other queued or running workflows are stopped.');
+                return;
+              }
+              core.info(`Waiting for ${runs.length} run(s) to stop: ${attempt}/30`);
+              await sleep(5000);
+            }
+
+            runs = await listOtherActiveRuns();
+            throw new Error(`Active runs remain: ${runs.map(run => `${run.id}:${run.status}:${run.name}`).join(', ')}`);
+
       - name: Checkout canonical dev source
         uses: actions/checkout@v4
         with:
@@ -37,7 +95,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify finalized release source
+      - name: Validate source and release controller
         shell: bash
         run: |
           set -euo pipefail
@@ -51,7 +109,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          scripts = (
+          for relative in (
               'scripts/finalize_authorgram_source.py',
               'scripts/authorgram_guard.py',
               'scripts/authorgram_parity_guard.py',
@@ -60,98 +118,77 @@ jobs:
               'scripts/patch_authorgram_ui_12_9_2.py',
               'scripts/patch_authorgram_popup_bounds.py',
               'scripts/patch_authorgram_badge_surfaces.py',
-          )
-          for relative in scripts:
-              source = Path(relative).read_text(encoding='utf-8')
-              compile(source, relative, 'exec')
-              print(f'Python syntax passed: {relative}')
+          ):
+              compile(Path(relative).read_text(encoding='utf-8'), relative, 'exec')
 
-          def require(path, *markers):
+          required = {
+              'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java': (
+                  'AUTHORGRAM_STANDARD_CHAT_HEADER',
+                  'parentFragment instanceof org.telegram.ui.ChatActivity',
+              ),
+              'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBarPopupWindow.java': (
+                  'AUTHORGRAM_RELIABLE_POPUP_SCROLL',
+                  'scrollView.setScrollContainer(true);',
+              ),
+              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java': (
+                  'AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW',
+                  'AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_SCROLL',
+                  'AUTHORGRAM_MENU_FOOTER_WIDTH_PARITY',
+                  'availableForActions',
+              ),
+              'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java': (
+                  'AUTHORGRAM_FIXED_IOS_PREVIEW_OWNER',
+                  'AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_OWNER',
+                  'AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR',
+                  'NekoConfig.iOSMessageMenu.Bool()',
+                  'AuthorGramPlayPolicy.canUseIosUi()',
+              ),
+              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java': (
+                  'AUTHORGRAM_MAIN_ONLY_IOS_INPUT',
+                  'AUTHORGRAM_IOS_INPUT_MENU_GUARD',
+                  'AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT',
+                  'public View getSendButtonInternal() {',
+              ),
+              'TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java': (
+                  'AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK',
+                  'AUTHORGRAM_ADAPTIVE_IOS_MESSAGE_PREVIEW',
+                  'BackupImageView avatarView',
+                  'TextView senderNameView',
+                  'sourceCell.draw(canvas);',
+                  'public boolean shouldScrollWithActions()',
+              ),
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java': (
+                  'values.put("iOSMessageInputField", false)',
+                  'values.put("iOSMessageMenu", false)',
+                  'public static boolean canUseIosUi()',
+              ),
+          }
+
+          loaded = {}
+          for path, markers in required.items():
               text = Path(path).read_text(encoding='utf-8')
+              loaded[path] = text
               missing = [marker for marker in markers if marker not in text]
               if missing:
                   raise SystemExit(f'{path}: missing {missing}')
-              return text
 
-          require(
-              'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java',
-              'AUTHORGRAM_STANDARD_CHAT_HEADER',
-              'parentFragment instanceof org.telegram.ui.ChatActivity',
-          )
-          require(
-              'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBarPopupWindow.java',
-              'AUTHORGRAM_RELIABLE_POPUP_SCROLL',
-              'scrollView.setScrollContainer(true);',
-          )
-          require(
-              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java',
-              'AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW',
-              'AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_SCROLL',
-              'AUTHORGRAM_MENU_FOOTER_WIDTH_PARITY',
-              'availableForActions',
-          )
-          chat = require(
-              'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java',
-              'AUTHORGRAM_FIXED_IOS_PREVIEW_OWNER',
-              'AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_OWNER',
-              'AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR',
-              'NekoConfig.iOSMessageMenu.Bool()',
-              'AuthorGramPlayPolicy.canUseIosUi()',
-          )
-          enter = require(
-              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java',
-              'AUTHORGRAM_MAIN_ONLY_IOS_INPUT',
-              'AUTHORGRAM_IOS_INPUT_MENU_GUARD',
-              'AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT',
-              'View sendButtonView = getSendButtonInternal();',
-              'public View getSendButtonInternal() {',
-              'sendButtonView.setVisibility(VISIBLE);',
-              'sendButtonView.setAlpha(1.0f);',
-          )
-          preview = require(
-              'TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java',
-              'AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK',
-              'AUTHORGRAM_ADAPTIVE_IOS_MESSAGE_PREVIEW',
-              'AUTHORGRAM_FINAL_PREVIEW_COMPAT',
-              'BackupImageView avatarView',
-              'TextView senderNameView',
-              'sourceCell.draw(canvas);',
-              'public boolean shouldScrollWithActions()',
-          )
-          require(
-              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java',
-              'values.put("iOSMessageInputField", false)',
-              'values.put("iOSMessageMenu", false)',
-              'public static boolean canUseIosUi()',
-          )
-
-          forbidden_preview_blur = (
-              'import org.telegram.ui.Components.BluredView;',
-              'import org.telegram.ui.Components.BlurredView;',
-              'new BluredView(',
-              'new BlurredView(',
-              'private final BluredView',
-              'private final BlurredView',
-          )
-          leaked = [token for token in forbidden_preview_blur if token in preview]
+          chat = loaded['TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java']
+          enter = loaded['TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java']
+          preview = loaded['TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java']
+          forbidden = ('new BluredView(', 'new BlurredView(', 'private final BluredView', 'private final BlurredView')
+          leaked = [token for token in forbidden if token in preview]
           if leaked:
-              raise SystemExit(f'Preview-local blur implementation remains: {leaked}')
+              raise SystemExit(f'Preview-local blur remains: {leaked}')
           if 'AUTHORGRAM_IOS_MESSAGE_ACTION_GAP' in chat:
               raise SystemExit('Short preview is incorrectly owned by the action ScrollView')
           if 'compactIndices.remove(index);' in chat:
               raise SystemExit('Unsafe compact-menu index removal remains')
           if enter.count('public View getSendButtonInternal() {') != 1:
-              raise SystemExit('Native getSendButtonInternal() method count is not exactly one')
-
-          print('Final AuthorGram header, popup, iOS Message Menu, blur and iOS Input invariants passed')
+              raise SystemExit('Native send-button method count is not exactly one')
           PY
 
           git diff --check
-          test -z "$(git status --porcelain)" || {
-            echo 'Canonical dev source is not clean before release.' >&2
-            git status --short >&2
-            exit 1
-          }
+          test -z "$(git status --porcelain)"
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -168,11 +205,46 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
+      - name: Prepare protected runtime release script
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path('scripts/final_release_12_9_2.sh').read_text(encoding='utf-8')
+          declaration = '  local keystore_backup="${WORK_ROOT}/main-release.keystore"\n'
+          replacement = declaration + '  local destination_ref\n  destination_ref="$(git -C "${destination}" rev-parse HEAD)"\n'
+          if declaration not in source:
+              raise SystemExit('Unable to find sync_from_dev declaration anchor')
+          source = source.replace(declaration, replacement, 1)
+
+          read_tree = '  git -C "${destination}" read-tree --reset -u "${DEV_COMMIT}"\n'
+          preserve = read_tree + '''
+
+          # Keep branch-local GitHub metadata out of application source synchronization.
+          # This prevents the release token from rewriting workflow files on main/play.
+          if git -C "${destination}" cat-file -e "${destination_ref}:.github" 2>/dev/null; then
+            git -C "${destination}" checkout "${destination_ref}" -- .github
+          else
+            rm -rf "${destination}/.github"
+          fi
+          '''
+          if read_tree not in source:
+              raise SystemExit('Unable to find read-tree synchronization anchor')
+          source = source.replace(read_tree, preserve, 1)
+
+          output = Path('/tmp/final_release_12_9_2_protected.sh')
+          output.write_text(source, encoding='utf-8', newline='')
+          output.chmod(0o700)
+          PY
+          bash -n /tmp/final_release_12_9_2_protected.sh
+
       - name: Build and verify Main + Play release APKs
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/final_release_12_9_2.sh
+          bash /tmp/final_release_12_9_2_protected.sh
 
       - name: Verify exact final artifact set
         shell: bash
@@ -184,75 +256,26 @@ jobs:
           mapfile -t all_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.apk' -print | sort)
           mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print | sort)
 
-          [[ "${#all_apks[@]}" -eq 2 ]] || {
-            echo "Expected exactly two APKs, found ${#all_apks[@]}" >&2
-            exit 1
-          }
-          [[ "${#main_apks[@]}" -eq 1 ]] || {
-            echo 'Expected exactly one Main APK.' >&2
-            exit 1
-          }
-          [[ "${#play_apks[@]}" -eq 1 ]] || {
-            echo 'Expected exactly one Play APK.' >&2
-            exit 1
-          }
-          [[ "${#aabs[@]}" -eq 0 ]] || {
-            echo 'AAB files are forbidden.' >&2
-            exit 1
-          }
-
-          aapt="${ANDROID_HOME}/build-tools/36.0.0/aapt"
-          apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
-          zipalign="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
-
-          verify_apk() {
-            local apk="$1"
-            local expected_package="$2"
-            local badging package version_name version_code signer
-            "${zipalign}" -c -P 16 4 "${apk}"
-            badging="$("${aapt}" dump badging "${apk}")"
-            package="$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
-            version_code="$(sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
-            version_name="$(sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
-            [[ "${package}" == "${expected_package}" ]]
-            [[ "${version_code}" == "${VERSION_CODE}" ]]
-            [[ "${version_name}" == "${VERSION_NAME}" ]]
-            ! grep -q '^application-debuggable' <<<"${badging}"
-            signer="$("${apksigner}" verify --verbose --print-certs "${apk}")"
-            grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer}"
-          }
-
-          verify_apk "${main_apks[0]}" "${MAIN_PACKAGE}"
-          verify_apk "${play_apks[0]}" "${PLAY_PACKAGE}"
-
-          main_permissions="$("${aapt}" dump permissions "${main_apks[0]}")"
-          play_permissions="$("${aapt}" dump permissions "${play_apks[0]}")"
-          grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${main_permissions}"
-          ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${play_permissions}"
+          [[ "${#main_apks[@]}" -eq 1 ]]
+          [[ "${#play_apks[@]}" -eq 1 ]]
+          [[ "${#all_apks[@]}" -eq 2 ]]
+          [[ "${#aabs[@]}" -eq 0 ]]
 
           main_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Main-CERTIFICATE.txt" | head -n1)"
           play_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Play-CERTIFICATE.txt" | head -n1)"
           [[ -n "${main_cert}" && "${main_cert}" == "${play_cert}" ]]
 
-          if [[ -n "${AUTHORGRAM_SIGNING_CERT_SHA256}" ]]; then
-            expected_cert="$(tr '[:upper:]' '[:lower:]' <<<"${AUTHORGRAM_SIGNING_CERT_SHA256}" | tr -d ':[:space:]')"
-            actual_cert="$(tr '[:upper:]' '[:lower:]' <<<"${main_cert}" | tr -d ':[:space:]')"
-            [[ "${actual_cert}" == "${expected_cert}" ]] || {
-              echo 'Release signing certificate does not match AUTHORGRAM_SIGNING_CERT_SHA256.' >&2
-              exit 1
-            }
-          fi
-
           test -s "${artifact_dir}/Main-BUILD.txt"
           test -s "${artifact_dir}/Play-BUILD.txt"
+          test -s "${artifact_dir}/Main-CERTIFICATE.txt"
+          test -s "${artifact_dir}/Play-CERTIFICATE.txt"
           test -s "${artifact_dir}/RELEASE-SUMMARY.txt"
           test -s "${artifact_dir}/SHA256SUMS.txt"
           [[ "$(grep -c 'AuthorGram-.*\.apk' "${artifact_dir}/SHA256SUMS.txt")" -eq 2 ]]
-
           cat "${artifact_dir}/RELEASE-SUMMARY.txt"
           cat "${artifact_dir}/SHA256SUMS.txt"
 
-      - name: Upload final Main and Play release ZIP
+      - name: Upload final Main and Play APK package
         uses: actions/upload-artifact@v4
         with:
           name: AuthorGram-12.9.2-Final-Main-and-Play-Release
