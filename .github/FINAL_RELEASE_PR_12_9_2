@@ -1,0 +1,6 @@
+Trigger exactly one verified Main + Play release build for AuthorGram 12.9.2.
+Canonical build source: dev at or after commit 7cbf0dd3d88bbeaa47a7dd9c49765181f8b79abb.
+Actions cleanup is permanently disabled and no active or historical workflow run may be deleted or cancelled.
+Use the compatibility-aware adaptive iOS UI orchestrator and preserve Telegram's valid getSendButtonInternal() API.
+Required artifact: AuthorGram-12.9.2-Final-Main-and-Play-Release.
+Requested at 2026-08-06T19:40:00+02:00.
