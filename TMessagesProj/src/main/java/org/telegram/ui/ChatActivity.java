@@ -34136,16 +34136,18 @@ public class ChatActivity extends BaseFragment implements
                 }
                 // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW
                 // AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW
-                // The selected message is a snapshot of the real ChatMessageCell.
-                // It stays independent between reactions and the action panel.
+                // Snapshot the actual long-pressed Telegram message cell.
                 if (selectedObject != null
+                        && v instanceof org.telegram.ui.Cells.ChatMessageCell
                         && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
                         && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool()) {
+                    org.telegram.ui.Cells.ChatMessageCell selectedMessageCell =
+                            (org.telegram.ui.Cells.ChatMessageCell) v;
                     org.telegram.ui.Components.IOSMessageMenuPreview iosPreview =
                             new org.telegram.ui.Components.IOSMessageMenuPreview(
                                     getParentActivity(),
                                     contentView,
-                                    messageCell,
+                                    selectedMessageCell,
                                     themeDelegate
                             );
                     LinearLayout.LayoutParams iosPreviewParams = LayoutHelper.createLinear(
