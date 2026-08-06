@@ -58,8 +58,8 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
         int constrainedHeightSpec = MeasureSpec.makeMeasureSpec(effectiveMaxHeight, MeasureSpec.AT_MOST);
         int adjustedWidthSpec = widthMeasureSpec;
 
-        // Reset a prior temporary height cap before measuring current content.
-        if (fixedMessagePreview != null && popupWindowLayout != null) {
+        // Reset a previous viewport cap before measuring natural popup content.
+        if (popupWindowLayout != null) {
             LinearLayout.LayoutParams popupParams =
                     (LinearLayout.LayoutParams) popupWindowLayout.getLayoutParams();
             if (popupParams.height != LayoutHelper.WRAP_CONTENT) {
@@ -72,33 +72,35 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
         }
 
         // AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW
-        // Reactions and the selected-message preview remain fixed. Only the
-        // popup action viewport receives the remaining height and scrolls.
-        if (fixedMessagePreview != null) {
-            int occupiedHeight = getPaddingTop() + getPaddingBottom();
-            for (int i = 0; i < getChildCount(); i++) {
-                View child = getChildAt(i);
-                if (child == popupWindowLayout || child.getVisibility() == GONE) {
-                    continue;
-                }
-                LinearLayout.LayoutParams childParams =
-                        (LinearLayout.LayoutParams) child.getLayoutParams();
-                occupiedHeight += child.getMeasuredHeight()
-                        + childParams.topMargin
-                        + childParams.bottomMargin;
+        // AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_SCROLL
+        // Top-level children (reactions and, for short messages, the preview)
+        // remain fixed. The popup receives exactly the remaining viewport.
+        // When a long preview is inside popupLayout, it scrolls with all actions.
+        int occupiedHeight = getPaddingTop() + getPaddingBottom();
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (child == popupWindowLayout || child.getVisibility() == GONE) {
+                continue;
             }
-            int availableForActions = Math.max(
-                    AndroidUtilities.dp(72),
-                    effectiveMaxHeight - occupiedHeight
-            );
-            LinearLayout.LayoutParams popupParams =
-                    (LinearLayout.LayoutParams) popupWindowLayout.getLayoutParams();
-            int desiredPopupHeight = popupWindowLayout.getMeasuredHeight();
-            if (desiredPopupHeight > availableForActions) {
-                popupParams.height = availableForActions;
-                super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);
-            }
+            LinearLayout.LayoutParams childParams =
+                    (LinearLayout.LayoutParams) child.getLayoutParams();
+            occupiedHeight += child.getMeasuredHeight()
+                    + childParams.topMargin
+                    + childParams.bottomMargin;
+        }
+        int availableForActions = Math.max(
+                AndroidUtilities.dp(96),
+                effectiveMaxHeight - occupiedHeight
+        );
+        LinearLayout.LayoutParams popupParams =
+                (LinearLayout.LayoutParams) popupWindowLayout.getLayoutParams();
+        int desiredPopupHeight = popupWindowLayout.getMeasuredHeight();
+        if (desiredPopupHeight > availableForActions) {
+            popupParams.height = availableForActions;
+            super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);
+        }
 
+        if (fixedMessagePreview != null) {
             int popupWidthForPreview = popupWindowLayout.getMeasuredWidth();
             LinearLayout.LayoutParams previewParams =
                     (LinearLayout.LayoutParams) fixedMessagePreview.getLayoutParams();
