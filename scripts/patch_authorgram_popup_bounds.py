@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Apply and validate AuthorGram's final popup, input and chat-header repairs.
 
-The existing native iOS repair is applied first. The final repair then moves the
-selected-message preview outside the actions ScrollView, preserves the standard
-chat header in both builds, stabilizes the iOS composer and hardens scrolling.
+The existing native iOS repair is applied once to legacy source. The final
+repair then owns subsequent idempotent runs, moves the selected-message preview
+outside the actions ScrollView, preserves the standard chat header in both
+builds, stabilizes the iOS composer and hardens scrolling.
 """
 
 from __future__ import annotations
@@ -12,12 +13,22 @@ import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+PREVIEW = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java"
+FINAL_MARKER = "AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK"
 
-for relative in (
-    "scripts/patch_authorgram_ios_menu_v2.py",
-    "scripts/patch_authorgram_final_chat_ui.py",
-):
-    runpy.run_path(str(ROOT / relative), run_name="__main__")
+# The legacy repair validates the legacy preview wording. Run it only while
+# upgrading legacy source; after the final source has been committed, the final
+# patch is independently idempotent and must remain the canonical owner.
+if FINAL_MARKER not in PREVIEW.read_text(encoding="utf-8"):
+    runpy.run_path(
+        str(ROOT / "scripts/patch_authorgram_ios_menu_v2.py"),
+        run_name="__main__",
+    )
+
+runpy.run_path(
+    str(ROOT / "scripts/patch_authorgram_final_chat_ui.py"),
+    run_name="__main__",
+)
 
 checks = {
     "standard chat header with global centering preserved": (
