@@ -1,0 +1,10 @@
+AuthorGram 12.9.2 final dual APK release V2.
+
+Build source: canonical dev branch.
+Required output: exactly one signed Main arm64-v8a release APK and one signed Play arm64-v8a release APK in artifact AuthorGram-12.9.2-Final-Main-and-Play-Release.
+Shared Main and Play requirement: ordinary non-centered Telegram chat header and fully responsive chat overflow menu.
+Main-only requirements: adaptive iOS Message Menu with avatar, sender name, native message content, reactions, full-screen background blur, fixed short previews, continuously scrolling long previews and unclipped final action; iOS Input must remain correct in text, media, voice, video, edit, reply, scheduled-message and transition states.
+Play requirement: classic Telegram input and message menu with strict Play publication policy.
+Do not build or upload AAB files.
+Do not delete or cancel active GitHub Actions runs.
+Requested 2026-08-06T21:25:00+02:00.
