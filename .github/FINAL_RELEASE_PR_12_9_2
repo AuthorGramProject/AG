@@ -1,0 +1,6 @@
+Keep this release-control PR open until its single workflow run finishes.
+Build canonical dev commit 2dfe23e88b25bbe12cdc07c51ec13a5e981f05eb or newer.
+Actions cleanup is permanently disabled.
+Use compatibility-aware adaptive iOS UI validation.
+Produce exactly one signed Main arm64-v8a release APK and one signed Play arm64-v8a release APK in AuthorGram-12.9.2-Final-Main-and-Play-Release.
+Final active run requested at 2026-08-06T20:10:00+02:00.
