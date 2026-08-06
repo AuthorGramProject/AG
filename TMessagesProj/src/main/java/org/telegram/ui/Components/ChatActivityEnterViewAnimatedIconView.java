@@ -55,9 +55,13 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
     }
 
     public void setState(State state, boolean animate) {
-        // The MENU glyph belongs to the classic input layout.  In iOS mode it
-        // could survive a delayed state update and appear over the chat avatar.
+        // AUTHORGRAM_IOS_STALE_MENU_GLYPH_GUARD
+        // MENU is a classic-layout glyph. Clear both View and Lottie state
+        // before resolving to VOICE so stale three-dots cannot be redrawn.
         if (state == State.MENU && iosInput()) {
+            stopAnimation();
+            clearAnimation();
+            setImageDrawable(null);
             state = State.VOICE;
             animate = false;
         }

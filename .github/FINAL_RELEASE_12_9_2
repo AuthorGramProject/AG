@@ -1,12 +1,13 @@
 AuthorGram 12.9.2 verified Main and Play correction trigger.
 Build exactly two signed release APKs: Main and Play. Do not generate or upload AAB artifacts.
-Render the selected message in the Main-only iOS Message Menu from the real native ChatMessageCell, preserving avatar, sender, reply, bubble, timestamp and delivery state.
-Resolve the long-pressed message cell from the scoped popup View and reject any unscoped messageCell reference before Android SDK setup.
-Keep reactions, the native selected message and the rounded action panel as three visually independent sections with transparent spacing and blurred/dimmed chat behind them.
-Never draw the ordinary submenu background behind the native selected-message preview.
-When composer text is non-empty, keep the media/menu icon container hidden, non-clickable and reset to zero translation in both Main and Play so it cannot appear over the chat avatar or intercept header interaction.
-When composer text is cleared, restore the microphone/video-round container fully.
+In the Main-only iOS Message Menu, render a separate selected-message block above the action panel with the real sender or channel avatar, sender or channel name and the native ChatMessageCell content.
+Keep Telegram's native reactions row above the selected-message block and never remove or merge it into the action panel.
+Blur the complete chat background in iOS menu mode by using no exempt original message cell; keep only reactions, the independent selected-message preview and the action panel sharp above the blur.
+Never apply preview-local blur and never leave the original selected cell elevated at its old chat position.
+When the iOS composer contains any character, clear stale MENU drawable and Lottie state, hide and disable the media/menu container before animation early returns, and enforce the same invariant again after delayed animations.
+Keep the actual chat overflow menu responsive while composer text is non-empty.
+When composer text is cleared, restore the microphone or video-round container without changing classic or Play UI behavior.
 Preserve every existing AuthorGram feature, package identity, signing identity, protected author_badge policy and launcher artwork.
-Run all source, Python and UI regression checks before Android SDK setup.
+Run Python syntax, source invariants, popup ordering, sender identity, blur ownership, composer state and badge checks before Android SDK setup.
 Verify both APK packages, versions, signatures, zip alignment, integrity markers, Play publication policy and absence of raw protected badge identifiers.
-Main and Play correction release request: 2026-08-06T08:52:00+02:00.
+Main and Play correction release request: 2026-08-06T11:26:00+02:00.
