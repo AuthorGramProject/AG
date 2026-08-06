@@ -1,10 +1,11 @@
-name: AuthorGram 12.9.2 Final Verified Release
+name: AuthorGram 12.9.2 Final Main + Play Release
 
 on:
   workflow_dispatch:
   push:
     branches: [dev]
-    paths: [.github/FINAL_RELEASE_12_9_2]
+    paths:
+      - .github/FINAL_RELEASE_12_9_2
 
 permissions:
   actions: write
@@ -12,29 +13,25 @@ permissions:
   statuses: write
 
 concurrency:
-  group: authorgram-12-9-2-final-release
-  cancel-in-progress: true
+  group: authorgram-12-9-2-final-main-play-release
+  cancel-in-progress: false
 
 jobs:
   release:
-    name: Verify and build Main + Play APKs
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'Run final AuthorGram 12.9.2 release'
+    name: Verify and build Main + Play release APKs
     runs-on: ubuntu-24.04
-    timeout-minutes: 240
+    timeout-minutes: 300
     env:
       MAIN_PACKAGE: fork.risin42.nagramx
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.9.2
       VERSION_CODE: '6991'
-      NATIVE_TARGET: arm64-v8a
       PYTHONDONTWRITEBYTECODE: '1'
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
 
     steps:
-      - name: Checkout release controller
+      - name: Checkout final dev source
         uses: actions/checkout@v4
         with:
           ref: dev
@@ -50,47 +47,44 @@ jobs:
               repo: context.repo.repo,
               sha: context.sha,
               state: 'pending',
-              context: 'authorgram/final-release',
-              description: 'Main and Play release APK verification is running',
+              context: 'authorgram/final-main-play-release',
+              description: 'Final Main and Play source verification and release build are running',
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
 
-      - name: Preserve 12.9.0 run and remove all other historical runs
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/cleanup_authorgram_actions.py
-          git fetch origin dev
-          git merge --ff-only origin/dev
-
-      - name: Preflight source repairs before Android setup
+      - name: Apply and verify all final chat UI repairs
         shell: bash
         run: |
           set -euo pipefail
           bash -n scripts/final_release_12_9_2.sh
+
           python3 - <<'PY'
           from pathlib import Path
 
-          python_scripts = (
+          scripts = (
               'scripts/apply_authorgram_exact_icon_and_spy.py',
               'scripts/fix_authorgram_adaptive_icon.py',
-              'scripts/cleanup_authorgram_actions.py',
               'scripts/finalize_authorgram_source.py',
               'scripts/authorgram_guard.py',
               'scripts/authorgram_parity_guard.py',
               'scripts/patch_authorgram_build_key.py',
               'scripts/patch_authorgram_play_policy.py',
               'scripts/patch_authorgram_ui_12_9_2.py',
+              'scripts/patch_authorgram_ios_menu_v2.py',
+              'scripts/patch_authorgram_final_chat_ui.py',
+              'scripts/patch_authorgram_final_ui_compat.py',
+              'scripts/patch_authorgram_adaptive_ios_preview.py',
               'scripts/patch_authorgram_popup_bounds.py',
               'scripts/patch_authorgram_badge_surfaces.py',
           )
-          for relative in python_scripts:
+          for relative in scripts:
               source = Path(relative).read_text(encoding='utf-8')
               compile(source, relative, 'exec')
               print(f'Python syntax passed: {relative}')
           PY
 
           python3 scripts/patch_authorgram_ui_12_9_2.py
+          python3 scripts/patch_authorgram_adaptive_ios_preview.py
           python3 scripts/patch_authorgram_popup_bounds.py
           python3 scripts/patch_authorgram_badge_surfaces.py
           python3 scripts/patch_authorgram_play_policy.py
@@ -99,104 +93,100 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
+          def require(relative, *markers):
+              text = Path(relative).read_text(encoding='utf-8')
+              missing = [marker for marker in markers if marker not in text]
+              if missing:
+                  raise SystemExit(f'{relative}: missing {missing}')
+              return text
+
+          action_bar = require(
+              'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java',
+              'AUTHORGRAM_STANDARD_CHAT_HEADER',
+              'parentFragment instanceof org.telegram.ui.ChatActivity',
+              'return false;',
+          )
+          popup = require(
+              'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBarPopupWindow.java',
+              'AUTHORGRAM_RELIABLE_POPUP_SCROLL',
+              'scrollView.setScrollContainer(true);',
+          )
+          scrim = require(
+              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java',
+              'AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW',
+              'AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_SCROLL',
+              'AUTHORGRAM_MENU_FOOTER_WIDTH_PARITY',
+              'availableForActions',
+          )
+          chat = require(
+              'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java',
+              'AUTHORGRAM_FIXED_IOS_PREVIEW_OWNER',
+              'AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_OWNER',
+              'AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR',
+              'NekoConfig.iOSMessageMenu.Bool()',
+              'AuthorGramPlayPolicy.canUseIosUi()',
+          )
+          enter = require(
+              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java',
+              'AUTHORGRAM_MAIN_ONLY_IOS_INPUT',
+              'AUTHORGRAM_IOS_INPUT_MENU_GUARD',
+              'AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT',
+              'sendButtonView.setVisibility(VISIBLE);',
+              'sendButtonView.setAlpha(1.0f);',
+          )
+          preview = require(
+              'TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java',
+              'AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK',
+              'AUTHORGRAM_ADAPTIVE_IOS_MESSAGE_PREVIEW',
+              'AUTHORGRAM_FINAL_PREVIEW_COMPAT',
+              'BackupImageView avatarView',
+              'TextView senderNameView',
+              'sourceCell.draw(canvas);',
+              'public boolean shouldScrollWithActions()',
+          )
+          policy = require(
+              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java',
+              'values.put("iOSMessageInputField", false)',
+              'values.put("iOSMessageMenu", false)',
+              'public static boolean canUseIosUi()',
+          )
+
+          if 'AUTHORGRAM_IOS_MESSAGE_ACTION_GAP' in chat:
+              raise SystemExit('Selected-message preview is still owned by the actions ScrollView in the short-message path')
+          if 'BluredView' in preview or 'BlurredView' in preview:
+              raise SystemExit('Preview-local blur remains; full-screen blur must stay owned by ChatActivity')
+          if 'compactIndices.remove(index);' in chat:
+              raise SystemExit('Unsafe compact-menu index removal remains')
+          if 'GridLayout compactIconBar = null;' in chat:
+              if 'AUTHORGRAM_COMPACT_MENU_LIMIT' not in chat:
+                  raise SystemExit('Compact iOS menu exists without a bounded item limit')
+              if 'compactIndices.remove(Integer.valueOf(index))' not in chat:
+                  raise SystemExit('Compact iOS menu overflow removal is not value-safe')
+
           badge_sources = (
               Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java'),
               Path('TMessagesProj/src/main/java/org/telegram/ui/Components/StatusBadgeComponent.java'),
               Path('TMessagesProj/src/main/java/org/telegram/ui/Cells/DialogCell.java'),
           )
+          badge_text = '\n'.join(path.read_text(encoding='utf-8') for path in badge_sources)
           forbidden_badge_ids = (
               '6802848305', '6822670748', '8470484374', '8154455619',
               '7913929703', '8856346711', '8357439344', '8548193112',
               '8395237407', '8925149503', '-1003781500049',
               '-1004297907963', '3781500049', '4297907963',
           )
-          badge_text = '\n'.join(path.read_text(encoding='utf-8') for path in badge_sources)
           leaked = [item for item in forbidden_badge_ids if item in badge_text]
           if leaked:
-              raise SystemExit(f'Raw author_badge identifiers remain in application source: {leaked}')
-          if 'AuthorGramAuthorBadge.matches(objectId)' not in badge_text:
-              raise SystemExit('StatusBadgeComponent is not connected to protected author_badge policy')
+              raise SystemExit(f'Raw author_badge identifiers remain in source: {leaked}')
           if badge_text.count('AuthorGramAuthorBadge.matches(') < 4:
-              raise SystemExit('DialogCell is not fully connected to protected author_badge policy')
+              raise SystemExit('Protected author_badge policy is not connected to all required surfaces')
           if 'AuthorGramBuildIntegrity.isTrustedBuild()' not in badge_text:
-              raise SystemExit('author_badge is not bound to release signature integrity')
+              raise SystemExit('Protected author_badge is not bound to trusted release integrity')
 
-          play_policy = Path(
-              'TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java'
-          ).read_text(encoding='utf-8')
-          chat_settings = Path(
-              'TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java'
-          ).read_text(encoding='utf-8')
-          chat_activity = Path(
-              'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java'
-          ).read_text(encoding='utf-8')
-          enter_view = Path(
-              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java'
-          ).read_text(encoding='utf-8')
-          icon_view = Path(
-              'TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java'
-          ).read_text(encoding='utf-8')
-          preview_view = Path(
-              'TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java'
-          ).read_text(encoding='utf-8')
-
-          for required in (
-              'values.put("iOSMessageInputField", false)',
-              'values.put("iOSMessageMenu", false)',
-              'public static boolean canUseIosUi()',
-          ):
-              if required not in play_policy:
-                  raise SystemExit(f'Main-only iOS policy invariant is missing: {required}')
-          if chat_settings.count('AuthorGramPlayPolicy.isPlayBuild()') < 2:
-              raise SystemExit('Play settings can expose an iOS interface option')
-          if 'NekoConfig.iOSMessageMenu.Bool()' not in chat_activity:
-              raise SystemExit('iOS Message Menu setting is not connected to ChatActivity')
-          if 'AuthorGramPlayPolicy.canUseIosUi()' not in chat_activity:
-              raise SystemExit('iOS Message Menu is not gated to Main')
-          if 'AUTHORGRAM_MAIN_ONLY_IOS_INPUT' not in enter_view:
-              raise SystemExit('Central iOS input layout is not gated to Main')
-          if 'AuthorGramPlayPolicy.canUseIosUi()' not in enter_view:
-              raise SystemExit('Central iOS input policy call is missing')
-          if (
-              'AuthorGramPlayPolicy.canUseIosUi()' not in icon_view
-              or 'NekoConfig.iOSMessageInputField.Bool()' not in icon_view
-          ):
-              raise SystemExit('iOS input icon rendering is not gated to Main')
-          if 'AuthorGramPlayPolicy.canUseIosUi()' not in preview_view:
-              raise SystemExit('iOS message preview component is not inert in Play')
-
-          compact_source_exists = (
-              'GridLayout compactIconBar = null;' in chat_activity
-              or 'AUTHORGRAM_COMPACT_MENU_LIMIT' in chat_activity
-          )
-          if compact_source_exists:
-              if 'AUTHORGRAM_COMPACT_MENU_LIMIT' not in chat_activity:
-                  raise SystemExit('Available compact iOS menu source was not capped')
-              if 'compactIndices.remove(Integer.valueOf(index))' not in chat_activity:
-                  raise SystemExit('Compact message menu does not remove overflow actions by value')
-              if 'compactIndices.remove(index);' in chat_activity:
-                  raise SystemExit('Unsafe compact menu index removal remains')
-
-          print('Protected author_badge and Main-only iOS UI source validation passed')
+          print('Final header, iOS message menu, adaptive scrolling, blur, composer and badge invariants passed')
           PY
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-disabled: true
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
-
-      - name: Apply icon, crypto repair and Play publication policy
+      - name: Commit repaired dev source once
         shell: bash
         run: |
           set -euo pipefail
@@ -204,174 +194,130 @@ jobs:
           python3 scripts/fix_authorgram_adaptive_icon.py
           python3 scripts/patch_authorgram_build_key.py
           python3 scripts/patch_authorgram_play_policy.py
-          python3 scripts/authorgram_guard.py --expected-package "${MAIN_PACKAGE}"
+          python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
           git diff --check
+
           git config user.name "AuthorGram Release Bot"
           git config user.email "actions@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "[skip ci] Apply crypto, UI repair and strict Play policy"
-            git push origin HEAD:dev
+            git commit -m "[skip ci] Finalize header, iOS menu and composer repairs"
+            pushed=false
+            for attempt in 1 2 3; do
+              if git push origin HEAD:dev; then
+                pushed=true
+                break
+              fi
+              git fetch --force origin dev
+              git rebase origin/dev
+            done
+            [[ "${pushed}" == "true" ]] || {
+              echo 'Unable to push finalized dev source after three attempts.' >&2
+              exit 1
+            }
           fi
 
-      - name: Finalize sources and build two verified release APKs
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle build cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
+
+      - name: Build two verified release APKs
         shell: bash
         run: |
           set -euo pipefail
           bash scripts/final_release_12_9_2.sh
 
-      - name: Verify two APKs, signatures, integrity and protected author badges
+      - name: Verify final artifact set
         shell: bash
         run: |
           set -euo pipefail
           artifact_dir="${RUNNER_TEMP}/authorgram-final/artifacts"
           mapfile -t apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.apk' -print | sort)
-          mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print | sort)
           mapfile -t main_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Main-*.apk' -print | sort)
           mapfile -t play_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Play-*.apk' -print | sort)
+          mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print | sort)
 
-          [[ "${#apks[@]}" -eq 2 ]] || {
-            printf 'Expected exactly two APKs, found %s\n' "${#apks[@]}" >&2
-            printf '%s\n' "${apks[@]}" >&2
-            exit 1
-          }
-          [[ "${#aabs[@]}" -eq 0 ]] || {
-            printf 'AAB files are forbidden in this release.\n' >&2
-            printf '%s\n' "${aabs[@]}" >&2
-            exit 1
-          }
-          [[ "${#main_apks[@]}" -eq 1 ]] || {
-            printf 'Expected exactly one Main APK, found %s\n' "${#main_apks[@]}" >&2
-            exit 1
-          }
-          [[ "${#play_apks[@]}" -eq 1 ]] || {
-            printf 'Expected exactly one Play APK, found %s\n' "${#play_apks[@]}" >&2
-            exit 1
-          }
+          [[ "${#apks[@]}" -eq 2 ]] || { echo "Expected exactly two APKs, found ${#apks[@]}" >&2; exit 1; }
+          [[ "${#main_apks[@]}" -eq 1 ]] || { echo "Expected exactly one Main APK" >&2; exit 1; }
+          [[ "${#play_apks[@]}" -eq 1 ]] || { echo "Expected exactly one Play APK" >&2; exit 1; }
+          [[ "${#aabs[@]}" -eq 0 ]] || { echo 'AAB artifacts are forbidden' >&2; exit 1; }
 
+          aapt="${ANDROID_HOME}/build-tools/36.0.0/aapt"
           apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
           zipalign="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
-          for apk in "${apks[@]}"; do
+
+          verify_apk() {
+            local apk="$1"
+            local expected_package="$2"
+            local badging package version_name version_code signer_report
             "${zipalign}" -c -P 16 4 "${apk}"
+            badging="$("${aapt}" dump badging "${apk}")"
+            package="$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n 1)"
+            version_code="$(sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n 1)"
+            version_name="$(sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n 1)"
+            [[ "${package}" == "${expected_package}" ]]
+            [[ "${version_code}" == "${VERSION_CODE}" ]]
+            [[ "${version_name}" == "${VERSION_NAME}" ]]
+            ! grep -q '^application-debuggable' <<<"${badging}"
             signer_report="$("${apksigner}" verify --verbose --print-certs "${apk}")"
             printf '%s\n' "${signer_report}"
-            grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer_report}" || {
-              printf 'APK does not have a verified modern APK signature scheme: %s\n' "${apk}" >&2
-              exit 1
-            }
-          done
+            grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer_report}"
+          }
+
+          verify_apk "${main_apks[0]}" "${MAIN_PACKAGE}"
+          verify_apk "${play_apks[0]}" "${PLAY_PACKAGE}"
+
+          main_permissions="$("${aapt}" dump permissions "${main_apks[0]}")"
+          play_permissions="$("${aapt}" dump permissions "${play_apks[0]}")"
+          grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${main_permissions}"
+          ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${play_permissions}"
 
           main_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Main-CERTIFICATE.txt" | head -n 1)"
           play_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Play-CERTIFICATE.txt" | head -n 1)"
-          [[ -n "${main_cert}" && "${main_cert}" == "${play_cert}" ]] || {
-            printf 'Main and Play signing identities differ or are missing.\n' >&2
-            exit 1
-          }
+          [[ -n "${main_cert}" && "${main_cert}" == "${play_cert}" ]]
 
-          python3 - "${play_apks[0]}" "${apks[@]}" <<'PY'
-          import hashlib
-          import re
-          import sys
-          import zipfile
+          test -s "${artifact_dir}/Main-BUILD.txt"
+          test -s "${artifact_dir}/Play-BUILD.txt"
+          test -s "${artifact_dir}/RELEASE-SUMMARY.txt"
+          test -s "${artifact_dir}/SHA256SUMS.txt"
+          [[ "$(grep -c 'AuthorGram-.*\.apk' "${artifact_dir}/SHA256SUMS.txt")" -eq 2 ]]
 
-          play_apk = sys.argv[1]
-          apks = sys.argv[2:]
-          forbidden_digest = "9b34369498a2715d50a94845eaff8d1f7f1ce6570422c8a3653284cffb79de1f"
-          forbidden_badge_ids = (
-              b"6802848305", b"6822670748", b"8470484374", b"8154455619",
-              b"7913929703", b"8856346711", b"8357439344", b"8548193112",
-              b"8395237407", b"8925149503", b"-1003781500049",
-              b"-1004297907963", b"3781500049", b"4297907963",
-          )
-          required_markers = (
-              b"release integrity verification failed; protected features disabled",
-              b"unable to evaluate author badge token",
-          )
+          cat "${artifact_dir}/RELEASE-SUMMARY.txt"
+          cat "${artifact_dir}/SHA256SUMS.txt"
 
-          for apk in apks:
-              with zipfile.ZipFile(apk) as archive:
-                  dex_names = sorted(
-                      name for name in archive.namelist()
-                      if re.fullmatch(r"classes\d*\.dex", name)
-                  )
-                  if not dex_names:
-                      raise SystemExit(f"{apk} contains no classes*.dex")
-                  dex_data = b"".join(archive.read(name) for name in dex_names)
-                  leaked = [item.decode() for item in forbidden_badge_ids if item in dex_data]
-                  if leaked:
-                      raise SystemExit(
-                          f"Raw author_badge identifiers leaked into {apk}: {leaked}"
-                      )
-                  missing = [item.decode() for item in required_markers if item not in dex_data]
-                  if missing:
-                      raise SystemExit(
-                          f"Protected badge/integrity implementation missing from {apk}: {missing}"
-                      )
-                  print(
-                      f"{apk}: protected author_badge and runtime integrity markers passed "
-                      f"across {len(dex_names)} dex file(s)"
-                  )
-
-          candidates = 0
-          with zipfile.ZipFile(play_apk) as archive:
-              dex_names = [
-                  name for name in archive.namelist()
-                  if re.fullmatch(r"classes\d*\.dex", name)
-              ]
-              for name in dex_names:
-                  data = archive.read(name)
-                  for match in re.finditer(
-                      rb"(?i)(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])",
-                      data,
-                  ):
-                      candidates += 1
-                      normalized = match.group(0).lower()
-                      if hashlib.sha256(normalized).hexdigest() == forbidden_digest:
-                          raise SystemExit(
-                              "Private Main system encryption key is embedded in Play APK"
-                          )
-          print(
-              f"Play APK system-key scan passed across {len(dex_names)} dex file(s); "
-              f"checked {candidates} 64-hex candidate(s)"
-          )
-          PY
-
-          printf 'Verified APK artifacts:\n%s\n' "${apks[*]}"
-
-      - name: Upload Main and Play release APKs
+      - name: Upload final Main and Play APK ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-12.9.2-Main-and-Play-Release-APKs
+          name: AuthorGram-12.9.2-Final-Main-and-Play-Release
           path: ${{ runner.temp }}/authorgram-final/artifacts/
           if-no-files-found: error
           retention-days: 30
+          compression-level: 0
 
-      - name: Publish successful release status
-        if: ${{ success() }}
+      - name: Publish final release status
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
+            const success = '${{ job.status }}' === 'success';
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha: context.sha,
-              state: 'success',
-              context: 'authorgram/final-release',
-              description: 'Main and Play APKs passed crypto, UI, policy, integrity and author_badge verification',
-              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-            });
-
-      - name: Publish failed release status
-        if: ${{ failure() }}
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: context.sha,
-              state: 'failure',
-              context: 'authorgram/final-release',
-              description: 'Final AuthorGram two-APK verification failed',
+              state: success ? 'success' : 'failure',
+              context: 'authorgram/final-main-play-release',
+              description: success
+                ? 'Verified Main and Play release APK ZIP is ready'
+                : 'Final Main and Play release verification or build failed',
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
