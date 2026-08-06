@@ -9153,6 +9153,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
 
     // AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER
     // AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT
+    // AUTHORGRAM_IOS_SEND_BUTTON_COMPILE_FIX
     private final Runnable authorGramInputMenuInvariantRunnable =
             this::authorGramEnforceInputMenuInvariant;
 
@@ -9207,6 +9208,9 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
 
     private void authorGramScheduleInputMenuInvariant() {
         authorGramEnforceInputMenuInvariant();
+        if (audioVideoButtonContainer == null) {
+            return;
+        }
         audioVideoButtonContainer.removeCallbacks(authorGramInputMenuInvariantRunnable);
         audioVideoButtonContainer.post(authorGramInputMenuInvariantRunnable);
         audioVideoButtonContainer.postDelayed(authorGramInputMenuInvariantRunnable, 260L);
