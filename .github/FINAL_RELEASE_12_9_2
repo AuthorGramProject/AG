@@ -1,6 +1,7 @@
 AuthorGram 12.9.2 verified Main and Play correction trigger.
 Build exactly two signed release APKs: Main and Play. Do not generate or upload AAB artifacts.
 Render the selected message in the Main-only iOS Message Menu from the real native ChatMessageCell, preserving avatar, sender, reply, bubble, timestamp and delivery state.
+Resolve the long-pressed message cell from the scoped popup View and reject any unscoped messageCell reference before Android SDK setup.
 Keep reactions, the native selected message and the rounded action panel as three visually independent sections with transparent spacing and blurred/dimmed chat behind them.
 Never draw the ordinary submenu background behind the native selected-message preview.
 When composer text is non-empty, keep the media/menu icon container hidden, non-clickable and reset to zero translation in both Main and Play so it cannot appear over the chat avatar or intercept header interaction.
@@ -8,4 +9,4 @@ When composer text is cleared, restore the microphone/video-round container full
 Preserve every existing AuthorGram feature, package identity, signing identity, protected author_badge policy and launcher artwork.
 Run all source, Python and UI regression checks before Android SDK setup.
 Verify both APK packages, versions, signatures, zip alignment, integrity markers, Play publication policy and absence of raw protected badge identifiers.
-Main and Play correction release request: 2026-08-05T23:25:00+02:00.
+Main and Play correction release request: 2026-08-06T08:52:00+02:00.
