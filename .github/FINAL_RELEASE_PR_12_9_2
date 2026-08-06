@@ -1,4 +1,5 @@
 Trigger exactly one verified Main + Play release build for AuthorGram 12.9.2.
-Canonical build source: dev at or after commit 68f2de80c05cae0bd8eed07abddf5d54c5d2adeb.
+Canonical build source: dev at or after commit 8f8a2a1e9503bcb8044adc349d2fd8c8ad1f47bd.
+Use scripts/patch_authorgram_popup_bounds.py as the compatibility-aware adaptive iOS UI orchestrator; do not execute the legacy adaptive validator standalone.
 Required artifact: AuthorGram-12.9.2-Final-Main-and-Play-Release.
-Requested at 2026-08-06T19:00:00+02:00.
+Retry requested at 2026-08-06T19:29:00+02:00 after zero-cost preflight correction.
