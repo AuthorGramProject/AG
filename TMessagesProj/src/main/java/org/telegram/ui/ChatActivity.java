@@ -34136,8 +34136,9 @@ public class ChatActivity extends BaseFragment implements
                 }
                 // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW
                 // AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW
-                // Reactions remain in Telegram's native row above this block.
-                // The selected message preview is independent from the action card.
+                // AUTHORGRAM_FIXED_IOS_PREVIEW_OWNER
+                // The preview belongs to ChatScrimPopupContainerLayout, not to
+                // ActionBarPopupWindow's ScrollView. Only actions can scroll.
                 if (selectedObject != null
                         && v instanceof org.telegram.ui.Cells.ChatMessageCell
                         && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
@@ -34152,27 +34153,7 @@ public class ChatActivity extends BaseFragment implements
                                     selectedMessageCell,
                                     themeDelegate
                             );
-                    LinearLayout.LayoutParams iosPreviewParams = LayoutHelper.createLinear(
-                            LayoutHelper.MATCH_PARENT,
-                            LayoutHelper.WRAP_CONTENT
-                    );
-                    iosPreviewParams.leftMargin = 0;
-                    iosPreviewParams.rightMargin = 0;
-                    iosPreviewParams.topMargin = AndroidUtilities.dp(2);
-                    iosPreviewParams.bottomMargin = 0;
-                    popupLayout.addView(iosPreview, iosPreviewParams);
-
-                    org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView iosMessageGap =
-                            new org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView(
-                                    getParentActivity(),
-                                    android.graphics.Color.TRANSPARENT,
-                                    android.graphics.Color.TRANSPARENT
-                            );
-                    iosMessageGap.setTag("AUTHORGRAM_IOS_MESSAGE_ACTION_GAP");
-                    popupLayout.addView(iosMessageGap, LayoutHelper.createLinear(
-                            LayoutHelper.MATCH_PARENT,
-                            8
-                    ));
+                    scrimPopupContainerLayout.setFixedMessagePreview(iosPreview);
                 }
 
                 scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];

@@ -9152,18 +9152,26 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     }
 
     // AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER
+    // AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT
     private final Runnable authorGramInputMenuInvariantRunnable =
             this::authorGramEnforceInputMenuInvariant;
 
     private void authorGramEnforceInputMenuInvariant() {
         if (!isIOSInputStyle()
                 || audioVideoButtonContainer == null
-                || recordingAudioVideo) {
+                || recordingAudioVideo
+                || editingMessageObject != null) {
             return;
         }
 
-        final boolean hasComposerText = messageEditText != null
-                && messageEditText.length() > 0;
+        CharSequence composerText = messageEditText == null
+                ? ""
+                : AndroidUtilities.getTrimmedString(messageEditText.getTextToUse());
+        final boolean hasComposerText = !TextUtils.isEmpty(composerText);
+        final boolean finiteSlowModeOwnsSlot = slowModeTimer > 0
+                && slowModeTimer != Integer.MAX_VALUE
+                && !isSlowModeIgnored();
+
         audioVideoButtonContainer.animate().cancel();
         audioVideoButtonContainer.clearAnimation();
         audioVideoButtonContainer.setTranslationX(0.0f);
@@ -9171,12 +9179,24 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         audioVideoButtonContainer.setScaleX(1.0f);
         audioVideoButtonContainer.setScaleY(1.0f);
 
-        if (hasComposerText) {
+        View sendButtonView = getSendButtonInternal();
+        if (hasComposerText && !finiteSlowModeOwnsSlot) {
             audioVideoButtonContainer.setVisibility(GONE);
             audioVideoButtonContainer.setAlpha(0.0f);
             audioVideoButtonContainer.setClickable(false);
             audioVideoButtonContainer.setEnabled(false);
-        } else if (editingMessageObject == null) {
+
+            if (sendButtonView != null) {
+                sendButtonView.animate().cancel();
+                sendButtonView.setVisibility(VISIBLE);
+                sendButtonView.setAlpha(1.0f);
+                sendButtonView.setScaleX(1.0f);
+                sendButtonView.setScaleY(1.0f);
+                sendButtonView.setClickable(true);
+                sendButtonView.setEnabled(true);
+                sendButtonView.bringToFront();
+            }
+        } else if (!hasComposerText && !finiteSlowModeOwnsSlot) {
             // AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE
             audioVideoButtonContainer.setVisibility(VISIBLE);
             audioVideoButtonContainer.setAlpha(1.0f);
@@ -9187,9 +9207,6 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
 
     private void authorGramScheduleInputMenuInvariant() {
         authorGramEnforceInputMenuInvariant();
-        if (audioVideoButtonContainer == null) {
-            return;
-        }
         audioVideoButtonContainer.removeCallbacks(authorGramInputMenuInvariantRunnable);
         audioVideoButtonContainer.post(authorGramInputMenuInvariantRunnable);
         audioVideoButtonContainer.postDelayed(authorGramInputMenuInvariantRunnable, 260L);

@@ -23,14 +23,14 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
 
 /**
- * Main-only native message preview used by the iOS-style long-press menu.
+ * Main-only fixed selected-message preview for the iOS-style context menu.
  *
- * The actual Telegram ChatMessageCell is snapshotted for message content while
- * the sender identity is rendered explicitly, so an avatar and a readable
- * sender/channel name are always present even when the source cell omits them.
- *
- * Full-screen blur is owned by ChatActivity. Do not add a local BluredView:
- * constraining blur to this preview was the reason the chat stayed sharp.
+ * AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK: avatar, sender and the native Telegram
+ * message rendering are one coherent message item. The parent scrim owns this
+ * view outside the actions ScrollView, so the quote never moves while actions
+ * are scrolled.
+ * AUTHORGRAM_FINAL_PREVIEW_COMPAT: no preview-local BluredView is used; blur
+ * remains owned by ChatActivity across the complete chat surface.
  */
 public final class IOSMessageMenuPreview extends FrameLayout {
     public static final String NATIVE_PREVIEW_TAG = "AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW";
@@ -57,16 +57,18 @@ public final class IOSMessageMenuPreview extends FrameLayout {
             return;
         }
 
-        LinearLayout row = new LinearLayout(context);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.TOP);
-        row.setPadding(
+        LinearLayout messageItem = new LinearLayout(context);
+        messageItem.setOrientation(LinearLayout.HORIZONTAL);
+        messageItem.setGravity(Gravity.BOTTOM);
+        messageItem.setClipChildren(false);
+        messageItem.setClipToPadding(false);
+        messageItem.setPadding(
                 AndroidUtilities.dp(6),
                 AndroidUtilities.dp(4),
                 AndroidUtilities.dp(6),
                 AndroidUtilities.dp(4)
         );
-        addView(row, LayoutHelper.createFrame(
+        addView(messageItem, LayoutHelper.createFrame(
                 LayoutHelper.MATCH_PARENT,
                 LayoutHelper.WRAP_CONTENT
         ));
@@ -76,8 +78,7 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         AvatarDrawable avatarDrawable = new AvatarDrawable();
         BackupImageView avatarView = new BackupImageView(context);
         avatarView.setTag(SENDER_IDENTITY_TAG);
-        avatarView.setRoundRadius(AndroidUtilities.dp(21));
-
+        avatarView.setRoundRadius(AndroidUtilities.dp(20));
         if (identity.user != null) {
             avatarDrawable.setInfo(currentAccount, identity.user);
             avatarView.setForUserOrChat(identity.user, avatarDrawable);
@@ -90,18 +91,34 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         }
 
         LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(
-                AndroidUtilities.dp(42),
-                AndroidUtilities.dp(42)
+                AndroidUtilities.dp(40),
+                AndroidUtilities.dp(40)
         );
-        avatarParams.topMargin = AndroidUtilities.dp(2);
-        avatarParams.rightMargin = AndroidUtilities.dp(8);
-        row.addView(avatarView, avatarParams);
+        avatarParams.rightMargin = AndroidUtilities.dp(7);
+        avatarParams.bottomMargin = AndroidUtilities.dp(3);
+        messageItem.addView(avatarView, avatarParams);
 
-        LinearLayout messageColumn = new LinearLayout(context);
-        messageColumn.setOrientation(LinearLayout.VERTICAL);
-        messageColumn.setClipChildren(false);
-        messageColumn.setClipToPadding(false);
-        row.addView(messageColumn, new LinearLayout.LayoutParams(
+        LinearLayout unifiedMessage = new LinearLayout(context);
+        unifiedMessage.setOrientation(LinearLayout.VERTICAL);
+        unifiedMessage.setClipChildren(false);
+        unifiedMessage.setClipToPadding(false);
+        unifiedMessage.setPadding(
+                AndroidUtilities.dp(8),
+                AndroidUtilities.dp(5),
+                AndroidUtilities.dp(8),
+                AndroidUtilities.dp(5)
+        );
+        int bubbleColor = Theme.getColor(
+                messageObject != null && messageObject.isOutOwner()
+                        ? Theme.key_chat_outBubble
+                        : Theme.key_chat_inBubble,
+                resourcesProvider
+        );
+        unifiedMessage.setBackground(Theme.createRoundRectDrawable(
+                AndroidUtilities.dp(17),
+                bubbleColor
+        ));
+        messageItem.addView(unifiedMessage, new LinearLayout.LayoutParams(
                 0,
                 LayoutHelper.WRAP_CONTENT,
                 1.0f
@@ -110,7 +127,7 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         TextView senderNameView = new TextView(context);
         senderNameView.setTag(SENDER_IDENTITY_TAG);
         senderNameView.setText(identity.name);
-        senderNameView.setTextSize(15);
+        senderNameView.setTextSize(14);
         senderNameView.setTextColor(Theme.getColor(
                 Theme.key_windowBackgroundWhiteBlackText,
                 resourcesProvider
@@ -119,19 +136,13 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         senderNameView.setSingleLine(true);
         senderNameView.setEllipsize(TextUtils.TruncateAt.END);
         senderNameView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
-        senderNameView.setPadding(
-                AndroidUtilities.dp(2),
-                0,
-                AndroidUtilities.dp(2),
-                AndroidUtilities.dp(2)
-        );
-        messageColumn.addView(senderNameView, new LinearLayout.LayoutParams(
+        unifiedMessage.addView(senderNameView, new LinearLayout.LayoutParams(
                 LayoutHelper.MATCH_PARENT,
-                AndroidUtilities.dp(24)
+                AndroidUtilities.dp(21)
         ));
 
         snapshotView = new NativeCellSnapshotView(context, sourceCell);
-        messageColumn.addView(snapshotView, new LinearLayout.LayoutParams(
+        unifiedMessage.addView(snapshotView, new LinearLayout.LayoutParams(
                 LayoutHelper.MATCH_PARENT,
                 LayoutHelper.WRAP_CONTENT
         ));
@@ -152,7 +163,6 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         TLRPC.Chat chat = senderId < 0
                 ? MessagesController.getInstance(currentAccount).getChat(-senderId)
                 : null;
-
         if (user == null && chat == null && messageObject != null && messageObject.isOutOwner()) {
             user = UserConfig.getInstance(currentAccount).getCurrentUser();
         }
@@ -202,18 +212,13 @@ public final class IOSMessageMenuPreview extends FrameLayout {
                     MeasureSpec.getSize(widthMeasureSpec)
             );
             if (snapshot == null || snapshot.getWidth() <= 0 || snapshot.getHeight() <= 0) {
-                setMeasuredDimension(availableWidth, AndroidUtilities.dp(48));
+                setMeasuredDimension(availableWidth, AndroidUtilities.dp(44));
                 return;
             }
-
-            int horizontalInset = AndroidUtilities.dp(2);
-            int targetWidth = Math.max(
-                    1,
-                    Math.min(snapshot.getWidth(), availableWidth - horizontalInset * 2)
-            );
+            int targetWidth = Math.max(1, Math.min(snapshot.getWidth(), availableWidth));
             float scale = targetWidth / (float) snapshot.getWidth();
             int targetHeight = Math.max(1, Math.round(snapshot.getHeight() * scale));
-            setMeasuredDimension(availableWidth, targetHeight + AndroidUtilities.dp(4));
+            setMeasuredDimension(availableWidth, targetHeight);
         }
 
         @Override
@@ -222,14 +227,11 @@ public final class IOSMessageMenuPreview extends FrameLayout {
             if (snapshot == null || snapshot.isRecycled()) {
                 return;
             }
-
-            int maxWidth = Math.max(1, getWidth() - AndroidUtilities.dp(4));
-            int targetWidth = Math.min(snapshot.getWidth(), maxWidth);
+            int targetWidth = Math.min(snapshot.getWidth(), Math.max(1, getWidth()));
             float scale = targetWidth / (float) snapshot.getWidth();
             int targetHeight = Math.max(1, Math.round(snapshot.getHeight() * scale));
-            int left = 0;
             int top = Math.max(0, (getHeight() - targetHeight) / 2);
-            destination.set(left, top, left + targetWidth, top + targetHeight);
+            destination.set(0, top, targetWidth, top + targetHeight);
             canvas.drawBitmap(snapshot, null, destination, bitmapPaint);
         }
 
@@ -265,31 +267,28 @@ public final class IOSMessageMenuPreview extends FrameLayout {
                 return null;
             }
 
-            Rect opaqueBounds = findVisibleBounds(raw);
-            if (opaqueBounds == null) {
+            Rect visibleBounds = findVisibleBounds(raw);
+            if (visibleBounds == null) {
                 return raw;
             }
-
-            int padding = AndroidUtilities.dp(3);
-            opaqueBounds.left = Math.max(0, opaqueBounds.left - padding);
-            opaqueBounds.top = Math.max(0, opaqueBounds.top - padding);
-            opaqueBounds.right = Math.min(raw.getWidth(), opaqueBounds.right + padding);
-            opaqueBounds.bottom = Math.min(raw.getHeight(), opaqueBounds.bottom + padding);
-
-            if (opaqueBounds.left == 0
-                    && opaqueBounds.top == 0
-                    && opaqueBounds.right == raw.getWidth()
-                    && opaqueBounds.bottom == raw.getHeight()) {
+            int padding = AndroidUtilities.dp(2);
+            visibleBounds.left = Math.max(0, visibleBounds.left - padding);
+            visibleBounds.top = Math.max(0, visibleBounds.top - padding);
+            visibleBounds.right = Math.min(raw.getWidth(), visibleBounds.right + padding);
+            visibleBounds.bottom = Math.min(raw.getHeight(), visibleBounds.bottom + padding);
+            if (visibleBounds.left == 0
+                    && visibleBounds.top == 0
+                    && visibleBounds.right == raw.getWidth()
+                    && visibleBounds.bottom == raw.getHeight()) {
                 return raw;
             }
-
             try {
                 Bitmap cropped = Bitmap.createBitmap(
                         raw,
-                        opaqueBounds.left,
-                        opaqueBounds.top,
-                        opaqueBounds.width(),
-                        opaqueBounds.height()
+                        visibleBounds.left,
+                        visibleBounds.top,
+                        visibleBounds.width(),
+                        visibleBounds.height()
                 );
                 raw.recycle();
                 return cropped;

@@ -2539,6 +2539,12 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
     }
 
     private boolean isCentered() {
+        // AUTHORGRAM_STANDARD_CHAT_HEADER
+        // ChatActivity must always use Telegram's ordinary header.
+        // CenterActionBarTitle continues to apply to every other screen.
+        if (parentFragment instanceof org.telegram.ui.ChatActivity) {
+            return false;
+        }
         return NaConfig.INSTANCE.getCenterActionBarTitle().Bool();
     }
 
