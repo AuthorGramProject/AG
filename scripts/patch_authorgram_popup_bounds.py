@@ -25,10 +25,11 @@ if FINAL_MARKER not in PREVIEW.read_text(encoding="utf-8"):
         run_name="__main__",
     )
 
-runpy.run_path(
-    str(ROOT / "scripts/patch_authorgram_final_chat_ui.py"),
-    run_name="__main__",
-)
+for relative in (
+    "scripts/patch_authorgram_final_chat_ui.py",
+    "scripts/patch_authorgram_final_ui_compat.py",
+):
+    runpy.run_path(str(ROOT / relative), run_name="__main__")
 
 checks = {
     "standard chat header with global centering preserved": (
@@ -88,6 +89,7 @@ checks = {
         ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java",
         (
             "AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK",
+            "AUTHORGRAM_FINAL_PREVIEW_COMPAT",
             "AUTHORGRAM_IOS_MESSAGE_SENDER_IDENTITY",
             "BackupImageView avatarView",
             "TextView senderNameView",
