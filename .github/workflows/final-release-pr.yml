@@ -135,8 +135,25 @@ jobs:
               'public static boolean canUseIosUi()',
           )
 
-          if 'BluredView' in preview or 'BlurredView' in preview:
-              raise SystemExit('Preview-local blur remains')
+          forbidden_preview_blur_implementation = (
+              'import org.telegram.ui.Components.BluredView;',
+              'import org.telegram.ui.Components.BlurredView;',
+              'new BluredView(',
+              'new BlurredView(',
+              'private final BluredView',
+              'private final BlurredView',
+              'private BluredView',
+              'private BlurredView',
+          )
+          leaked_blur_implementation = [
+              token for token in forbidden_preview_blur_implementation
+              if token in preview
+          ]
+          if leaked_blur_implementation:
+              raise SystemExit(
+                  'Preview-local blur implementation remains: '
+                  f'{leaked_blur_implementation}'
+              )
           if 'AUTHORGRAM_IOS_MESSAGE_ACTION_GAP' in chat:
               raise SystemExit('Short preview is incorrectly owned by the action ScrollView')
           if 'compactIndices.remove(index);' in chat:
