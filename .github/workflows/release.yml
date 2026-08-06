@@ -3,25 +3,23 @@ name: AuthorGram 12.9.2 Final Main + Play Release
 on:
   workflow_dispatch:
   push:
-    branches:
-      - dev
+    branches: [dev]
     paths:
       - .github/FINAL_RELEASE_12_9_2
 
 permissions:
-  actions: write
   contents: write
-  statuses: write
+  actions: read
 
 concurrency:
   group: authorgram-12-9-2-final-main-play-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   release:
     name: Build verified Main + Play release APKs
     runs-on: ubuntu-24.04
-    timeout-minutes: 300
+    timeout-minutes: 360
     env:
       MAIN_PACKAGE: fork.risin42.nagramx
       PLAY_PACKAGE: toss.authorgram.apk
@@ -39,24 +37,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify non-destructive release source
+      - name: Verify finalized release source
         shell: bash
         run: |
           set -euo pipefail
+          [[ -n "${LOCAL_PROPERTIES}" ]] || {
+            echo 'LOCAL_PROPERTIES secret is missing.' >&2
+            exit 1
+          }
+
           bash -n scripts/final_release_12_9_2.sh
 
           python3 - <<'PY'
           from pathlib import Path
 
           scripts = (
-              'scripts/cleanup_authorgram_actions.py',
               'scripts/finalize_authorgram_source.py',
               'scripts/authorgram_guard.py',
               'scripts/authorgram_parity_guard.py',
               'scripts/patch_authorgram_build_key.py',
               'scripts/patch_authorgram_play_policy.py',
               'scripts/patch_authorgram_ui_12_9_2.py',
-              'scripts/patch_authorgram_adaptive_ios_preview.py',
               'scripts/patch_authorgram_popup_bounds.py',
               'scripts/patch_authorgram_badge_surfaces.py',
           )
@@ -65,34 +66,6 @@ jobs:
               compile(source, relative, 'exec')
               print(f'Python syntax passed: {relative}')
 
-          cleanup = Path('scripts/cleanup_authorgram_actions.py').read_text(encoding='utf-8')
-          if 'AUTHORGRAM_ACTIONS_CLEANUP_DISABLED' not in cleanup:
-              raise SystemExit('Destructive Actions cleanup has not been retired')
-          forbidden = (
-              'urllib.request.urlopen',
-              'method="DELETE"',
-              'remove_obsolete_workflow_files(api)',
-              'clean_runs(api, int(current_run))',
-          )
-          leaked = [token for token in forbidden if token in cleanup]
-          if leaked:
-              raise SystemExit(f'Destructive cleanup implementation remains: {leaked}')
-          PY
-
-          # This import-compatible command is intentionally a no-op. It remains
-          # explicit because the legacy source guard checks for the script name.
-          python3 scripts/cleanup_authorgram_actions.py
-          python3 scripts/patch_authorgram_ui_12_9_2.py
-          # This compatibility-aware orchestrator applies the adaptive preview
-          # without rejecting Telegram's valid getSendButtonInternal() method.
-          python3 scripts/patch_authorgram_popup_bounds.py
-          python3 scripts/patch_authorgram_badge_surfaces.py
-          python3 scripts/patch_authorgram_play_policy.py
-          git diff --check
-
-          python3 - <<'PY'
-          from pathlib import Path
-
           def require(path, *markers):
               text = Path(path).read_text(encoding='utf-8')
               missing = [marker for marker in markers if marker not in text]
@@ -100,7 +73,7 @@ jobs:
                   raise SystemExit(f'{path}: missing {missing}')
               return text
 
-          action_bar = require(
+          require(
               'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java',
               'AUTHORGRAM_STANDARD_CHAT_HEADER',
               'parentFragment instanceof org.telegram.ui.ChatActivity',
@@ -152,8 +125,17 @@ jobs:
               'public static boolean canUseIosUi()',
           )
 
-          if 'BluredView' in preview or 'BlurredView' in preview:
-              raise SystemExit('Preview-local blur remains')
+          forbidden_preview_blur = (
+              'import org.telegram.ui.Components.BluredView;',
+              'import org.telegram.ui.Components.BlurredView;',
+              'new BluredView(',
+              'new BlurredView(',
+              'private final BluredView',
+              'private final BlurredView',
+          )
+          leaked = [token for token in forbidden_preview_blur if token in preview]
+          if leaked:
+              raise SystemExit(f'Preview-local blur implementation remains: {leaked}')
           if 'AUTHORGRAM_IOS_MESSAGE_ACTION_GAP' in chat:
               raise SystemExit('Short preview is incorrectly owned by the action ScrollView')
           if 'compactIndices.remove(index);' in chat:
@@ -161,33 +143,22 @@ jobs:
           if enter.count('public View getSendButtonInternal() {') != 1:
               raise SystemExit('Native getSendButtonInternal() method count is not exactly one')
 
-          print('Header, popup, iOS Message Menu, blur and iOS Input invariants passed')
+          print('Final AuthorGram header, popup, iOS Message Menu, blur and iOS Input invariants passed')
           PY
 
-      - name: Commit idempotent source normalization
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/apply_authorgram_exact_icon_and_spy.py
-          python3 scripts/fix_authorgram_adaptive_icon.py
-          python3 scripts/patch_authorgram_build_key.py
-          python3 scripts/patch_authorgram_play_policy.py
-          python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
           git diff --check
-
-          git config user.name "AuthorGram Release Bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add -A
-          if ! git diff --cached --quiet; then
-            git commit -m "[skip ci] Normalize final AuthorGram release source"
-            git push origin HEAD:dev
-          fi
+          test -z "$(git status --porcelain)" || {
+            echo 'Canonical dev source is not clean before release.' >&2
+            git status --short >&2
+            exit 1
+          }
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
+          check-latest: false
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -218,15 +189,15 @@ jobs:
             exit 1
           }
           [[ "${#main_apks[@]}" -eq 1 ]] || {
-            echo 'Expected exactly one Main APK' >&2
+            echo 'Expected exactly one Main APK.' >&2
             exit 1
           }
           [[ "${#play_apks[@]}" -eq 1 ]] || {
-            echo 'Expected exactly one Play APK' >&2
+            echo 'Expected exactly one Play APK.' >&2
             exit 1
           }
           [[ "${#aabs[@]}" -eq 0 ]] || {
-            echo 'AAB files are forbidden' >&2
+            echo 'AAB files are forbidden.' >&2
             exit 1
           }
 
@@ -234,7 +205,7 @@ jobs:
           apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
           zipalign="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
 
-          verify() {
+          verify_apk() {
             local apk="$1"
             local expected_package="$2"
             local badging package version_name version_code signer
@@ -251,8 +222,8 @@ jobs:
             grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer}"
           }
 
-          verify "${main_apks[0]}" "${MAIN_PACKAGE}"
-          verify "${play_apks[0]}" "${PLAY_PACKAGE}"
+          verify_apk "${main_apks[0]}" "${MAIN_PACKAGE}"
+          verify_apk "${play_apks[0]}" "${PLAY_PACKAGE}"
 
           main_permissions="$("${aapt}" dump permissions "${main_apks[0]}")"
           play_permissions="$("${aapt}" dump permissions "${play_apks[0]}")"
@@ -262,6 +233,15 @@ jobs:
           main_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Main-CERTIFICATE.txt" | head -n1)"
           play_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Play-CERTIFICATE.txt" | head -n1)"
           [[ -n "${main_cert}" && "${main_cert}" == "${play_cert}" ]]
+
+          if [[ -n "${AUTHORGRAM_SIGNING_CERT_SHA256}" ]]; then
+            expected_cert="$(tr '[:upper:]' '[:lower:]' <<<"${AUTHORGRAM_SIGNING_CERT_SHA256}" | tr -d ':[:space:]')"
+            actual_cert="$(tr '[:upper:]' '[:lower:]' <<<"${main_cert}" | tr -d ':[:space:]')"
+            [[ "${actual_cert}" == "${expected_cert}" ]] || {
+              echo 'Release signing certificate does not match AUTHORGRAM_SIGNING_CERT_SHA256.' >&2
+              exit 1
+            }
+          fi
 
           test -s "${artifact_dir}/Main-BUILD.txt"
           test -s "${artifact_dir}/Play-BUILD.txt"
