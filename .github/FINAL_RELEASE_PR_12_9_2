@@ -1,0 +1,7 @@
+Keep this release-control PR open until its single workflow run completes successfully.
+Build canonical dev commit b2bef48dcac63d0b4fad45b84d1260f7ca1e841b or newer.
+Actions cleanup is permanently disabled.
+Use compatibility-aware adaptive iOS UI validation.
+Treat documentation references to BluredView as comments; reject only executable preview-local blur imports, fields, or constructors.
+Produce exactly one signed Main arm64-v8a release APK and one signed Play arm64-v8a release APK in AuthorGram-12.9.2-Final-Main-and-Play-Release.
+Final blur-fixed run requested at 2026-08-06T20:38:00+02:00.
