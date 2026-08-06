@@ -13,6 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PREVIEW = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java"
+ENTER = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
 FINAL_MARKER = "AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK"
 
 # The legacy repair validates legacy preview wording. Run it only while upgrading
@@ -26,9 +27,24 @@ if FINAL_MARKER not in PREVIEW.read_text(encoding="utf-8"):
 for relative in (
     "scripts/patch_authorgram_final_chat_ui.py",
     "scripts/patch_authorgram_final_ui_compat.py",
-    "scripts/patch_authorgram_adaptive_ios_preview.py",
 ):
     runpy.run_path(str(ROOT / relative), run_name="__main__")
+
+# The shared baseline generator historically emitted a helper call that does not
+# exist in ChatActivityEnterView. Remove every generated residue before the
+# adaptive patch validates and normalizes the complete helper block. This also
+# handles duplicate legacy helper blocks left by earlier repair attempts.
+enter_text = ENTER.read_text(encoding="utf-8")
+residue_count = enter_text.count("getSendButtonInternal()")
+if residue_count:
+    enter_text = enter_text.replace("getSendButtonInternal()", "sendButton")
+    ENTER.write_text(enter_text, encoding="utf-8", newline="")
+    print(f"Repaired {residue_count} generated send-button helper residue(s)")
+
+runpy.run_path(
+    str(ROOT / "scripts/patch_authorgram_adaptive_ios_preview.py"),
+    run_name="__main__",
+)
 
 checks = {
     "standard chat header with global centering preserved": (
@@ -78,7 +94,7 @@ checks = {
         ),
     ),
     "iOS send icon and media-slot ownership": (
-        ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java",
+        ENTER,
         (
             "AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE",
             "AUTHORGRAM_TYPING_OVERLAY_GUARD_V3",
@@ -121,9 +137,7 @@ chat_activity = (
 ).read_text(encoding="utf-8")
 if "AUTHORGRAM_IOS_MESSAGE_ACTION_GAP" in chat_activity:
     raise SystemExit("obsolete unconditional iOS preview gap remains")
-if "getSendButtonInternal()" in (
-    ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
-).read_text(encoding="utf-8"):
+if "getSendButtonInternal()" in ENTER.read_text(encoding="utf-8"):
     raise SystemExit("undefined composer send-button helper remains")
 
 for relative in (
