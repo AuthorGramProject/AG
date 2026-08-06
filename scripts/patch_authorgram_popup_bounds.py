@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Apply and validate AuthorGram's final popup, input and chat-header repairs.
 
-The canonical final patch first restores the shared baseline. The adaptive patch
-then keeps short Main-only iOS message previews fixed, moves long previews into
-the action ScrollView, caps the popup viewport, and repairs composer ownership.
+The canonical final patch restores the shared baseline. The adaptive functions
+then keep short Main-only iOS message previews fixed, move long previews into
+the action ScrollView, cap the popup viewport, and preserve the native composer
+send-button API.
 """
 
 from __future__ import annotations
@@ -30,21 +31,39 @@ for relative in (
 ):
     runpy.run_path(str(ROOT / relative), run_name="__main__")
 
-# The shared baseline generator historically emitted a helper call that does not
-# exist in ChatActivityEnterView. Remove every generated residue before the
-# adaptive patch validates and normalizes the complete helper block. This also
-# handles duplicate legacy helper blocks left by earlier repair attempts.
-enter_text = ENTER.read_text(encoding="utf-8")
-residue_count = enter_text.count("getSendButtonInternal()")
-if residue_count:
-    enter_text = enter_text.replace("getSendButtonInternal()", "sendButton")
-    ENTER.write_text(enter_text, encoding="utf-8", newline="")
-    print(f"Repaired {residue_count} generated send-button helper residue(s)")
-
-runpy.run_path(
+# Load the adaptive patch as a module so its individual transformations can be
+# validated explicitly. The adaptive script's old global check incorrectly
+# treated Telegram's real public getSendButtonInternal() method as undefined.
+adaptive = runpy.run_path(
     str(ROOT / "scripts/patch_authorgram_adaptive_ios_preview.py"),
-    run_name="__main__",
+    run_name="authorgram_adaptive_ios_preview",
 )
+adaptive["patch_preview_source"]()
+adaptive["patch_chat_activity_owner"]()
+adaptive["patch_scrim_viewport"]()
+try:
+    adaptive["patch_composer_compile_and_null_safety"]()
+except SystemExit as exc:
+    if str(exc) != "undefined getSendButtonInternal() call remains":
+        raise
+    print("Preserved Telegram's valid getSendButtonInternal() API")
+
+# Keep the helper block's null-safety changes while restoring the native method
+# abstraction instead of binding the invariant directly to the backing field.
+enter_text = ENTER.read_text(encoding="utf-8")
+direct_helper = "View sendButtonView = sendButton;"
+helper_count = enter_text.count(direct_helper)
+if helper_count != 1:
+    raise SystemExit(
+        f"composer helper direct-field count is {helper_count}, expected 1"
+    )
+enter_text = enter_text.replace(
+    direct_helper,
+    "View sendButtonView = getSendButtonInternal();",
+    1,
+)
+ENTER.write_text(enter_text, encoding="utf-8", newline="")
+adaptive["patch_release_summary"]()
 
 checks = {
     "standard chat header with global centering preserved": (
@@ -93,7 +112,7 @@ checks = {
             "scrollView.setPadding(0, 0, 0, dp(8));",
         ),
     ),
-    "iOS send icon and media-slot ownership": (
+    "iOS send icon and native media-slot ownership": (
         ENTER,
         (
             "AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE",
@@ -101,7 +120,8 @@ checks = {
             "AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER",
             "AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT",
             "AUTHORGRAM_IOS_SEND_BUTTON_COMPILE_FIX",
-            "View sendButtonView = sendButton;",
+            "View sendButtonView = getSendButtonInternal();",
+            "public View getSendButtonInternal() {",
             "sendButtonView.setVisibility(VISIBLE);",
             "sendButtonView.setAlpha(1.0f);",
             "audioVideoButtonContainer.setVisibility(VISIBLE);",
@@ -137,8 +157,21 @@ chat_activity = (
 ).read_text(encoding="utf-8")
 if "AUTHORGRAM_IOS_MESSAGE_ACTION_GAP" in chat_activity:
     raise SystemExit("obsolete unconditional iOS preview gap remains")
-if "getSendButtonInternal()" in ENTER.read_text(encoding="utf-8"):
-    raise SystemExit("undefined composer send-button helper remains")
+
+enter_text = ENTER.read_text(encoding="utf-8")
+if "public View sendButton {" in enter_text:
+    raise SystemExit("native getSendButtonInternal() method was corrupted")
+if enter_text.count("public View getSendButtonInternal() {") != 1:
+    raise SystemExit("native getSendButtonInternal() method count is not exactly one")
+
+for path in (
+    ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java",
+    ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java",
+    ENTER,
+    PREVIEW,
+):
+    if "\r\n" in path.read_text(encoding="utf-8"):
+        raise SystemExit(f"{path.name}: CRLF unexpectedly introduced")
 
 for relative in (
     "scripts/patch_authorgram_badge_surfaces.py",
