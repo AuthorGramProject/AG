@@ -2,6 +2,7 @@ package org.telegram.ui.Components;
 
 import android.content.Context;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
@@ -21,6 +22,7 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
     private float expandSize;
     private float lastReactionsTransitionProgress;
     private int maxHeight;
+    private View fixedMessagePreview; // AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW
     private float popupLayoutLeftOffset;
     private ActionBarPopupWindow.ActionBarPopupWindowLayout popupWindowLayout;
     private float progressToSwipeBack;
@@ -55,9 +57,55 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
                 : availableHeight;
         int constrainedHeightSpec = MeasureSpec.makeMeasureSpec(effectiveMaxHeight, MeasureSpec.AT_MOST);
         int adjustedWidthSpec = widthMeasureSpec;
+
+        // Reset a prior temporary height cap before measuring current content.
+        if (fixedMessagePreview != null && popupWindowLayout != null) {
+            LinearLayout.LayoutParams popupParams =
+                    (LinearLayout.LayoutParams) popupWindowLayout.getLayoutParams();
+            if (popupParams.height != LayoutHelper.WRAP_CONTENT) {
+                popupParams.height = LayoutHelper.WRAP_CONTENT;
+            }
+        }
         super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);
         if (popupWindowLayout == null) {
             return;
+        }
+
+        // AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW
+        // Reactions and the selected-message preview remain fixed. Only the
+        // popup action viewport receives the remaining height and scrolls.
+        if (fixedMessagePreview != null) {
+            int occupiedHeight = getPaddingTop() + getPaddingBottom();
+            for (int i = 0; i < getChildCount(); i++) {
+                View child = getChildAt(i);
+                if (child == popupWindowLayout || child.getVisibility() == GONE) {
+                    continue;
+                }
+                LinearLayout.LayoutParams childParams =
+                        (LinearLayout.LayoutParams) child.getLayoutParams();
+                occupiedHeight += child.getMeasuredHeight()
+                        + childParams.topMargin
+                        + childParams.bottomMargin;
+            }
+            int availableForActions = Math.max(
+                    AndroidUtilities.dp(72),
+                    effectiveMaxHeight - occupiedHeight
+            );
+            LinearLayout.LayoutParams popupParams =
+                    (LinearLayout.LayoutParams) popupWindowLayout.getLayoutParams();
+            int desiredPopupHeight = popupWindowLayout.getMeasuredHeight();
+            if (desiredPopupHeight > availableForActions) {
+                popupParams.height = availableForActions;
+                super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);
+            }
+
+            int popupWidthForPreview = popupWindowLayout.getMeasuredWidth();
+            LinearLayout.LayoutParams previewParams =
+                    (LinearLayout.LayoutParams) fixedMessagePreview.getLayoutParams();
+            if (popupWidthForPreview > 0 && previewParams.width != popupWidthForPreview) {
+                previewParams.width = popupWidthForPreview;
+                super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);
+            }
         }
 
         if (reactionsLayout != null) {
@@ -148,15 +196,9 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
                 continue;
             }
             LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) view.getLayoutParams();
-            int newWidth;
-            if ((reactionsLayout == null || !reactionsLayout.showCustomEmojiReaction()) && view.getTag(R.id.fit_width_tag) == null) {
-                newWidth = LayoutHelper.MATCH_PARENT;
-            } else {
-                newWidth = foregroundWidth + AndroidUtilities.dp(16);
-                if (popupWidth > 0 && newWidth > popupWidth) {
-                    newWidth = popupWidth;
-                }
-            }
+            // AUTHORGRAM_MENU_FOOTER_WIDTH_PARITY
+            // Bottom quick-action blocks must exactly match the menu card width.
+            int newWidth = popupWidth > 0 ? popupWidth : foregroundWidth;
             int newSideMargin = popupWindowLayout.getSwipeBack() != null ? AndroidUtilities.dp(36) + safeSwipeBackWidthDiff : AndroidUtilities.dp(36);
             int currentSideMargin = LocaleController.isRTL ? layoutParams.leftMargin : layoutParams.rightMargin;
             if (layoutParams.width != newWidth || currentSideMargin != newSideMargin) {
@@ -200,6 +242,31 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
         }
     }
 
+    public void setFixedMessagePreview(View preview) {
+        if (fixedMessagePreview == preview) {
+            return;
+        }
+        if (fixedMessagePreview != null && fixedMessagePreview.getParent() == this) {
+            removeView(fixedMessagePreview);
+        }
+        fixedMessagePreview = preview;
+        if (preview != null) {
+            if (preview.getParent() instanceof ViewGroup) {
+                ((ViewGroup) preview.getParent()).removeView(preview);
+            }
+            int popupIndex = popupWindowLayout == null
+                    ? getChildCount()
+                    : indexOfChild(popupWindowLayout);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    LayoutHelper.WRAP_CONTENT,
+                    LayoutHelper.WRAP_CONTENT
+            );
+            params.bottomMargin = AndroidUtilities.dp(8);
+            addView(preview, Math.max(0, popupIndex), params);
+        }
+        requestLayout();
+    }
+
     public void setReactionsLayout(ReactionsContainerLayout reactionsLayout) {
         this.reactionsLayout = reactionsLayout;
         if (reactionsLayout != null) {
@@ -214,6 +281,16 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
 
     public void setPopupWindowLayout(ActionBarPopupWindow.ActionBarPopupWindowLayout popupWindowLayout) {
         this.popupWindowLayout = popupWindowLayout;
+        if (fixedMessagePreview != null) {
+            int popupIndex = indexOfChild(popupWindowLayout);
+            int previewIndex = indexOfChild(fixedMessagePreview);
+            if (popupIndex >= 0 && previewIndex > popupIndex) {
+                LinearLayout.LayoutParams previewParams =
+                        (LinearLayout.LayoutParams) fixedMessagePreview.getLayoutParams();
+                removeView(fixedMessagePreview);
+                addView(fixedMessagePreview, popupIndex, previewParams);
+            }
+        }
         popupWindowLayout.setOnSizeChangedListener(this::updateBottomOffset);
         if (popupWindowLayout.getSwipeBack() != null) {
             popupWindowLayout.getSwipeBack().addOnSwipeBackProgressListener((layout, toProgress, progress) -> {
