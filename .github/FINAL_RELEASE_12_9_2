@@ -9,7 +9,8 @@ Short selected messages stay fixed above the action menu. Long selected messages
 Keep the bottom quick-action block aligned to the action-menu width.
 Play must retain classic Telegram input/message-menu UI and strict Play publication policy while receiving the shared chat-header and normal popup fixes.
 Preserve all existing AuthorGram features, names, package identities, stable release signing identity, protected author_badge policy and launcher artwork.
-Do not delete Actions history or artifacts. Cancel only superseded queued or in-progress release runs through their exact concurrency groups.
+Before checkout, cancel and force-cancel every other queued or in-progress Actions run. Do not delete run history or existing artifacts.
+During source synchronization, preserve branch-local .github metadata so the release token never rewrites workflow files on main or play-market.
 Use the compatibility-aware adaptive iOS UI orchestrator and preserve Telegram's native getSendButtonInternal() API.
-Canonical release workflow commit: c1180ca723d60cf5321ed990aabd1901e5e14033.
-Queue-cleared final release request: 2026-08-06T22:53:00+02:00.
+Canonical clean release workflow commit: 50ef7d0b7ad2e998570b5c07171da8000e1f8a49.
+Single final release request: 2026-08-06T23:18:00+02:00.
