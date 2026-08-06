@@ -63,7 +63,10 @@ jobs:
           PY
 
           python3 scripts/patch_authorgram_ui_12_9_2.py
-          python3 scripts/patch_authorgram_adaptive_ios_preview.py
+          # popup_bounds loads the adaptive patch function-by-function and
+          # preserves Telegram's valid getSendButtonInternal() API. The adaptive
+          # script must not be executed standalone because its legacy blanket
+          # check intentionally raises before the compatibility restoration.
           python3 scripts/patch_authorgram_popup_bounds.py
           python3 scripts/patch_authorgram_badge_surfaces.py
           python3 scripts/patch_authorgram_play_policy.py
@@ -109,6 +112,8 @@ jobs:
               'AUTHORGRAM_MAIN_ONLY_IOS_INPUT',
               'AUTHORGRAM_IOS_INPUT_MENU_GUARD',
               'AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT',
+              'View sendButtonView = getSendButtonInternal();',
+              'public View getSendButtonInternal() {',
               'sendButtonView.setVisibility(VISIBLE);',
               'sendButtonView.setAlpha(1.0f);',
           )
@@ -135,6 +140,8 @@ jobs:
               raise SystemExit('Short preview is incorrectly owned by the action ScrollView')
           if 'compactIndices.remove(index);' in chat:
               raise SystemExit('Unsafe compact-menu index removal remains')
+          if enter.count('public View getSendButtonInternal() {') != 1:
+              raise SystemExit('Native send-button method count is not exactly one')
 
           print('Final header, message menu, blur, adaptive scrolling and iOS input invariants passed')
           PY
