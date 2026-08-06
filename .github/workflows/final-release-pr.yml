@@ -2,6 +2,7 @@ name: AuthorGram 12.9.2 Deterministic Final Release
 
 on:
   pull_request:
+    types: [opened, synchronize]
     branches:
       - dev
     paths:
