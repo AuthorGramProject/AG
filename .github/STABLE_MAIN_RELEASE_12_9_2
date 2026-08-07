@@ -1,0 +1,4 @@
+AuthorGram 12.9.2 stable Main-only release trigger.
+Play is intentionally untouched.
+Regression target: chat whose latest message is https://t.me/authorgram_apk with TL_webPage preview.
+Required quality gates: native ChatMessageCell quote preview, no bitmap snapshot scan, live iOS feature gates, compact 40dp footer, classic popup zero extra padding.
