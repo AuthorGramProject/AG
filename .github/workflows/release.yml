@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     branches: [dev]
     paths:
-      - .github/FINAL_RELEASE_PR_12_9_2
+      - .github/STABLE_MAIN_RELEASE_12_9_2
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   release:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'release/authorgram-12-9-2-clean-final'
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'release/authorgram-12-9-2-stable-main-final'
     name: Preflight, clean Actions, build stable Main APK
     runs-on: ubuntu-24.04
     timeout-minutes: 360
