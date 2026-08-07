@@ -115,9 +115,16 @@ verify_apk() {
 
 canonicalize_chat_ui() {
   local directory="$1"
+  local run_legacy_popup_generator="${2:-false}"
   (
     cd "${directory}"
-    python3 scripts/patch_authorgram_popup_bounds.py
+    # The legacy popup generator is an upgrade step, not an idempotent finalizer:
+    # it still materializes the historical synthetic preview and 8dp padding.
+    # Run it exactly once on the committed dev baseline, then let the stability
+    # generator become the sole owner of the final Main UI representation.
+    if [[ "${run_legacy_popup_generator}" == "true" ]]; then
+      python3 scripts/patch_authorgram_popup_bounds.py
+    fi
     python3 scripts/patch_authorgram_main_stability.py
     python3 scripts/patch_authorgram_ios_input_geometry.py --mode apply
     # The stability generator may replace the selected-message owner block.
@@ -148,7 +155,7 @@ python3 scripts/patch_authorgram_ios_input_geometry.py --mode pre-apply
 
 log "Finalize shared source, then canonicalize the Main chat UI"
 python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
-canonicalize_chat_ui "${ROOT}"
+canonicalize_chat_ui "${ROOT}" true
 commit_local_dev_snapshot
 DEV_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
 
@@ -172,7 +179,7 @@ git -C "${MAIN_DIR}" submodule update --init --depth 1 --jobs 3
 
 log "Finalize and validate isolated Main source"
 python3 "${MAIN_DIR}/scripts/finalize_authorgram_source.py" --role main --package "${MAIN_PACKAGE}"
-canonicalize_chat_ui "${MAIN_DIR}"
+canonicalize_chat_ui "${MAIN_DIR}" false
 commit_and_push "${MAIN_DIR}" main "[skip ci] Synchronize crash-safe AuthorGram Main source"
 MAIN_COMMIT="$(git -C "${MAIN_DIR}" rev-parse HEAD)"
 
@@ -232,6 +239,7 @@ Stability invariants:
 - selected-message fixed-preview ownership is canonicalized through the actual ChatScrimPopupContainerLayout parent chain.
 - the Main-only quick-action footer is capped at 40dp.
 - classic popup scroll containers have no global artificial 8dp bottom padding.
+- legacy popup generation is never reapplied after the canonical Main UI snapshot is formed.
 - release is signed, non-debuggable, arm64-v8a only.
 EOF
 
