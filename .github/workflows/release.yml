@@ -136,11 +136,10 @@ jobs:
 
             const remaining = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
             if (remaining.length !== 0) {
-              core.warning(
-                `GitHub still exposes ${remaining.length} superseded run record(s): ` +
-                remaining.map(run => `${run.id}:${run.status}:${run.name}`).join(', '),
+              const details = remaining.map(run => `${run.id}:${run.status}:${run.name}`).join(', ');
+              core.setFailed(
+                `Exclusive release invariant failed: ${remaining.length} superseded run record(s) remain: ${details}`,
               );
-              core.warning('Obsolete workflow definitions are disabled; stale API records will not block this release.');
             } else {
               core.info('Actions history is clean: only the current release run remains.');
             }
@@ -178,6 +177,7 @@ jobs:
               'scripts/patch_authorgram_play_policy.py',
               'scripts/patch_authorgram_ui_12_9_2.py',
               'scripts/patch_authorgram_popup_bounds.py',
+              'scripts/patch_authorgram_chat_scope_safety.py',
               'scripts/patch_authorgram_badge_surfaces.py',
           ):
               source = Path(relative).read_text(encoding='utf-8')
@@ -253,6 +253,10 @@ jobs:
           if enter.count('public View getSendButtonInternal() {') != 1:
               raise SystemExit('Native send-button method count is not exactly one')
           PY
+
+          # Read-only pre-apply scan: legacy calls are accepted only when they are
+          # exact known variants that the scope-safety pass can repair deterministically.
+          python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply
 
           git diff --check
           test -z "$(git status --porcelain)"
