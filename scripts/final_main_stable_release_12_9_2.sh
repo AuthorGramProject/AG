@@ -34,6 +34,21 @@ commit_and_push() {
   git -C "${directory}" push origin "HEAD:${branch}"
 }
 
+commit_local_dev_snapshot() {
+  # AUTHORGRAM_NO_SELF_TRIGGER_DEV_PUSH
+  # The release PR is based on dev. Pushing dev from inside its own workflow
+  # retriggers pull_request and cancels the running build via concurrency.
+  # Keep the finalized dev snapshot local to this runner; only Main is pushed.
+  git -C "${ROOT}" config core.fileMode false
+  git -C "${ROOT}" add -A
+  if git -C "${ROOT}" diff --cached --quiet; then
+    printf 'No local dev snapshot changes required.\n'
+    return
+  fi
+  git -C "${ROOT}" diff --cached --check
+  git -C "${ROOT}" commit -m "[skip ci] Local stable Main source snapshot"
+}
+
 find_arm64_apk() {
   local checkout="$1"
   python3 - "${checkout}" <<'PY'
@@ -124,7 +139,7 @@ python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
 python3 scripts/patch_authorgram_main_stability.py
 python3 scripts/patch_authorgram_ios_input_geometry.py --mode validate
 git diff --check
-commit_and_push "${ROOT}" dev "[skip ci] Stabilize AuthorGram Main chat UI"
+commit_local_dev_snapshot
 DEV_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
 
 log "Create isolated Main worktree without touching Play"
@@ -192,6 +207,7 @@ versionCode=${VERSION_CODE}
 canonicalDevCommit=${DEV_COMMIT}
 abi=arm64-v8a
 playTouched=false
+devPushed=false
 EOF
 
 cat > "${ARTIFACT_DIR}/RELEASE-SUMMARY.txt" <<EOF
@@ -199,8 +215,9 @@ AuthorGram ${VERSION_NAME} stable Main release
 
 Main package: ${MAIN_PACKAGE}
 Main commit: ${MAIN_COMMIT}
-Canonical dev commit: ${DEV_COMMIT}
+Canonical local dev snapshot: ${DEV_COMMIT}
 Play branch/build: untouched
+Dev branch push during release: forbidden
 
 Stability invariants:
 - iOS input maintenance is a strict no-op while the iOS input feature is disabled.
