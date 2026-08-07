@@ -8238,6 +8238,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                     transformToSeekbar = 0;
                     isRecordingStateChanged();
                     hideRecordedAudioPanelInternal();
+                    authorGramRestoreIosAttachAfterVoiceDraftDelete(); // AUTHORGRAM_IOS_VOICE_DRAFT_ATTACH_RESTORE
                     if (recordCircle != null) {
                         recordCircle.setSendButtonInvisible();
                     }
@@ -8249,6 +8250,43 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         }
         if (controlsView != null) {
             controlsView.invalidate();
+        }
+    }
+
+    // AUTHORGRAM_IOS_VOICE_DRAFT_ATTACH_RESTORE
+    // The recorded-audio panel can hide attachLayout while the draft owns the
+    // composer. After trash/cancel, restore the complete iOS attachment state
+    // only after Telegram has cleared the recorded draft.
+    private void authorGramRestoreIosAttachAfterVoiceDraftDelete() {
+        if (!isIOSInputStyle() || attachLayout == null || attachButton == null) {
+            return;
+        }
+
+        if (attachButtonAnimator != null) {
+            attachButtonAnimator.cancel();
+            attachButtonAnimator = null;
+        }
+        attachLayout.animate().cancel();
+        attachButton.animate().cancel();
+
+        attachLayout.setVisibility(VISIBLE);
+        attachLayoutAlpha = 1.0f;
+        updateAttachLayoutParams();
+        attachLayout.setScaleX(1.0f);
+
+        attachButton.setVisibility(VISIBLE);
+        attachButton.setTag(2);
+        attachButton.setAlpha(attachButtonAlpha = 1.0f);
+        attachButton.setScaleX(1.0f);
+        attachButton.setScaleY(1.0f);
+        attachButton.setTranslationX(0.0f);
+        attachButton.setTranslationY(0.0f);
+        attachButton.setClickable(true);
+        attachButton.setEnabled(true);
+
+        updateFieldRight(1);
+        if (delegate != null && getVisibility() == VISIBLE) {
+            delegate.onAttachButtonShow();
         }
     }
 
