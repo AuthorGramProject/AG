@@ -1,0 +1,14 @@
+{
+  "workflow": "AuthorGram 12.9.2 Play ARM64 Release",
+  "run_id": 31198822239,
+  "run_number": 1,
+  "run_attempt": 1,
+  "status": "completed",
+  "conclusion": "cancelled",
+  "event": "push",
+  "head_branch": "dev",
+  "head_sha": "2bf4a6ca137226b371b17184edda3594878fa3d4",
+  "html_url": "https://github.com/VadymYem/AuthorGram/actions/runs/31198822239",
+  "created_at": "2026-08-07T16:42:00Z",
+  "updated_at": "2026-08-07T16:43:44Z"
+}
