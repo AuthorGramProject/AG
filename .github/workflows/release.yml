@@ -163,6 +163,9 @@ jobs:
           }
 
           bash -n scripts/final_release_12_9_2.sh
+          # Compatibility shim for authorgram_guard.py. This script is intentionally
+          # a no-op; the real Actions cleanup is the GitHub API step above.
+          python3 scripts/cleanup_authorgram_actions.py
 
           python3 - <<'PY'
           from pathlib import Path
