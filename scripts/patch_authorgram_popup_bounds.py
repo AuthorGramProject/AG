@@ -4,8 +4,11 @@
 The canonical final patch restores the shared baseline. The adaptive functions
 then keep short Main-only iOS message previews fixed, move long previews into
 the action ScrollView, cap the popup viewport, and preserve the native composer
-send-button API. The final scope-safety pass rewrites legacy ChatActivity calls
-that referred to a local scrim variable outside its lexical scope.
+send-button API.
+
+A read-only legacy-call inventory now runs before any generator touches
+ChatActivity. The scope-safety pass then repairs only known legacy variants and
+validation refuses every stale back-call before Gradle can start.
 """
 
 from __future__ import annotations
@@ -18,6 +21,14 @@ PREVIEW = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMess
 ENTER = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
 CHAT = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
 FINAL_MARKER = "AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK"
+
+# PRE-APPLY GUARANTEE: inspect the committed ChatActivity before any UI generator
+# is allowed to mutate it. Unknown legacy back-calls are a hard failure.
+scope_safety = runpy.run_path(
+    str(ROOT / "scripts/patch_authorgram_chat_scope_safety.py"),
+    run_name="authorgram_chat_scope_safety_pre_apply",
+)
+scope_safety["pre_apply_check"]()
 
 # The legacy repair validates legacy preview wording. Run it only while upgrading
 # old source; committed final source is handled by the canonical final patches.
@@ -67,14 +78,8 @@ enter_text = enter_text.replace(
 ENTER.write_text(enter_text, encoding="utf-8", newline="")
 adaptive["patch_release_summary"]()
 
-# The old adaptive/final generators can materialize a fixed-preview call after
-# the local scrim variable is out of scope. Resolve ownership from popupLayout,
-# which is the actual layout variable available in this block, and remove the
-# obsolete conditional getBottomOffset correction before declaring validation.
-scope_safety = runpy.run_path(
-    str(ROOT / "scripts/patch_authorgram_chat_scope_safety.py"),
-    run_name="authorgram_chat_scope_safety",
-)
+# Generators above may materialize the exact historical back-call. Repair only
+# that inventoried variant immediately, then require a completely clean result.
 scope_safety["apply"]()
 scope_safety["validate"]()
 
@@ -112,6 +117,8 @@ checks = {
             "AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP",
             "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT",
             "android.view.ViewParent authorgramIosPreviewParent = popupLayout.getParent();",
+            "while (authorgramIosPreviewParent != null",
+            "((android.view.View) authorgramIosPreviewParent).getParent();",
             ".setFixedMessagePreview(iosPreview);",
             "AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR",
             "dimBehindView(null, true, true);",
