@@ -167,6 +167,10 @@ mkdir -p "${ARTIFACT_DIR}" "${TEST_DIR}"
 log "Pre-apply ChatActivity legacy-call scan"
 python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply
 
+log "Apply and validate the canonical AuthorGram chat UI patch chain"
+python3 scripts/patch_authorgram_popup_bounds.py
+python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
+
 log "Finalize and validate the latest dev source"
 python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
 python3 scripts/authorgram_guard.py --expected-package "${MAIN_PACKAGE}"
@@ -294,7 +298,7 @@ Verified invariants:
 - Play forces normal Telegram read/presence behaviour and cannot send AuthorGram-encrypted payloads.
 - Legacy visible Nagram/Nekogram branding is rejected except exact legal upstream attribution.
 - ChatActivity contains no legacy out-of-scope iOS preview or popup-bottom calls.
-- Short iOS previews resolve the native ChatScrimPopupContainerLayout through popupLayout ownership.
+- Short iOS previews resolve the native ChatScrimPopupContainerLayout through the real popupLayout parent chain.
 - Both APKs are signed, non-debuggable, minified and shrink resources.
 - Main can request user-approved APK installation; Play omits the restricted permission.
 - Main and Play APKs use the stable existing release signing identity.
