@@ -8,6 +8,8 @@ import re
 import sys
 from pathlib import Path
 
+import patch_authorgram_chat_scope_safety
+
 ROOT = Path(__file__).resolve().parents[1]
 MAIN_PACKAGE = "fork.risin42.nagramx"
 PLAY_PACKAGE = "toss.authorgram.apk"
@@ -338,6 +340,11 @@ def validate(role: str, package_id: str) -> None:
 
     if role == "play" and (ROOT / "TMessagesProj/release.keystore").exists():
         failures.append("Play source tree must not contain the Main release keystore")
+
+    try:
+        patch_authorgram_chat_scope_safety.validate()
+    except SystemExit as exc:
+        failures.append(f"ChatActivity scope validation failed: {exc}")
 
     if failures:
         raise RuntimeError("\n".join(failures))
