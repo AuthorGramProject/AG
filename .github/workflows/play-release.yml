@@ -1,0 +1,271 @@
+name: AuthorGram 12.9.2 Play ARM64 Release
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - .github/PLAY_RELEASE_TRIGGER_12_9_2
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: authorgram-12-9-2-play-arm64
+  cancel-in-progress: true
+
+jobs:
+  play-release:
+    name: Verify and build one Play ARM64 release APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      MAIN_PACKAGE: fork.risin42.nagramx
+      PLAY_PACKAGE: toss.authorgram.apk
+      VERSION_NAME: 12.9.2
+      VERSION_CODE: '6991'
+      NATIVE_TARGET: arm64-v8a
+      PYTHONDONTWRITEBYTECODE: '1'
+      GRADLE_OPTS: -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dfile.encoding=UTF-8
+      LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+
+    steps:
+      - name: Checkout finalized Play source
+        uses: actions/checkout@v4
+        with:
+          ref: play-market
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Zero-Gradle Play preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --prune origin dev main play-market
+
+          [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
+          [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
+          [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
+          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing.' >&2; exit 1; }
+          [[ -n "${AUTHORGRAM_SIGNING_CERT_SHA256}" ]] || { echo 'AUTHORGRAM_SIGNING_CERT_SHA256 secret is missing.' >&2; exit 1; }
+          [[ "${NATIVE_TARGET}" == "arm64-v8a" ]]
+
+          python3 scripts/authorgram_parity_guard.py \
+            --main-ref origin/main \
+            --play-ref origin/play-market
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          gradle = Path('TMessagesProj/build.gradle').read_text(encoding='utf-8')
+          policy = Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java').read_text(encoding='utf-8')
+          props = Path('gradle.properties').read_text(encoding='utf-8')
+
+          required_gradle = (
+              "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'",
+              "def authorGramSystemKeyHex = APP_PACKAGE == 'toss.authorgram.apk' ? ''",
+              "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'",
+              "def nativeTarget = System.getenv('NATIVE_TARGET') ?: ''",
+              'include nativeTarget',
+              'universalApk = nativeTarget.isBlank()',
+          )
+          for marker in required_gradle:
+              if marker not in gradle:
+                  raise SystemExit(f'Play Gradle invariant missing: {marker}')
+
+          required_policy = (
+              'values.put("hideSponsoredMessage", false)',
+              'values.put("HideProxySponsorChannel", false)',
+              'values.put("iOSMessageInputField", false)',
+              'values.put("iOSMessageMenu", false)',
+              'return !isPlayBuild();',
+              'return !isPlayBuild() && value != null && value.length() == 64;',
+          )
+          for marker in required_policy:
+              if marker not in policy:
+                  raise SystemExit(f'Play policy invariant missing: {marker}')
+
+          if 'APP_PACKAGE=toss.authorgram.apk' not in props:
+              raise SystemExit('Play package identity is not active')
+          if 'APP_PACKAGE=fork.risin42.nagramx' in props:
+              raise SystemExit('Main package identity leaked into Play gradle.properties')
+
+          print('Play-only policy/package/source preflight passed')
+          PY
+
+          git cat-file -e origin/main:TMessagesProj/release.keystore \
+            || { echo 'Stable Main release keystore is unavailable.' >&2; exit 1; }
+          git diff --check
+          test -z "$(git status --porcelain)"
+
+      - name: Cancel superseded active Actions runs
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const currentRunId = Number(context.runId);
+            const active = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
+            const disposable = new Set(['failure', 'cancelled', 'skipped']);
+
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              { owner, repo, per_page: 100 },
+            );
+
+            for (const run of runs) {
+              if (Number(run.id) === currentRunId) continue;
+              if (active.has(run.status)) {
+                try {
+                  await github.request('POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel', {
+                    owner, repo, run_id: run.id,
+                  });
+                } catch (error) {
+                  core.warning(`Could not force-cancel stale active run ${run.id}: ${error.message}`);
+                }
+              } else if (disposable.has(run.conclusion)) {
+                try {
+                  await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id });
+                } catch (error) {
+                  core.warning(`Could not delete stale failed/cancelled run ${run.id}: ${error.message}`);
+                }
+              }
+            }
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          check-latest: false
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
+
+      - name: Restore stable release signing material ephemerally
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/main:TMessagesProj/release.keystore > TMessagesProj/release.keystore
+          test -s TMessagesProj/release.keystore
+          chmod 600 TMessagesProj/release.keystore
+          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+
+      - name: Build Play release APK only
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace clean TMessagesProj:assembleRelease
+
+      - name: Verify exact Play ARM64 release artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="${RUNNER_TEMP}/authorgram-play-final"
+          mkdir -p "${ARTIFACT_DIR}"
+
+          python3 - "${ARTIFACT_DIR}" <<'PY'
+          import json
+          import shutil
+          import sys
+          from pathlib import Path
+
+          artifact_dir = Path(sys.argv[1])
+          root = Path('TMessagesProj/build/outputs/apk')
+          matches = []
+          for metadata in root.rglob('output-metadata.json'):
+              data = json.loads(metadata.read_text(encoding='utf-8'))
+              for element in data.get('elements', []):
+                  output = element.get('outputFile', '')
+                  filters = element.get('filters') or []
+                  abis = [item.get('value') for item in filters if item.get('filterType') == 'ABI']
+                  if 'arm64-v8a' in abis or 'arm64-v8a' in output:
+                      candidate = (metadata.parent / output).resolve()
+                      if candidate.is_file() and 'debug' not in candidate.name.lower():
+                          matches.append(candidate)
+          unique = sorted(set(matches))
+          if len(unique) != 1:
+              raise SystemExit(f'Expected exactly one Play ARM64 release APK, found {len(unique)}: {unique}')
+          target = artifact_dir / 'AuthorGram-Play-v12.9.2-release-arm64-v8a.apk'
+          shutil.copy2(unique[0], target)
+          print(target)
+          PY
+
+          APK="${ARTIFACT_DIR}/AuthorGram-Play-v${VERSION_NAME}-release-arm64-v8a.apk"
+          AAPT="${ANDROID_HOME}/build-tools/36.0.0/aapt"
+          APKSIGNER="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
+          ZIPALIGN="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
+
+          "${ZIPALIGN}" -c -P 16 4 "${APK}"
+          BADGING="$("${AAPT}" dump badging "${APK}")"
+          PACKAGE="$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"${BADGING}" | head -n 1)"
+          APK_VERSION_CODE="$(sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p" <<<"${BADGING}" | head -n 1)"
+          APK_VERSION_NAME="$(sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p" <<<"${BADGING}" | head -n 1)"
+
+          [[ "${PACKAGE}" == "${PLAY_PACKAGE}" ]] || { echo "Wrong Play package: ${PACKAGE}" >&2; exit 1; }
+          [[ "${APK_VERSION_CODE}" == "${VERSION_CODE}" ]] || { echo "Wrong Play versionCode: ${APK_VERSION_CODE}" >&2; exit 1; }
+          [[ "${APK_VERSION_NAME}" == "${VERSION_NAME}" ]] || { echo "Wrong Play versionName: ${APK_VERSION_NAME}" >&2; exit 1; }
+          ! grep -q '^application-debuggable' <<<"${BADGING}" || { echo 'Play release APK is debuggable.' >&2; exit 1; }
+
+          PERMISSIONS="$("${AAPT}" dump permissions "${APK}")"
+          ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${PERMISSIONS}" \
+            || { echo 'Play APK contains forbidden REQUEST_INSTALL_PACKAGES.' >&2; exit 1; }
+
+          SIGNER_REPORT="$("${APKSIGNER}" verify --verbose --print-certs "${APK}")"
+          printf '%s\n' "${SIGNER_REPORT}" | tee "${ARTIFACT_DIR}/Play-CERTIFICATE.txt"
+          grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${SIGNER_REPORT}" \
+            || { echo 'Play APK has no verified modern signature scheme.' >&2; exit 1; }
+
+          CERT_DIGEST="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<<"${SIGNER_REPORT}" | head -n 1 | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+          EXPECTED_DIGEST="$(printf '%s' "${AUTHORGRAM_SIGNING_CERT_SHA256}" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+          [[ "${CERT_DIGEST}" == "${EXPECTED_DIGEST}" ]] \
+            || { echo 'Play APK signing certificate mismatch.' >&2; exit 1; }
+
+          if unzip -Z1 "${APK}" | grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks|[^/]*\.p12|[^/]*\.pfx)$'; then
+            echo 'Signing material leaked into Play APK.' >&2
+            exit 1
+          fi
+
+          PLAY_COMMIT="$(git rev-parse HEAD)"
+          MAIN_COMMIT="$(git rev-parse origin/main)"
+          DEV_COMMIT="$(git rev-parse origin/dev)"
+          cat > "${ARTIFACT_DIR}/Play-BUILD.txt" <<EOF
+          branch=play-market
+          commit=${PLAY_COMMIT}
+          package=${PLAY_PACKAGE}
+          versionName=${VERSION_NAME}
+          versionCode=${VERSION_CODE}
+          architecture=arm64-v8a
+          mainReferenceCommit=${MAIN_COMMIT}
+          canonicalDevCommit=${DEV_COMMIT}
+          playOnlyBuild=true
+          EOF
+
+          (
+            cd "${ARTIFACT_DIR}"
+            sha256sum AuthorGram-Play-*.apk > SHA256SUMS.txt
+          )
+
+          rm -f TMessagesProj/release.keystore local.properties
+          test ! -e TMessagesProj/release.keystore
+          cat "${ARTIFACT_DIR}/SHA256SUMS.txt"
+
+      - name: Upload verified Play release
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuthorGram-12.9.2-Play-arm64-v8a
+          path: ${{ runner.temp }}/authorgram-play-final/*
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
