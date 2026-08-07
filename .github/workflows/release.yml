@@ -58,6 +58,7 @@ jobs:
               'scripts/patch_authorgram_popup_bounds.py',
               'scripts/patch_authorgram_chat_scope_safety.py',
               'scripts/patch_authorgram_main_stability.py',
+              'scripts/patch_authorgram_ios_input_geometry.py',
           )
           for relative in scripts:
               source = Path(relative).read_text(encoding='utf-8')
@@ -75,6 +76,17 @@ jobs:
               if marker not in stability:
                   raise SystemExit(f'stability pass missing {marker}')
 
+          geometry = Path('scripts/patch_authorgram_ios_input_geometry.py').read_text(encoding='utf-8')
+          for marker in (
+              'AUTHORGRAM_IOS_INPUT_GEOMETRY_INVARIANT',
+              'authorGramStabilizeIOSInputGeometry',
+              'authorGramScheduleInputGeometryInvariant',
+              'updateSideBubbles();',
+              'postDelayed(authorGramInputGeometryRunnable, 320L);',
+          ):
+              if marker not in geometry:
+                  raise SystemExit(f'iOS input geometry pass missing {marker}')
+
           chat = Path('TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java').read_text(encoding='utf-8')
           enter = Path('TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java').read_text(encoding='utf-8')
           scrim = Path('TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java').read_text(encoding='utf-8')
@@ -91,11 +103,14 @@ jobs:
               raise SystemExit('getSendButtonInternal method count is not exactly one')
           if 'AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER' not in enter:
               raise SystemExit('composer invariant anchor missing')
+          if 'AUTHORGRAM_MAIN_ONLY_IOS_INPUT' not in enter:
+              raise SystemExit('Main-only iOS input policy gate missing')
           if 'AUTHORGRAM_UNIFIED_MENU_FOOTER' not in scrim:
               raise SystemExit('menu footer anchor missing')
           PY
 
           python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply
+          python3 scripts/patch_authorgram_ios_input_geometry.py --mode pre-apply
           git diff --check
           test -z "$(git status --porcelain)"
 
