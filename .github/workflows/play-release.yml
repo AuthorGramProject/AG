@@ -37,7 +37,7 @@ jobs:
           ref: play-market
           fetch-depth: 1
           submodules: false
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Zero-Gradle Play preflight
         shell: bash
