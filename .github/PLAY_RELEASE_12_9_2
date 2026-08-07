@@ -5,3 +5,4 @@ Source: play-market
 Main rebuild: disabled
 Artifact: APK only
 ABI: arm64-v8a
+Workflow revision: private-main-fetch-safe
