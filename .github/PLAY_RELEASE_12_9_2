@@ -1,0 +1,8 @@
+AuthorGram 12.9.2 Play ARM64 release trigger
+Triggered: 2026-08-07
+Mode: play-only
+Source: play-market
+Main rebuild: disabled
+Artifact: APK only
+ABI: arm64-v8a
+Workflow revision: private-main-fetch-safe
