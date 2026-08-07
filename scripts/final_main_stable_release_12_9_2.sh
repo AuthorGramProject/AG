@@ -112,12 +112,17 @@ mkdir -p "${ARTIFACT_DIR}" "${TEST_DIR}"
 log "Pre-apply legacy/scope scan"
 python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply
 
+log "Pre-apply iOS input geometry scan"
+python3 scripts/patch_authorgram_ios_input_geometry.py --mode pre-apply
+
 log "Finalize shared source, then apply the canonical Main stability pass"
 python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
 python3 scripts/patch_authorgram_popup_bounds.py
 python3 scripts/patch_authorgram_main_stability.py
+python3 scripts/patch_authorgram_ios_input_geometry.py --mode apply
 python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
 python3 scripts/patch_authorgram_main_stability.py
+python3 scripts/patch_authorgram_ios_input_geometry.py --mode validate
 git diff --check
 commit_and_push "${ROOT}" dev "[skip ci] Stabilize AuthorGram Main chat UI"
 DEV_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
@@ -146,8 +151,10 @@ python3 "${MAIN_DIR}/scripts/finalize_authorgram_source.py" --role main --packag
   cd "${MAIN_DIR}"
   python3 scripts/patch_authorgram_popup_bounds.py
   python3 scripts/patch_authorgram_main_stability.py
+  python3 scripts/patch_authorgram_ios_input_geometry.py --mode apply
   python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
   python3 scripts/patch_authorgram_main_stability.py
+  python3 scripts/patch_authorgram_ios_input_geometry.py --mode validate
   git diff --check
 )
 commit_and_push "${MAIN_DIR}" main "[skip ci] Synchronize stable AuthorGram Main source"
@@ -198,6 +205,8 @@ Play branch/build: untouched
 Stability invariants:
 - iOS input maintenance is a strict no-op while the iOS input feature is disabled.
 - stale delayed composer callbacks are cancelled before lifecycle/style exits.
+- empty and non-empty Main iOS composer states share one vertical baseline; stale measurement translation cannot leave the input shifted.
+- side-bubble bounds are recalculated after iOS composer layout stabilization.
 - selected-message preview is the native ChatMessageCell rendering only.
 - no duplicate synthetic sender name or second synthetic bubble is drawn.
 - selected-message preview always stays above the action card.
