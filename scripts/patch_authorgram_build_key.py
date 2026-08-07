@@ -18,29 +18,45 @@ for relative in validation_chain:
     compile(source, relative, "exec")
     print(f"Python syntax passed: {relative}")
 
-# Inspect legacy generated ChatActivity calls before any UI patch mutates source.
-# Known historical variants are allowed only because the scope-safety pass below
-# rewrites them deterministically; unknown receiver variants fail immediately.
+# Inspect generated ChatActivity ownership before any optional UI mutation.
+# Unknown back-calls fail here. A source that is already in the canonical
+# parent-chain form must stay immutable when authorgram_guard imports this
+# module; re-running legacy generators on that state used to recreate the raw
+# scrimPopupContainerLayout receiver and fail the second validation pass.
 scope_safety = runpy.run_path(
     str(root / "scripts/patch_authorgram_chat_scope_safety.py"),
     run_name="authorgram_chat_scope_safety",
 )
 scope_safety["pre_apply_check"]()
 
-# The popup-bounds patch chains badge-surface repair and deterministic token
-# verification. Running these two entry points therefore applies the complete
-# idempotent UI repair set exactly once.
-for relative in (
-    "scripts/patch_authorgram_ui_12_9_2.py",
-    "scripts/patch_authorgram_popup_bounds.py",
-):
-    runpy.run_path(str(root / relative), run_name="__main__")
+chat_path = root / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
+chat_text = chat_path.read_text(encoding="utf-8")
+canonical_scope = (
+    "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT" in chat_text
+    and "while (authorgramIosPreviewParent != null" in chat_text
+    and "((android.view.View) authorgramIosPreviewParent).getParent();" in chat_text
+    and "scrimPopupContainerLayout.setFixedMessagePreview(" not in chat_text
+    and "scrimPopupContainerLayout.getBottomOffset()" not in chat_text
+    and "chatActivityEnterView.setFixedMessagePreview(" not in chat_text
+)
 
-# Finalize ChatActivity after all legacy/adaptive generators have run. This is
-# deliberately after popup_bounds: older generators may still materialize the
-# two historical scope-invalid calls while upgrading an old checkout.
-scope_safety["apply"]()
-scope_safety["validate"]()
+if canonical_scope:
+    scope_safety["validate"]()
+    print(
+        "AuthorGram canonical ChatActivity UI already finalized; "
+        "skipping mutating UI generators during build-key/guard import"
+    )
+else:
+    # Upgrade an old checkout exactly once. popup_bounds owns the complete UI
+    # chain and immediately canonicalizes any known intermediate legacy receiver.
+    for relative in (
+        "scripts/patch_authorgram_ui_12_9_2.py",
+        "scripts/patch_authorgram_popup_bounds.py",
+    ):
+        runpy.run_path(str(root / relative), run_name="__main__")
+
+    scope_safety["apply"]()
+    scope_safety["validate"]()
 
 # Use the existing Nagram string that explicitly names the feature rather than
 # the generic Telegram "Folders" label, so the new local folders are discoverable.
