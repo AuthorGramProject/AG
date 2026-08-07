@@ -319,7 +319,7 @@ def patch_chat_activity_preview_ownership() -> None:
     text = read(CHAT)
     for required in (
         marker,
-        "scrimPopupContainerLayout.setFixedMessagePreview(iosPreview);",
+        ".setFixedMessagePreview(iosPreview);",
         "scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];",
     ):
         if required not in text:
