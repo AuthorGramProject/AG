@@ -33,7 +33,7 @@ jobs:
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
 
     steps:
-      - name: Purge every superseded Actions run and disable old workflows
+      - name: Purge superseded Actions and disable obsolete workflows
         uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
@@ -52,88 +52,98 @@ jobs:
               );
             }
 
-            async function listOtherActiveRuns() {
-              const runs = await listRuns();
-              return runs.filter(run => Number(run.id) !== currentRunId && activeStates.has(run.status));
-            }
-
-            for (let pass = 1; pass <= 8; pass += 1) {
-              const active = await listOtherActiveRuns();
-              if (active.length === 0) {
-                core.info('No superseded active Actions runs remain.');
-                break;
-              }
-
-              core.info(`Force-cancel pass ${pass}: ${active.length} active run(s).`);
-              for (const run of active) {
-                try {
-                  await github.request(
-                    'POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel',
-                    { owner, repo, run_id: run.id },
-                  );
-                  core.info(`Force-cancel requested for ${run.id}: ${run.name}`);
-                } catch (forceError) {
-                  core.warning(`Force-cancel failed for ${run.id}: ${forceError.message}`);
-                  try {
-                    await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
-                    core.info(`Normal cancel requested for ${run.id}: ${run.name}`);
-                  } catch (cancelError) {
-                    core.warning(`Normal cancel also failed for ${run.id}: ${cancelError.message}`);
-                  }
-                }
-              }
-
-              await sleep(15000);
-            }
-
-            const stubborn = await listOtherActiveRuns();
-            if (stubborn.length !== 0) {
-              throw new Error(
-                `Unable to clear active runs: ${stubborn.map(run => `${run.id}:${run.status}:${run.name}`).join(', ')}`,
-              );
-            }
-
             const workflows = await github.paginate(
               github.rest.actions.listRepoWorkflows,
               { owner, repo, per_page: 100 },
             );
             for (const workflow of workflows) {
-              if (workflow.path === currentWorkflowPath) {
+              if (workflow.path === currentWorkflowPath || workflow.state !== 'active') {
                 continue;
               }
-              if (workflow.state === 'active') {
-                try {
-                  await github.rest.actions.disableWorkflow({
-                    owner,
-                    repo,
-                    workflow_id: workflow.id,
-                  });
-                  core.info(`Disabled obsolete workflow ${workflow.id}: ${workflow.name} (${workflow.path})`);
-                } catch (error) {
-                  core.warning(`Unable to disable workflow ${workflow.id}: ${error.message}`);
-                }
+              try {
+                await github.rest.actions.disableWorkflow({
+                  owner,
+                  repo,
+                  workflow_id: workflow.id,
+                });
+                core.info(`Disabled obsolete workflow ${workflow.id}: ${workflow.name} (${workflow.path})`);
+              } catch (error) {
+                core.warning(`Unable to disable obsolete workflow ${workflow.id}: ${error.message}`);
               }
             }
 
-            const oldRuns = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
-            core.info(`Deleting ${oldRuns.length} superseded workflow run(s).`);
-            for (let offset = 0; offset < oldRuns.length; offset += 10) {
-              const chunk = oldRuns.slice(offset, offset + 10);
-              const results = await Promise.allSettled(
-                chunk.map(run => github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id })),
-              );
-              results.forEach((result, index) => {
-                const run = chunk[index];
-                if (result.status === 'fulfilled') {
-                  core.info(`Deleted old run ${run.id}: ${run.name}`);
-                } else {
-                  core.warning(`Unable to delete old run ${run.id}: ${result.reason?.message || result.reason}`);
-                }
-              });
-              await sleep(1000);
+            async function requestStop(run) {
+              try {
+                await github.request(
+                  'POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel',
+                  { owner, repo, run_id: run.id },
+                );
+                core.info(`Force-cancel requested for ${run.id}: ${run.name}`);
+                return;
+              } catch (forceError) {
+                core.warning(`Force-cancel failed for ${run.id}: ${forceError.message}`);
+              }
+
+              try {
+                await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+                core.info(`Normal cancel requested for ${run.id}: ${run.name}`);
+              } catch (cancelError) {
+                core.warning(`Normal cancel failed for ${run.id}: ${cancelError.message}`);
+              }
             }
 
-            core.info('Actions cleanup completed. This release run is the only run intentionally kept.');
+            async function requestDelete(run) {
+              try {
+                await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id });
+                core.info(`Deleted superseded run ${run.id}: ${run.name}`);
+                return true;
+              } catch (error) {
+                core.warning(`Delete failed for ${run.id}: ${error.message}`);
+                return false;
+              }
+            }
+
+            for (let pass = 1; pass <= 6; pass += 1) {
+              const runs = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
+              if (runs.length === 0) {
+                core.info('All superseded Actions runs have been removed.');
+                break;
+              }
+
+              core.info(`Cleanup pass ${pass}: ${runs.length} superseded run(s).`);
+              for (const run of runs) {
+                if (activeStates.has(run.status)) {
+                  const deletedWhileActive = await requestDelete(run);
+                  if (!deletedWhileActive) {
+                    await requestStop(run);
+                  }
+                } else {
+                  await requestDelete(run);
+                }
+              }
+
+              await sleep(10000);
+
+              const retryRuns = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
+              for (const run of retryRuns) {
+                if (!activeStates.has(run.status)) {
+                  await requestDelete(run);
+                }
+              }
+
+              await sleep(3000);
+            }
+
+            const remaining = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
+            if (remaining.length !== 0) {
+              core.warning(
+                `GitHub still exposes ${remaining.length} superseded run record(s): ` +
+                remaining.map(run => `${run.id}:${run.status}:${run.name}`).join(', '),
+              );
+              core.warning('Obsolete workflow definitions are disabled; stale API records will not block this release.');
+            } else {
+              core.info('Actions history is clean: only the current release run remains.');
+            }
 
       - name: Checkout canonical dev source
         uses: actions/checkout@v4
