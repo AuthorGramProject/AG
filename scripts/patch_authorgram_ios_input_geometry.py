@@ -27,6 +27,7 @@ HELPER = """    int botCommandLastPosition = -1;
 
     private void authorGramStabilizeIOSInputGeometry() {
         if (!isIOSInputStyle()
+                || !isAttachedToWindow()
                 || recordingAudioVideo
                 || (recordedAudioPanel != null && recordedAudioPanel.getVisibility() == VISIBLE)) {
             return;
@@ -64,10 +65,10 @@ HELPER = """    int botCommandLastPosition = -1;
     }
 
     private void authorGramScheduleInputGeometryInvariant() {
-        if (!isIOSInputStyle()) {
+        removeCallbacks(authorGramInputGeometryRunnable);
+        if (!isIOSInputStyle() || !isAttachedToWindow()) {
             return;
         }
-        removeCallbacks(authorGramInputGeometryRunnable);
         authorGramStabilizeIOSInputGeometry();
         post(authorGramInputGeometryRunnable);
         postDelayed(authorGramInputGeometryRunnable, 320L);
@@ -189,6 +190,8 @@ def validate() -> None:
         MARKER,
         "private void authorGramStabilizeIOSInputGeometry()",
         "private void authorGramScheduleInputGeometryInvariant()",
+        "|| !isAttachedToWindow()",
+        "removeCallbacks(authorGramInputGeometryRunnable);",
         "textFieldContainer.setTranslationY(0.0f);",
         "messageEditTextContainer.setTranslationY(0.0f);",
         "attachBubble.setTranslationY(0.0f);",
