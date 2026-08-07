@@ -1,37 +1,105 @@
-name: AuthorGram 12.9.2 Play ARM64 Release
+name: AuthorGram 12.9.2 Stable Main Release
 
 on:
-  workflow_dispatch:
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
     branches: [dev]
     paths:
-      - .github/PLAY_RELEASE_12_9_2
+      - .github/FINAL_RELEASE_PR_12_9_2
+  workflow_dispatch:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
+  pull-requests: read
 
 concurrency:
-  group: authorgram-12-9-2-play-arm64-release
+  group: authorgram-12-9-2-stable-main-release
   cancel-in-progress: true
 
 jobs:
   release:
-    name: Verify Play source and build one ARM64 release APK
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'release/authorgram-12-9-2-clean-final'
+    name: Preflight, clean Actions, build stable Main APK
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 360
     env:
-      PLAY_PACKAGE: toss.authorgram.apk
+      MAIN_PACKAGE: fork.risin42.nagramx
       VERSION_NAME: 12.9.2
       VERSION_CODE: '6991'
-      NATIVE_TARGET: arm64-v8a
       PYTHONDONTWRITEBYTECODE: '1'
-      GRADLE_OPTS: -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dfile.encoding=UTF-8
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
 
     steps:
-      - name: Stop other active Actions runs
+      - name: Checkout canonical dev source
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Static stability preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${LOCAL_PROPERTIES}" ]] || {
+            echo 'LOCAL_PROPERTIES secret is missing.' >&2
+            exit 1
+          }
+
+          bash -n scripts/final_main_stable_release_12_9_2.sh
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          scripts = (
+              'scripts/finalize_authorgram_source.py',
+              'scripts/patch_authorgram_popup_bounds.py',
+              'scripts/patch_authorgram_chat_scope_safety.py',
+              'scripts/patch_authorgram_main_stability.py',
+          )
+          for relative in scripts:
+              source = Path(relative).read_text(encoding='utf-8')
+              compile(source, relative, 'exec')
+
+          stability = Path('scripts/patch_authorgram_main_stability.py').read_text(encoding='utf-8')
+          for marker in (
+              'AUTHORGRAM_STABLE_FIXED_IOS_PREVIEW',
+              'AUTHORGRAM_STABLE_IOS_INPUT_LIFECYCLE',
+              'AUTHORGRAM_STABLE_IOS_MENU_FOOTER',
+              'AUTHORGRAM_NATIVE_ONLY_IOS_MESSAGE_PREVIEW',
+              'Math.min(oldParams.height, AndroidUtilities.dp(44))',
+              'if (!isIOSInputStyle() || !isAttachedToWindow())',
+          ):
+              if marker not in stability:
+                  raise SystemExit(f'stability pass missing {marker}')
+
+          chat = Path('TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java').read_text(encoding='utf-8')
+          enter = Path('TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java').read_text(encoding='utf-8')
+          scrim = Path('TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java').read_text(encoding='utf-8')
+
+          for required in (
+              'AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW',
+              'NekoConfig.iOSMessageMenu.Bool()',
+              'AuthorGramPlayPolicy.canUseIosUi()',
+          ):
+              if required not in chat:
+                  raise SystemExit(f'ChatActivity preflight missing {required}')
+
+          if enter.count('public View getSendButtonInternal() {') != 1:
+              raise SystemExit('getSendButtonInternal method count is not exactly one')
+          if 'AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER' not in enter:
+              raise SystemExit('composer invariant anchor missing')
+          if 'AUTHORGRAM_UNIFIED_MENU_FOOTER' not in scrim:
+              raise SystemExit('menu footer anchor missing')
+          PY
+
+          python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply
+          git diff --check
+          test -z "$(git status --porcelain)"
+
+      - name: Purge superseded Actions and disable obsolete workflows
         uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
@@ -39,82 +107,100 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const currentRunId = Number(context.runId);
-            const active = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
-            const runs = await github.paginate(
-              github.rest.actions.listWorkflowRunsForRepo,
-              { owner, repo, per_page: 100 },
-            );
-            for (const run of runs) {
-              if (Number(run.id) === currentRunId || !active.has(run.status)) continue;
+            const currentWorkflowPath = '.github/workflows/release.yml';
+            const activeStates = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
+            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+            async function listRuns() {
+              return await github.paginate(
+                github.rest.actions.listWorkflowRunsForRepo,
+                { owner, repo, per_page: 100 },
+              );
+            }
+
+            async function jobsFor(runId) {
               try {
-                await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
-                core.info(`Cancelled stale active run ${run.id}: ${run.name}`);
+                return await github.paginate(
+                  github.rest.actions.listJobsForWorkflowRun,
+                  { owner, repo, run_id: runId, per_page: 100 },
+                );
               } catch (error) {
-                core.warning(`Could not cancel run ${run.id}: ${error.message}`);
+                core.warning(`Unable to inspect jobs for ${runId}: ${error.message}`);
+                return null;
               }
             }
 
-      - name: Checkout Play Market source
-        uses: actions/checkout@v4
-        with:
-          ref: play-market
-          fetch-depth: 0
-          submodules: recursive
-          persist-credentials: true
+            const workflows = await github.paginate(
+              github.rest.actions.listRepoWorkflows,
+              { owner, repo, per_page: 100 },
+            );
+            for (const workflow of workflows) {
+              if (workflow.path === currentWorkflowPath || workflow.state !== 'active') continue;
+              try {
+                await github.rest.actions.disableWorkflow({ owner, repo, workflow_id: workflow.id });
+                core.info(`Disabled obsolete workflow ${workflow.id}: ${workflow.name}`);
+              } catch (error) {
+                core.warning(`Unable to disable workflow ${workflow.id}: ${error.message}`);
+              }
+            }
 
-      - name: Zero-Gradle Play preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing.' >&2; exit 1; }
-          [[ "${NATIVE_TARGET}" == "arm64-v8a" ]] || { echo 'Only arm64-v8a is allowed for this run.' >&2; exit 1; }
-          [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]] || { echo 'Play versionName mismatch.' >&2; exit 1; }
-          [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]] || { echo 'Play versionCode mismatch.' >&2; exit 1; }
-          [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]] || { echo 'Play package mismatch.' >&2; exit 1; }
-          test ! -f TMessagesProj/release.keystore
+            async function deleteRun(run) {
+              try {
+                await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id });
+                core.info(`Deleted superseded run ${run.id}: ${run.name}`);
+                return true;
+              } catch (error) {
+                core.warning(`Delete failed for ${run.id}: ${error.message}`);
+                return false;
+              }
+            }
 
-          git fetch --force --no-tags origin main play-market
-          python3 scripts/authorgram_parity_guard.py --main-ref origin/main --play-ref HEAD
+            async function stopRun(run) {
+              try {
+                await github.request(
+                  'POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel',
+                  { owner, repo, run_id: run.id },
+                );
+                return;
+              } catch (forceError) {
+                core.warning(`Force-cancel failed for ${run.id}: ${forceError.message}`);
+              }
+              try {
+                await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+              } catch (cancelError) {
+                core.warning(`Normal cancel failed for ${run.id}: ${cancelError.message}`);
+              }
+            }
 
-          python3 - <<'PY'
-          from pathlib import Path
+            for (let pass = 1; pass <= 5; pass += 1) {
+              const runs = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
+              if (runs.length === 0) break;
+              for (const run of runs) {
+                if (activeStates.has(run.status)) {
+                  if (!await deleteRun(run)) await stopRun(run);
+                } else {
+                  await deleteRun(run);
+                }
+              }
+              await sleep(6000);
+            }
 
-          build = Path('TMessagesProj/build.gradle').read_text(encoding='utf-8')
-          policy = Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java').read_text(encoding='utf-8')
-          props = Path('gradle.properties').read_text(encoding='utf-8')
+            const remaining = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
+            const blockers = [];
+            for (const run of remaining) {
+              const jobs = await jobsFor(run.id);
+              if (jobs === null || jobs.length > 0) {
+                blockers.push(`${run.id}:${run.status}:${run.name}`);
+              } else {
+                core.warning(`Ignoring GitHub stale zero-job record ${run.id}:${run.status}:${run.name}`);
+              }
+            }
 
-          required_build = (
-              "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'",
-              "def authorGramSystemKeyHex = APP_PACKAGE == 'toss.authorgram.apk' ? ''",
-              "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'",
-              "def nativeTarget = System.getenv('NATIVE_TARGET') ?: ''",
-              'include nativeTarget',
-              'universalApk = nativeTarget.isBlank()',
-          )
-          required_policy = (
-              'values.put("hideSponsoredMessage", false)',
-              'values.put("HideProxySponsorChannel", false)',
-              'values.put("iOSMessageInputField", false)',
-              'values.put("iOSMessageMenu", false)',
-              'public static boolean canUseIosUi()',
-              'return !isPlayBuild();',
-              'public static boolean canEnableEncryption(int account, long dialogId)',
-          )
-          for marker in required_build:
-              if marker not in build:
-                  raise SystemExit(f'Play build invariant missing: {marker}')
-          for marker in required_policy:
-              if marker not in policy:
-                  raise SystemExit(f'Play policy invariant missing: {marker}')
-          if 'APP_PACKAGE=toss.authorgram.apk' not in props:
-              raise SystemExit('Play APP_PACKAGE is incorrect')
-          if 'AUTHORGRAM_SYSTEM_KEY_HEX' not in build:
-              raise SystemExit('BuildConfig system-key boundary is missing')
-          print('Play static policy and ARM64 preflight passed')
-          PY
-
-          git diff --check
-          test -z "$(git status --porcelain)"
+            if (blockers.length > 0) {
+              core.setFailed(`Real superseded Actions runs remain: ${blockers.join(', ')}`);
+            } else {
+              core.info('No real superseded workflow job remains.');
+            }
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -126,147 +212,51 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          cache-read-only: true
+          cache-disabled: true
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-      - name: Build and verify one Play ARM64 release APK
+      - name: Build and verify stable Main release
         shell: bash
         run: |
-          set -Eeuo pipefail
-          artifact_dir="${RUNNER_TEMP}/authorgram-play-final"
-          mkdir -p "${artifact_dir}"
-          cleanup() {
-            rm -f TMessagesProj/release.keystore local.properties
+          set -euo pipefail
+          bash scripts/final_main_stable_release_12_9_2.sh
+
+      - name: Verify exact Main artifact set
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_dir="${RUNNER_TEMP}/authorgram-main-stable/artifacts"
+          mapfile -t apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.apk' -print | sort)
+          mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print | sort)
+
+          [[ "${#apks[@]}" -eq 1 ]] || {
+            echo "Expected exactly one Main APK, found ${#apks[@]}" >&2
+            exit 1
           }
-          trap cleanup EXIT
-
-          git show origin/main:TMessagesProj/release.keystore > TMessagesProj/release.keystore
-          chmod 600 TMessagesProj/release.keystore
-          test -s TMessagesProj/release.keystore
-          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
-
-          ./gradlew --no-daemon --stacktrace clean TMessagesProj:assembleRelease
-
-          PLAY_APK="$(python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          root = Path('TMessagesProj/build/outputs/apk')
-          matches = []
-          for metadata in root.rglob('output-metadata.json'):
-              data = json.loads(metadata.read_text(encoding='utf-8'))
-              for element in data.get('elements', []):
-                  output = element.get('outputFile', '')
-                  filters = element.get('filters') or []
-                  abis = [item.get('value') for item in filters if item.get('filterType') == 'ABI']
-                  if 'arm64-v8a' in abis or 'arm64-v8a' in output:
-                      candidate = (metadata.parent / output).resolve()
-                      if candidate.is_file() and 'debug' not in candidate.name.lower():
-                          matches.append(candidate)
-          unique = sorted(set(matches))
-          if len(unique) != 1:
-              raise SystemExit(f'Expected exactly one ARM64 release APK, found {len(unique)}: {unique}')
-          print(unique[0])
-          PY
-          )"
-
-          aapt="${ANDROID_HOME}/build-tools/36.0.0/aapt"
-          apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
-          zipalign="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
-
-          "${zipalign}" -c -P 16 4 "${PLAY_APK}"
-          badging="$("${aapt}" dump badging "${PLAY_APK}")"
-          package="$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
-          version_code="$(sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
-          version_name="$(sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
-
-          [[ "${package}" == "${PLAY_PACKAGE}" ]] || { echo "APK package ${package} != ${PLAY_PACKAGE}" >&2; exit 1; }
-          [[ "${version_code}" == "${VERSION_CODE}" ]] || { echo "APK versionCode ${version_code} != ${VERSION_CODE}" >&2; exit 1; }
-          [[ "${version_name}" == "${VERSION_NAME}" ]] || { echo "APK versionName ${version_name} != ${VERSION_NAME}" >&2; exit 1; }
-          if grep -q '^application-debuggable' <<<"${badging}"; then
-            echo 'Play release APK is debuggable.' >&2
-            exit 1
-          fi
-
-          permissions="$("${aapt}" dump permissions "${PLAY_APK}")"
-          if grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${permissions}"; then
-            echo 'Play APK contains forbidden REQUEST_INSTALL_PACKAGES.' >&2
-            exit 1
-          fi
-
-          signer_report="$("${apksigner}" verify --verbose --print-certs "${PLAY_APK}")"
-          printf '%s\n' "${signer_report}" | tee "${artifact_dir}/Play-CERTIFICATE.txt"
-          grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer_report}" || {
-            echo 'Play APK has no verified modern signature scheme.' >&2
+          [[ "${#aabs[@]}" -eq 0 ]] || {
+            echo 'AAB files are forbidden.' >&2
             exit 1
           }
 
-          cert_digest="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<<"${signer_report}" | head -n1 | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
-          expected_digest="$(printf '%s' "${AUTHORGRAM_SIGNING_CERT_SHA256:-}" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
-          if [[ -n "${expected_digest}" && "${cert_digest}" != "${expected_digest}" ]]; then
-            echo 'Play APK signing certificate does not match AUTHORGRAM_SIGNING_CERT_SHA256.' >&2
-            exit 1
-          fi
+          test -s "${artifact_dir}/Main-BUILD.txt"
+          test -s "${artifact_dir}/Main-CERTIFICATE.txt"
+          test -s "${artifact_dir}/RELEASE-SUMMARY.txt"
+          test -s "${artifact_dir}/SHA256SUMS.txt"
+          grep -q '^playTouched=false$' "${artifact_dir}/Main-BUILD.txt"
+          grep -q 'AuthorGram-Main-.*\.apk' "${artifact_dir}/SHA256SUMS.txt"
 
-          if unzip -Z1 "${PLAY_APK}" | grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks|[^/]*\.p12|[^/]*\.pfx)$'; then
-            echo 'Signing material was packaged into the Play APK.' >&2
-            exit 1
-          fi
-
-          final_apk="${artifact_dir}/AuthorGram-Play-v${VERSION_NAME}-release-arm64-v8a.apk"
-          cp "${PLAY_APK}" "${final_apk}"
-          play_commit="$(git rev-parse HEAD)"
-          main_commit="$(git rev-parse origin/main)"
-
-          cat > "${artifact_dir}/Play-BUILD.txt" <<EOF
-          branch=play-market
-          commit=${play_commit}
-          package=${PLAY_PACKAGE}
-          versionName=${VERSION_NAME}
-          versionCode=${VERSION_CODE}
-          abi=arm64-v8a
-          signingSource=main-release-keystore-temporary-copy
-          mainParityRef=${main_commit}
-          EOF
-
-          (
-            cd "${artifact_dir}"
-            sha256sum "$(basename "${final_apk}")" > SHA256SUMS.txt
-          )
-
-          cat > "${artifact_dir}/RELEASE-SUMMARY.txt" <<EOF
-          AuthorGram ${VERSION_NAME} Play release
-
-          Package: ${PLAY_PACKAGE}
-          Version code: ${VERSION_CODE}
-          ABI: arm64-v8a
-          Play commit: ${play_commit}
-          Main parity ref: ${main_commit}
-
-          Verified before upload:
-          - Play and Main application source parity guard passed.
-          - Play-only policy keeps iOS UI disabled.
-          - AuthorGram custom-wire encryption remains disabled in Play.
-          - Telegram sponsored content is not blocked by AuthorGram Play policy.
-          - REQUEST_INSTALL_PACKAGES is absent.
-          - APK is release-signed, non-debuggable, zip-aligned and ARM64-only.
-          - Stable release signing identity is used without committing signing material to Play.
-          - No AAB was built.
-          EOF
-
-          test "$(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Play-*.apk' | wc -l)" -eq 1
-          test "$(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' | wc -l)" -eq 0
+          cat "${artifact_dir}/RELEASE-SUMMARY.txt"
           cat "${artifact_dir}/SHA256SUMS.txt"
 
-      - name: Upload verified Play APK package
+      - name: Upload stable Main APK
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-12.9.2-Play-Release-ARM64
-          path: ${{ runner.temp }}/authorgram-play-final/
+          name: AuthorGram-12.9.2-Stable-Main-Release
+          path: ${{ runner.temp }}/authorgram-main-stable/artifacts/
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
