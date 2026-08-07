@@ -14,7 +14,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: authorgram-12-9-2-stable-main-release
+  group: authorgram-12-9-2-canonical-main-arm64
   cancel-in-progress: true
 
 jobs:
