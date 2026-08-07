@@ -10,6 +10,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBarPopupWindow;
+import org.telegram.ui.ActionBar.Theme;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,7 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
     private float bottomViewReactionsOffset;
     private float bottomViewYOffset;
     private final List<FrameLayout> bottomViews = new ArrayList<>();
+    private boolean authorGramUnifiedFooterSeparatorAdded; // AUTHORGRAM_UNIFIED_MENU_FOOTER
     private float currentPopupAlpha = 1.0f;
     private float expandSize;
     private float lastReactionsTransitionProgress;
@@ -58,6 +60,8 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
         int constrainedHeightSpec = MeasureSpec.makeMeasureSpec(effectiveMaxHeight, MeasureSpec.AT_MOST);
         int adjustedWidthSpec = widthMeasureSpec;
 
+        authorGramAttachPendingBottomViews(); // AUTHORGRAM_UNIFIED_MENU_FOOTER
+
         // Reset a previous viewport cap before measuring natural popup content.
         if (popupWindowLayout != null) {
             LinearLayout.LayoutParams popupParams =
@@ -88,8 +92,11 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
                     + childParams.topMargin
                     + childParams.bottomMargin;
         }
+        // AUTHORGRAM_STRICT_MENU_VIEWPORT
+        // Never force the popup beyond the real work area. Content that does
+        // not fit belongs to ActionBarPopupWindowLayout's internal ScrollView.
         int availableForActions = Math.max(
-                AndroidUtilities.dp(96),
+                1,
                 effectiveMaxHeight - occupiedHeight
         );
         LinearLayout.LayoutParams popupParams =
@@ -235,12 +242,73 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
         }
     }
 
-    public void applyViewBottom(FrameLayout bottomView) {
-        if (bottomView != null) {
-            bottomViews.add(bottomView);
-            if (popupWindowLayout != null) {
-                updateBottomOffset();
+    // AUTHORGRAM_UNIFIED_MENU_FOOTER
+    // Move quick actions into the same ActionBarPopupWindowLayout content as the
+    // normal action rows. ActionBarPopupWindowLayout.addView() routes these views
+    // into its internal LinearLayout/ScrollView, making the entire card reachable.
+    private void authorGramAttachPendingBottomViews() {
+        if (popupWindowLayout == null || bottomViews.isEmpty()) {
+            return;
+        }
+
+        ArrayList<FrameLayout> pendingBottomViews = new ArrayList<>(bottomViews);
+        bottomViews.clear();
+
+        if (!authorGramUnifiedFooterSeparatorAdded) {
+            View authorGramFooterSeparator = new View(getContext());
+            // AUTHORGRAM_MENU_FOOTER_SEPARATOR
+            authorGramFooterSeparator.setBackgroundColor(Theme.getColor(Theme.key_divider));
+            popupWindowLayout.addView(
+                    authorGramFooterSeparator,
+                    new LinearLayout.LayoutParams(
+                            LayoutHelper.MATCH_PARENT,
+                            AndroidUtilities.dp(1)
+                    )
+            );
+            authorGramUnifiedFooterSeparatorAdded = true;
+        }
+
+        for (FrameLayout bottomView : pendingBottomViews) {
+            if (bottomView == null) {
+                continue;
             }
+            ViewGroup.LayoutParams oldParams = bottomView.getLayoutParams();
+            int footerHeight = oldParams != null && oldParams.height != 0
+                    ? oldParams.height
+                    : LayoutHelper.WRAP_CONTENT;
+
+            if (bottomView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) bottomView.getParent()).removeView(bottomView);
+            }
+
+            // The popup owns the single rounded card background. Keeping a second
+            // footer background here would recreate the visually detached block.
+            bottomView.setBackground(null);
+            bottomView.setAlpha(1.0f);
+            bottomView.setTranslationX(0.0f);
+            bottomView.setTranslationY(0.0f);
+            bottomView.setScaleX(1.0f);
+            bottomView.setScaleY(1.0f);
+
+            LinearLayout.LayoutParams footerParams = new LinearLayout.LayoutParams(
+                    LayoutHelper.MATCH_PARENT,
+                    footerHeight
+            );
+            footerParams.leftMargin = 0;
+            footerParams.rightMargin = 0;
+            footerParams.topMargin = 0;
+            footerParams.bottomMargin = 0;
+            popupWindowLayout.addView(bottomView, footerParams);
+        }
+    }
+
+    public void applyViewBottom(FrameLayout bottomView) {
+        if (bottomView != null && !bottomViews.contains(bottomView)) {
+            // AUTHORGRAM_UNIFIED_MENU_FOOTER
+            // Queue until measure: by then all normal menu rows are present,
+            // so the footer is appended last inside the popup ScrollView.
+            bottomViews.add(bottomView);
+            requestLayout();
         }
     }
 
