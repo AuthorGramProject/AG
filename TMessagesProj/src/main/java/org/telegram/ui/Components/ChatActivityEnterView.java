@@ -9192,6 +9192,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     // AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER
     // AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT
     // AUTHORGRAM_IOS_SEND_BUTTON_COMPILE_FIX
+    // AUTHORGRAM_STABLE_IOS_INPUT_LIFECYCLE
     private final Runnable authorGramInputMenuInvariantRunnable =
             this::authorGramEnforceInputMenuInvariant;
 
@@ -9245,11 +9246,16 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     }
 
     private void authorGramScheduleInputMenuInvariant() {
-        authorGramEnforceInputMenuInvariant();
         if (audioVideoButtonContainer == null) {
             return;
         }
+
         audioVideoButtonContainer.removeCallbacks(authorGramInputMenuInvariantRunnable);
+        if (!isIOSInputStyle() || !isAttachedToWindow()) {
+            return;
+        }
+
+        authorGramEnforceInputMenuInvariant();
         audioVideoButtonContainer.post(authorGramInputMenuInvariantRunnable);
         audioVideoButtonContainer.postDelayed(authorGramInputMenuInvariantRunnable, 260L);
     }
@@ -16230,6 +16236,62 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     int botCommandLastPosition = -1;
     int botCommandLastTop;
 
+    // AUTHORGRAM_IOS_INPUT_GEOMETRY_INVARIANT
+    // Empty and non-empty iOS composer states must share the same baseline.
+    // Telegram/Nagram can briefly retain vertical compensation from a previous
+    // measurement; normalize only the Main-only iOS composer after layout.
+    private final Runnable authorGramInputGeometryRunnable =
+            this::authorGramStabilizeIOSInputGeometry;
+
+    private void authorGramStabilizeIOSInputGeometry() {
+        if (!isIOSInputStyle()
+                || !isAttachedToWindow()
+                || recordingAudioVideo
+                || (recordedAudioPanel != null && recordedAudioPanel.getVisibility() == VISIBLE)) {
+            return;
+        }
+
+        if (textFieldContainer != null) {
+            textFieldContainer.setTranslationY(0.0f);
+        }
+        if (messageEditTextContainer != null) {
+            messageEditTextContainer.setTranslationY(0.0f);
+        }
+        if (attachBubble != null) {
+            attachBubble.setTranslationY(0.0f);
+        }
+        if (sendButtonContainer != null) {
+            sendButtonContainer.setTranslationY(0.0f);
+        }
+        if (audioVideoButtonContainer != null) {
+            audioVideoButtonContainer.setTranslationY(0.0f);
+        }
+        if (aiButton != null) {
+            aiButton.animate().cancel();
+            aiButton.setTranslationY(0.0f);
+        }
+        if (richButton != null) {
+            richButton.animate().cancel();
+            richButton.setTranslationY(0.0f);
+        }
+        if (aiHint != null) {
+            aiHint.animate().cancel();
+            aiHint.setTranslationY(0.0f);
+        }
+
+        updateSideBubbles();
+    }
+
+    private void authorGramScheduleInputGeometryInvariant() {
+        removeCallbacks(authorGramInputGeometryRunnable);
+        if (!isIOSInputStyle() || !isAttachedToWindow()) {
+            return;
+        }
+        authorGramStabilizeIOSInputGeometry();
+        post(authorGramInputGeometryRunnable);
+        postDelayed(authorGramInputGeometryRunnable, 320L);
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int wasHeight = textFieldContainer.getMeasuredHeight();
@@ -16290,27 +16352,41 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         checkUi_TopViewVisibility();
 
         if (wasHeight > 0 && textFieldContainer.getMeasuredHeight() != wasHeight) {
-            for (int i = 0; i < 2; ++i) {
-                final View view = i == 0 ? aiButton : richButton;
-                view.setTranslationY(view.getTranslationY() + textFieldContainer.getMeasuredHeight() - wasHeight);
-                view.animate()
-                    .translationY(0)
-                    .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).setDuration(420)
-                    .start();
+            if (isIOSInputStyle()) {
+                // The iOS composer uses bottom-gravity side bubbles. Do not replay
+                // Telegram's vertical compensation on those controls: it can leave
+                // the empty composer visually displaced until the first text change.
+                authorGramScheduleInputGeometryInvariant();
+            } else {
+                for (int i = 0; i < 2; ++i) {
+                    final View view = i == 0 ? aiButton : richButton;
+                    view.setTranslationY(view.getTranslationY() + textFieldContainer.getMeasuredHeight() - wasHeight);
+                    view.animate()
+                        .translationY(0)
+                        .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).setDuration(420)
+                        .start();
+                }
+                if (aiHint != null) {
+                    aiHint.setTranslationY(aiHint.getTranslationY() + textFieldContainer.getMeasuredHeight() - wasHeight);
+                    aiHint.animate()
+                        .translationY(0)
+                        .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).setDuration(420)
+                        .start();
+                }
             }
-            if (aiHint != null) {
-                aiHint.setTranslationY(aiHint.getTranslationY() + textFieldContainer.getMeasuredHeight() - wasHeight);
-                aiHint.animate()
-                    .translationY(0)
-                    .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).setDuration(420)
-                    .start();
-            }
+        } else if (isIOSInputStyle()) {
+            // Also normalize restored/initial empty states where measured height is
+            // unchanged but stale child translation survived a delayed animation.
+            authorGramScheduleInputGeometryInvariant();
         }
     }
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
+        if (isIOSInputStyle()) {
+            authorGramScheduleInputGeometryInvariant();
+        }
         if (botCommandLastPosition != -1 && botCommandsMenuContainer != null) {
             LinearLayoutManager layoutManager = (LinearLayoutManager) botCommandsMenuContainer.listView.getLayoutManager();
             if (layoutManager != null) {

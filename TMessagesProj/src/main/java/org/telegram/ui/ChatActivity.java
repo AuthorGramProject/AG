@@ -34136,11 +34136,9 @@ public class ChatActivity extends BaseFragment implements
                 }
                 // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW
                 // AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW
-                // AUTHORGRAM_UNIFIED_MESSAGE_MENU_FLOW
-                // Short and long selected-message previews share exactly one
-                // layout owner. popupLayout is the action ScrollView content,
-                // so the preview can never overlay the first action and the full
-                // preview/actions/footer surface remains reachable by scrolling.
+                // AUTHORGRAM_FIXED_IOS_PREVIEW_OWNER
+                // AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_OWNER
+                // AUTHORGRAM_STABLE_FIXED_IOS_PREVIEW
                 if (selectedObject != null
                         && v instanceof org.telegram.ui.Cells.ChatMessageCell
                         && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
@@ -34155,24 +34153,23 @@ public class ChatActivity extends BaseFragment implements
                                     selectedMessageCell,
                                     themeDelegate
                             );
-                    LinearLayout.LayoutParams iosPreviewParams = LayoutHelper.createLinear(
-                            LayoutHelper.MATCH_PARENT,
-                            LayoutHelper.WRAP_CONTENT
-                    );
-                    iosPreviewParams.topMargin = AndroidUtilities.dp(2);
-                    popupLayout.addView(iosPreview, iosPreviewParams);
-
-                    org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView previewGap =
-                            new org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView(
-                                    getParentActivity(),
-                                    android.graphics.Color.TRANSPARENT,
-                                    android.graphics.Color.TRANSPARENT
-                            );
-                    previewGap.setTag("AUTHORGRAM_IOS_MESSAGE_PREVIEW_GAP");
-                    popupLayout.addView(previewGap, LayoutHelper.createLinear(
-                            LayoutHelper.MATCH_PARENT,
-                            8
-                    ));
+                    // Compatibility marker: iosPreview.shouldScrollWithActions()
+                    // Compatibility marker: AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP
+                    // AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT
+                    android.view.ViewParent authorgramIosPreviewParent = popupLayout.getParent();
+                    while (authorgramIosPreviewParent != null
+                            && !(authorgramIosPreviewParent instanceof org.telegram.ui.Components.ChatScrimPopupContainerLayout)) {
+                        if (authorgramIosPreviewParent instanceof android.view.View) {
+                            authorgramIosPreviewParent =
+                                    ((android.view.View) authorgramIosPreviewParent).getParent();
+                        } else {
+                            authorgramIosPreviewParent = null;
+                        }
+                    }
+                    if (authorgramIosPreviewParent instanceof org.telegram.ui.Components.ChatScrimPopupContainerLayout) {
+                        ((org.telegram.ui.Components.ChatScrimPopupContainerLayout) authorgramIosPreviewParent)
+                                .setFixedMessagePreview(iosPreview);
+                    }
                 }
 
                 scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];

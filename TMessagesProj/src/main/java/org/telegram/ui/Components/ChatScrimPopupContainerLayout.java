@@ -9,8 +9,11 @@ import android.widget.LinearLayout;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;
 import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.Theme;
+
+import tw.nekomimi.nekogram.NekoConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -92,11 +95,8 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
                     + childParams.topMargin
                     + childParams.bottomMargin;
         }
-        // AUTHORGRAM_STRICT_MENU_VIEWPORT
-        // Never force the popup beyond the real work area. Content that does
-        // not fit belongs to ActionBarPopupWindowLayout's internal ScrollView.
         int availableForActions = Math.max(
-                1,
+                AndroidUtilities.dp(96),
                 effectiveMaxHeight - occupiedHeight
         );
         LinearLayout.LayoutParams popupParams =
@@ -242,12 +242,19 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
         }
     }
 
+    // AUTHORGRAM_STABLE_IOS_MENU_FOOTER
+    private boolean authorGramIosMessageMenuActive() {
+        return AuthorGramPlayPolicy.canUseIosUi() && NekoConfig.iOSMessageMenu.Bool();
+    }
+
     // AUTHORGRAM_UNIFIED_MENU_FOOTER
     // Move quick actions into the same ActionBarPopupWindowLayout content as the
     // normal action rows. ActionBarPopupWindowLayout.addView() routes these views
     // into its internal LinearLayout/ScrollView, making the entire card reachable.
     private void authorGramAttachPendingBottomViews() {
-        if (popupWindowLayout == null || bottomViews.isEmpty()) {
+        if (popupWindowLayout == null
+                || bottomViews.isEmpty()
+                || !authorGramIosMessageMenuActive()) {
             return;
         }
 
@@ -273,9 +280,9 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
                 continue;
             }
             ViewGroup.LayoutParams oldParams = bottomView.getLayoutParams();
-            int footerHeight = oldParams != null && oldParams.height != 0
-                    ? oldParams.height
-                    : LayoutHelper.WRAP_CONTENT;
+            int footerHeight = oldParams != null && oldParams.height > 0
+                    ? Math.min(oldParams.height, AndroidUtilities.dp(44))
+                    : AndroidUtilities.dp(44);
 
             if (bottomView.getParent() instanceof ViewGroup) {
                 ((ViewGroup) bottomView.getParent()).removeView(bottomView);
@@ -303,12 +310,15 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
     }
 
     public void applyViewBottom(FrameLayout bottomView) {
-        if (bottomView != null && !bottomViews.contains(bottomView)) {
-            // AUTHORGRAM_UNIFIED_MENU_FOOTER
-            // Queue until measure: by then all normal menu rows are present,
-            // so the footer is appended last inside the popup ScrollView.
-            bottomViews.add(bottomView);
+        if (bottomView == null || bottomViews.contains(bottomView)) {
+            return;
+        }
+
+        bottomViews.add(bottomView);
+        if (authorGramIosMessageMenuActive()) {
             requestLayout();
+        } else if (popupWindowLayout != null) {
+            updateBottomOffset();
         }
     }
 
@@ -331,7 +341,7 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
                     LayoutHelper.WRAP_CONTENT,
                     LayoutHelper.WRAP_CONTENT
             );
-            params.bottomMargin = AndroidUtilities.dp(8);
+            params.bottomMargin = AndroidUtilities.dp(4);
             addView(preview, Math.max(0, popupIndex), params);
         }
         requestLayout();
