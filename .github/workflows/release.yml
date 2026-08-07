@@ -1,23 +1,26 @@
-name: AuthorGram 12.9.2 Clean Main + Play Release
+name: AuthorGram 12.9.2 Single Clean Main + Play Release
 
 on:
-  workflow_dispatch:
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
     branches: [dev]
     paths:
-      - .github/FINAL_RELEASE_12_9_2
+      - .github/FINAL_RELEASE_PR_12_9_2
+  workflow_dispatch:
 
 permissions:
   actions: write
   contents: write
+  pull-requests: read
 
 concurrency:
-  group: authorgram-12-9-2-final-main-play-release
+  group: authorgram-12-9-2-single-clean-release
   cancel-in-progress: true
 
 jobs:
   release:
-    name: Clean queue, verify source, build Main + Play APKs
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'release/authorgram-12-9-2-clean-final'
+    name: Purge old Actions, verify source, build Main + Play APKs
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
@@ -30,7 +33,7 @@ jobs:
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
 
     steps:
-      - name: Stop every other active Actions run
+      - name: Purge every superseded Actions run and disable old workflows
         uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
@@ -38,55 +41,99 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const currentRunId = Number(context.runId);
-            const active = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
+            const currentWorkflowPath = '.github/workflows/release.yml';
+            const activeStates = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
             const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-            async function listOtherActiveRuns() {
-              const runs = await github.paginate(
+            async function listRuns() {
+              return await github.paginate(
                 github.rest.actions.listWorkflowRunsForRepo,
                 { owner, repo, per_page: 100 },
               );
-              return runs.filter(run => Number(run.id) !== currentRunId && active.has(run.status));
             }
 
-            let runs = await listOtherActiveRuns();
-            core.info(`Found ${runs.length} other active run(s).`);
-            for (const run of runs) {
-              try {
-                await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
-                core.info(`Cancel requested: ${run.id} ${run.name}`);
-              } catch (error) {
-                core.warning(`Cancel failed for ${run.id}: ${error.message}`);
+            async function listOtherActiveRuns() {
+              const runs = await listRuns();
+              return runs.filter(run => Number(run.id) !== currentRunId && activeStates.has(run.status));
+            }
+
+            for (let pass = 1; pass <= 8; pass += 1) {
+              const active = await listOtherActiveRuns();
+              if (active.length === 0) {
+                core.info('No superseded active Actions runs remain.');
+                break;
               }
-            }
 
-            await sleep(15000);
-            runs = await listOtherActiveRuns();
-            for (const run of runs) {
-              try {
-                if (github.rest.actions.forceCancelWorkflowRun) {
-                  await github.rest.actions.forceCancelWorkflowRun({ owner, repo, run_id: run.id });
-                } else {
-                  await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+              core.info(`Force-cancel pass ${pass}: ${active.length} active run(s).`);
+              for (const run of active) {
+                try {
+                  await github.request(
+                    'POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel',
+                    { owner, repo, run_id: run.id },
+                  );
+                  core.info(`Force-cancel requested for ${run.id}: ${run.name}`);
+                } catch (forceError) {
+                  core.warning(`Force-cancel failed for ${run.id}: ${forceError.message}`);
+                  try {
+                    await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+                    core.info(`Normal cancel requested for ${run.id}: ${run.name}`);
+                  } catch (cancelError) {
+                    core.warning(`Normal cancel also failed for ${run.id}: ${cancelError.message}`);
+                  }
                 }
-                core.info(`Force-cancel requested: ${run.id} ${run.name}`);
-              } catch (error) {
-                core.warning(`Force-cancel failed for ${run.id}: ${error.message}`);
+              }
+
+              await sleep(15000);
+            }
+
+            const stubborn = await listOtherActiveRuns();
+            if (stubborn.length !== 0) {
+              throw new Error(
+                `Unable to clear active runs: ${stubborn.map(run => `${run.id}:${run.status}:${run.name}`).join(', ')}`,
+              );
+            }
+
+            const workflows = await github.paginate(
+              github.rest.actions.listRepoWorkflows,
+              { owner, repo, per_page: 100 },
+            );
+            for (const workflow of workflows) {
+              if (workflow.path === currentWorkflowPath) {
+                continue;
+              }
+              if (workflow.state === 'active') {
+                try {
+                  await github.rest.actions.disableWorkflow({
+                    owner,
+                    repo,
+                    workflow_id: workflow.id,
+                  });
+                  core.info(`Disabled obsolete workflow ${workflow.id}: ${workflow.name} (${workflow.path})`);
+                } catch (error) {
+                  core.warning(`Unable to disable workflow ${workflow.id}: ${error.message}`);
+                }
               }
             }
 
-            for (let attempt = 1; attempt <= 30; attempt += 1) {
-              runs = await listOtherActiveRuns();
-              if (runs.length === 0) {
-                core.info('All other queued or running workflows are stopped.');
-                return;
-              }
-              core.info(`Waiting for ${runs.length} run(s) to stop: ${attempt}/30`);
-              await sleep(5000);
+            const oldRuns = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
+            core.info(`Deleting ${oldRuns.length} superseded workflow run(s).`);
+            for (let offset = 0; offset < oldRuns.length; offset += 10) {
+              const chunk = oldRuns.slice(offset, offset + 10);
+              const results = await Promise.allSettled(
+                chunk.map(run => github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id })),
+              );
+              results.forEach((result, index) => {
+                const run = chunk[index];
+                if (result.status === 'fulfilled') {
+                  core.info(`Deleted old run ${run.id}: ${run.name}`);
+                } else {
+                  core.warning(`Unable to delete old run ${run.id}: ${result.reason?.message || result.reason}`);
+                }
+              });
+              await sleep(1000);
             }
 
-            runs = await listOtherActiveRuns();
-            throw new Error(`Active runs remain: ${runs.map(run => `${run.id}:${run.status}:${run.name}`).join(', ')}`);
+            core.info('Actions cleanup completed. This release run is the only run intentionally kept.');
 
       - name: Checkout canonical dev source
         uses: actions/checkout@v4
@@ -99,6 +146,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           [[ -n "${LOCAL_PROPERTIES}" ]] || {
             echo 'LOCAL_PROPERTIES secret is missing.' >&2
             exit 1
@@ -119,7 +167,8 @@ jobs:
               'scripts/patch_authorgram_popup_bounds.py',
               'scripts/patch_authorgram_badge_surfaces.py',
           ):
-              compile(Path(relative).read_text(encoding='utf-8'), relative, 'exec')
+              source = Path(relative).read_text(encoding='utf-8')
+              compile(source, relative, 'exec')
 
           required = {
               'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java': (
@@ -175,7 +224,12 @@ jobs:
           chat = loaded['TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java']
           enter = loaded['TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java']
           preview = loaded['TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java']
-          forbidden = ('new BluredView(', 'new BlurredView(', 'private final BluredView', 'private final BlurredView')
+          forbidden = (
+              'new BluredView(',
+              'new BlurredView(',
+              'private final BluredView',
+              'private final BlurredView',
+          )
           leaked = [token for token in forbidden if token in preview]
           if leaked:
               raise SystemExit(f'Preview-local blur remains: {leaked}')
@@ -199,6 +253,8 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -222,8 +278,7 @@ jobs:
           read_tree = '  git -C "${destination}" read-tree --reset -u "${DEV_COMMIT}"\n'
           preserve = read_tree + '''
 
-          # Keep branch-local GitHub metadata out of application source synchronization.
-          # This prevents the release token from rewriting workflow files on main/play.
+          # Preserve branch-local GitHub metadata while synchronizing app source.
           if git -C "${destination}" cat-file -e "${destination_ref}:.github" 2>/dev/null; then
             git -C "${destination}" checkout "${destination_ref}" -- .github
           else
@@ -238,6 +293,7 @@ jobs:
           output.write_text(source, encoding='utf-8', newline='')
           output.chmod(0o700)
           PY
+
           bash -n /tmp/final_release_12_9_2_protected.sh
 
       - name: Build and verify Main + Play release APKs
@@ -250,20 +306,73 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           artifact_dir="${RUNNER_TEMP}/authorgram-final/artifacts"
           mapfile -t main_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Main-*.apk' -print | sort)
           mapfile -t play_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Play-*.apk' -print | sort)
           mapfile -t all_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.apk' -print | sort)
           mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print | sort)
 
-          [[ "${#main_apks[@]}" -eq 1 ]]
-          [[ "${#play_apks[@]}" -eq 1 ]]
-          [[ "${#all_apks[@]}" -eq 2 ]]
-          [[ "${#aabs[@]}" -eq 0 ]]
+          [[ "${#main_apks[@]}" -eq 1 ]] || {
+            echo "Expected exactly one Main APK, found ${#main_apks[@]}" >&2
+            exit 1
+          }
+          [[ "${#play_apks[@]}" -eq 1 ]] || {
+            echo "Expected exactly one Play APK, found ${#play_apks[@]}" >&2
+            exit 1
+          }
+          [[ "${#all_apks[@]}" -eq 2 ]] || {
+            echo "Expected exactly two APKs, found ${#all_apks[@]}" >&2
+            exit 1
+          }
+          [[ "${#aabs[@]}" -eq 0 ]] || {
+            echo 'AAB files are forbidden.' >&2
+            exit 1
+          }
+
+          aapt="${ANDROID_HOME}/build-tools/36.0.0/aapt"
+          apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
+          zipalign="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
+
+          verify_apk() {
+            local apk="$1"
+            local expected_package="$2"
+            local badging package version_name version_code signer
+
+            "${zipalign}" -c -P 16 4 "${apk}"
+            badging="$("${aapt}" dump badging "${apk}")"
+            package="$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
+            version_code="$(sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
+            version_name="$(sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
+            [[ "${package}" == "${expected_package}" ]]
+            [[ "${version_code}" == "${VERSION_CODE}" ]]
+            [[ "${version_name}" == "${VERSION_NAME}" ]]
+            ! grep -q '^application-debuggable' <<<"${badging}"
+
+            signer="$("${apksigner}" verify --verbose --print-certs "${apk}")"
+            grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer}"
+          }
+
+          verify_apk "${main_apks[0]}" "${MAIN_PACKAGE}"
+          verify_apk "${play_apks[0]}" "${PLAY_PACKAGE}"
+
+          main_permissions="$("${aapt}" dump permissions "${main_apks[0]}")"
+          play_permissions="$("${aapt}" dump permissions "${play_apks[0]}")"
+          grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${main_permissions}"
+          ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${play_permissions}"
 
           main_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Main-CERTIFICATE.txt" | head -n1)"
           play_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Play-CERTIFICATE.txt" | head -n1)"
           [[ -n "${main_cert}" && "${main_cert}" == "${play_cert}" ]]
+
+          if [[ -n "${AUTHORGRAM_SIGNING_CERT_SHA256}" ]]; then
+            expected_cert="$(tr '[:upper:]' '[:lower:]' <<<"${AUTHORGRAM_SIGNING_CERT_SHA256}" | tr -d ':[:space:]')"
+            actual_cert="$(tr '[:upper:]' '[:lower:]' <<<"${main_cert}" | tr -d ':[:space:]')"
+            [[ "${actual_cert}" == "${expected_cert}" ]] || {
+              echo 'Release signing certificate does not match AUTHORGRAM_SIGNING_CERT_SHA256.' >&2
+              exit 1
+            }
+          fi
 
           test -s "${artifact_dir}/Main-BUILD.txt"
           test -s "${artifact_dir}/Play-BUILD.txt"
@@ -272,6 +381,7 @@ jobs:
           test -s "${artifact_dir}/RELEASE-SUMMARY.txt"
           test -s "${artifact_dir}/SHA256SUMS.txt"
           [[ "$(grep -c 'AuthorGram-.*\.apk' "${artifact_dir}/SHA256SUMS.txt")" -eq 2 ]]
+
           cat "${artifact_dir}/RELEASE-SUMMARY.txt"
           cat "${artifact_dir}/SHA256SUMS.txt"
 
