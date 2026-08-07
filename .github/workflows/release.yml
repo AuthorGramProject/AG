@@ -140,15 +140,27 @@ jobs:
           if 'patch_authorgram_chat_scope_safety' not in finalizer:
               raise SystemExit('Source finalizer is not bound to ChatActivity scope validation')
 
-          ordered = (
-              'python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply',
-              'python3 scripts/patch_authorgram_popup_bounds.py',
-              'python3 scripts/finalize_authorgram_source.py --role dev',
-              'python3 scripts/authorgram_guard.py',
+          pre_apply = release.find('python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply')
+          popup_apply = release.find('python3 scripts/patch_authorgram_popup_bounds.py', pre_apply + 1)
+          first_scope_validate = release.find(
               'python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate',
+              popup_apply + 1,
           )
-          positions = [release.find(token) for token in ordered]
-          if any(pos < 0 for pos in positions) or positions != sorted(positions):
+          finalizer_pos = release.find('python3 scripts/finalize_authorgram_source.py --role dev', first_scope_validate + 1)
+          guard_pos = release.find('python3 scripts/authorgram_guard.py', finalizer_pos + 1)
+          second_scope_validate = release.find(
+              'python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate',
+              guard_pos + 1,
+          )
+          positions = (
+              pre_apply,
+              popup_apply,
+              first_scope_validate,
+              finalizer_pos,
+              guard_pos,
+              second_scope_validate,
+          )
+          if any(pos < 0 for pos in positions) or list(positions) != sorted(positions):
               raise SystemExit(f'Invalid release patch/guard order: {positions}')
           print('AuthorGram static release-chain preflight passed')
           PY
