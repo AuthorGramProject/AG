@@ -1,6 +1,7 @@
-AuthorGram 12.9.2 audited economical Main ARM64 release.
-This marker triggers exactly one PR-based release workflow from canonical dev.
-The workflow must run the full zero-Gradle source/UI audit first and stop before expensive setup if any invariant fails.
+AuthorGram 12.9.2 canonical Main ARM64 release trigger.
+Run exactly one zero-Gradle canonical preflight before any expensive Android setup.
+Final message-menu state must use one scroll/measurement owner for selected-message preview, normal actions and the quick-action footer; the footer must share the card width and use a thin themed divider; the strict viewport must keep the final action reachable without overlay or clipping.
+Main-only iOS selected-message UI must retain full-surface blur, sender avatar/name and native message rendering while normal message-menu behavior remains functional.
+The iOS input must restore the attachment paperclip immediately after deleting/cancelling a paused recorded voice draft, without reloading the chat, while preserving the existing send-button invariant.
 Build exactly one signed arm64-v8a Main APK for fork.risin42.nagramx, versionName 12.9.2, versionCode 6991. Reject universal/non-arm64 APKs and all AAB output.
-Synchronize and validate Play source for toss.authorgram.apk, but do not compile or upload a Play APK this month.
-Trigger follows repair of the stale fixed-preview validator that caused run 31180671782 to fail before Gradle.
+Synchronize and validate Play source but do not compile Play in this run. Play may be built only after this Main artifact succeeds.
