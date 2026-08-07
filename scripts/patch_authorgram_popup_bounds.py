@@ -5,6 +5,10 @@ The canonical final patch restores the shared baseline. The adaptive functions
 then keep short Main-only iOS message previews fixed, move long previews into
 the action ScrollView, cap the popup viewport, and preserve the native composer
 send-button API.
+
+A read-only legacy-call inventory now runs before any generator touches
+ChatActivity. The scope-safety pass then repairs only known legacy variants and
+validation refuses every stale back-call before Gradle can start.
 """
 
 from __future__ import annotations
@@ -15,7 +19,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PREVIEW = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java"
 ENTER = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
+CHAT = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
 FINAL_MARKER = "AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK"
+
+# PRE-APPLY GUARANTEE: inspect the committed ChatActivity before any UI generator
+# is allowed to mutate it. Unknown legacy back-calls are a hard failure.
+scope_safety = runpy.run_path(
+    str(ROOT / "scripts/patch_authorgram_chat_scope_safety.py"),
+    run_name="authorgram_chat_scope_safety_pre_apply",
+)
+scope_safety["pre_apply_check"]()
 
 # The legacy repair validates legacy preview wording. Run it only while upgrading
 # old source; committed final source is handled by the canonical final patches.
@@ -65,6 +78,11 @@ enter_text = enter_text.replace(
 ENTER.write_text(enter_text, encoding="utf-8", newline="")
 adaptive["patch_release_summary"]()
 
+# Generators above may materialize the exact historical back-call. Repair only
+# that inventoried variant immediately, then require a completely clean result.
+scope_safety["apply"]()
+scope_safety["validate"]()
+
 checks = {
     "standard chat header with global centering preserved": (
         ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java",
@@ -88,7 +106,7 @@ checks = {
         ),
     ),
     "native grouped actions, adaptive preview and full blur": (
-        ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java",
+        CHAT,
         (
             "AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_ACTIONS",
             "GroupedIconsView.useGroupedIcons()",
@@ -97,7 +115,11 @@ checks = {
             "AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_OWNER",
             "iosPreview.shouldScrollWithActions()",
             "AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP",
-            "scrimPopupContainerLayout.setFixedMessagePreview(iosPreview);",
+            "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT",
+            "android.view.ViewParent authorgramIosPreviewParent = popupLayout.getParent();",
+            "while (authorgramIosPreviewParent != null",
+            "((android.view.View) authorgramIosPreviewParent).getParent();",
+            ".setFixedMessagePreview(iosPreview);",
             "AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR",
             "dimBehindView(null, true, true);",
         ),
@@ -152,11 +174,16 @@ for label, (path, required) in checks.items():
         raise SystemExit(f"{label} validation failed: {missing}")
     print(f"{label} validation passed")
 
-chat_activity = (
-    ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
-).read_text(encoding="utf-8")
+chat_activity = CHAT.read_text(encoding="utf-8")
 if "AUTHORGRAM_IOS_MESSAGE_ACTION_GAP" in chat_activity:
     raise SystemExit("obsolete unconditional iOS preview gap remains")
+for forbidden in (
+    "scrimPopupContainerLayout.setFixedMessagePreview(",
+    "scrimPopupContainerLayout.getBottomOffset()",
+    "chatActivityEnterView.setFixedMessagePreview(",
+):
+    if forbidden in chat_activity:
+        raise SystemExit(f"scope-invalid ChatActivity call remains: {forbidden}")
 
 enter_text = ENTER.read_text(encoding="utf-8")
 if "public View sendButton {" in enter_text:
@@ -165,7 +192,7 @@ if enter_text.count("public View getSendButtonInternal() {") != 1:
     raise SystemExit("native getSendButtonInternal() method count is not exactly one")
 
 for path in (
-    ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java",
+    CHAT,
     ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java",
     ENTER,
     PREVIEW,

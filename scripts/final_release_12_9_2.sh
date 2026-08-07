@@ -164,9 +164,17 @@ git clean -fd
 rm -rf "${WORK_ROOT}"
 mkdir -p "${ARTIFACT_DIR}" "${TEST_DIR}"
 
+log "Pre-apply ChatActivity legacy-call scan"
+python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply
+
+log "Apply and validate the canonical AuthorGram chat UI patch chain"
+python3 scripts/patch_authorgram_popup_bounds.py
+python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
+
 log "Finalize and validate the latest dev source"
 python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
 python3 scripts/authorgram_guard.py --expected-package "${MAIN_PACKAGE}"
+python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
 git diff --check
 commit_and_push "${ROOT}" dev "[skip ci] Align dev source for final AuthorGram release"
 DEV_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
@@ -185,6 +193,7 @@ log "Synchronize finalized app source into Main"
 sync_from_dev "${MAIN_DIR}" true
 python3 "${MAIN_DIR}/scripts/finalize_authorgram_source.py" \
   --role main --package "${MAIN_PACKAGE}"
+python3 "${MAIN_DIR}/scripts/patch_authorgram_chat_scope_safety.py" --mode validate
 commit_and_push "${MAIN_DIR}" main "[skip ci] Synchronize finalized AuthorGram Main source"
 
 log "Synchronize finalized app source into Play Market"
@@ -192,6 +201,7 @@ sync_from_dev "${PLAY_DIR}" false
 rm -f "${PLAY_DIR}/TMessagesProj/release.keystore"
 python3 "${PLAY_DIR}/scripts/finalize_authorgram_source.py" \
   --role play --package "${PLAY_PACKAGE}"
+python3 "${PLAY_DIR}/scripts/patch_authorgram_chat_scope_safety.py" --mode validate
 commit_and_push "${PLAY_DIR}" play-market "[skip ci] Synchronize finalized AuthorGram Play source"
 
 log "Verify Main and Play application-source parity"
@@ -287,6 +297,8 @@ Verified invariants:
 - AuthorGram custom-wire encryption and the NagramXF-authored iOS input are Main-only.
 - Play forces normal Telegram read/presence behaviour and cannot send AuthorGram-encrypted payloads.
 - Legacy visible Nagram/Nekogram branding is rejected except exact legal upstream attribution.
+- ChatActivity contains no legacy out-of-scope iOS preview or popup-bottom calls.
+- Short iOS previews resolve the native ChatScrimPopupContainerLayout through the real popupLayout parent chain.
 - Both APKs are signed, non-debuggable, minified and shrink resources.
 - Main can request user-approved APK installation; Play omits the restricted permission.
 - Main and Play APKs use the stable existing release signing identity.

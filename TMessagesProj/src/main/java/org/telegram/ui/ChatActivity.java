@@ -34174,7 +34174,30 @@ public class ChatActivity extends BaseFragment implements
                                 8
                         ));
                     } else {
-                        scrimPopupContainerLayout.setFixedMessagePreview(iosPreview);
+                        // AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT
+                        // popupLayout is the stable local view in this createMenu block. Walk
+                        // its actual parent chain until the native scrim owner is reached.
+                        android.view.ViewParent authorgramIosPreviewParent = popupLayout.getParent();
+                        while (authorgramIosPreviewParent != null
+                                && !(authorgramIosPreviewParent instanceof org.telegram.ui.Components.ChatScrimPopupContainerLayout)) {
+                            if (authorgramIosPreviewParent instanceof android.view.View) {
+                                authorgramIosPreviewParent =
+                                        ((android.view.View) authorgramIosPreviewParent).getParent();
+                            } else {
+                                authorgramIosPreviewParent = null;
+                            }
+                        }
+                        if (authorgramIosPreviewParent instanceof org.telegram.ui.Components.ChatScrimPopupContainerLayout) {
+                            ((org.telegram.ui.Components.ChatScrimPopupContainerLayout) authorgramIosPreviewParent)
+                                    .setFixedMessagePreview(iosPreview);
+                        } else {
+                            // Upstream hierarchy changed unexpectedly. Keep the preview reachable
+                            // instead of dereferencing an out-of-scope/nonexistent owner.
+                            LinearLayout.LayoutParams authorgramFallbackPreviewParams = LayoutHelper.createLinear(
+                                    LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT
+                            );
+                            popupLayout.addView(iosPreview, 0, authorgramFallbackPreviewParams);
+                        }
                     }
                 }
 
