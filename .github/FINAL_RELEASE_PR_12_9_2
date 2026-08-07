@@ -1,0 +1,3 @@
+AuthorGram 12.9.2 single clean Main + Play release.
+This marker exists only to trigger the one observable PR-based release workflow.
+The workflow must purge every superseded Actions run, disable obsolete workflows, verify the finalized AuthorGram source, build exactly one signed Main APK and one signed Play APK, reject AAB output, verify package/version/signing identity and upload one final artifact package.
