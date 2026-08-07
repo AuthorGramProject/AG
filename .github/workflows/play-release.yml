@@ -29,28 +29,29 @@ jobs:
       PYTHONDONTWRITEBYTECODE: '1'
       GRADLE_OPTS: -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dfile.encoding=UTF-8
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
 
     steps:
       - name: Checkout finalized Play source
         uses: actions/checkout@v4
         with:
           ref: play-market
-          fetch-depth: 0
-          submodules: recursive
+          fetch-depth: 1
+          submodules: false
           persist-credentials: false
 
       - name: Zero-Gradle Play preflight
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --force --prune origin dev main play-market
+          git fetch --force --depth=1 origin \
+            +refs/heads/dev:refs/remotes/origin/dev \
+            +refs/heads/main:refs/remotes/origin/main \
+            +refs/heads/play-market:refs/remotes/origin/play-market
 
           [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
           [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
           [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing.' >&2; exit 1; }
-          [[ -n "${AUTHORGRAM_SIGNING_CERT_SHA256}" ]] || { echo 'AUTHORGRAM_SIGNING_CERT_SHA256 secret is missing.' >&2; exit 1; }
           [[ "${NATIVE_TARGET}" == "arm64-v8a" ]]
 
           python3 scripts/authorgram_parity_guard.py \
@@ -119,6 +120,7 @@ jobs:
 
             for (const run of runs) {
               if (Number(run.id) === currentRunId) continue;
+              if (run.name === 'AuthorGram Play Release Status') continue;
               if (active.has(run.status)) {
                 try {
                   await github.request('POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel', {
@@ -153,6 +155,23 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
+      - name: Fetch required native submodules with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git submodule sync --recursive
+          success=false
+          for attempt in 1 2 3; do
+            if git -c protocol.version=2 submodule update --init --force --recursive --depth 1 --jobs 3; then
+              success=true
+              break
+            fi
+            echo "Submodule fetch attempt ${attempt} failed; cleaning partial clones before retry." >&2
+            git submodule foreach --recursive 'git reset --hard || true; git clean -fd || true' || true
+            sleep 5
+          done
+          [[ "${success}" == "true" ]] || { echo 'Unable to fetch required native submodules.' >&2; exit 1; }
+
       - name: Restore stable release signing material ephemerally
         shell: bash
         run: |
@@ -161,6 +180,47 @@ jobs:
           test -s TMessagesProj/release.keystore
           chmod 600 TMessagesProj/release.keystore
           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+
+          SIGNING_ENV="${RUNNER_TEMP}/authorgram-signing.env"
+          python3 - "${SIGNING_ENV}" <<'PY'
+          import base64
+          import os
+          import shlex
+          import sys
+
+          target = sys.argv[1]
+          raw = base64.b64decode(os.environ['LOCAL_PROPERTIES']).decode('utf-8')
+          values = {}
+          for original in raw.splitlines():
+              line = original.strip()
+              if not line or line.startswith('#') or '=' not in line:
+                  continue
+              key, value = line.split('=', 1)
+              values[key.strip()] = value.strip()
+
+          required = ('KEYSTORE_PASS', 'ALIAS_NAME', 'ALIAS_PASS')
+          missing = [key for key in required if not values.get(key)]
+          if missing:
+              raise SystemExit('Missing release signing properties: ' + ', '.join(missing))
+
+          with open(target, 'w', encoding='utf-8') as handle:
+              for key in required:
+                  handle.write(f'{key}={shlex.quote(values[key])}\n')
+          PY
+          chmod 600 "${SIGNING_ENV}"
+          source "${SIGNING_ENV}"
+
+          CERT_FILE="${RUNNER_TEMP}/authorgram-signing.cer"
+          keytool -exportcert \
+            -keystore TMessagesProj/release.keystore \
+            -storepass "${KEYSTORE_PASS}" \
+            -alias "${ALIAS_NAME}" \
+            -file "${CERT_FILE}" >/dev/null
+          EXPECTED_CERT_DIGEST="$(sha256sum "${CERT_FILE}" | awk '{print $1}')"
+          [[ "${#EXPECTED_CERT_DIGEST}" -eq 64 ]]
+          printf 'EXPECTED_SIGNING_CERT_SHA256=%s\n' "${EXPECTED_CERT_DIGEST}" >> "${GITHUB_ENV}"
+          rm -f "${SIGNING_ENV}" "${CERT_FILE}"
+          unset KEYSTORE_PASS ALIAS_NAME ALIAS_PASS
 
       - name: Build Play release APK only
         shell: bash
@@ -228,9 +288,8 @@ jobs:
             || { echo 'Play APK has no verified modern signature scheme.' >&2; exit 1; }
 
           CERT_DIGEST="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<<"${SIGNER_REPORT}" | head -n 1 | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
-          EXPECTED_DIGEST="$(printf '%s' "${AUTHORGRAM_SIGNING_CERT_SHA256}" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
-          [[ "${CERT_DIGEST}" == "${EXPECTED_DIGEST}" ]] \
-            || { echo 'Play APK signing certificate mismatch.' >&2; exit 1; }
+          [[ "${CERT_DIGEST}" == "${EXPECTED_SIGNING_CERT_SHA256}" ]] \
+            || { echo 'Play APK signing certificate does not match stable release.keystore.' >&2; exit 1; }
 
           if unzip -Z1 "${APK}" | grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks|[^/]*\.p12|[^/]*\.pfx)$'; then
             echo 'Signing material leaked into Play APK.' >&2
