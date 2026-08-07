@@ -70,8 +70,15 @@ jobs:
               'AUTHORGRAM_STABLE_IOS_INPUT_LIFECYCLE',
               'AUTHORGRAM_STABLE_IOS_MENU_FOOTER',
               'AUTHORGRAM_NATIVE_ONLY_IOS_MESSAGE_PREVIEW',
-              'Math.min(oldParams.height, AndroidUtilities.dp(44))',
+              'AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW',
+              'AUTHORGRAM_LIVE_IOS_INPUT_STYLE_GATE',
+              'AUTHORGRAM_COMPACT_IOS_MENU_FOOTER',
+              'AUTHORGRAM_CLASSIC_POPUP_ZERO_EXTRA_PADDING',
+              'new ChatMessageCell(context, currentAccount)',
+              'previewCell.setMessageObject(messageObject, null, false, false, false);',
+              'Math.min(oldParams.height, AndroidUtilities.dp(40))',
               'if (!isIOSInputStyle() || !isAttachedToWindow())',
+              'postDelayed(authorGramInputMenuInvariantRunnable, 160L);',
           ):
               if marker not in stability:
                   raise SystemExit(f'stability pass missing {marker}')
