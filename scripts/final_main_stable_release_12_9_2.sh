@@ -113,6 +113,22 @@ verify_apk() {
   fi
 }
 
+canonicalize_chat_ui() {
+  local directory="$1"
+  (
+    cd "${directory}"
+    python3 scripts/patch_authorgram_popup_bounds.py
+    python3 scripts/patch_authorgram_main_stability.py
+    python3 scripts/patch_authorgram_ios_input_geometry.py --mode apply
+    # The stability generator may replace the selected-message owner block.
+    # Always canonicalize the lexical owner afterwards; never weaken this guard.
+    python3 scripts/patch_authorgram_chat_scope_safety.py --mode apply
+    python3 scripts/patch_authorgram_ios_input_geometry.py --mode validate
+    python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
+    git diff --check
+  )
+}
+
 log "Prepare canonical dev source"
 git worktree prune
 git config core.fileMode false
@@ -130,15 +146,9 @@ python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply
 log "Pre-apply iOS input geometry scan"
 python3 scripts/patch_authorgram_ios_input_geometry.py --mode pre-apply
 
-log "Finalize shared source, then apply the canonical Main stability pass"
+log "Finalize shared source, then canonicalize the Main chat UI"
 python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
-python3 scripts/patch_authorgram_popup_bounds.py
-python3 scripts/patch_authorgram_main_stability.py
-python3 scripts/patch_authorgram_ios_input_geometry.py --mode apply
-python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
-python3 scripts/patch_authorgram_main_stability.py
-python3 scripts/patch_authorgram_ios_input_geometry.py --mode validate
-git diff --check
+canonicalize_chat_ui "${ROOT}"
 commit_local_dev_snapshot
 DEV_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
 
@@ -162,17 +172,8 @@ git -C "${MAIN_DIR}" submodule update --init --depth 1 --jobs 3
 
 log "Finalize and validate isolated Main source"
 python3 "${MAIN_DIR}/scripts/finalize_authorgram_source.py" --role main --package "${MAIN_PACKAGE}"
-(
-  cd "${MAIN_DIR}"
-  python3 scripts/patch_authorgram_popup_bounds.py
-  python3 scripts/patch_authorgram_main_stability.py
-  python3 scripts/patch_authorgram_ios_input_geometry.py --mode apply
-  python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
-  python3 scripts/patch_authorgram_main_stability.py
-  python3 scripts/patch_authorgram_ios_input_geometry.py --mode validate
-  git diff --check
-)
-commit_and_push "${MAIN_DIR}" main "[skip ci] Synchronize stable AuthorGram Main source"
+canonicalize_chat_ui "${MAIN_DIR}"
+commit_and_push "${MAIN_DIR}" main "[skip ci] Synchronize crash-safe AuthorGram Main source"
 MAIN_COMMIT="$(git -C "${MAIN_DIR}" rev-parse HEAD)"
 
 log "Validate release inputs and passphrase KDF"
@@ -224,11 +225,13 @@ Stability invariants:
 - stale delayed composer callbacks are cancelled before lifecycle/style exits.
 - empty and non-empty Main iOS composer states share one vertical baseline; stale measurement translation cannot leave the input shifted.
 - side-bubble bounds are recalculated after iOS composer layout stabilization.
-- selected-message preview is the native ChatMessageCell rendering only.
-- no duplicate synthetic sender name or second synthetic bubble is drawn.
-- selected-message preview always stays above the action card.
-- the Main-only quick-action footer is capped at 44dp.
-- classic/non-iOS footer behavior is not re-parented by the Main iOS flow.
+- selected-message preview uses a fresh native Telegram ChatMessageCell bound to the original MessageObject.
+- no full-size bitmap snapshot, getPixels scan, duplicate synthetic sender name or synthetic bubble is used.
+- TL_webPage/link-preview messages use the same native Telegram message renderer as the chat.
+- short selected-message preview stays outside and above the action card; long preview scrolls with actions without clipping.
+- selected-message fixed-preview ownership is canonicalized through the actual ChatScrimPopupContainerLayout parent chain.
+- the Main-only quick-action footer is capped at 40dp.
+- classic popup scroll containers have no global artificial 8dp bottom padding.
 - release is signed, non-debuggable, arm64-v8a only.
 EOF
 
