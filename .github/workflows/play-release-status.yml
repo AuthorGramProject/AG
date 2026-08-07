@@ -24,8 +24,14 @@ jobs:
             const path = '.github/PLAY_RELEASE_STATUS_12_9_2.json';
             const branch = 'dev';
             const run = context.payload.workflow_run;
+            if (!run.path || !run.path.startsWith('.github/workflows/play-release.yml')) {
+              core.info(`Ignoring same-name workflow from path: ${run.path || 'unknown'}`);
+              return;
+            }
             const payload = {
               workflow: run.name,
+              workflow_path: run.path,
+              workflow_id: run.workflow_id,
               run_id: run.id,
               run_number: run.run_number,
               run_attempt: run.run_attempt,
@@ -50,7 +56,7 @@ jobs:
               owner,
               repo,
               path,
-              message: `Record Play release run ${run.id}: ${run.conclusion}`,
+              message: `Record isolated Play release run ${run.id}: ${run.conclusion}`,
               content,
               branch,
               ...(sha ? { sha } : {}),
