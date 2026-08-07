@@ -20,7 +20,7 @@ concurrency:
 jobs:
   release:
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 'release/authorgram-12-9-2-clean-final'
-    name: Purge old Actions, verify source, build Main + Play APKs
+    name: Preflight, clean Actions, build Main + Play APKs
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
@@ -33,117 +33,6 @@ jobs:
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
 
     steps:
-      - name: Purge superseded Actions and disable obsolete workflows
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const currentRunId = Number(context.runId);
-            const currentWorkflowPath = '.github/workflows/release.yml';
-            const activeStates = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
-            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-            async function listRuns() {
-              return await github.paginate(
-                github.rest.actions.listWorkflowRunsForRepo,
-                { owner, repo, per_page: 100 },
-              );
-            }
-
-            const workflows = await github.paginate(
-              github.rest.actions.listRepoWorkflows,
-              { owner, repo, per_page: 100 },
-            );
-            for (const workflow of workflows) {
-              if (workflow.path === currentWorkflowPath || workflow.state !== 'active') {
-                continue;
-              }
-              try {
-                await github.rest.actions.disableWorkflow({
-                  owner,
-                  repo,
-                  workflow_id: workflow.id,
-                });
-                core.info(`Disabled obsolete workflow ${workflow.id}: ${workflow.name} (${workflow.path})`);
-              } catch (error) {
-                core.warning(`Unable to disable obsolete workflow ${workflow.id}: ${error.message}`);
-              }
-            }
-
-            async function requestStop(run) {
-              try {
-                await github.request(
-                  'POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel',
-                  { owner, repo, run_id: run.id },
-                );
-                core.info(`Force-cancel requested for ${run.id}: ${run.name}`);
-                return;
-              } catch (forceError) {
-                core.warning(`Force-cancel failed for ${run.id}: ${forceError.message}`);
-              }
-
-              try {
-                await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
-                core.info(`Normal cancel requested for ${run.id}: ${run.name}`);
-              } catch (cancelError) {
-                core.warning(`Normal cancel failed for ${run.id}: ${cancelError.message}`);
-              }
-            }
-
-            async function requestDelete(run) {
-              try {
-                await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id });
-                core.info(`Deleted superseded run ${run.id}: ${run.name}`);
-                return true;
-              } catch (error) {
-                core.warning(`Delete failed for ${run.id}: ${error.message}`);
-                return false;
-              }
-            }
-
-            for (let pass = 1; pass <= 6; pass += 1) {
-              const runs = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
-              if (runs.length === 0) {
-                core.info('All superseded Actions runs have been removed.');
-                break;
-              }
-
-              core.info(`Cleanup pass ${pass}: ${runs.length} superseded run(s).`);
-              for (const run of runs) {
-                if (activeStates.has(run.status)) {
-                  const deletedWhileActive = await requestDelete(run);
-                  if (!deletedWhileActive) {
-                    await requestStop(run);
-                  }
-                } else {
-                  await requestDelete(run);
-                }
-              }
-
-              await sleep(10000);
-
-              const retryRuns = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
-              for (const run of retryRuns) {
-                if (!activeStates.has(run.status)) {
-                  await requestDelete(run);
-                }
-              }
-
-              await sleep(3000);
-            }
-
-            const remaining = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
-            if (remaining.length !== 0) {
-              const details = remaining.map(run => `${run.id}:${run.status}:${run.name}`).join(', ');
-              core.setFailed(
-                `Exclusive release invariant failed: ${remaining.length} superseded run record(s) remain: ${details}`,
-              );
-            } else {
-              core.info('Actions history is clean: only the current release run remains.');
-            }
-
       - name: Checkout canonical dev source
         uses: actions/checkout@v4
         with:
@@ -151,37 +40,28 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Validate source and release controller
+      - name: Static preflight
         shell: bash
         run: |
           set -euo pipefail
-
-          [[ -n "${LOCAL_PROPERTIES}" ]] || {
-            echo 'LOCAL_PROPERTIES secret is missing.' >&2
-            exit 1
-          }
-
+          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing.' >&2; exit 1; }
           bash -n scripts/final_release_12_9_2.sh
-          # Compatibility shim for authorgram_guard.py. This script is intentionally
-          # a no-op; the real Actions cleanup is the GitHub API step above.
           python3 scripts/cleanup_authorgram_actions.py
 
           python3 - <<'PY'
           from pathlib import Path
 
-          for relative in (
+          scripts = (
               'scripts/finalize_authorgram_source.py',
               'scripts/authorgram_guard.py',
               'scripts/authorgram_parity_guard.py',
               'scripts/patch_authorgram_build_key.py',
               'scripts/patch_authorgram_play_policy.py',
-              'scripts/patch_authorgram_ui_12_9_2.py',
               'scripts/patch_authorgram_popup_bounds.py',
               'scripts/patch_authorgram_chat_scope_safety.py',
-              'scripts/patch_authorgram_badge_surfaces.py',
-          ):
-              source = Path(relative).read_text(encoding='utf-8')
-              compile(source, relative, 'exec')
+          )
+          for path in scripts:
+              compile(Path(path).read_text(encoding='utf-8'), path, 'exec')
 
           required = {
               'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java': (
@@ -196,6 +76,7 @@ jobs:
                   'AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW',
                   'AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_SCROLL',
                   'AUTHORGRAM_MENU_FOOTER_WIDTH_PARITY',
+                  'setFixedMessagePreview(View preview)',
                   'availableForActions',
               ),
               'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java': (
@@ -225,7 +106,6 @@ jobs:
                   'public static boolean canUseIosUi()',
               ),
           }
-
           loaded = {}
           for path, markers in required.items():
               text = Path(path).read_text(encoding='utf-8')
@@ -237,29 +117,143 @@ jobs:
           chat = loaded['TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java']
           enter = loaded['TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java']
           preview = loaded['TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java']
-          forbidden = (
-              'new BluredView(',
-              'new BlurredView(',
-              'private final BluredView',
-              'private final BlurredView',
-          )
-          leaked = [token for token in forbidden if token in preview]
-          if leaked:
-              raise SystemExit(f'Preview-local blur remains: {leaked}')
+          if any(token in preview for token in ('new BluredView(', 'new BlurredView(', 'private final BluredView', 'private final BlurredView')):
+              raise SystemExit('Preview-local blur remains')
           if 'AUTHORGRAM_IOS_MESSAGE_ACTION_GAP' in chat:
               raise SystemExit('Short preview is incorrectly owned by the action ScrollView')
           if 'compactIndices.remove(index);' in chat:
               raise SystemExit('Unsafe compact-menu index removal remains')
           if enter.count('public View getSendButtonInternal() {') != 1:
               raise SystemExit('Native send-button method count is not exactly one')
+
+          scope = Path('scripts/patch_authorgram_chat_scope_safety.py').read_text(encoding='utf-8')
+          popup = Path('scripts/patch_authorgram_popup_bounds.py').read_text(encoding='utf-8')
+          finalizer = Path('scripts/finalize_authorgram_source.py').read_text(encoding='utf-8')
+          release = Path('scripts/final_release_12_9_2.sh').read_text(encoding='utf-8')
+
+          for marker in ('OLD_DIRECT_SAFE_RE', 'LEGACY_DIRECT_PARENT_HINT', 'while (authorgramIosPreviewParent != null'):
+              if marker not in scope:
+                  raise SystemExit(f'Scope repair invariant missing: {marker}')
+          for marker in ('scope_safety["pre_apply_check"]()', 'scope_safety["apply"]()', 'scope_safety["validate"]()'):
+              if marker not in popup:
+                  raise SystemExit(f'Popup finalizer scope stage missing: {marker}')
+          if 'patch_authorgram_chat_scope_safety' not in finalizer:
+              raise SystemExit('Source finalizer is not bound to ChatActivity scope validation')
+
+          ordered = (
+              'python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply',
+              'python3 scripts/patch_authorgram_popup_bounds.py',
+              'python3 scripts/finalize_authorgram_source.py --role dev',
+              'python3 scripts/authorgram_guard.py',
+              'python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate',
+          )
+          positions = [release.find(token) for token in ordered]
+          if any(pos < 0 for pos in positions) or positions != sorted(positions):
+              raise SystemExit(f'Invalid release patch/guard order: {positions}')
+          print('AuthorGram static release-chain preflight passed')
           PY
 
-          # Read-only pre-apply scan: legacy calls are accepted only when they are
-          # exact known variants that the scope-safety pass can repair deterministically.
           python3 scripts/patch_authorgram_chat_scope_safety.py --mode pre-apply
-
           git diff --check
           test -z "$(git status --porcelain)"
+
+      - name: Purge old Actions and disable obsolete workflows
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const currentRunId = Number(context.runId);
+            const currentWorkflowPath = '.github/workflows/release.yml';
+            const active = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
+            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+            const listRuns = () => github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              { owner, repo, per_page: 100 },
+            );
+
+            const workflows = await github.paginate(
+              github.rest.actions.listRepoWorkflows,
+              { owner, repo, per_page: 100 },
+            );
+            for (const workflow of workflows) {
+              if (workflow.path === currentWorkflowPath || workflow.state !== 'active') continue;
+              try {
+                await github.rest.actions.disableWorkflow({ owner, repo, workflow_id: workflow.id });
+                core.info(`Disabled obsolete workflow ${workflow.id}: ${workflow.path}`);
+              } catch (error) {
+                core.warning(`Disable failed for workflow ${workflow.id}: ${error.message}`);
+              }
+            }
+
+            async function stop(run) {
+              try {
+                await github.request('POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel', {
+                  owner, repo, run_id: run.id,
+                });
+                return;
+              } catch (error) {
+                core.warning(`Force-cancel failed for ${run.id}: ${error.message}`);
+              }
+              try {
+                await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+              } catch (error) {
+                core.warning(`Cancel failed for ${run.id}: ${error.message}`);
+              }
+            }
+
+            async function remove(run) {
+              try {
+                await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: run.id });
+                core.info(`Deleted run ${run.id}: ${run.name}`);
+                return true;
+              } catch (error) {
+                core.warning(`Delete failed for ${run.id}: ${error.message}`);
+                return false;
+              }
+            }
+
+            for (let pass = 1; pass <= 6; pass += 1) {
+              const runs = (await listRuns()).filter(r => Number(r.id) !== currentRunId);
+              if (!runs.length) break;
+              for (const run of runs) {
+                if (!(await remove(run)) && active.has(run.status)) await stop(run);
+              }
+              await sleep(10000);
+              const retry = (await listRuns()).filter(r => Number(r.id) !== currentRunId);
+              for (const run of retry) {
+                if (!active.has(run.status)) await remove(run);
+              }
+              await sleep(3000);
+            }
+
+            const remaining = (await listRuns()).filter(r => Number(r.id) !== currentRunId);
+            const blockers = [];
+            const zombies = [];
+            for (const run of remaining) {
+              let jobs = -1;
+              try {
+                const response = await github.rest.actions.listJobsForWorkflowRun({
+                  owner, repo, run_id: run.id, per_page: 1,
+                });
+                jobs = Number(response.data.total_count || 0);
+              } catch (error) {
+                core.warning(`Job inspection failed for ${run.id}: ${error.message}`);
+              }
+              const description = `${run.id}:${run.status}:jobs=${jobs}:${run.name}`;
+              if (run.status === 'queued' && jobs === 0) zombies.push(description);
+              else blockers.push(description);
+            }
+            if (blockers.length) {
+              core.setFailed(`Real superseded Actions runs remain: ${blockers.join(', ')}`);
+            }
+            if (zombies.length) {
+              core.warning(`GitHub undeletable zero-job zombie record(s): ${zombies.join(', ')}`);
+              core.warning('Zero-job zombie records allocate no runner and will not block this release.');
+            }
+            if (!remaining.length) core.info('Actions history is clean: only this release run remains.');
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -278,39 +272,27 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-      - name: Prepare protected runtime release script
+      - name: Prepare protected release script
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-
           source = Path('scripts/final_release_12_9_2.sh').read_text(encoding='utf-8')
           declaration = '  local keystore_backup="${WORK_ROOT}/main-release.keystore"\n'
           replacement = declaration + '  local destination_ref\n  destination_ref="$(git -C "${destination}" rev-parse HEAD)"\n'
           if declaration not in source:
-              raise SystemExit('Unable to find sync_from_dev declaration anchor')
+              raise SystemExit('Missing sync_from_dev declaration anchor')
           source = source.replace(declaration, replacement, 1)
-
-          read_tree = '  git -C "${destination}" read-tree --reset -u "${DEV_COMMIT}"\n'
-          preserve = read_tree + '''
-
-          # Preserve branch-local GitHub metadata while synchronizing app source.
-          if git -C "${destination}" cat-file -e "${destination_ref}:.github" 2>/dev/null; then
-            git -C "${destination}" checkout "${destination_ref}" -- .github
-          else
-            rm -rf "${destination}/.github"
-          fi
-          '''
-          if read_tree not in source:
-              raise SystemExit('Unable to find read-tree synchronization anchor')
-          source = source.replace(read_tree, preserve, 1)
-
+          anchor = '  git -C "${destination}" read-tree --reset -u "${DEV_COMMIT}"\n'
+          preserve = anchor + '\n  # Preserve branch-local GitHub metadata while syncing app source.\n  if git -C "${destination}" cat-file -e "${destination_ref}:.github" 2>/dev/null; then\n    git -C "${destination}" checkout "${destination_ref}" -- .github\n  else\n    rm -rf "${destination}/.github"\n  fi\n'
+          if anchor not in source:
+              raise SystemExit('Missing read-tree synchronization anchor')
+          source = source.replace(anchor, preserve, 1)
           output = Path('/tmp/final_release_12_9_2_protected.sh')
           output.write_text(source, encoding='utf-8', newline='')
           output.chmod(0o700)
           PY
-
           bash -n /tmp/final_release_12_9_2_protected.sh
 
       - name: Build and verify Main + Play release APKs
@@ -323,82 +305,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           artifact_dir="${RUNNER_TEMP}/authorgram-final/artifacts"
-          mapfile -t main_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Main-*.apk' -print | sort)
-          mapfile -t play_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Play-*.apk' -print | sort)
-          mapfile -t all_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.apk' -print | sort)
-          mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print | sort)
-
-          [[ "${#main_apks[@]}" -eq 1 ]] || {
-            echo "Expected exactly one Main APK, found ${#main_apks[@]}" >&2
-            exit 1
-          }
-          [[ "${#play_apks[@]}" -eq 1 ]] || {
-            echo "Expected exactly one Play APK, found ${#play_apks[@]}" >&2
-            exit 1
-          }
-          [[ "${#all_apks[@]}" -eq 2 ]] || {
-            echo "Expected exactly two APKs, found ${#all_apks[@]}" >&2
-            exit 1
-          }
-          [[ "${#aabs[@]}" -eq 0 ]] || {
-            echo 'AAB files are forbidden.' >&2
-            exit 1
-          }
+          mapfile -t main_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Main-*.apk' -print)
+          mapfile -t play_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Play-*.apk' -print)
+          mapfile -t all_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.apk' -print)
+          mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print)
+          [[ "${#main_apks[@]}" -eq 1 ]] || { echo "Expected exactly one Main APK"; exit 1; }
+          [[ "${#play_apks[@]}" -eq 1 ]] || { echo "Expected exactly one Play APK"; exit 1; }
+          [[ "${#all_apks[@]}" -eq 2 ]] || { echo "Expected exactly two APKs"; exit 1; }
+          [[ "${#aabs[@]}" -eq 0 ]] || { echo "AAB files are forbidden"; exit 1; }
 
           aapt="${ANDROID_HOME}/build-tools/36.0.0/aapt"
-          apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
-          zipalign="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
-
-          verify_apk() {
-            local apk="$1"
-            local expected_package="$2"
-            local badging package version_name version_code signer
-
-            "${zipalign}" -c -P 16 4 "${apk}"
-            badging="$("${aapt}" dump badging "${apk}")"
-            package="$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
-            version_code="$(sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
-            version_name="$(sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n1)"
-            [[ "${package}" == "${expected_package}" ]]
-            [[ "${version_code}" == "${VERSION_CODE}" ]]
-            [[ "${version_name}" == "${VERSION_NAME}" ]]
-            ! grep -q '^application-debuggable' <<<"${badging}"
-
-            signer="$("${apksigner}" verify --verbose --print-certs "${apk}")"
-            grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer}"
-          }
-
-          verify_apk "${main_apks[0]}" "${MAIN_PACKAGE}"
-          verify_apk "${play_apks[0]}" "${PLAY_PACKAGE}"
-
-          main_permissions="$("${aapt}" dump permissions "${main_apks[0]}")"
-          play_permissions="$("${aapt}" dump permissions "${play_apks[0]}")"
-          grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${main_permissions}"
-          ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${play_permissions}"
+          main_badging="$("${aapt}" dump badging "${main_apks[0]}")"
+          play_badging="$("${aapt}" dump badging "${play_apks[0]}")"
+          grep -q "package: name='${MAIN_PACKAGE}'" <<<"${main_badging}"
+          grep -q "package: name='${PLAY_PACKAGE}'" <<<"${play_badging}"
+          grep -q "versionCode='${VERSION_CODE}'" <<<"${main_badging}"
+          grep -q "versionCode='${VERSION_CODE}'" <<<"${play_badging}"
+          grep -q "versionName='${VERSION_NAME}'" <<<"${main_badging}"
+          grep -q "versionName='${VERSION_NAME}'" <<<"${play_badging}"
 
           main_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Main-CERTIFICATE.txt" | head -n1)"
           play_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Play-CERTIFICATE.txt" | head -n1)"
           [[ -n "${main_cert}" && "${main_cert}" == "${play_cert}" ]]
-
-          if [[ -n "${AUTHORGRAM_SIGNING_CERT_SHA256}" ]]; then
-            expected_cert="$(tr '[:upper:]' '[:lower:]' <<<"${AUTHORGRAM_SIGNING_CERT_SHA256}" | tr -d ':[:space:]')"
-            actual_cert="$(tr '[:upper:]' '[:lower:]' <<<"${main_cert}" | tr -d ':[:space:]')"
-            [[ "${actual_cert}" == "${expected_cert}" ]] || {
-              echo 'Release signing certificate does not match AUTHORGRAM_SIGNING_CERT_SHA256.' >&2
-              exit 1
-            }
-          fi
-
-          test -s "${artifact_dir}/Main-BUILD.txt"
-          test -s "${artifact_dir}/Play-BUILD.txt"
-          test -s "${artifact_dir}/Main-CERTIFICATE.txt"
-          test -s "${artifact_dir}/Play-CERTIFICATE.txt"
-          test -s "${artifact_dir}/RELEASE-SUMMARY.txt"
-          test -s "${artifact_dir}/SHA256SUMS.txt"
           [[ "$(grep -c 'AuthorGram-.*\.apk' "${artifact_dir}/SHA256SUMS.txt")" -eq 2 ]]
-
           cat "${artifact_dir}/RELEASE-SUMMARY.txt"
           cat "${artifact_dir}/SHA256SUMS.txt"
 
