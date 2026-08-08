@@ -4,8 +4,9 @@
 This pass intentionally runs after patch_authorgram_main_stability.py. It does not
 invent a second/synthetic message renderer. Instead it uses the same cloning
 sequence Telegram itself uses in PollItemMenu/TodoItemMenu for a live
-ChatMessageCell: copyParamsTo(), copy spoiler attachment state, then bind the
-same MessageObject with the original grouped/pinned/first-in-chat context.
+ChatMessageCell: copyParamsTo(), copy spoiler attachment state, set the
+non-interactive delegate, then bind the same MessageObject with the original
+grouped/pinned/first-in-chat context.
 
 Invariants:
 1. The selected-message preview preserves Telegram's complete native
@@ -45,24 +46,53 @@ def write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8", newline="")
 
 
+def replace_once(text: str, old: str, new: str, label: str) -> str:
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{label} count is {count}, expected 1")
+    return text.replace(old, new, 1)
+
+
 def patch_native_preview_context() -> None:
     text = read(PREVIEW)
     if NATIVE_CONTEXT_MARKER in text:
         return
 
+    # Match the exact canonical block emitted by patch_authorgram_main_stability.
+    # Keep setFullyDraw(), but move Telegram's native context copy ahead of the
+    # delegate exactly as PollItemMenu/TodoItemMenu do. A previous anchor assumed
+    # isChat and setMessageObject were adjacent even though setFullyDraw/delegate
+    # sit between them, so the release pass could never apply.
     old = (
         "        previewCell.isChat = sourceCell != null && sourceCell.isChat;\n"
+        "        previewCell.setFullyDraw(true);\n"
+        "        previewCell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate() {\n"
+        "            @Override\n"
+        "            public boolean canPerformActions() {\n"
+        "                return false;\n"
+        "            }\n"
+        "        });\n"
         "        previewCell.setMessageObject(messageObject, null, false, false, false);\n"
     )
     new = (
+        "        previewCell.setFullyDraw(true);\n"
         "        // AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT\n"
         "        // Telegram's own PollItemMenu/TodoItemMenu clones live message cells\n"
-        "        // with copyParamsTo(), copies spoiler attachment state, and binds the\n"
-        "        // MessageObject with the source cell's grouped/pinned context. Reuse\n"
-        "        // exactly that native mechanism instead of synthesizing sender UI.\n"
+        "        // in this order: copyParamsTo(), copy spoiler attachment state, set\n"
+        "        // a non-interactive delegate, then bind the MessageObject with the\n"
+        "        // source cell's grouped/pinned context. Reuse exactly that native\n"
+        "        // mechanism instead of synthesizing sender/avatar/reply/media UI.\n"
         "        if (sourceCell != null) {\n"
         "            sourceCell.copyParamsTo(previewCell);\n"
         "            previewCell.copySpoilerEffect2AttachIndexFrom(sourceCell);\n"
+        "        }\n"
+        "        previewCell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate() {\n"
+        "            @Override\n"
+        "            public boolean canPerformActions() {\n"
+        "                return false;\n"
+        "            }\n"
+        "        });\n"
+        "        if (sourceCell != null) {\n"
         "            previewCell.setMessageObject(\n"
         "                    messageObject,\n"
         "                    sourceCell.getCurrentMessagesGroup(),\n"
@@ -74,9 +104,7 @@ def patch_native_preview_context() -> None:
         "            previewCell.setMessageObject(messageObject, null, false, false, false);\n"
         "        }\n"
     )
-    if old not in text:
-        raise SystemExit("IOSMessageMenuPreview native-context anchor is missing")
-    text = text.replace(old, new, 1)
+    text = replace_once(text, old, new, "IOSMessageMenuPreview canonical native-context anchor")
     write(PREVIEW, text)
 
 
@@ -117,9 +145,7 @@ def patch_preview_card_alignment() -> None:
         "            params.topMargin = AndroidUtilities.dp(8);\n"
         "            params.bottomMargin = AndroidUtilities.dp(8);\n"
     )
-    if old not in text:
-        raise SystemExit("ChatScrim fixed-preview alignment anchor is missing")
-    text = text.replace(old, new, 1)
+    text = replace_once(text, old, new, "ChatScrim fixed-preview alignment anchor")
     write(SCRIM, text)
 
 
@@ -143,9 +169,7 @@ def patch_natural_footer_height() -> None:
         "                    ? oldParams.height\n"
         "                    : LayoutHelper.WRAP_CONTENT;\n"
     )
-    if old not in text:
-        raise SystemExit("ChatScrim 44dp footer-cap anchor is missing")
-    text = text.replace(old, new, 1)
+    text = replace_once(text, old, new, "ChatScrim 44dp footer-cap anchor")
     write(SCRIM, text)
 
 
@@ -179,18 +203,30 @@ def validate() -> None:
     scrim = read(SCRIM)
     dialogs = read(DIALOGS)
 
-    for token in (
+    required_preview = (
         NATIVE_CONTEXT_MARKER,
         "sourceCell.copyParamsTo(previewCell);",
         "previewCell.copySpoilerEffect2AttachIndexFrom(sourceCell);",
+        "previewCell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate()",
         "sourceCell.getCurrentMessagesGroup()",
         "sourceCell.pinnedBottom",
         "sourceCell.pinnedTop",
         "sourceCell.firstInChat",
         "previewCell.setMessageObject(messageObject, null, false, false, false);",
-    ):
+    )
+    for token in required_preview:
         if token not in preview:
             raise SystemExit(f"native selected-message renderer invariant missing: {token}")
+
+    # Enforce Telegram's clone ordering, not just token presence.
+    clone_positions = [
+        preview.find("sourceCell.copyParamsTo(previewCell);"),
+        preview.find("previewCell.copySpoilerEffect2AttachIndexFrom(sourceCell);"),
+        preview.find("previewCell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate()"),
+        preview.find("sourceCell.getCurrentMessagesGroup()"),
+    ]
+    if any(position < 0 for position in clone_positions) or clone_positions != sorted(clone_positions):
+        raise SystemExit("native ChatMessageCell clone order diverges from Telegram")
 
     if "previewCell.isChat = sourceCell != null && sourceCell.isChat;" in preview:
         raise SystemExit("partial ChatMessageCell context copy survived")
