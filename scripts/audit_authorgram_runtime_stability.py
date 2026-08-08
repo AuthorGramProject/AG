@@ -18,6 +18,7 @@ SETTINGS_PREVIEW = ROOT / "TMessagesProj/src/main/java/tw/nekomimi/nekogram/ui/c
 INTERCEPTOR = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java"
 SCOPE_GUARD = ROOT / "scripts/patch_authorgram_chat_scope_safety.py"
 STABILITY = ROOT / "scripts/patch_authorgram_main_stability.py"
+BLUR_PATCH = ROOT / "scripts/patch_authorgram_full_screen_ios_blur.py"
 CHAT = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
 SCRIM = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java"
 ENTER = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
@@ -51,6 +52,7 @@ def audit_ios_message_preview(failures: list[str]) -> None:
     chat = read(CHAT)
     scope = read(SCOPE_GUARD)
     stability = read(STABILITY)
+    blur_patch = read(BLUR_PATCH)
     scrim = read(SCRIM)
 
     require(
@@ -78,6 +80,7 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "NativeCellSnapshotView",
             "BackupImageView avatarView",
             "TextView senderNameView",
+            "new BluredView(",
         ),
         "iOS selected-message preview",
         failures,
@@ -91,8 +94,10 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT",
             ".setFixedMessagePreview(iosPreview);",
             "iosPreview.setVisibility(android.view.View.GONE);",
+            "AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR",
+            "dimBehindView(null, true, true);",
         ),
-        "iOS selected-message owner",
+        "iOS selected-message owner / full-screen blur",
         failures,
     )
     forbid(
@@ -108,7 +113,20 @@ def audit_ios_message_preview(failures: list[str]) -> None:
         failures,
     )
 
-    # Scope safety is now deliberately read-only. The stability pass is the sole
+    require(
+        blur_patch,
+        (
+            "AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR",
+            "dimBehindView(null, true, true);",
+            "Unable to locate a known ChatActivity context-menu blur anchor; refusing fuzzy patch",
+            "--mode",
+            "validate",
+        ),
+        "canonical full-screen blur patch",
+        failures,
+    )
+
+    # Scope safety is deliberately read-only. The stability pass is the sole
     # source generator and the guard only rejects bad ownership after that pass.
     require(
         scope,
@@ -159,9 +177,11 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "params.topMargin = AndroidUtilities.dp(8);",
             "params.bottomMargin = AndroidUtilities.dp(8);",
             "AUTHORGRAM_MENU_FOOTER_SEPARATOR",
+            "Theme.getColor(Theme.key_divider)",
+            "popupWindowLayout.addView(bottomView, footerParams);",
             "bottomView.setBackground(null);",
         ),
-        "ChatScrim reference geometry",
+        "ChatScrim reference action-card geometry",
         failures,
     )
 
@@ -262,8 +282,9 @@ def main() -> int:
 
     print("AuthorGram runtime stability audit passed")
     print(
-        "Checked: reference iOS menu geometry, ownership, native preview, "
-        "reply integrity, lifecycle and AuthorGram-owned blocking calls"
+        "Checked: full-screen blur, reference iOS menu geometry/ownership, "
+        "native action-card/footer structure, native preview, reply integrity, "
+        "lifecycle and AuthorGram-owned blocking calls"
     )
     return 0
 
