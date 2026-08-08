@@ -80,16 +80,23 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW",
             "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY",
             "AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT",
-            "new ChatMessageCell(context, currentAccount)",
+            "AUTHORGRAM_NATIVE_VISIBLE_PART_CONTEXT",
+            "AUTHORGRAM_NATIVE_SOURCE_CELL_GEOMETRY",
+            "new ChatMessageCell(",
+            "sourceCell.getResourcesProvider()",
+            "sourceCell.getWidth()",
+            "sourceCell.getHeight()",
+            "setMeasuredDimension(sourceCellWidth, sourceCellHeight);",
             "new ScrollView(context)",
             "previewScroll.setNestedScrollingEnabled(true);",
             "maxPreviewHeight",
+            "sourceCell.copyVisiblePartTo(previewCell);",
             "sourceCell.copyParamsTo(previewCell);",
             "previewCell.setMessageObject(messageObject, null, false, false, false);",
             "public boolean shouldScrollWithActions()",
             "return false;",
         ),
-        "iOS selected-message native preview",
+        "iOS selected-message native source-cell preview",
         failures,
     )
     forbid(
@@ -104,7 +111,7 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "new BluredView(",
             "previewCell.isChat = sourceCell != null && sourceCell.isChat;",
         ),
-        "iOS selected-message native preview",
+        "iOS selected-message native source-cell preview",
         failures,
     )
 
@@ -145,11 +152,11 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW",
             "AUTHORGRAM_ADAPTIVE_POPUP_BOUNDS",
             "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY",
-            "AUTHORGRAM_IOS_PREVIEW_CARD_ALIGNMENT",
+            "AUTHORGRAM_IOS_PREVIEW_CHAT_WORKAREA_OWNER",
+            "AUTHORGRAM_IOS_PREVIEW_NATIVE_SOURCE_GEOMETRY",
+            "params.setMarginStart(0);",
+            "params.setMarginEnd(0);",
             "AUTHORGRAM_NATURAL_MENU_FOOTER_HEIGHT",
-            "params.setMarginStart(popupParams.getMarginStart());",
-            "params.setMarginEnd(popupParams.getMarginEnd());",
-            "params.gravity = popupParams.gravity;",
             "? oldParams.height",
             ": LayoutHelper.WRAP_CONTENT;",
             "AUTHORGRAM_MENU_FOOTER_SEPARATOR",
@@ -157,16 +164,25 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "popupWindowLayout.addView(bottomView, footerParams);",
             "bottomView.setBackground(null);",
         ),
-        "ChatScrim final action-card geometry",
+        "ChatScrim native source-cell/action-card geometry",
         failures,
     )
     forbid(
         scrim,
         (
+            "AUTHORGRAM_IOS_PREVIEW_CARD_ALIGNMENT",
+            "AUTHORGRAM_IOS_PREVIEW_FULL_WIDTH_MEASURE",
+            "params.setMarginStart(popupParams.getMarginStart());",
+            "params.setMarginEnd(popupParams.getMarginEnd());",
+            "params.gravity = popupParams.gravity;",
+            "previewParams.width = popupWidthForPreview;",
+            "previewParams.width = previewWidth;",
+            "int popupWidthForPreview = popupWindowLayout.getMeasuredWidth();",
+            "int parentWidthForPreview = MeasureSpec.getSize(adjustedWidthSpec);",
             "Math.min(oldParams.height, AndroidUtilities.dp(44))",
             "int footerHeight = AndroidUtilities.dp(44)",
         ),
-        "ChatScrim final footer geometry",
+        "ChatScrim clipping/footer regressions",
         failures,
     )
 
@@ -190,6 +206,7 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "validate_canonical",
             "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW",
             "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY",
+            "AUTHORGRAM_NATIVE_SOURCE_CELL_GEOMETRY",
             "scope guard is read-only; no source rewrite performed",
         ),
         "iOS preview scope guard",
@@ -207,8 +224,8 @@ def audit_ios_message_preview(failures: list[str]) -> None:
     )
 
     # The canonical generator intentionally emits an intermediate compatibility
-    # shape. The runtime/native post-pass owns the final native-cell context and
-    # natural footer geometry, so the audit must validate both stages separately.
+    # shape. The runtime/native post-pass owns the final native-cell geometry and
+    # natural footer, so the audit validates both stages separately.
     require(
         stability,
         (
@@ -237,14 +254,19 @@ def audit_ios_message_preview(failures: list[str]) -> None:
         native_patch,
         (
             "AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT",
+            "AUTHORGRAM_NATIVE_VISIBLE_PART_CONTEXT",
+            "AUTHORGRAM_NATIVE_SOURCE_CELL_GEOMETRY",
+            "sourceCell.copyVisiblePartTo(previewCell);",
             "sourceCell.copyParamsTo(previewCell);",
-            "AUTHORGRAM_IOS_PREVIEW_CARD_ALIGNMENT",
-            "params.setMarginStart(popupParams.getMarginStart());",
-            "params.setMarginEnd(popupParams.getMarginEnd());",
+            "setMeasuredDimension(sourceCellWidth, sourceCellHeight);",
+            "AUTHORGRAM_IOS_PREVIEW_CHAT_WORKAREA_OWNER",
+            "AUTHORGRAM_IOS_PREVIEW_NATIVE_SOURCE_GEOMETRY",
+            "params.setMarginStart(0);",
+            "params.setMarginEnd(0);",
             "AUTHORGRAM_NATURAL_MENU_FOOTER_HEIGHT",
             "AUTHORGRAM_TELEGRAM_ME_URL_DIFF_FIX",
         ),
-        "native menu stability post-patch",
+        "native menu source-geometry post-patch",
         failures,
     )
 
@@ -465,7 +487,7 @@ def main() -> int:
 
     print("AuthorGram runtime stability audit passed")
     print(
-        "Checked: full-screen blur, native iOS message identity/geometry, "
+        "Checked: full-screen blur, exact native iOS source-cell avatar/name/geometry, "
         "action-card/footer reachability, settings reply/draw, Play-stable reply "
         "ownership, bounded Ayu waiters, Telegram .me DiffUtil correctness, "
         "release-chain isolation, lifecycle and AuthorGram-owned blocking calls"
