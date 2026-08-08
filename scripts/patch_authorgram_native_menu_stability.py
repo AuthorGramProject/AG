@@ -1,27 +1,15 @@
 #!/usr/bin/env python3
 """Final native-renderer and geometry repair for AuthorGram Main message menus.
 
-This pass intentionally runs after patch_authorgram_main_stability.py. It does not
-invent a second/synthetic message renderer. Instead it uses the same cloning
-sequence Telegram itself uses for the full live-cell clone in
-PollItemMenu/TodoItemMenu: copyVisiblePartTo(), copyParamsTo(), copy spoiler
-attachment state, set the non-interactive delegate, then bind the same
-MessageObject with the original grouped/pinned/first-in-chat context.
+This pass intentionally runs after patch_authorgram_main_stability.py. It owns the
+final Main-only selected-message preview and deliberately reuses Telegram's live
+ChatMessageCell model instead of synthesizing avatar/name/reply/media UI.
 
-Invariants:
-1. The selected-message preview preserves Telegram's complete native
-   ChatMessageCell context. Sender name/avatar, replies, grouped media, files,
-   forum/thread and saved-chat decisions therefore stay Telegram-owned.
-2. The selected-message viewport is not narrowed to the action-card width.
-   Telegram gets the real available chat width, so an already-laid-out native
-   message cannot be clipped horizontally by the narrower popup menu.
-3. The selected-message preview uses the same horizontal margins/gravity as the
-   native popup card for placement, while its measured width remains bounded by
-   the real parent work area rather than popupWindowLayout.getMeasuredWidth().
-4. Reparented bottom views keep their natural/declared height. They are never
-   compressed to an arbitrary 44dp strip.
-5. DialogsAdapter compares two recent .me URL items against each other rather
-   than self-comparing the old URL, preserving RecyclerView DiffUtil identity.
+The critical geometry rule comes directly from Telegram PollItemMenu/TodoItemMenu:
+a full-cell clone keeps the source cell width/height and copies visible/parameter/
+spoiler state before rebinding the same MessageObject. The outer AuthorGram preview
+therefore owns the full chat work area; the narrower action popup must never resize
+or horizontally offset the native message cell.
 """
 
 from __future__ import annotations
@@ -36,8 +24,9 @@ DIALOGS = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Adapters/DialogsAd
 
 NATIVE_CONTEXT_MARKER = "AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT"
 VISIBLE_CONTEXT_MARKER = "AUTHORGRAM_NATIVE_VISIBLE_PART_CONTEXT"
-ALIGNMENT_MARKER = "AUTHORGRAM_IOS_PREVIEW_CARD_ALIGNMENT"
-FULL_WIDTH_MARKER = "AUTHORGRAM_IOS_PREVIEW_FULL_WIDTH_MEASURE"
+SOURCE_GEOMETRY_MARKER = "AUTHORGRAM_NATIVE_SOURCE_CELL_GEOMETRY"
+WORKAREA_OWNER_MARKER = "AUTHORGRAM_IOS_PREVIEW_CHAT_WORKAREA_OWNER"
+NO_POPUP_WIDTH_MARKER = "AUTHORGRAM_IOS_PREVIEW_NATIVE_SOURCE_GEOMETRY"
 NATURAL_FOOTER_MARKER = "AUTHORGRAM_NATURAL_MENU_FOOTER_HEIGHT"
 ME_URL_DIFF_MARKER = "AUTHORGRAM_TELEGRAM_ME_URL_DIFF_FIX"
 
@@ -59,104 +48,202 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+FINAL_PREVIEW_SOURCE = r'''package org.telegram.ui.Components;
+
+import android.content.Context;
+import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.ScrollView;
+
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;
+import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Cells.ChatMessageCell;
+
+import tw.nekomimi.nekogram.NekoConfig;
+
+/**
+ * Main-only native selected-message preview for the iOS-style context menu.
+ *
+ * AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK
+ * AUTHORGRAM_ADAPTIVE_IOS_MESSAGE_PREVIEW
+ * AUTHORGRAM_FINAL_PREVIEW_COMPAT
+ * AUTHORGRAM_IOS_MESSAGE_SENDER_IDENTITY
+ * AUTHORGRAM_NATIVE_ONLY_IOS_MESSAGE_PREVIEW
+ * AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW
+ * AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW
+ * AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY
+ * AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT
+ * AUTHORGRAM_NATIVE_VISIBLE_PART_CONTEXT
+ * AUTHORGRAM_NATIVE_SOURCE_CELL_GEOMETRY
+ *
+ * This is a real Telegram ChatMessageCell clone. The source cell owns sender,
+ * avatar, reply/quote, media/file and bubble geometry; AuthorGram only places the
+ * clone above the action card and bounds the vertical viewport for long messages.
+ */
+public final class IOSMessageMenuPreview extends FrameLayout {
+    public static final String NATIVE_PREVIEW_TAG = "AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW";
+
+    private final ChatMessageCell previewCell;
+    private final ScrollView previewScroll;
+    private final int maxPreviewHeight;
+
+    public IOSMessageMenuPreview(
+            Context context,
+            int currentAccount,
+            MessageObject messageObject,
+            ChatMessageCell sourceCell,
+            Theme.ResourcesProvider resourcesProvider
+    ) {
+        super(context);
+        setTag(NATIVE_PREVIEW_TAG);
+        setClipChildren(true);
+        setClipToPadding(true);
+
+        int viewportHeight = Math.max(AndroidUtilities.dp(360), AndroidUtilities.displaySize.y);
+        maxPreviewHeight = Math.max(
+                AndroidUtilities.dp(140),
+                Math.min(AndroidUtilities.dp(420), Math.round(viewportHeight * 0.46f))
+        );
+
+        if (!AuthorGramPlayPolicy.canUseIosUi()
+                || !NekoConfig.iOSMessageMenu.Bool()
+                || messageObject == null) {
+            setVisibility(GONE);
+            previewCell = null;
+            previewScroll = null;
+            return;
+        }
+
+        final int sourceCellWidth = sourceCell != null && sourceCell.getWidth() > 0
+                ? sourceCell.getWidth()
+                : 0;
+        final int sourceCellHeight = sourceCell != null && sourceCell.getHeight() > 0
+                ? sourceCell.getHeight()
+                : 0;
+
+        previewScroll = new ScrollView(context);
+        previewScroll.setFillViewport(false);
+        previewScroll.setVerticalScrollBarEnabled(false);
+        previewScroll.setHorizontalScrollBarEnabled(false);
+        previewScroll.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        previewScroll.setClipToPadding(false);
+        previewScroll.setNestedScrollingEnabled(true);
+
+        // AUTHORGRAM_NATIVE_SOURCE_CELL_GEOMETRY
+        // Telegram PollItemMenu clones the complete live ChatMessageCell at the
+        // exact source width/height. Preserve that geometry so the incoming
+        // avatar lane and bubble/text coordinates cannot be cropped by the menu.
+        previewCell = new ChatMessageCell(
+                context,
+                currentAccount,
+                false,
+                null,
+                sourceCell != null ? sourceCell.getResourcesProvider() : resourcesProvider
+        ) {
+            @Override
+            public void setPressed(boolean pressed) {
+                // Preview is intentionally non-interactive.
+            }
+
+            @Override
+            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                if (sourceCellWidth > 0 && sourceCellHeight > 0) {
+                    setMeasuredDimension(sourceCellWidth, sourceCellHeight);
+                } else {
+                    super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+                }
+            }
+        };
+        previewCell.setTag(NATIVE_PREVIEW_TAG);
+        previewCell.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        previewCell.setClickable(false);
+        previewCell.setLongClickable(false);
+        previewCell.setFocusable(false);
+        previewCell.setEnabled(false);
+        previewCell.setFullyDraw(true);
+
+        if (sourceCell != null) {
+            // AUTHORGRAM_NATIVE_VISIBLE_PART_CONTEXT
+            sourceCell.copyVisiblePartTo(previewCell);
+            sourceCell.copyParamsTo(previewCell);
+            previewCell.copySpoilerEffect2AttachIndexFrom(sourceCell);
+        }
+
+        previewCell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate() {
+            @Override
+            public boolean canPerformActions() {
+                return false;
+            }
+        });
+
+        if (sourceCell != null) {
+            previewCell.setMessageObject(
+                    messageObject,
+                    sourceCell.getCurrentMessagesGroup(),
+                    sourceCell.pinnedBottom,
+                    sourceCell.pinnedTop,
+                    sourceCell.firstInChat
+            );
+        } else {
+            previewCell.setMessageObject(messageObject, null, false, false, false);
+        }
+
+        int childWidth = sourceCellWidth > 0
+                ? sourceCellWidth
+                : ScrollView.LayoutParams.MATCH_PARENT;
+        previewScroll.addView(previewCell, new ScrollView.LayoutParams(
+                childWidth,
+                ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+        addView(previewScroll, LayoutHelper.createFrame(
+                LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT
+        ));
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int parentMode = MeasureSpec.getMode(heightMeasureSpec);
+        int parentSize = MeasureSpec.getSize(heightMeasureSpec);
+        int cap = parentMode == MeasureSpec.UNSPECIFIED || parentSize <= 0
+                ? maxPreviewHeight
+                : Math.min(parentSize, maxPreviewHeight);
+        super.onMeasure(
+                widthMeasureSpec,
+                MeasureSpec.makeMeasureSpec(Math.max(1, cap), MeasureSpec.AT_MOST)
+        );
+    }
+
+    /** Compatibility API: selected-message content never joins action rows. */
+    public boolean shouldScrollWithActions() {
+        return false;
+    }
+}
+'''
+
+
 def patch_native_preview_context() -> None:
-    text = read(PREVIEW)
-
-    # Give long native messages a larger but still bounded independent viewport.
-    # The action card keeps its own scrolling; this only affects the selected
-    # message block above it.
-    text = text.replace(
-        "        int viewportHeight = Math.max(AndroidUtilities.dp(320), AndroidUtilities.displaySize.y);\n",
-        "        int viewportHeight = Math.max(AndroidUtilities.dp(360), AndroidUtilities.displaySize.y);\n",
-        1,
-    )
-    text = text.replace(
-        "                AndroidUtilities.dp(120),\n"
-        "                Math.min(AndroidUtilities.dp(300), Math.round(viewportHeight * 0.34f))\n",
-        "                AndroidUtilities.dp(140),\n"
-        "                Math.min(AndroidUtilities.dp(420), Math.round(viewportHeight * 0.46f))\n",
-        1,
-    )
-
-    # An isolated Main pass can receive a tree that already has the native
-    # context marker. Upgrade that state in-place instead of treating the marker
-    # as proof that the complete Telegram clone sequence is present.
-    if NATIVE_CONTEXT_MARKER in text:
-        if "sourceCell.copyVisiblePartTo(previewCell);" not in text:
-            old = "            sourceCell.copyParamsTo(previewCell);\n"
-            new = (
-                "            // AUTHORGRAM_NATIVE_VISIBLE_PART_CONTEXT\n"
-                "            sourceCell.copyVisiblePartTo(previewCell);\n"
-                "            sourceCell.copyParamsTo(previewCell);\n"
-            )
-            if old not in text:
-                raise SystemExit("native preview context marker exists but copyParamsTo anchor is missing")
-            text = text.replace(old, new, 1)
-        elif VISIBLE_CONTEXT_MARKER not in text:
-            text = text.replace(
-                "            sourceCell.copyVisiblePartTo(previewCell);\n",
-                "            // AUTHORGRAM_NATIVE_VISIBLE_PART_CONTEXT\n"
-                "            sourceCell.copyVisiblePartTo(previewCell);\n",
-                1,
-            )
-        write(PREVIEW, text)
-        return
-
-    # Match the exact canonical block emitted by patch_authorgram_main_stability.
-    # Telegram's full PollItemMenu/TodoItemMenu clone first copies the visible
-    # native-cell state, then the remaining params/spoiler state, then installs
-    # the non-interactive delegate and finally binds the same MessageObject.
-    old = (
-        "        previewCell.isChat = sourceCell != null && sourceCell.isChat;\n"
-        "        previewCell.setFullyDraw(true);\n"
-        "        previewCell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate() {\n"
-        "            @Override\n"
-        "            public boolean canPerformActions() {\n"
-        "                return false;\n"
-        "            }\n"
-        "        });\n"
-        "        previewCell.setMessageObject(messageObject, null, false, false, false);\n"
-    )
-    new = (
-        "        previewCell.setFullyDraw(true);\n"
-        "        // AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT\n"
-        "        // Telegram's full PollItemMenu/TodoItemMenu clone copies the live\n"
-        "        // visible cell state before params/spoilers, then installs a\n"
-        "        // non-interactive delegate and binds the original MessageObject.\n"
-        "        if (sourceCell != null) {\n"
-        "            // AUTHORGRAM_NATIVE_VISIBLE_PART_CONTEXT\n"
-        "            sourceCell.copyVisiblePartTo(previewCell);\n"
-        "            sourceCell.copyParamsTo(previewCell);\n"
-        "            previewCell.copySpoilerEffect2AttachIndexFrom(sourceCell);\n"
-        "        }\n"
-        "        previewCell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate() {\n"
-        "            @Override\n"
-        "            public boolean canPerformActions() {\n"
-        "                return false;\n"
-        "            }\n"
-        "        });\n"
-        "        if (sourceCell != null) {\n"
-        "            previewCell.setMessageObject(\n"
-        "                    messageObject,\n"
-        "                    sourceCell.getCurrentMessagesGroup(),\n"
-        "                    sourceCell.pinnedBottom,\n"
-        "                    sourceCell.pinnedTop,\n"
-        "                    sourceCell.firstInChat\n"
-        "            );\n"
-        "        } else {\n"
-        "            previewCell.setMessageObject(messageObject, null, false, false, false);\n"
-        "        }\n"
-    )
-    text = replace_once(text, old, new, "IOSMessageMenuPreview canonical native-context anchor")
-    write(PREVIEW, text)
+    # IOSMessageMenuPreview is an AuthorGram-owned Main-only component. Replacing
+    # it deterministically is safer than layering another fragile anchor over a
+    # generator that intentionally emits an intermediate compatibility shape.
+    write(PREVIEW, FINAL_PREVIEW_SOURCE)
 
 
-def patch_preview_card_alignment() -> None:
+def patch_preview_container_geometry() -> None:
     text = read(SCRIM)
-    if ALIGNMENT_MARKER in text:
+    if WORKAREA_OWNER_MARKER in text:
         return
 
-    old = (
+    canonical = (
+        "            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(\n"
+        "                    LayoutHelper.WRAP_CONTENT,\n"
+        "                    LayoutHelper.WRAP_CONTENT\n"
+        "            );\n"
+        "            params.bottomMargin = AndroidUtilities.dp(4);\n"
+    )
+    canonical_reference = (
         "            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(\n"
         "                    LayoutHelper.WRAP_CONTENT,\n"
         "                    LayoutHelper.WRAP_CONTENT\n"
@@ -165,7 +252,7 @@ def patch_preview_card_alignment() -> None:
         "            params.topMargin = AndroidUtilities.dp(8);\n"
         "            params.bottomMargin = AndroidUtilities.dp(8);\n"
     )
-    new = (
+    previous_aligned = (
         "            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(\n"
         "                    LayoutHelper.WRAP_CONTENT,\n"
         "                    LayoutHelper.WRAP_CONTENT\n"
@@ -187,27 +274,45 @@ def patch_preview_card_alignment() -> None:
         "            params.topMargin = AndroidUtilities.dp(8);\n"
         "            params.bottomMargin = AndroidUtilities.dp(8);\n"
     )
-    text = replace_once(text, old, new, "ChatScrim fixed-preview alignment anchor")
-    write(SCRIM, text)
+    previous_aligned_legacy_comment = previous_aligned.replace(
+        "            // Keep the selected native message anchored with the action card,\n"
+        "            // but do not later force its width down to the action-card width.\n",
+        "            // The action popup gets asymmetric reaction-side margins in\n"
+        "            // ChatActivity. Give the native selected-message cell the same\n"
+        "            // horizontal footprint instead of laying it out from x=0.\n",
+    )
+    desired = (
+        "            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(\n"
+        "                    LayoutHelper.MATCH_PARENT,\n"
+        "                    LayoutHelper.WRAP_CONTENT\n"
+        "            );\n"
+        "            // AUTHORGRAM_IOS_PREVIEW_CHAT_WORKAREA_OWNER\n"
+        "            // The selected Telegram cell owns chat-list geometry, including\n"
+        "            // the incoming avatar lane. Keep the wrapper on the full work area;\n"
+        "            // popup-card margins belong only to the action card below.\n"
+        "            params.leftMargin = 0;\n"
+        "            params.rightMargin = 0;\n"
+        "            params.setMarginStart(0);\n"
+        "            params.setMarginEnd(0);\n"
+        "            // AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY\n"
+        "            params.topMargin = AndroidUtilities.dp(8);\n"
+        "            params.bottomMargin = AndroidUtilities.dp(8);\n"
+    )
+
+    for old in (previous_aligned, previous_aligned_legacy_comment, canonical_reference, canonical):
+        if old in text:
+            text = text.replace(old, desired, 1)
+            write(SCRIM, text)
+            return
+    raise SystemExit("Unable to locate known fixed-preview container geometry")
 
 
-def patch_preview_full_width_measure() -> None:
+def patch_preview_width_mutation() -> None:
     text = read(SCRIM)
-    if FULL_WIDTH_MARKER in text:
+    if NO_POPUP_WIDTH_MARKER in text:
         return
 
-    old = (
-        "        if (fixedMessagePreview != null) {\n"
-        "            int popupWidthForPreview = popupWindowLayout.getMeasuredWidth();\n"
-        "            LinearLayout.LayoutParams previewParams =\n"
-        "                    (LinearLayout.LayoutParams) fixedMessagePreview.getLayoutParams();\n"
-        "            if (popupWidthForPreview > 0 && previewParams.width != popupWidthForPreview) {\n"
-        "                previewParams.width = popupWidthForPreview;\n"
-        "                super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);\n"
-        "            }\n"
-        "        }\n"
-    )
-    new = (
+    previous_full_width = (
         "        if (fixedMessagePreview != null) {\n"
         "            LinearLayout.LayoutParams previewParams =\n"
         "                    (LinearLayout.LayoutParams) fixedMessagePreview.getLayoutParams();\n"
@@ -231,10 +336,31 @@ def patch_preview_full_width_measure() -> None:
         "                previewParams.width = previewWidth;\n"
         "                super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);\n"
         "            }\n"
-        "        }\n"
+        "        }\n\n"
     )
-    text = replace_once(text, old, new, "ChatScrim popup-width preview clamp anchor")
-    write(SCRIM, text)
+    canonical_popup_width = (
+        "        if (fixedMessagePreview != null) {\n"
+        "            int popupWidthForPreview = popupWindowLayout.getMeasuredWidth();\n"
+        "            LinearLayout.LayoutParams previewParams =\n"
+        "                    (LinearLayout.LayoutParams) fixedMessagePreview.getLayoutParams();\n"
+        "            if (popupWidthForPreview > 0 && previewParams.width != popupWidthForPreview) {\n"
+        "                previewParams.width = popupWidthForPreview;\n"
+        "                super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);\n"
+        "            }\n"
+        "        }\n\n"
+    )
+    desired = (
+        "        // AUTHORGRAM_IOS_PREVIEW_NATIVE_SOURCE_GEOMETRY\n"
+        "        // Do not mutate fixedMessagePreview width here. Its MATCH_PARENT\n"
+        "        // wrapper is measured by this LinearLayout, while the child native\n"
+        "        // ChatMessageCell preserves the exact source-cell width/height.\n\n"
+    )
+    for old in (previous_full_width, canonical_popup_width):
+        if old in text:
+            text = text.replace(old, desired, 1)
+            write(SCRIM, text)
+            return
+    raise SystemExit("Unable to locate known fixed-preview width mutation block")
 
 
 def patch_natural_footer_height() -> None:
@@ -242,22 +368,31 @@ def patch_natural_footer_height() -> None:
     if NATURAL_FOOTER_MARKER in text:
         return
 
-    old = (
+    old_marked = (
         "            // AUTHORGRAM_COMPACT_IOS_MENU_FOOTER\n"
+        "            int footerHeight = oldParams != null && oldParams.height > 0\n"
+        "                    ? Math.min(oldParams.height, AndroidUtilities.dp(44))\n"
+        "                    : AndroidUtilities.dp(44);\n"
+    )
+    old_unmarked = (
         "            int footerHeight = oldParams != null && oldParams.height > 0\n"
         "                    ? Math.min(oldParams.height, AndroidUtilities.dp(44))\n"
         "                    : AndroidUtilities.dp(44);\n"
     )
     new = (
         "            // AUTHORGRAM_NATURAL_MENU_FOOTER_HEIGHT\n"
-        "            // applyViewBottom() is also used by Telegram informational blocks.\n"
-        "            // Preserve a declared height and otherwise let the child measure\n"
-        "            // naturally; never crop arbitrary bottom content to 44dp.\n"
+        "            // Preserve declared Telegram bottom-view height and otherwise\n"
+        "            // measure naturally; arbitrary 44dp cropping is forbidden.\n"
         "            int footerHeight = oldParams != null && oldParams.height > 0\n"
         "                    ? oldParams.height\n"
         "                    : LayoutHelper.WRAP_CONTENT;\n"
     )
-    text = replace_once(text, old, new, "ChatScrim 44dp footer-cap anchor")
+    if old_marked in text:
+        text = text.replace(old_marked, new, 1)
+    elif old_unmarked in text:
+        text = text.replace(old_unmarked, new, 1)
+    else:
+        raise SystemExit("ChatScrim 44dp footer-cap anchor is missing")
     write(SCRIM, text)
 
 
@@ -272,18 +407,17 @@ def patch_recent_me_url_diff() -> None:
     )
     new = (
         "                // AUTHORGRAM_TELEGRAM_ME_URL_DIFF_FIX\n"
-        "                // Compare the old and new URL items. Self-comparison makes\n"
-        "                // distinct .me/t.me hints look identical to DiffUtil.\n"
+        "                // Compare old/new URL items; self-comparison breaks DiffUtil.\n"
         "                return recentMeUrl != null && itemInternal.recentMeUrl != null "
         "&& recentMeUrl.url != null && recentMeUrl.url.equals(itemInternal.recentMeUrl.url);\n"
     )
-    if old not in text:
-        already_fixed = "recentMeUrl.url != null && recentMeUrl.url.equals(itemInternal.recentMeUrl.url)"
-        if already_fixed in text:
-            return
-        raise SystemExit("DialogsAdapter recent .me URL self-comparison anchor is missing")
-    text = text.replace(old, new, 1)
-    write(DIALOGS, text)
+    if old in text:
+        text = text.replace(old, new, 1)
+        write(DIALOGS, text)
+        return
+    if "recentMeUrl.url.equals(itemInternal.recentMeUrl.url)" in text:
+        return
+    raise SystemExit("DialogsAdapter recent .me URL comparison anchor is missing")
 
 
 def validate() -> None:
@@ -294,6 +428,11 @@ def validate() -> None:
     required_preview = (
         NATIVE_CONTEXT_MARKER,
         VISIBLE_CONTEXT_MARKER,
+        SOURCE_GEOMETRY_MARKER,
+        "sourceCell.getWidth()",
+        "sourceCell.getHeight()",
+        "sourceCell.getResourcesProvider()",
+        "setMeasuredDimension(sourceCellWidth, sourceCellHeight);",
         "sourceCell.copyVisiblePartTo(previewCell);",
         "sourceCell.copyParamsTo(previewCell);",
         "previewCell.copySpoilerEffect2AttachIndexFrom(sourceCell);",
@@ -302,14 +441,12 @@ def validate() -> None:
         "sourceCell.pinnedBottom",
         "sourceCell.pinnedTop",
         "sourceCell.firstInChat",
-        "previewCell.setMessageObject(messageObject, null, false, false, false);",
         "Math.min(AndroidUtilities.dp(420), Math.round(viewportHeight * 0.46f))",
     )
     for token in required_preview:
         if token not in preview:
-            raise SystemExit(f"native selected-message renderer invariant missing: {token}")
+            raise SystemExit(f"native source-cell preview invariant missing: {token}")
 
-    # Enforce Telegram's full live-cell clone ordering, not just token presence.
     clone_positions = [
         preview.find("sourceCell.copyVisiblePartTo(previewCell);"),
         preview.find("sourceCell.copyParamsTo(previewCell);"),
@@ -320,41 +457,56 @@ def validate() -> None:
     if any(position < 0 for position in clone_positions) or clone_positions != sorted(clone_positions):
         raise SystemExit("native ChatMessageCell clone order diverges from Telegram full-cell clone")
 
-    if "previewCell.isChat = sourceCell != null && sourceCell.isChat;" in preview:
-        raise SystemExit("partial ChatMessageCell context copy survived")
+    for token in (
+        "Bitmap.createBitmap",
+        "BackupImageView avatarView",
+        "TextView senderNameView",
+        "previewCell.isChat = sourceCell != null && sourceCell.isChat;",
+    ):
+        if token in preview:
+            raise SystemExit(f"synthetic/partial sender renderer survived: {token}")
 
     for token in (
-        ALIGNMENT_MARKER,
-        "params.setMarginStart(popupParams.getMarginStart());",
-        "params.setMarginEnd(popupParams.getMarginEnd());",
-        "params.gravity = popupParams.gravity;",
-        FULL_WIDTH_MARKER,
-        "int parentWidthForPreview = MeasureSpec.getSize(adjustedWidthSpec);",
-        "previewParams.width = previewWidth;",
+        WORKAREA_OWNER_MARKER,
+        "LayoutHelper.MATCH_PARENT,",
+        "params.setMarginStart(0);",
+        "params.setMarginEnd(0);",
+        NO_POPUP_WIDTH_MARKER,
         NATURAL_FOOTER_MARKER,
         "? oldParams.height",
         ": LayoutHelper.WRAP_CONTENT;",
     ):
         if token not in scrim:
-            raise SystemExit(f"message-menu geometry invariant missing: {token}")
+            raise SystemExit(f"message-menu source geometry invariant missing: {token}")
 
-    if "previewParams.width = popupWidthForPreview;" in scrim:
-        raise SystemExit("selected-message preview is still narrowed to action-card width")
-    if "Math.min(oldParams.height, AndroidUtilities.dp(44))" in scrim:
-        raise SystemExit("44dp footer clipping cap survived")
+    forbidden_scrim = (
+        "AUTHORGRAM_IOS_PREVIEW_CARD_ALIGNMENT",
+        "AUTHORGRAM_IOS_PREVIEW_FULL_WIDTH_MEASURE",
+        "params.setMarginStart(popupParams.getMarginStart());",
+        "params.setMarginEnd(popupParams.getMarginEnd());",
+        "params.gravity = popupParams.gravity;",
+        "previewParams.width = popupWidthForPreview;",
+        "previewParams.width = previewWidth;",
+        "int popupWidthForPreview = popupWindowLayout.getMeasuredWidth();",
+        "int parentWidthForPreview = MeasureSpec.getSize(adjustedWidthSpec);",
+        "Math.min(oldParams.height, AndroidUtilities.dp(44))",
+    )
+    for token in forbidden_scrim:
+        if token in scrim:
+            raise SystemExit(f"popup-owned clipping geometry survived: {token}")
 
     if "recentMeUrl.url.equals(recentMeUrl.url)" in dialogs:
         raise SystemExit("DialogsAdapter recent .me URL self-comparison survived")
     if "recentMeUrl.url.equals(itemInternal.recentMeUrl.url)" not in dialogs:
         raise SystemExit("DialogsAdapter recent .me URL DiffUtil fix missing")
 
-    print("AuthorGram native iOS sender/visible-cell renderer + full-width geometry/footer + Telegram .me DiffUtil stability passed")
+    print("AuthorGram native source-cell avatar/name geometry + unclipped chat-workarea preview + footer/.me stability passed")
 
 
 def apply() -> None:
     patch_native_preview_context()
-    patch_preview_card_alignment()
-    patch_preview_full_width_measure()
+    patch_preview_container_geometry()
+    patch_preview_width_mutation()
     patch_natural_footer_height()
     patch_recent_me_url_diff()
     validate()
