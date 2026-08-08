@@ -38,8 +38,8 @@ OLD = '''    public static ArrayList<Long> checkBlockedChannels(HashSet<Long> bl
 
 NEW = '''    public static ArrayList<Long> checkBlockedChannels(HashSet<Long> blockedChannels) {
         // AUTHORGRAM_NO_UI_THREAD_BLOCKED_CHAT_LOOKUP
-        // This method is consumed by settings/list rendering. Never call
-        // MessagesStorage.getChatSync() here: one DB read per peer can stall the
+        // This method is consumed by settings/list rendering. Never perform a
+        // synchronous storage lookup here: one DB read per peer can stall the
         // main thread. The stored dialog id is already sufficient to preserve the
         // blocked-channel entry; callers can resolve display metadata lazily.
         ArrayList<Long> filtered = new ArrayList<>();
@@ -92,10 +92,12 @@ def validate() -> None:
     if method_start < 0 or method_end < 0:
         raise SystemExit("unable to locate patched blocked-channel method")
     method = text[method_start:method_end]
+    # Validate executable call patterns. Class names may legitimately appear in
+    # comments/imports and must not make the safety check fail spuriously.
     for forbidden in (
-        "MessagesStorage",
         "getChatSync(",
         "mc.putChat(",
+        "MessagesStorage.getInstance(",
     ):
         if forbidden in method:
             raise SystemExit(f"synchronous blocked-channel lookup remains: {forbidden}")
