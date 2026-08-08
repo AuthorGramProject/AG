@@ -14,8 +14,8 @@ import java.util.Set;
 public class DummyMessageWaiter extends SyncWaiter {
 
     private static final long LOOKUP_TIMEOUT_MS = 3500L;
-    private static final long WATCHER_TIMEOUT_MS = 300000L;
-    private static final long POLL_INTERVAL_MS = 25L;
+    private static final long WATCHER_TIMEOUT_MS = 15000L;
+    private static final long POLL_INTERVAL_MS = 100L;
 
     private final Set<Integer> alreadySent = Collections.synchronizedSet(new HashSet<>());
     private final Set<Integer> baselineIds = new HashSet<>();
@@ -72,6 +72,7 @@ public class DummyMessageWaiter extends SyncWaiter {
                 Thread.sleep(POLL_INTERVAL_MS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                failed = true;
                 unsubscribe();
                 break;
             }
@@ -114,7 +115,13 @@ public class DummyMessageWaiter extends SyncWaiter {
         queueWatcherStarted = true;
         Thread watcher = new Thread(() -> {
             boolean observedNewPending = sendingId != 0;
+            boolean lookupFailureLogged = false;
             long start = System.currentTimeMillis();
+
+            // AUTHORGRAM_BOUNDED_MESSAGE_WATCHER
+            // This watcher only bridges the short race between queue insertion and
+            // Telegram's send notifications. It must never become a five-minute
+            // high-frequency polling thread. Every exit path releases the waiter.
             while (!isReleased() && System.currentTimeMillis() - start < WATCHER_TIMEOUT_MS) {
                 try {
                     ArrayList<Integer> currentIds = sendMessagesHelper.getSendingMessageIds(dialogId);
@@ -129,6 +136,10 @@ public class DummyMessageWaiter extends SyncWaiter {
                         }
                     }
 
+                    if (isReleased()) {
+                        return;
+                    }
+
                     if (!observedNewPending && !alreadySent.isEmpty()) {
                         observedNewPending = true;
                     }
@@ -137,13 +148,30 @@ public class DummyMessageWaiter extends SyncWaiter {
                         unsubscribe();
                         return;
                     }
+                } catch (Exception exception) {
+                    // AUTHORGRAM_BOUNDED_WATCHER_LOGGING
+                    // Keep the retry bounded and throttled. A persistent queue error
+                    // is logged once per watcher rather than once every polling tick.
+                    if (!lookupFailureLogged) {
+                        lookupFailureLogged = true;
+                        FileLog.e("AuthorGram: message queue watcher lookup failed", exception);
+                    }
+                }
 
+                try {
                     Thread.sleep(POLL_INTERVAL_MS);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                    failed = true;
+                    unsubscribe();
                     return;
-                } catch (Exception ignore) {
                 }
+            }
+
+            if (!isReleased()) {
+                failed = true;
+                FileLog.e("AuthorGram: message queue watcher timed out");
+                unsubscribe();
             }
         }, "AyuMessageWaiter-" + currentAccount);
         watcher.setDaemon(true);

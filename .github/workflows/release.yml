@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout canonical dev source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: dev
           fetch-depth: 0
@@ -59,6 +59,7 @@ jobs:
               'scripts/patch_authorgram_full_screen_ios_blur.py',
               'scripts/patch_authorgram_chat_scope_safety.py',
               'scripts/patch_authorgram_main_stability.py',
+              'scripts/patch_authorgram_native_menu_stability.py',
               'scripts/patch_authorgram_runtime_regressions.py',
               'scripts/patch_authorgram_ios_input_geometry.py',
               'scripts/audit_authorgram_runtime_stability.py',
@@ -93,11 +94,27 @@ jobs:
               if marker not in stability:
                   raise SystemExit(f'stability pass missing {marker}')
 
+          native_menu = Path('scripts/patch_authorgram_native_menu_stability.py').read_text(encoding='utf-8')
+          for marker in (
+              'AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT',
+              'sourceCell.copyParamsTo(previewCell);',
+              'previewCell.copySpoilerEffect2AttachIndexFrom(sourceCell);',
+              'sourceCell.getCurrentMessagesGroup()',
+              'AUTHORGRAM_IOS_PREVIEW_CARD_ALIGNMENT',
+              'AUTHORGRAM_NATURAL_MENU_FOOTER_HEIGHT',
+              'AUTHORGRAM_TELEGRAM_ME_URL_DIFF_FIX',
+          ):
+              if marker not in native_menu:
+                  raise SystemExit(f'native menu stability pass missing {marker}')
+
           runtime_repair = Path('scripts/patch_authorgram_runtime_regressions.py').read_text(encoding='utf-8')
           for marker in (
               'AUTHORGRAM_DEFERRED_IOS_PREVIEW_ATTACH',
               'AUTHORGRAM_STRICT_IOS_MENU_VIEWPORT',
               'AUTHORGRAM_PLAY_STABLE_REPLY_MODEL',
+              'patch_authorgram_native_menu_stability.py',
+              'apply_native_menu_patch()',
+              'validate_native_menu_patch()',
               'authorGramIosPreviewAnchor.post(() -> {',
               'authorGramIosPreviewAnchor.getParent();',
               'pre-attach popupLayout.getParent() lookup remains',
@@ -131,9 +148,12 @@ jobs:
           runtime_audit = Path('scripts/audit_authorgram_runtime_stability.py').read_text(encoding='utf-8')
           for marker in (
               'AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR',
+              'AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT',
               'AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY',
               'AUTHORGRAM_PLAY_STABLE_REPLY_MODEL',
               'AUTHORGRAM_SETTINGS_PREVIEW_REPLY_INVARIANT',
+              'AUTHORGRAM_BOUNDED_MESSAGE_WATCHER',
+              'AUTHORGRAM_TELEGRAM_ME_URL_DIFF_FIX',
           ):
               if marker not in runtime_audit:
                   raise SystemExit(f'runtime stability audit missing {marker}')
@@ -188,7 +208,7 @@ jobs:
           test -z "$(git status --porcelain)"
 
       - name: Purge superseded Actions and disable obsolete workflows
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ github.token }}
           script: |
@@ -198,6 +218,15 @@ jobs:
             const currentWorkflowPath = '.github/workflows/release.yml';
             const activeStates = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
             const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+            function isBenignRunRace(error) {
+              const message = String(error?.message || error || '').toLowerCase();
+              return error?.status === 404
+                || message.includes('has not yet queued')
+                || message.includes('could not delete the workflow run')
+                || message.includes('cannot cancel a completed workflow run')
+                || message.includes('workflow run is not cancelable');
+            }
 
             async function listRuns() {
               return await github.paginate(
@@ -213,6 +242,10 @@ jobs:
                   { owner, repo, run_id: runId, per_page: 100 },
                 );
               } catch (error) {
+                if (isBenignRunRace(error)) {
+                  core.info(`Run ${runId} disappeared while inspecting jobs: ${error.message}`);
+                  return [];
+                }
                 core.warning(`Unable to inspect jobs for ${runId}: ${error.message}`);
                 return null;
               }
@@ -238,6 +271,10 @@ jobs:
                 core.info(`Deleted superseded run ${run.id}: ${run.name}`);
                 return true;
               } catch (error) {
+                if (isBenignRunRace(error)) {
+                  core.info(`Skipping transient/ghost run ${run.id} during delete: ${error.message}`);
+                  return false;
+                }
                 core.warning(`Delete failed for ${run.id}: ${error.message}`);
                 return false;
               }
@@ -249,43 +286,70 @@ jobs:
                   'POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel',
                   { owner, repo, run_id: run.id },
                 );
-                return;
+                core.info(`Force-cancelled superseded run ${run.id}: ${run.name}`);
+                return true;
               } catch (forceError) {
-                core.warning(`Force-cancel failed for ${run.id}: ${forceError.message}`);
+                if (isBenignRunRace(forceError)) {
+                  core.info(`Skipping non-runnable/ghost run ${run.id}: ${forceError.message}`);
+                  return false;
+                }
+                core.info(`Force-cancel unavailable for ${run.id}; trying normal cancel: ${forceError.message}`);
               }
               try {
                 await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
+                core.info(`Cancelled superseded run ${run.id}: ${run.name}`);
+                return true;
               } catch (cancelError) {
+                if (isBenignRunRace(cancelError)) {
+                  core.info(`Run ${run.id} cannot currently be cancelled: ${cancelError.message}`);
+                  return false;
+                }
                 core.warning(`Normal cancel failed for ${run.id}: ${cancelError.message}`);
+                return false;
               }
             }
 
-            for (let pass = 1; pass <= 5; pass += 1) {
+            for (let pass = 1; pass <= 3; pass += 1) {
               const runs = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
               if (runs.length === 0) break;
+
               for (const run of runs) {
+                const jobs = await jobsFor(run.id);
+                if (jobs === null) continue;
+
+                // GitHub can retain a requested re-run record with no queued job.
+                // It cannot be cancelled/deleted yet and is not consuming a runner.
+                // Do not hammer the API five times and emit three warnings per pass.
+                if (jobs.length === 0) {
+                  core.info(`Ignoring zero-job Actions record ${run.id}:${run.status}:${run.name}`);
+                  continue;
+                }
+
                 if (activeStates.has(run.status)) {
-                  if (!await deleteRun(run)) await stopRun(run);
+                  await stopRun(run);
                 } else {
                   await deleteRun(run);
                 }
               }
-              await sleep(6000);
+
+              if (pass < 3) await sleep(4000);
             }
 
             const remaining = (await listRuns()).filter(run => Number(run.id) !== currentRunId);
             const blockers = [];
             for (const run of remaining) {
               const jobs = await jobsFor(run.id);
-              if (jobs === null || jobs.length > 0) {
+              if (jobs === null) {
+                blockers.push(`${run.id}:${run.status}:${run.name}:jobs-unreadable`);
+              } else if (jobs.length > 0) {
                 blockers.push(`${run.id}:${run.status}:${run.name}`);
               } else {
-                core.warning(`Ignoring GitHub stale zero-job record ${run.id}:${run.status}:${run.name}`);
+                core.info(`Ignoring GitHub stale zero-job record ${run.id}:${run.status}:${run.name}`);
               }
             }
 
             if (blockers.length > 0) {
-              core.setFailed(`Real superseded Actions runs remain: ${blockers.join(', ')}`);
+              core.setFailed(`Real superseded Actions jobs remain: ${blockers.join(', ')}`);
             } else {
               core.info('No real superseded workflow job remains.');
             }
@@ -298,12 +362,12 @@ jobs:
           check-latest: false
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           cache-disabled: true
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
@@ -341,7 +405,7 @@ jobs:
           cat "${artifact_dir}/SHA256SUMS.txt"
 
       - name: Upload stable Main APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AuthorGram-12.9.2-Stable-Main-Release
           path: ${{ runner.temp }}/authorgram-main-stable/artifacts/
