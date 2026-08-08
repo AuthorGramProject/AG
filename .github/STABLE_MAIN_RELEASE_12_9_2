@@ -1,0 +1,6 @@
+AuthorGram 12.9.2 stable Main release trigger
+canonical-dev=36ddbae6bd360c974d4fd4cf11ca4430a5d3e5b7
+reference-ios-menu=2026-08-08T08:45:00Z
+full-screen-blur=true
+separate-native-message-preview=true
+runtime-stability-audit=true
