@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 PREVIEW = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java"
 SETTINGS_PREVIEW = ROOT / "TMessagesProj/src/main/java/tw/nekomimi/nekogram/ui/cells/MessageSettingsPreviewCell.java"
 INTERCEPTOR = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java"
+SYNC_WAITER = ROOT / "TMessagesProj/src/main/java/com/radolyn/ayugram/utils/seq/SyncWaiter.java"
+MESSAGE_WAITER = ROOT / "TMessagesProj/src/main/java/com/radolyn/ayugram/utils/seq/DummyMessageWaiter.java"
+AYU_SEQUENTIAL = ROOT / "TMessagesProj/src/main/java/com/radolyn/ayugram/utils/seq/AyuSequentialUtils.java"
 SCOPE_GUARD = ROOT / "scripts/patch_authorgram_chat_scope_safety.py"
 STABILITY = ROOT / "scripts/patch_authorgram_main_stability.py"
 BLUR_PATCH = ROOT / "scripts/patch_authorgram_full_screen_ios_blur.py"
@@ -237,6 +240,48 @@ def audit_reply_integrity(failures: list[str]) -> None:
     )
 
 
+def audit_ayu_waiter_safety(failures: list[str]) -> None:
+    sync_waiter = read(SYNC_WAITER)
+    message_waiter = read(MESSAGE_WAITER)
+    sequential = read(AYU_SEQUENTIAL)
+
+    require(
+        sync_waiter,
+        (
+            "AUTHORGRAM_NO_UI_THREAD_SYNC_WAIT",
+            "refusing to block UI thread in SyncWaiter.await()",
+            "ApplicationLoader.applicationHandler.getLooper().getThread()",
+            "timedOut = true;",
+            "return false;",
+        ),
+        "Ayu SyncWaiter UI-thread guard",
+        failures,
+    )
+    require(
+        message_waiter,
+        (
+            "AUTHORGRAM_NO_UI_THREAD_MESSAGE_POLL",
+            "refusing DummyMessageWaiter polling on UI thread",
+            "startQueueWatcher(sendMessagesHelper);",
+        ),
+        "Ayu message polling guard",
+        failures,
+    )
+    require(
+        sequential,
+        (
+            "AUTHORGRAM_PROPAGATE_SYNC_SEND_FAILURE",
+            "boolean uploadCompleted = uploadWaiter.await();",
+            "success = uploadCompleted && !uploadWaiter.hasFailed();",
+            "boolean messageCompleted = messageWaiter.await();",
+            "messageCompleted && !messageWaiter.hasFailed();",
+            "return success;",
+        ),
+        "Ayu synchronous send failure propagation",
+        failures,
+    )
+
+
 def audit_release_chain(failures: list[str]) -> None:
     release = read(RELEASE_SCRIPT)
     require(
@@ -274,7 +319,8 @@ def audit_lifecycle(failures: list[str]) -> None:
 
 def audit_custom_blocking_calls(failures: list[str]) -> None:
     # AuthorGram-owned code must not intentionally block the UI/runtime thread.
-    # Upstream Telegram/Ayu/WebRTC code is deliberately outside this scan.
+    # Upstream Telegram/Ayu/WebRTC code is deliberately outside this scan. Ayu's
+    # synchronous forwarding is covered separately with explicit UI-thread guards.
     forbidden_patterns = (
         (re.compile(r"\bThread\.sleep\s*\("), "Thread.sleep"),
         (re.compile(r"\bSystem\.gc\s*\("), "System.gc"),
@@ -303,6 +349,7 @@ def main() -> int:
     failures: list[str] = []
     audit_ios_message_preview(failures)
     audit_reply_integrity(failures)
+    audit_ayu_waiter_safety(failures)
     audit_release_chain(failures)
     audit_lifecycle(failures)
     audit_custom_blocking_calls(failures)
@@ -316,8 +363,8 @@ def main() -> int:
     print(
         "Checked: full-screen blur, reference iOS menu geometry/ownership, "
         "native action-card/footer structure, native preview, settings reply/draw, "
-        "nested reply decryption, release-chain isolation, lifecycle and "
-        "AuthorGram-owned blocking calls"
+        "nested reply decryption, Ayu waiter UI-thread/failure safety, "
+        "release-chain isolation, lifecycle and AuthorGram-owned blocking calls"
     )
     return 0
 
