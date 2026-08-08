@@ -1,9 +1,8 @@
 AuthorGram 12.9.2 stable Main release trigger
-requested=2026-08-08T16:55+02:00
+requested=2026-08-08T17:02+02:00
 scope=main-only
-devSource=39f2166f2c24475cb584b318b0d16930da00f71f
-reason=full-runtime-audit-ios-message-menu-and-chat-freeze-stability
-replyModel=play-stable-current-message-only
+devSource=40f2c4a01d4ea0690e9876b04f04b75a97c47a9b
+reason=runtime-audit-after-post-generator-repairs
 iosPreview=telegram-native-chatmessagecell-context
 menuViewport=strict-real-work-area-natural-footer
 regexRuntime=bounded
