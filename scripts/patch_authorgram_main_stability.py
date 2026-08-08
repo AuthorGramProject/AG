@@ -22,6 +22,7 @@ SEPARATE_PREVIEW = "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW"
 REFERENCE_GEOMETRY = "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY"
 LIVE_STYLE = "AUTHORGRAM_LIVE_IOS_INPUT_STYLE_GATE"
 COMPACT_FOOTER = "AUTHORGRAM_COMPACT_IOS_MENU_FOOTER"
+NATURAL_FOOTER = "AUTHORGRAM_NATURAL_MENU_FOOTER_HEIGHT"
 CLASSIC_POPUP = "AUTHORGRAM_CLASSIC_POPUP_ZERO_EXTRA_PADDING"
 
 
@@ -348,25 +349,28 @@ def patch_scrim_footer() -> None:
             1,
         )
 
-    # The reference screenshot uses a full quick-action footer rather than a
-    # compressed strip. Preserve a 44dp cap while keeping it inside one card.
-    text = text.replace(
-        "Math.min(oldParams.height, AndroidUtilities.dp(40))",
-        "Math.min(oldParams.height, AndroidUtilities.dp(44))",
-    )
-    text = text.replace(
-        ": AndroidUtilities.dp(40);",
-        ": AndroidUtilities.dp(44);",
-    )
-    if COMPACT_FOOTER not in text:
-        marker_anchor = "            int footerHeight = oldParams != null && oldParams.height > 0\n"
-        if marker_anchor not in text:
-            raise SystemExit("ChatScrim footer anchor missing")
+    # This generator is run both on an intermediate Main source and, during the
+    # isolated release pass, on a tree that may already contain the final natural
+    # footer repair. Never regress the finalized footer back to a 44dp crop.
+    finalized_natural_footer = NATURAL_FOOTER in text
+    if not finalized_natural_footer:
         text = text.replace(
-            marker_anchor,
-            "            // AUTHORGRAM_COMPACT_IOS_MENU_FOOTER\n" + marker_anchor,
-            1,
+            "Math.min(oldParams.height, AndroidUtilities.dp(40))",
+            "Math.min(oldParams.height, AndroidUtilities.dp(44))",
         )
+        text = text.replace(
+            ": AndroidUtilities.dp(40);",
+            ": AndroidUtilities.dp(44);",
+        )
+        if COMPACT_FOOTER not in text:
+            marker_anchor = "            int footerHeight = oldParams != null && oldParams.height > 0\n"
+            if marker_anchor not in text:
+                raise SystemExit("ChatScrim footer anchor missing")
+            text = text.replace(
+                marker_anchor,
+                "            // AUTHORGRAM_COMPACT_IOS_MENU_FOOTER\n" + marker_anchor,
+                1,
+            )
 
     # Reference geometry: reactions, selected message and action card are visibly
     # separate. 8dp above and below the native message gives consistent spacing
@@ -486,9 +490,7 @@ def validate() -> None:
 
     for required in (
         STABLE_FOOTER,
-        COMPACT_FOOTER,
         REFERENCE_GEOMETRY,
-        "Math.min(oldParams.height, AndroidUtilities.dp(44))",
         "|| !authorGramIosMessageMenuActive())",
         "params.topMargin = AndroidUtilities.dp(8);",
         "params.bottomMargin = AndroidUtilities.dp(8);",
@@ -497,6 +499,27 @@ def validate() -> None:
     ):
         if required not in scrim:
             failures.append(f"scrim/footer missing {required}")
+
+    if NATURAL_FOOTER in scrim:
+        # Final runtime state: declared footer height is preserved and unknown
+        # content measures naturally. This is the state shipped to users.
+        for required in (
+            "? oldParams.height",
+            ": LayoutHelper.WRAP_CONTENT;",
+        ):
+            if required not in scrim:
+                failures.append(f"natural footer missing {required}")
+        if "Math.min(oldParams.height, AndroidUtilities.dp(44))" in scrim:
+            failures.append("natural footer regressed to a 44dp crop")
+    else:
+        # Intermediate generator state. The post-generator native-menu repair
+        # immediately converts this into the natural-height final state.
+        for required in (
+            COMPACT_FOOTER,
+            "Math.min(oldParams.height, AndroidUtilities.dp(44))",
+        ):
+            if required not in scrim:
+                failures.append(f"intermediate footer missing {required}")
 
     for required in (
         CLASSIC_POPUP,
