@@ -2,6 +2,7 @@ package com.radolyn.ayugram.utils.seq;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.NotificationCenter;
 
 import java.util.ArrayList;
@@ -60,6 +61,18 @@ public abstract class SyncWaiter implements NotificationCenter.NotificationCente
     }
 
     public boolean await() {
+        // AUTHORGRAM_NO_UI_THREAD_SYNC_WAIT
+        // AyuForward currently invokes synchronous waiters from its DispatchQueue.
+        // Keep that valid background behavior, but fail fast if a future call site
+        // accidentally reaches this method from Android's main thread. Blocking the
+        // UI for the normal 300-second timeout would be an application-level ANR.
+        if (Thread.currentThread() == ApplicationLoader.applicationHandler.getLooper().getThread()) {
+            FileLog.e("AuthorGram: refusing to block UI thread in SyncWaiter.await()");
+            timedOut = true;
+            release();
+            return false;
+        }
+
         boolean completed;
         try {
             completed = latch.await(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
