@@ -129,13 +129,18 @@ canonicalize_chat_ui() {
     # one canonical stability generator own reactions/message/action geometry.
     python3 scripts/patch_authorgram_full_screen_ios_blur.py --mode apply
     python3 scripts/patch_authorgram_main_stability.py
+
+    # The final post-generator repair owns attachment timing and strict viewport
+    # allocation. It also refuses any recursive replyMessage mutation.
+    python3 scripts/patch_authorgram_runtime_regressions.py --mode apply
     python3 scripts/patch_authorgram_ios_input_geometry.py --mode apply
 
-    # Scope safety is now a read-only guard. It may reject a bad generated state
-    # but is forbidden from rewriting ChatActivity/IOSMessageMenuPreview.
+    # Scope safety is read-only. It validates the final deferred-attach state and
+    # is forbidden from rewriting ChatActivity/IOSMessageMenuPreview.
     python3 scripts/patch_authorgram_chat_scope_safety.py --mode apply
 
     python3 scripts/patch_authorgram_full_screen_ios_blur.py --mode validate
+    python3 scripts/patch_authorgram_runtime_regressions.py --mode validate
     python3 scripts/patch_authorgram_ios_input_geometry.py --mode validate
     python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
     python3 scripts/audit_authorgram_runtime_stability.py
@@ -245,8 +250,9 @@ Stability / iOS message-menu invariants:
 - sender avatar, sender name, reply/quote, media, link preview and message content use Telegram's native renderer.
 - no full-size bitmap snapshot, getPixels scan, duplicate synthetic sender name or synthetic message bubble is used.
 - selected-message preview never becomes a child of the action-card ScrollView.
-- tall selected messages remain in the separate preview block and scroll inside that bounded preview instead of joining actions.
-- selected-message fixed-preview ownership is resolved through the actual ChatScrimPopupContainerLayout parent chain.
+- selected-message ownership is resolved only after popup attachment; construction-time popupLayout.getParent() is forbidden.
+- tall selected messages remain in the separate bounded preview; the action card keeps its own native scrolling.
+- action-card height is capped to the real remaining work area; no synthetic 96dp minimum can push the footer below the viewport.
 - reference spacing around the selected-message block is 8dp above and 8dp below.
 - normal action rows remain in the native popup card; the quick-action footer remains inside the same card below its divider.
 - Main-only quick-action footer is capped at 44dp to preserve the reference footer proportions.
@@ -254,7 +260,7 @@ Stability / iOS message-menu invariants:
 - legacy popup generator is read-only and cannot overwrite the canonical Main UI snapshot.
 - scope-safety pass is read-only and cannot rewrite the canonical selected-message owner.
 - settings preview always binds a complete reply target; zero-peer / half-empty synthetic reply state is forbidden.
-- nested AuthorGram reply targets are decrypted independently from the outer incoming message.
+- incoming AuthorGram decryption mutates only the current Telegram message, matching Play reply ownership; nested replyMessage objects are never recursively mutated.
 - release is signed, non-debuggable, arm64-v8a only.
 EOF
 
