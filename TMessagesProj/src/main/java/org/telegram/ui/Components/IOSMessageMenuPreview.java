@@ -17,14 +17,18 @@ import tw.nekomimi.nekogram.NekoConfig;
  * Main-only native selected-message preview for the iOS-style context menu.
  *
  * AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK
+ * AUTHORGRAM_ADAPTIVE_IOS_MESSAGE_PREVIEW
+ * AUTHORGRAM_FINAL_PREVIEW_COMPAT
+ * AUTHORGRAM_IOS_MESSAGE_SENDER_IDENTITY
  * AUTHORGRAM_NATIVE_ONLY_IOS_MESSAGE_PREVIEW
  * AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW
  * AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW
+ * AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY
  *
- * The preview is always a sibling of the action card. A fresh native Telegram
- * ChatMessageCell renders avatar, sender, reply/quote, media and text exactly as
- * the chat does. Tall messages are bounded here and scroll inside this preview;
- * they are never re-parented into the action list.
+ * Reference structure: reactions -> native selected message -> separate action
+ * card. A fresh Telegram ChatMessageCell renders avatar, sender, reply/quote,
+ * media and message text. Tall content is bounded and scrolls inside this
+ * independent preview; it is never inserted into the action-card ScrollView.
  */
 public final class IOSMessageMenuPreview extends FrameLayout {
     public static final String NATIVE_PREVIEW_TAG = "AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW";
@@ -65,6 +69,7 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         previewScroll.setVerticalScrollBarEnabled(false);
         previewScroll.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
         previewScroll.setClipToPadding(false);
+        previewScroll.setNestedScrollingEnabled(true);
 
         previewCell = new ChatMessageCell(context, currentAccount);
         previewCell.setTag(NATIVE_PREVIEW_TAG);
@@ -106,7 +111,7 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         );
     }
 
-    /** Compatibility API for old validators. The preview never joins actions. */
+    /** Compatibility API: selected-message content never joins action rows. */
     public boolean shouldScrollWithActions() {
         return false;
     }
