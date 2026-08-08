@@ -56,9 +56,11 @@ jobs:
           scripts = (
               'scripts/finalize_authorgram_source.py',
               'scripts/patch_authorgram_popup_bounds.py',
+              'scripts/patch_authorgram_full_screen_ios_blur.py',
               'scripts/patch_authorgram_chat_scope_safety.py',
               'scripts/patch_authorgram_main_stability.py',
               'scripts/patch_authorgram_ios_input_geometry.py',
+              'scripts/audit_authorgram_runtime_stability.py',
           )
           for relative in scripts:
               source = Path(relative).read_text(encoding='utf-8')
@@ -71,17 +73,55 @@ jobs:
               'AUTHORGRAM_STABLE_IOS_MENU_FOOTER',
               'AUTHORGRAM_NATIVE_ONLY_IOS_MESSAGE_PREVIEW',
               'AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW',
+              'AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW',
+              'AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW',
+              'AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY',
               'AUTHORGRAM_LIVE_IOS_INPUT_STYLE_GATE',
               'AUTHORGRAM_COMPACT_IOS_MENU_FOOTER',
               'AUTHORGRAM_CLASSIC_POPUP_ZERO_EXTRA_PADDING',
               'new ChatMessageCell(context, currentAccount)',
+              'new ScrollView(context)',
+              'previewScroll.setNestedScrollingEnabled(true);',
               'previewCell.setMessageObject(messageObject, null, false, false, false);',
-              'Math.min(oldParams.height, AndroidUtilities.dp(40))',
+              'Math.min(oldParams.height, AndroidUtilities.dp(44))',
+              'params.topMargin = AndroidUtilities.dp(8);',
+              'params.bottomMargin = AndroidUtilities.dp(8);',
               'if (!isIOSInputStyle() || !isAttachedToWindow())',
               'postDelayed(authorGramInputMenuInvariantRunnable, 160L);',
           ):
               if marker not in stability:
                   raise SystemExit(f'stability pass missing {marker}')
+
+          blur = Path('scripts/patch_authorgram_full_screen_ios_blur.py').read_text(encoding='utf-8')
+          for marker in (
+              'AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR',
+              'dimBehindView(null, true, true);',
+              'refusing fuzzy patch',
+          ):
+              if marker not in blur:
+                  raise SystemExit(f'full-screen blur pass missing {marker}')
+
+          scope = Path('scripts/patch_authorgram_chat_scope_safety.py').read_text(encoding='utf-8')
+          for marker in (
+              'Read-only safety guard',
+              'validate_canonical',
+              'scope guard is read-only; no source rewrite performed',
+          ):
+              if marker not in scope:
+                  raise SystemExit(f'scope safety guard missing {marker}')
+          for forbidden in ('write_chat(', 'write_preview(', 'PREVIEW_SOURCE ='):
+              if forbidden in scope:
+                  raise SystemExit(f'scope safety guard is still mutating source: {forbidden}')
+
+          runtime_audit = Path('scripts/audit_authorgram_runtime_stability.py').read_text(encoding='utf-8')
+          for marker in (
+              'AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR',
+              'AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY',
+              'AUTHORGRAM_REPLY_TARGET_DECRYPTION',
+              'AUTHORGRAM_SETTINGS_PREVIEW_REPLY_INVARIANT',
+          ):
+              if marker not in runtime_audit:
+                  raise SystemExit(f'runtime stability audit missing {marker}')
 
           geometry = Path('scripts/patch_authorgram_ios_input_geometry.py').read_text(encoding='utf-8')
           for marker in (
