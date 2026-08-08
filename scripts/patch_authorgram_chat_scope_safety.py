@@ -2,16 +2,16 @@
 """Read-only safety guard for AuthorGram Main iOS message-menu ownership.
 
 The canonical UI generator is scripts/patch_authorgram_main_stability.py and the
-final lifecycle/viewport repair is scripts/patch_authorgram_runtime_regressions.py.
-This file intentionally NEVER rewrites ChatActivity or IOSMessageMenuPreview.
+final lifecycle/viewport/native-cell repair is
+scripts/patch_authorgram_runtime_regressions.py. This file intentionally NEVER
+rewrites ChatActivity or IOSMessageMenuPreview.
 
 There are two validation phases:
-- pre-apply/basic: accepts known legacy compatibility markers that the canonical
-  generator is explicitly responsible for replacing, but rejects active unsafe
-  ownership/back-call forms that should never be present on the dev baseline;
-- canonical/final: requires the reference structure plus deferred popup-owner
-  resolution and rejects every legacy path that can lose the selected message or
-  put it inside the action card.
+- pre-apply/basic: accepts the known compatibility baseline but rejects active
+  unsafe ownership/back-call forms;
+- canonical/final: requires deferred popup ownership plus an exact native source
+  ChatMessageCell clone. The action popup may not own, resize or horizontally
+  offset the selected-message preview.
 """
 
 from __future__ import annotations
@@ -24,6 +24,8 @@ CHAT = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
 PREVIEW = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java"
 STABILITY = ROOT / "scripts/patch_authorgram_main_stability.py"
 RUNTIME_REPAIR = ROOT / "scripts/patch_authorgram_runtime_regressions.py"
+NATIVE_MENU_PATCH = ROOT / "scripts/patch_authorgram_native_menu_stability.py"
+SCRIM = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java"
 
 SAFE_MARKER = "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT"
 CANONICAL_MARKER = "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW"
@@ -31,6 +33,9 @@ BOUNDED_MARKER = "AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW"
 REFERENCE_MARKER = "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY"
 DEFERRED_MARKER = "AUTHORGRAM_DEFERRED_IOS_PREVIEW_ATTACH"
 STRICT_VIEWPORT_MARKER = "AUTHORGRAM_STRICT_IOS_MENU_VIEWPORT"
+SOURCE_GEOMETRY_MARKER = "AUTHORGRAM_NATIVE_SOURCE_CELL_GEOMETRY"
+WORKAREA_OWNER_MARKER = "AUTHORGRAM_IOS_PREVIEW_CHAT_WORKAREA_OWNER"
+NO_POPUP_WIDTH_MARKER = "AUTHORGRAM_IOS_PREVIEW_NATIVE_SOURCE_GEOMETRY"
 
 BASIC_FORBIDDEN_CHAT_FORMS = (
     "scrimPopupContainerLayout.setFixedMessagePreview(",
@@ -51,6 +56,20 @@ FORBIDDEN_PREVIEW_FORMS = (
     "sourceCell.draw(",
     "getPixels(",
     "NativeCellSnapshotView",
+    "BackupImageView avatarView",
+    "TextView senderNameView",
+)
+
+FORBIDDEN_FINAL_SCRIM_FORMS = (
+    "AUTHORGRAM_IOS_PREVIEW_CARD_ALIGNMENT",
+    "AUTHORGRAM_IOS_PREVIEW_FULL_WIDTH_MEASURE",
+    "params.setMarginStart(popupParams.getMarginStart());",
+    "params.setMarginEnd(popupParams.getMarginEnd());",
+    "params.gravity = popupParams.gravity;",
+    "previewParams.width = popupWidthForPreview;",
+    "previewParams.width = previewWidth;",
+    "int popupWidthForPreview = popupWindowLayout.getMeasuredWidth();",
+    "int parentWidthForPreview = MeasureSpec.getSize(adjustedWidthSpec);",
 )
 
 
@@ -93,6 +112,8 @@ def validate_canonical() -> None:
     preview = read(PREVIEW)
     stability = read(STABILITY)
     runtime_repair = read(RUNTIME_REPAIR)
+    native_patch = read(NATIVE_MENU_PATCH)
+    scrim = read(SCRIM)
 
     for forbidden in CANONICAL_ONLY_FORBIDDEN_CHAT_FORMS:
         if forbidden in chat:
@@ -119,18 +140,38 @@ def validate_canonical() -> None:
     for required in (
         BOUNDED_MARKER,
         REFERENCE_MARKER,
-        "new ChatMessageCell(context, currentAccount)",
+        SOURCE_GEOMETRY_MARKER,
+        "new ChatMessageCell(",
+        "sourceCell.getResourcesProvider()",
+        "sourceCell.getWidth()",
+        "sourceCell.getHeight()",
+        "setMeasuredDimension(sourceCellWidth, sourceCellHeight);",
         "new ScrollView(context)",
         "previewScroll.setNestedScrollingEnabled(true);",
-        "maxPreviewHeight",
+        "sourceCell.copyVisiblePartTo(previewCell);",
+        "sourceCell.copyParamsTo(previewCell);",
         "previewCell.setMessageObject(messageObject, null, false, false, false);",
         "public boolean shouldScrollWithActions()",
         "return false;",
     ):
         if required not in preview:
-            failures.append(f"canonical native preview invariant missing: {required}")
+            failures.append(f"canonical native source-cell preview invariant missing: {required}")
 
-    # The generator owns rendering/geometry; the final repair owns attachment timing.
+    for required in (
+        WORKAREA_OWNER_MARKER,
+        NO_POPUP_WIDTH_MARKER,
+        "params.setMarginStart(0);",
+        "params.setMarginEnd(0);",
+    ):
+        if required not in scrim:
+            failures.append(f"canonical source-cell container invariant missing: {required}")
+
+    for forbidden in FORBIDDEN_FINAL_SCRIM_FORMS:
+        if forbidden in scrim:
+            failures.append(f"action-popup clipping geometry remains: {forbidden}")
+
+    # The generator owns the intermediate compatibility shape; final native/menu
+    # patch owns exact source geometry and runtime repair owns attachment timing.
     for required in (
         CANONICAL_MARKER,
         SAFE_MARKER,
@@ -152,9 +193,19 @@ def validate_canonical() -> None:
         if required not in runtime_repair:
             failures.append(f"runtime repair invariant missing: {required}")
 
+    for required in (
+        SOURCE_GEOMETRY_MARKER,
+        WORKAREA_OWNER_MARKER,
+        NO_POPUP_WIDTH_MARKER,
+        "sourceCell.copyVisiblePartTo(previewCell);",
+        "setMeasuredDimension(sourceCellWidth, sourceCellHeight);",
+    ):
+        if required not in native_patch:
+            failures.append(f"native menu patch invariant missing: {required}")
+
     if failures:
         raise SystemExit("ChatActivity canonical scope validation failed:\n - " + "\n - ".join(failures))
-    print("AuthorGram canonical deferred iOS preview ownership validation passed")
+    print("AuthorGram canonical deferred native source-cell preview ownership validation passed")
 
 
 def pre_apply_check() -> None:
