@@ -118,28 +118,16 @@ public final class AuthorGramCryptoInterceptor {
     /**
      * Marker-driven incoming decryption, independent of the outgoing toggle.
      *
-     * AUTHORGRAM_REPLY_TARGET_DECRYPTION
-     * Telegram can attach the replied-to message directly as message.replyMessage.
-     * A normal/plain outer message can therefore contain an AuthorGram-encrypted
-     * reply target. Decrypt the nested target independently before processing the
-     * outer message so ChatMessageCell never receives an encrypted/half-empty
-     * reply preview model.
+     * AUTHORGRAM_PLAY_STABLE_REPLY_MODEL
+     * Only the message currently owned by Telegram's load/update pipeline is
+     * mutated here. Do not recursively mutate message.replyMessage: Telegram can
+     * share that nested object across reply previews/history caches, and changing
+     * it during outer-message processing can corrupt reply ownership or create
+     * re-entrant ChatMessageCell updates. This intentionally matches the stable
+     * Play path. Nested reply targets are decrypted only when they pass through
+     * the normal incoming-message pipeline themselves.
      */
     public static boolean decryptIncomingMessage(int account, TLRPC.Message message) {
-        if (message == null) {
-            return false;
-        }
-
-        boolean changed = false;
-        TLRPC.Message nestedReply = message.replyMessage;
-        if (nestedReply != null && nestedReply != message) {
-            changed |= decryptSingleIncomingMessage(account, nestedReply);
-        }
-        changed |= decryptSingleIncomingMessage(account, message);
-        return changed;
-    }
-
-    private static boolean decryptSingleIncomingMessage(int account, TLRPC.Message message) {
         if (message == null
                 || message.message == null
                 || !AuthorGramCrypto.isAuthorGramPayload(message.message)) {
