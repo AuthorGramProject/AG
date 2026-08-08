@@ -106,7 +106,6 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY",
             "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT",
             ".setFixedMessagePreview(iosPreview);",
-            "iosPreview.setVisibility(android.view.View.GONE);",
             "AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR",
             "dimBehindView(null, true, true);",
         ),
@@ -230,12 +229,24 @@ def audit_reply_integrity(failures: list[str]) -> None:
     require(
         interceptor,
         (
+            "AUTHORGRAM_PLAY_STABLE_REPLY_MODEL",
+            "public static boolean decryptIncomingMessage(int account, TLRPC.Message message)",
+            "MessageObject.getDialogId(message)",
+            "AuthorGramMessageMeta.markDecrypted(account, message);",
+        ),
+        "AuthorGram incoming reply ownership",
+        failures,
+    )
+    forbid(
+        interceptor,
+        (
             "AUTHORGRAM_REPLY_TARGET_DECRYPTION",
             "TLRPC.Message nestedReply = message.replyMessage;",
             "decryptSingleIncomingMessage(account, nestedReply)",
             "decryptSingleIncomingMessage(account, message)",
+            "message.replyMessage.message =",
         ),
-        "AuthorGram incoming reply decryption",
+        "AuthorGram incoming reply ownership",
         failures,
     )
 
@@ -363,7 +374,7 @@ def main() -> int:
     print(
         "Checked: full-screen blur, reference iOS menu geometry/ownership, "
         "native action-card/footer structure, native preview, settings reply/draw, "
-        "nested reply decryption, Ayu waiter UI-thread/failure safety, "
+        "Play-stable reply ownership, Ayu waiter UI-thread/failure safety, "
         "release-chain isolation, lifecycle and AuthorGram-owned blocking calls"
     )
     return 0
