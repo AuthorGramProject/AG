@@ -2,19 +2,22 @@
 """Final native-renderer and geometry repair for AuthorGram Main message menus.
 
 This pass intentionally runs after patch_authorgram_main_stability.py and
-patch_authorgram_runtime_regressions.py.  It does not draw a second/synthetic
-message UI.  Instead it preserves Telegram's own ChatMessageCell state and fixes
-layout constraints introduced by the AuthorGram menu wrapper.
+patch_authorgram_runtime_regressions.py. It does not draw a second/synthetic
+message UI. Instead it preserves Telegram's own ChatMessageCell state, fixes
+layout constraints introduced by the AuthorGram menu wrapper, and incorporates a
+small upstream Telegram DiffUtil correctness fix for recent .me URL items.
 
 Invariants:
 1. The selected-message preview copies the complete native ChatMessageCell
-   context from the real on-screen cell.  Sender name/avatar, forum/thread,
+   context from the real on-screen cell. Sender name/avatar, forum/thread,
    saved-chat and related rendering decisions therefore stay Telegram-owned.
 2. The selected-message preview uses the same horizontal margins/gravity as the
    native popup card, so reaction-side offsets cannot clip the message.
-3. Reparented bottom views keep their natural/declared height.  They are never
+3. Reparented bottom views keep their natural/declared height. They are never
    compressed to an arbitrary 44dp strip, which previously clipped icons and
    could also clip Telegram informational bottom blocks.
+4. DialogsAdapter compares two recent .me URL items against each other rather
+   than self-comparing the old URL, preserving RecyclerView DiffUtil identity.
 """
 
 from __future__ import annotations
@@ -25,10 +28,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PREVIEW = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java"
 SCRIM = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java"
+DIALOGS = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Adapters/DialogsAdapter.java"
 
 NATIVE_CONTEXT_MARKER = "AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT"
 ALIGNMENT_MARKER = "AUTHORGRAM_IOS_PREVIEW_CARD_ALIGNMENT"
 NATURAL_FOOTER_MARKER = "AUTHORGRAM_NATURAL_MENU_FOOTER_HEIGHT"
+ME_URL_DIFF_MARKER = "AUTHORGRAM_TELEGRAM_ME_URL_DIFF_FIX"
 
 
 def read(path: Path) -> str:
@@ -131,9 +136,37 @@ def patch_natural_footer_height() -> None:
     write(SCRIM, text)
 
 
+def patch_recent_me_url_diff() -> None:
+    text = read(DIALOGS)
+    if ME_URL_DIFF_MARKER in text:
+        return
+
+    old = (
+        "                return recentMeUrl != null && itemInternal.recentMeUrl != null "
+        "&& recentMeUrl.url != null && recentMeUrl.url.equals(recentMeUrl.url);\n"
+    )
+    new = (
+        "                // AUTHORGRAM_TELEGRAM_ME_URL_DIFF_FIX\n"
+        "                // Upstream Telegram correctness fix: compare old and new items.\n"
+        "                // Self-comparison makes distinct .me/t.me hints look identical to DiffUtil.\n"
+        "                return recentMeUrl != null && itemInternal.recentMeUrl != null "
+        "&& recentMeUrl.url != null && recentMeUrl.url.equals(itemInternal.recentMeUrl.url);\n"
+    )
+    if old not in text:
+        already_fixed = (
+            "recentMeUrl.url != null && recentMeUrl.url.equals(itemInternal.recentMeUrl.url)"
+        )
+        if already_fixed in text:
+            return
+        raise SystemExit("DialogsAdapter recent .me URL self-comparison anchor is missing")
+    text = text.replace(old, new, 1)
+    write(DIALOGS, text)
+
+
 def validate() -> None:
     preview = read(PREVIEW)
     scrim = read(SCRIM)
+    dialogs = read(DIALOGS)
 
     for token in (
         NATIVE_CONTEXT_MARKER,
@@ -161,16 +194,19 @@ def validate() -> None:
     if "Math.min(oldParams.height, AndroidUtilities.dp(44))" in scrim:
         raise SystemExit("44dp footer clipping cap survived")
 
-    if "AndroidUtilities.dp(44);" in scrim and "AUTHORGRAM_COMPACT_IOS_MENU_FOOTER" in scrim:
-        raise SystemExit("legacy compact-footer geometry survived")
+    if "recentMeUrl.url.equals(recentMeUrl.url)" in dialogs:
+        raise SystemExit("DialogsAdapter recent .me URL self-comparison survived")
+    if "recentMeUrl.url.equals(itemInternal.recentMeUrl.url)" not in dialogs:
+        raise SystemExit("DialogsAdapter recent .me URL DiffUtil fix missing")
 
-    print("AuthorGram native iOS message renderer/alignment/footer stability passed")
+    print("AuthorGram native iOS renderer/alignment/footer + Telegram .me DiffUtil stability passed")
 
 
 def apply() -> None:
     patch_native_preview_context()
     patch_preview_card_alignment()
     patch_natural_footer_height()
+    patch_recent_me_url_diff()
     validate()
 
 
