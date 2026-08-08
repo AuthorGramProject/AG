@@ -22,6 +22,10 @@ canonical implementation and enforces the Play-stable reply ownership model:
 5. AuthorGram regex filtering is time-bounded and its per-dialog verdict cache is
    globally bounded, preventing pathological expressions from pinning rendering
    and preventing long-lived cache growth from creating memory pressure.
+6. Blocked-channel list rendering never performs synchronous Telegram DB reads
+   on the UI thread.
+7. Settings deep links are lifecycle/null-safe and cannot crash when a fragment
+   is detached before a deferred row highlight runs.
 """
 
 from __future__ import annotations
@@ -37,6 +41,8 @@ SCRIM = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrim
 INTERCEPTOR = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java"
 NATIVE_MENU_PATCH = ROOT / "scripts/patch_authorgram_native_menu_stability.py"
 FILTER_STABILITY_PATCH = ROOT / "scripts/patch_authorgram_filter_stability.py"
+BLOCKED_CHANNEL_STABILITY_PATCH = ROOT / "scripts/patch_authorgram_blocked_channel_stability.py"
+SETTINGS_STABILITY_PATCH = ROOT / "scripts/patch_authorgram_settings_stability.py"
 
 DEFERRED_MARKER = "AUTHORGRAM_DEFERRED_IOS_PREVIEW_ATTACH"
 STRICT_VIEWPORT_MARKER = "AUTHORGRAM_STRICT_IOS_MENU_VIEWPORT"
@@ -180,6 +186,22 @@ def validate_filter_stability_patch() -> None:
     run_patch_function(FILTER_STABILITY_PATCH, "filter stability patch", "validate")
 
 
+def apply_blocked_channel_stability_patch() -> None:
+    run_patch_function(BLOCKED_CHANNEL_STABILITY_PATCH, "blocked-channel stability patch", "apply")
+
+
+def validate_blocked_channel_stability_patch() -> None:
+    run_patch_function(BLOCKED_CHANNEL_STABILITY_PATCH, "blocked-channel stability patch", "validate")
+
+
+def apply_settings_stability_patch() -> None:
+    run_patch_function(SETTINGS_STABILITY_PATCH, "settings stability patch", "apply")
+
+
+def validate_settings_stability_patch() -> None:
+    run_patch_function(SETTINGS_STABILITY_PATCH, "settings stability patch", "validate")
+
+
 def validate_reply_model() -> None:
     text = read(INTERCEPTOR)
     required = (
@@ -234,6 +256,8 @@ def validate() -> None:
     validate_reply_model()
     validate_native_menu_patch()
     validate_filter_stability_patch()
+    validate_blocked_channel_stability_patch()
+    validate_settings_stability_patch()
     print("AuthorGram final runtime regression repair passed")
 
 
@@ -242,6 +266,8 @@ def apply() -> None:
     patch_strict_menu_viewport()
     apply_native_menu_patch()
     apply_filter_stability_patch()
+    apply_blocked_channel_stability_patch()
+    apply_settings_stability_patch()
     validate()
 
 
