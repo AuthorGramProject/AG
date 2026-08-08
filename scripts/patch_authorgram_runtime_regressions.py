@@ -2,7 +2,7 @@
 """Final post-generator repair for AuthorGram Main runtime regressions.
 
 This runs after patch_authorgram_main_stability.py. It deliberately does not
-invent another UI implementation; it fixes two lifecycle/geometry defects in the
+invent another UI implementation; it fixes lifecycle/geometry defects in the
 canonical implementation and enforces the Play-stable reply ownership model:
 
 1. The selected-message preview must not resolve popupLayout.getParent() while
@@ -16,18 +16,23 @@ canonical implementation and enforces the Play-stable reply ownership model:
 3. Incoming decryption may mutate only the current TLRPC.Message, matching the
    stable Play implementation. Nested replyMessage objects can be shared by
    Telegram caches and are never recursively mutated here.
+4. The final native-menu pass copies Telegram's complete ChatMessageCell context,
+   aligns the selected message to the popup footprint and preserves natural
+   bottom-view height instead of cropping it to an arbitrary 44dp strip.
 """
 
 from __future__ import annotations
 
 import argparse
 import re
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CHAT = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
 SCRIM = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java"
 INTERCEPTOR = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java"
+NATIVE_MENU_PATCH = ROOT / "scripts/patch_authorgram_native_menu_stability.py"
 
 DEFERRED_MARKER = "AUTHORGRAM_DEFERRED_IOS_PREVIEW_ATTACH"
 STRICT_VIEWPORT_MARKER = "AUTHORGRAM_STRICT_IOS_MENU_VIEWPORT"
@@ -141,6 +146,28 @@ def patch_strict_menu_viewport() -> None:
     write(SCRIM, text)
 
 
+def load_native_menu_patch() -> dict[str, object]:
+    if not NATIVE_MENU_PATCH.is_file():
+        raise SystemExit(f"Missing native menu stability patch: {NATIVE_MENU_PATCH}")
+    return runpy.run_path(str(NATIVE_MENU_PATCH))
+
+
+def apply_native_menu_patch() -> None:
+    namespace = load_native_menu_patch()
+    apply_fn = namespace.get("apply")
+    if not callable(apply_fn):
+        raise SystemExit("native menu stability patch has no apply()")
+    apply_fn()
+
+
+def validate_native_menu_patch() -> None:
+    namespace = load_native_menu_patch()
+    validate_fn = namespace.get("validate")
+    if not callable(validate_fn):
+        raise SystemExit("native menu stability patch has no validate()")
+    validate_fn()
+
+
 def validate_reply_model() -> None:
     text = read(INTERCEPTOR)
     required = (
@@ -193,12 +220,14 @@ def validate() -> None:
         raise SystemExit("artificial 96dp action viewport minimum remains")
 
     validate_reply_model()
+    validate_native_menu_patch()
     print("AuthorGram final runtime regression repair passed")
 
 
 def apply() -> None:
     patch_chat_preview_attach()
     patch_strict_menu_viewport()
+    apply_native_menu_patch()
     validate()
 
 
