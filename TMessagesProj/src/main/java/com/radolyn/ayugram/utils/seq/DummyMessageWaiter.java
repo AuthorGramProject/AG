@@ -115,6 +115,7 @@ public class DummyMessageWaiter extends SyncWaiter {
         queueWatcherStarted = true;
         Thread watcher = new Thread(() -> {
             boolean observedNewPending = sendingId != 0;
+            boolean lookupFailureLogged = false;
             long start = System.currentTimeMillis();
 
             // AUTHORGRAM_BOUNDED_MESSAGE_WATCHER
@@ -148,9 +149,13 @@ public class DummyMessageWaiter extends SyncWaiter {
                         return;
                     }
                 } catch (Exception exception) {
-                    // Keep the retry bounded and throttled. Sleeping happens below
-                    // even after an exception, preventing a tight CPU spin.
-                    FileLog.e("AuthorGram: message queue watcher lookup failed", exception);
+                    // AUTHORGRAM_BOUNDED_WATCHER_LOGGING
+                    // Keep the retry bounded and throttled. A persistent queue error
+                    // is logged once per watcher rather than once every polling tick.
+                    if (!lookupFailureLogged) {
+                        lookupFailureLogged = true;
+                        FileLog.e("AuthorGram: message queue watcher lookup failed", exception);
+                    }
                 }
 
                 try {
