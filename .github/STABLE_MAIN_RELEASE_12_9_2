@@ -1,0 +1,8 @@
+AuthorGram 12.9.2 stable Main release trigger
+requested=2026-08-08
+scope=main-only
+reason=reply-freeze-and-ios-message-menu-regression
+replyModel=play-stable-current-message-only
+iosPreview=deferred-after-popup-attach
+menuViewport=strict-real-work-area
+playTouched=false
