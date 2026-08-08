@@ -1,17 +1,16 @@
 AuthorGram 12.9.2 stable Main release trigger
-requested=2026-08-08T20:13+02:00
+requested=2026-08-08T23:58+02:00
 scope=main-only
-devSource=ad0710ca28a09d742b7b8221deee1bbbdca6115f
-reason=ios-preview-native-source-cell-geometry-avatar-and-clipping
-iosPreview=telegram-exact-source-cell-width-height-and-live-context
+devSource=0cebbceebd29aa3844a5efa4f4f67385dfb28ce9
+reason=explicit-sender-header-and-reflowed-native-message-preview
+iosPreview=fixed-avatar-name-header-plus-fresh-reflowed-telegram-chatmessagecell
 messageOwner=full-chat-work-area-no-action-popup-margins
-messageWidth=exact-source-cell-width-no-popup-width-mutation
-messageHeight=exact-source-cell-height-inside-bounded-scroll-viewport
-senderIdentity=telegram-native-name-avatar-reply-media
+messageWidth=reflow-to-current-preview-work-area-never-source-cell-width-height
+messageHeight=bounded-message-scroll-up-to-340dp-plus-fixed-50dp-sender-header
+senderIdentity=explicit-38dp-round-avatar-bold-ellipsized-name-unknown-fallback
+previewFallback=raw-message-text-only-on-authorgram-preview-bind-failure
 menuViewport=strict-real-work-area-natural-footer
-regexRuntime=bounded
-filterCache=globally-bounded
-settingsLinks=lifecycle-safe
+settingsLinks=lifecycle-safe-router-plus-me-url-diffutil-fix
 blockedChannelLookup=no-ui-thread-db
 inputRuntime=zero-width-post-loop-guarded
 playTouched=false
