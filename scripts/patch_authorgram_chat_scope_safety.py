@@ -2,9 +2,14 @@
 """Read-only safety guard for AuthorGram Main iOS message-menu ownership.
 
 The canonical UI generator is scripts/patch_authorgram_main_stability.py. This
-file intentionally NEVER rewrites ChatActivity or IOSMessageMenuPreview. Its job
-is to reject unsafe ownership forms before/after canonicalization so no later
-pass can re-parent the selected message into the action-card ScrollView.
+file intentionally NEVER rewrites ChatActivity or IOSMessageMenuPreview.
+
+There are two validation phases:
+- pre-apply/basic: accepts known legacy compatibility markers that the canonical
+  generator is explicitly responsible for replacing, but rejects active unsafe
+  ownership/back-call forms that should never be present on the dev baseline;
+- canonical/final: requires the reference structure and rejects every legacy
+  marker/code path that could put the selected message inside the action card.
 """
 
 from __future__ import annotations
@@ -22,13 +27,23 @@ CANONICAL_MARKER = "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW"
 BOUNDED_MARKER = "AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW"
 REFERENCE_MARKER = "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY"
 
-FORBIDDEN_CHAT_FORMS = (
+# Active source forms that are unsafe even before canonicalization. These are
+# not harmless comments: they indicate an obsolete receiver/ownership path.
+BASIC_FORBIDDEN_CHAT_FORMS = (
     "scrimPopupContainerLayout.setFixedMessagePreview(",
     "chatActivityEnterView.setFixedMessagePreview(",
     "popupLayout.addView(iosPreview",
     "popupLayout.addView(popupMessagePreview",
+)
+
+# Known historical compatibility markers can exist in the committed baseline.
+# main_stability replaces the whole owner block, so pre-apply must not reject a
+# harmless marker before that repair has had a chance to run. Final validation
+# does reject them absolutely.
+CANONICAL_ONLY_FORBIDDEN_CHAT_FORMS = (
     "AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP",
     "AUTHORGRAM_IOS_MESSAGE_ACTION_GAP",
+    "iosPreview.shouldScrollWithActions()",
 )
 
 FORBIDDEN_PREVIEW_FORMS = (
@@ -50,7 +65,7 @@ def basic_failures() -> list[str]:
     preview = read(PREVIEW)
     failures: list[str] = []
 
-    for forbidden in FORBIDDEN_CHAT_FORMS:
+    for forbidden in BASIC_FORBIDDEN_CHAT_FORMS:
         if forbidden in chat:
             failures.append(f"unsafe ChatActivity ownership form remains: {forbidden}")
 
@@ -65,11 +80,11 @@ def basic_failures() -> list[str]:
 
 
 def validate() -> None:
-    """Compatibility/basic validation used by finalize_authorgram_source.py.
+    """Compatibility/basic validation used before the final stability pass.
 
-    This intentionally does not require the final generated markers because the
-    finalizer also runs on the committed dev baseline before the stability pass.
-    It only guarantees that no known unsafe form is already present.
+    This intentionally does not require generated markers and intentionally
+    permits known legacy comment markers. It still rejects active ownership
+    code that the baseline should never contain.
     """
     failures = basic_failures()
     if failures:
@@ -82,6 +97,10 @@ def validate_canonical() -> None:
     chat = read(CHAT)
     preview = read(PREVIEW)
     stability = read(STABILITY)
+
+    for forbidden in CANONICAL_ONLY_FORBIDDEN_CHAT_FORMS:
+        if forbidden in chat:
+            failures.append(f"legacy final ChatActivity form remains: {forbidden}")
 
     for required in (
         CANONICAL_MARKER,
