@@ -59,6 +59,7 @@ jobs:
               'scripts/patch_authorgram_full_screen_ios_blur.py',
               'scripts/patch_authorgram_chat_scope_safety.py',
               'scripts/patch_authorgram_main_stability.py',
+              'scripts/patch_authorgram_runtime_regressions.py',
               'scripts/patch_authorgram_ios_input_geometry.py',
               'scripts/audit_authorgram_runtime_stability.py',
           )
@@ -92,6 +93,19 @@ jobs:
               if marker not in stability:
                   raise SystemExit(f'stability pass missing {marker}')
 
+          runtime_repair = Path('scripts/patch_authorgram_runtime_regressions.py').read_text(encoding='utf-8')
+          for marker in (
+              'AUTHORGRAM_DEFERRED_IOS_PREVIEW_ATTACH',
+              'AUTHORGRAM_STRICT_IOS_MENU_VIEWPORT',
+              'AUTHORGRAM_PLAY_STABLE_REPLY_MODEL',
+              'authorGramIosPreviewAnchor.post(() -> {',
+              'authorGramIosPreviewAnchor.getParent();',
+              'pre-attach popupLayout.getParent() lookup remains',
+              'recursive reply mutation regression remains',
+          ):
+              if marker not in runtime_repair:
+                  raise SystemExit(f'runtime regression repair missing {marker}')
+
           blur = Path('scripts/patch_authorgram_full_screen_ios_blur.py').read_text(encoding='utf-8')
           for marker in (
               'AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR',
@@ -105,6 +119,7 @@ jobs:
           for marker in (
               'Read-only safety guard',
               'validate_canonical',
+              'AUTHORGRAM_DEFERRED_IOS_PREVIEW_ATTACH',
               'scope guard is read-only; no source rewrite performed',
           ):
               if marker not in scope:
@@ -117,11 +132,22 @@ jobs:
           for marker in (
               'AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR',
               'AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY',
-              'AUTHORGRAM_REPLY_TARGET_DECRYPTION',
+              'AUTHORGRAM_PLAY_STABLE_REPLY_MODEL',
               'AUTHORGRAM_SETTINGS_PREVIEW_REPLY_INVARIANT',
           ):
               if marker not in runtime_audit:
                   raise SystemExit(f'runtime stability audit missing {marker}')
+
+          interceptor = Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java').read_text(encoding='utf-8')
+          if 'AUTHORGRAM_PLAY_STABLE_REPLY_MODEL' not in interceptor:
+              raise SystemExit('Play-stable incoming reply ownership marker missing')
+          for forbidden in (
+              'TLRPC.Message nestedReply = message.replyMessage;',
+              'decryptSingleIncomingMessage(account, nestedReply)',
+              'AUTHORGRAM_REPLY_TARGET_DECRYPTION',
+          ):
+              if forbidden in interceptor:
+                  raise SystemExit(f'nested reply mutation regression remains: {forbidden}')
 
           geometry = Path('scripts/patch_authorgram_ios_input_geometry.py').read_text(encoding='utf-8')
           for marker in (
