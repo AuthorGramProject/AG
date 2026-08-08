@@ -75,6 +75,9 @@ def audit_ios_message_preview(failures: list[str]) -> None:
         failures,
     )
 
+    # The guard intentionally contains regex/text literals describing historical
+    # bad forms, so do not scan the generator source for those literal strings.
+    # Instead require the canonical generated behavior and its hard-failure path.
     require(
         scope,
         (
@@ -82,16 +85,8 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT",
             ".setFixedMessagePreview(iosPreview);",
             "iosPreview.setVisibility(android.view.View.GONE);",
-        ),
-        "iOS preview owner guard",
-        failures,
-    )
-    forbid(
-        scope,
-        (
-            '"popupLayout.addView(iosPreview',
-            '"popupLayout.addView(popupMessagePreview',
-            "authorgramFallbackPreviewParams",
+            "AuthorGram: iOS preview owner not found",
+            "preview/action ownership regression remains",
         ),
         "iOS preview owner guard",
         failures,
