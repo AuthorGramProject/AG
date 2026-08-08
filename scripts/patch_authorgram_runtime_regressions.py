@@ -26,6 +26,8 @@ canonical implementation and enforces the Play-stable reply ownership model:
    on the UI thread.
 7. Settings deep links are lifecycle/null-safe and cannot crash when a fragment
    is detached before a deferred row highlight runs.
+8. Main-only iOS composer stabilization cannot feed Telegram's zero-width
+   side-bubble retry loop from every layout pass.
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ NATIVE_MENU_PATCH = ROOT / "scripts/patch_authorgram_native_menu_stability.py"
 FILTER_STABILITY_PATCH = ROOT / "scripts/patch_authorgram_filter_stability.py"
 BLOCKED_CHANNEL_STABILITY_PATCH = ROOT / "scripts/patch_authorgram_blocked_channel_stability.py"
 SETTINGS_STABILITY_PATCH = ROOT / "scripts/patch_authorgram_settings_stability.py"
+IOS_INPUT_RUNTIME_SAFETY_PATCH = ROOT / "scripts/patch_authorgram_ios_input_runtime_safety.py"
 
 DEFERRED_MARKER = "AUTHORGRAM_DEFERRED_IOS_PREVIEW_ATTACH"
 STRICT_VIEWPORT_MARKER = "AUTHORGRAM_STRICT_IOS_MENU_VIEWPORT"
@@ -202,6 +205,14 @@ def validate_settings_stability_patch() -> None:
     run_patch_function(SETTINGS_STABILITY_PATCH, "settings stability patch", "validate")
 
 
+def apply_ios_input_runtime_safety_patch() -> None:
+    run_patch_function(IOS_INPUT_RUNTIME_SAFETY_PATCH, "iOS input runtime safety patch", "apply")
+
+
+def validate_ios_input_runtime_safety_patch() -> None:
+    run_patch_function(IOS_INPUT_RUNTIME_SAFETY_PATCH, "iOS input runtime safety patch", "validate")
+
+
 def validate_reply_model() -> None:
     text = read(INTERCEPTOR)
     required = (
@@ -258,6 +269,7 @@ def validate() -> None:
     validate_filter_stability_patch()
     validate_blocked_channel_stability_patch()
     validate_settings_stability_patch()
+    validate_ios_input_runtime_safety_patch()
     print("AuthorGram final runtime regression repair passed")
 
 
@@ -268,6 +280,7 @@ def apply() -> None:
     apply_filter_stability_patch()
     apply_blocked_channel_stability_patch()
     apply_settings_stability_patch()
+    apply_ios_input_runtime_safety_patch()
     validate()
 
 
