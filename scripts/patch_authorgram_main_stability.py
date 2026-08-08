@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +19,7 @@ STABLE_PREVIEW = "AUTHORGRAM_NATIVE_ONLY_IOS_MESSAGE_PREVIEW"
 WEB_PREVIEW_SAFE = "AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW"
 BOUNDED_PREVIEW = "AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW"
 SEPARATE_PREVIEW = "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW"
+REFERENCE_GEOMETRY = "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY"
 LIVE_STYLE = "AUTHORGRAM_LIVE_IOS_INPUT_STYLE_GATE"
 COMPACT_FOOTER = "AUTHORGRAM_COMPACT_IOS_MENU_FOOTER"
 CLASSIC_POPUP = "AUTHORGRAM_CLASSIC_POPUP_ZERO_EXTRA_PADDING"
@@ -58,10 +60,12 @@ import tw.nekomimi.nekogram.NekoConfig;
  * AUTHORGRAM_NATIVE_ONLY_IOS_MESSAGE_PREVIEW
  * AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW
  * AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW
+ * AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY
  *
- * A fresh Telegram ChatMessageCell renders avatar, sender, reply/quote, media
- * and message text. Tall content is bounded and scrolls inside this independent
- * preview; it is never inserted into the action-card ScrollView.
+ * Reference structure: reactions -> native selected message -> separate action
+ * card. A fresh Telegram ChatMessageCell renders avatar, sender, reply/quote,
+ * media and message text. Tall content is bounded and scrolls inside this
+ * independent preview; it is never inserted into the action-card ScrollView.
  */
 public final class IOSMessageMenuPreview extends FrameLayout {
     public static final String NATIVE_PREVIEW_TAG = "AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW";
@@ -102,6 +106,7 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         previewScroll.setVerticalScrollBarEnabled(false);
         previewScroll.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
         previewScroll.setClipToPadding(false);
+        previewScroll.setNestedScrollingEnabled(true);
 
         previewCell = new ChatMessageCell(context, currentAccount);
         previewCell.setTag(NATIVE_PREVIEW_TAG);
@@ -143,6 +148,7 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         );
     }
 
+    /** Compatibility API: selected-message content never joins action rows. */
     public boolean shouldScrollWithActions() {
         return false;
     }
@@ -164,7 +170,8 @@ def patch_chat_owner() -> None:
         "                // AUTHORGRAM_STABLE_FIXED_IOS_PREVIEW\n"
         "                // AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW\n"
         "                // AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW\n"
-        "                // Selected message is always separate from the action card.\n"
+        "                // AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY\n"
+        "                // Selected message is always a separate sibling above the action card.\n"
         "                if (selectedObject != null\n"
         "                        && v instanceof org.telegram.ui.Cells.ChatMessageCell\n"
         "                        && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()\n"
@@ -341,29 +348,47 @@ def patch_scrim_footer() -> None:
             1,
         )
 
+    # The reference screenshot uses a full quick-action footer rather than a
+    # compressed strip. Preserve a 44dp cap while keeping it inside one card.
     text = text.replace(
-        "Math.min(oldParams.height, AndroidUtilities.dp(44))",
         "Math.min(oldParams.height, AndroidUtilities.dp(40))",
+        "Math.min(oldParams.height, AndroidUtilities.dp(44))",
     )
     text = text.replace(
-        ": AndroidUtilities.dp(44);",
         ": AndroidUtilities.dp(40);",
+        ": AndroidUtilities.dp(44);",
     )
     if COMPACT_FOOTER not in text:
         marker_anchor = "            int footerHeight = oldParams != null && oldParams.height > 0\n"
         if marker_anchor not in text:
-            raise SystemExit("ChatScrim compact footer anchor missing")
+            raise SystemExit("ChatScrim footer anchor missing")
         text = text.replace(
             marker_anchor,
             "            // AUTHORGRAM_COMPACT_IOS_MENU_FOOTER\n" + marker_anchor,
             1,
         )
 
-    text = text.replace(
-        "            params.bottomMargin = AndroidUtilities.dp(4);\n",
-        "            params.bottomMargin = 0;\n",
-        1,
-    )
+    # Reference geometry: reactions, selected message and action card are visibly
+    # separate. 8dp above and below the native message gives consistent spacing
+    # without inventing a synthetic wrapper/background around the message.
+    if REFERENCE_GEOMETRY not in text:
+        for old in (
+            "            params.bottomMargin = AndroidUtilities.dp(4);\n",
+            "            params.bottomMargin = 0;\n",
+            "            params.bottomMargin = AndroidUtilities.dp(8);\n",
+        ):
+            if old in text:
+                text = text.replace(
+                    old,
+                    "            // AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY\n"
+                    "            params.topMargin = AndroidUtilities.dp(8);\n"
+                    "            params.bottomMargin = AndroidUtilities.dp(8);\n",
+                    1,
+                )
+                break
+        else:
+            raise SystemExit("Unable to locate fixed-preview margin anchor")
+
     write(SCRIM, text)
 
 
@@ -376,8 +401,7 @@ def patch_popup_padding() -> None:
     new = (
         "                    scrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);\n"
         "                    // AUTHORGRAM_CLASSIC_POPUP_ZERO_EXTRA_PADDING\n"
-        "                    // Do not inflate every classic Telegram popup by 8dp.\n"
-        "                    // The iOS message menu owns its own explicit separators.\n"
+        "                    // Keep global Telegram popup geometry untouched by iOS-menu spacing.\n"
         "                    scrollView.setPadding(0, 0, 0, 0);\n"
     )
     if old in text:
@@ -400,8 +424,10 @@ def validate() -> None:
         STABLE_PREVIEW,
         WEB_PREVIEW_SAFE,
         BOUNDED_PREVIEW,
+        REFERENCE_GEOMETRY,
         "new ChatMessageCell(context, currentAccount)",
         "new ScrollView(context)",
+        "previewScroll.setNestedScrollingEnabled(true);",
         "maxPreviewHeight",
         "previewCell.setMessageObject(messageObject, null, false, false, false);",
         "previewCell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate()",
@@ -427,6 +453,7 @@ def validate() -> None:
         STABLE_OWNER,
         WEB_PREVIEW_SAFE,
         SEPARATE_PREVIEW,
+        REFERENCE_GEOMETRY,
         "NekoConfig.iOSMessageMenu.Bool()",
         "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT",
         ".setFixedMessagePreview(iosPreview);",
@@ -439,6 +466,7 @@ def validate() -> None:
         "popupLayout.addView(iosPreview",
         "iosPreview.shouldScrollWithActions()",
         "AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP",
+        "AUTHORGRAM_IOS_MESSAGE_ACTION_GAP",
     ):
         if forbidden in chat:
             failures.append(f"ChatActivity preview/action regression remains: {forbidden}")
@@ -459,9 +487,13 @@ def validate() -> None:
     for required in (
         STABLE_FOOTER,
         COMPACT_FOOTER,
-        "Math.min(oldParams.height, AndroidUtilities.dp(40))",
+        REFERENCE_GEOMETRY,
+        "Math.min(oldParams.height, AndroidUtilities.dp(44))",
         "|| !authorGramIosMessageMenuActive())",
-        "params.bottomMargin = 0;",
+        "params.topMargin = AndroidUtilities.dp(8);",
+        "params.bottomMargin = AndroidUtilities.dp(8);",
+        "AUTHORGRAM_MENU_FOOTER_SEPARATOR",
+        "bottomView.setBackground(null);",
     ):
         if required not in scrim:
             failures.append(f"scrim/footer missing {required}")
@@ -480,6 +512,16 @@ def validate() -> None:
     print("AuthorGram Main stability validation passed")
 
 
+def run_runtime_audit() -> None:
+    audit = runpy.run_path(
+        str(ROOT / "scripts/audit_authorgram_runtime_stability.py"),
+        run_name="authorgram_runtime_stability_audit",
+    )
+    result = audit["main"]()
+    if result != 0:
+        raise SystemExit(f"runtime stability audit returned {result}")
+
+
 def main() -> None:
     patch_preview()
     patch_chat_owner()
@@ -487,6 +529,7 @@ def main() -> None:
     patch_scrim_footer()
     patch_popup_padding()
     validate()
+    run_runtime_audit()
 
 
 if __name__ == "__main__":
