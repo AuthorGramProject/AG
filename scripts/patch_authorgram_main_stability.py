@@ -16,6 +16,8 @@ STABLE_INPUT = "AUTHORGRAM_STABLE_IOS_INPUT_LIFECYCLE"
 STABLE_FOOTER = "AUTHORGRAM_STABLE_IOS_MENU_FOOTER"
 STABLE_PREVIEW = "AUTHORGRAM_NATIVE_ONLY_IOS_MESSAGE_PREVIEW"
 WEB_PREVIEW_SAFE = "AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW"
+BOUNDED_PREVIEW = "AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW"
+SEPARATE_PREVIEW = "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW"
 LIVE_STYLE = "AUTHORGRAM_LIVE_IOS_INPUT_STYLE_GATE"
 COMPACT_FOOTER = "AUTHORGRAM_COMPACT_IOS_MENU_FOOTER"
 CLASSIC_POPUP = "AUTHORGRAM_CLASSIC_POPUP_ZERO_EXTRA_PADDING"
@@ -36,6 +38,7 @@ PREVIEW_SOURCE = r'''package org.telegram.ui.Components;
 import android.content.Context;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ScrollView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessageObject;
@@ -46,7 +49,7 @@ import org.telegram.ui.Cells.ChatMessageCell;
 import tw.nekomimi.nekogram.NekoConfig;
 
 /**
- * Main-only selected-message preview for the iOS-style context menu.
+ * Main-only native selected-message preview for the iOS-style context menu.
  *
  * AUTHORGRAM_UNIFIED_IOS_MESSAGE_BLOCK
  * AUTHORGRAM_ADAPTIVE_IOS_MESSAGE_PREVIEW
@@ -54,18 +57,18 @@ import tw.nekomimi.nekogram.NekoConfig;
  * AUTHORGRAM_IOS_MESSAGE_SENDER_IDENTITY
  * AUTHORGRAM_NATIVE_ONLY_IOS_MESSAGE_PREVIEW
  * AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW
+ * AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW
  *
- * This component deliberately does NOT bitmap-snapshot the live chat cell.
- * A fresh Telegram ChatMessageCell renders the same MessageObject natively,
- * including avatar, sender name, reply/quote, media and TL_webPage previews.
- * That avoids a second synthetic sender/bubble and avoids allocating/scanning
- * a full-size ARGB bitmap on the UI thread for tall link-preview messages.
+ * A fresh Telegram ChatMessageCell renders avatar, sender, reply/quote, media
+ * and message text. Tall content is bounded and scrolls inside this independent
+ * preview; it is never inserted into the action-card ScrollView.
  */
 public final class IOSMessageMenuPreview extends FrameLayout {
     public static final String NATIVE_PREVIEW_TAG = "AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW";
 
     private final ChatMessageCell previewCell;
-    private final boolean scrollWithActions;
+    private final ScrollView previewScroll;
+    private final int maxPreviewHeight;
 
     public IOSMessageMenuPreview(
             Context context,
@@ -76,28 +79,29 @@ public final class IOSMessageMenuPreview extends FrameLayout {
     ) {
         super(context);
         setTag(NATIVE_PREVIEW_TAG);
-        setClipChildren(false);
-        setClipToPadding(false);
+        setClipChildren(true);
+        setClipToPadding(true);
+
+        int viewportHeight = Math.max(AndroidUtilities.dp(320), AndroidUtilities.displaySize.y);
+        maxPreviewHeight = Math.max(
+                AndroidUtilities.dp(120),
+                Math.min(AndroidUtilities.dp(300), Math.round(viewportHeight * 0.34f))
+        );
 
         if (!AuthorGramPlayPolicy.canUseIosUi()
                 || !NekoConfig.iOSMessageMenu.Bool()
                 || messageObject == null) {
             setVisibility(GONE);
             previewCell = null;
-            scrollWithActions = false;
+            previewScroll = null;
             return;
         }
 
-        int sourceHeight = 0;
-        if (sourceCell != null) {
-            sourceHeight = Math.max(sourceCell.getHeight(), sourceCell.getMeasuredHeight());
-        }
-        int viewportHeight = Math.max(AndroidUtilities.dp(320), AndroidUtilities.displaySize.y);
-        int longPreviewThreshold = Math.max(
-                AndroidUtilities.dp(176),
-                Math.min(AndroidUtilities.dp(248), Math.round(viewportHeight * 0.30f))
-        );
-        scrollWithActions = sourceHeight > longPreviewThreshold;
+        previewScroll = new ScrollView(context);
+        previewScroll.setFillViewport(false);
+        previewScroll.setVerticalScrollBarEnabled(false);
+        previewScroll.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        previewScroll.setClipToPadding(false);
 
         previewCell = new ChatMessageCell(context, currentAccount);
         previewCell.setTag(NATIVE_PREVIEW_TAG);
@@ -116,14 +120,31 @@ public final class IOSMessageMenuPreview extends FrameLayout {
         });
         previewCell.setMessageObject(messageObject, null, false, false, false);
 
-        addView(previewCell, LayoutHelper.createFrame(
+        previewScroll.addView(previewCell, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+        addView(previewScroll, LayoutHelper.createFrame(
                 LayoutHelper.MATCH_PARENT,
                 LayoutHelper.WRAP_CONTENT
         ));
     }
 
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int parentMode = MeasureSpec.getMode(heightMeasureSpec);
+        int parentSize = MeasureSpec.getSize(heightMeasureSpec);
+        int cap = parentMode == MeasureSpec.UNSPECIFIED || parentSize <= 0
+                ? maxPreviewHeight
+                : Math.min(parentSize, maxPreviewHeight);
+        super.onMeasure(
+                widthMeasureSpec,
+                MeasureSpec.makeMeasureSpec(Math.max(1, cap), MeasureSpec.AT_MOST)
+        );
+    }
+
     public boolean shouldScrollWithActions() {
-        return scrollWithActions;
+        return false;
     }
 }
 '''
@@ -142,8 +163,8 @@ def patch_chat_owner() -> None:
         "                // AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_OWNER\n"
         "                // AUTHORGRAM_STABLE_FIXED_IOS_PREVIEW\n"
         "                // AUTHORGRAM_WEB_PREVIEW_SAFE_IOS_MESSAGE_PREVIEW\n"
-        "                // Build the preview only while the Main-only feature is actually enabled.\n"
-        "                // When disabled this path is a strict no-op and classic Telegram rendering owns the chat.\n"
+        "                // AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW\n"
+        "                // Selected message is always separate from the action card.\n"
         "                if (selectedObject != null\n"
         "                        && v instanceof org.telegram.ui.Cells.ChatMessageCell\n"
         "                        && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()\n"
@@ -158,29 +179,23 @@ def patch_chat_owner() -> None:
         "                                    selectedMessageCell,\n"
         "                                    themeDelegate\n"
         "                            );\n"
-        "                    if (iosPreview.shouldScrollWithActions()) {\n"
-        "                        LinearLayout.LayoutParams iosPreviewParams = LayoutHelper.createLinear(\n"
-        "                                LayoutHelper.MATCH_PARENT,\n"
-        "                                LayoutHelper.WRAP_CONTENT\n"
-        "                        );\n"
-        "                        iosPreviewParams.topMargin = 0;\n"
-        "                        iosPreviewParams.bottomMargin = 0;\n"
-        "                        popupLayout.addView(iosPreview, iosPreviewParams);\n"
-        "\n"
-        "                        org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView longPreviewGap =\n"
-        "                                new org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView(\n"
-        "                                        getParentActivity(),\n"
-        "                                        android.graphics.Color.TRANSPARENT,\n"
-        "                                        android.graphics.Color.TRANSPARENT\n"
-        "                                );\n"
-        "                        longPreviewGap.setTag(\"AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP\");\n"
-        "                        popupLayout.addView(longPreviewGap, LayoutHelper.createLinear(\n"
-        "                                LayoutHelper.MATCH_PARENT,\n"
-        "                                4\n"
-        "                        ));\n"
+        "                    // AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT\n"
+        "                    android.view.ViewParent authorgramIosPreviewParent = popupLayout.getParent();\n"
+        "                    while (authorgramIosPreviewParent != null\n"
+        "                            && !(authorgramIosPreviewParent instanceof org.telegram.ui.Components.ChatScrimPopupContainerLayout)) {\n"
+        "                        if (authorgramIosPreviewParent instanceof android.view.View) {\n"
+        "                            authorgramIosPreviewParent =\n"
+        "                                    ((android.view.View) authorgramIosPreviewParent).getParent();\n"
+        "                        } else {\n"
+        "                            authorgramIosPreviewParent = null;\n"
+        "                        }\n"
+        "                    }\n"
+        "                    if (authorgramIosPreviewParent instanceof org.telegram.ui.Components.ChatScrimPopupContainerLayout) {\n"
+        "                        ((org.telegram.ui.Components.ChatScrimPopupContainerLayout) authorgramIosPreviewParent)\n"
+        "                                .setFixedMessagePreview(iosPreview);\n"
         "                    } else {\n"
-        "                        // Short quotes stay completely outside the action card.\n"
-        "                        scrimPopupContainerLayout.setFixedMessagePreview(iosPreview);\n"
+        "                        iosPreview.setVisibility(android.view.View.GONE);\n"
+        "                        org.telegram.messenger.FileLog.e(\"AuthorGram: iOS preview owner not found\");\n"
         "                    }\n"
         "                }\n\n"
     )
@@ -199,9 +214,6 @@ def patch_chat_owner() -> None:
 def patch_input_lifecycle() -> None:
     text = read(ENTER)
 
-    # Do not cache the iOS mode for the whole ChatActivityEnterView lifetime.
-    # A user can toggle the feature while the chat view is alive; a cached true
-    # value made OFF continue to execute Main-only geometry until recreation.
     old_style = (
         "    public boolean isIOSInputStyle() {\n"
         "        return iosLayoutMode != null ? iosLayoutMode : computeIOSInputStyle();\n"
@@ -289,8 +301,6 @@ def patch_input_lifecycle() -> None:
             return;
         }
 
-        // Always cancel a stale callback first. If the feature was switched off,
-        // nothing Main-specific is allowed to run after this point.
         audioVideoButtonContainer.removeCallbacks(authorGramInputMenuInvariantRunnable);
         if (!isIOSInputStyle() || !isAttachedToWindow()) {
             return;
@@ -323,7 +333,6 @@ def patch_scrim_footer() -> None:
             raise SystemExit("ChatScrim unified footer helper anchor missing")
         text = text.replace(anchor, helper + anchor, 1)
 
-    # Keep the marker even if an earlier pass already installed the helper.
     if STABLE_FOOTER not in text:
         text = text.replace(
             "    private boolean authorGramIosMessageMenuActive() {\n",
@@ -332,8 +341,6 @@ def patch_scrim_footer() -> None:
             1,
         )
 
-    # Compact the bottom quick-action row. 40dp is intentionally smaller than
-    # the previous 44dp while preserving comfortable touch geometry.
     text = text.replace(
         "Math.min(oldParams.height, AndroidUtilities.dp(44))",
         "Math.min(oldParams.height, AndroidUtilities.dp(40))",
@@ -352,7 +359,6 @@ def patch_scrim_footer() -> None:
             1,
         )
 
-    # A fixed short quote is outside the action card with no artificial gap.
     text = text.replace(
         "            params.bottomMargin = AndroidUtilities.dp(4);\n",
         "            params.bottomMargin = 0;\n",
@@ -393,10 +399,14 @@ def validate() -> None:
     for required in (
         STABLE_PREVIEW,
         WEB_PREVIEW_SAFE,
+        BOUNDED_PREVIEW,
         "new ChatMessageCell(context, currentAccount)",
+        "new ScrollView(context)",
+        "maxPreviewHeight",
         "previewCell.setMessageObject(messageObject, null, false, false, false);",
         "previewCell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate()",
         "NekoConfig.iOSMessageMenu.Bool()",
+        "return false;",
     ):
         if required not in preview:
             failures.append(f"preview missing {required}")
@@ -416,13 +426,22 @@ def validate() -> None:
     for required in (
         STABLE_OWNER,
         WEB_PREVIEW_SAFE,
+        SEPARATE_PREVIEW,
         "NekoConfig.iOSMessageMenu.Bool()",
-        "iosPreview.shouldScrollWithActions()",
-        "scrimPopupContainerLayout.setFixedMessagePreview(iosPreview);",
-        "AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP",
+        "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT",
+        ".setFixedMessagePreview(iosPreview);",
+        "iosPreview.setVisibility(android.view.View.GONE);",
     ):
         if required not in chat:
             failures.append(f"ChatActivity missing {required}")
+
+    for forbidden in (
+        "popupLayout.addView(iosPreview",
+        "iosPreview.shouldScrollWithActions()",
+        "AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP",
+    ):
+        if forbidden in chat:
+            failures.append(f"ChatActivity preview/action regression remains: {forbidden}")
 
     for required in (
         STABLE_INPUT,
