@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 """Final native-renderer and geometry repair for AuthorGram Main message menus.
 
-This pass intentionally runs after patch_authorgram_main_stability.py and
-patch_authorgram_runtime_regressions.py. It does not draw a second/synthetic
-message UI. Instead it preserves Telegram's own ChatMessageCell state, fixes
-layout constraints introduced by the AuthorGram menu wrapper, and incorporates a
-small upstream Telegram DiffUtil correctness fix for recent .me URL items.
+This pass intentionally runs after patch_authorgram_main_stability.py. It does not
+invent a second/synthetic message renderer. Instead it uses the same cloning
+sequence Telegram itself uses in PollItemMenu/TodoItemMenu for a live
+ChatMessageCell: copyParamsTo(), copy spoiler attachment state, then bind the
+same MessageObject with the original grouped/pinned/first-in-chat context.
 
 Invariants:
-1. The selected-message preview copies the complete native ChatMessageCell
-   context from the real on-screen cell. Sender name/avatar, forum/thread,
-   saved-chat and related rendering decisions therefore stay Telegram-owned.
+1. The selected-message preview preserves Telegram's complete native
+   ChatMessageCell context. Sender name/avatar, replies, grouped media, files,
+   forum/thread and saved-chat decisions therefore stay Telegram-owned.
 2. The selected-message preview uses the same horizontal margins/gravity as the
    native popup card, so reaction-side offsets cannot clip the message.
 3. Reparented bottom views keep their natural/declared height. They are never
-   compressed to an arbitrary 44dp strip, which previously clipped icons and
-   could also clip Telegram informational bottom blocks.
+   compressed to an arbitrary 44dp strip.
 4. DialogsAdapter compares two recent .me URL items against each other rather
    than self-comparing the old URL, preserving RecyclerView DiffUtil identity.
 """
@@ -51,14 +50,28 @@ def patch_native_preview_context() -> None:
     if NATIVE_CONTEXT_MARKER in text:
         return
 
-    old = "        previewCell.isChat = sourceCell != null && sourceCell.isChat;\n"
+    old = (
+        "        previewCell.isChat = sourceCell != null && sourceCell.isChat;\n"
+        "        previewCell.setMessageObject(messageObject, null, false, false, false);\n"
+    )
     new = (
         "        // AUTHORGRAM_NATIVE_CHAT_CELL_CONTEXT\n"
-        "        // Reuse the complete context of Telegram's real on-screen cell.\n"
-        "        // ChatMessageCell itself remains the only owner of sender-name, avatar,\n"
-        "        // forum/thread, saved-chat and related rendering decisions.\n"
+        "        // Telegram's own PollItemMenu/TodoItemMenu clones live message cells\n"
+        "        // with copyParamsTo(), copies spoiler attachment state, and binds the\n"
+        "        // MessageObject with the source cell's grouped/pinned context. Reuse\n"
+        "        // exactly that native mechanism instead of synthesizing sender UI.\n"
         "        if (sourceCell != null) {\n"
         "            sourceCell.copyParamsTo(previewCell);\n"
+        "            previewCell.copySpoilerEffect2AttachIndexFrom(sourceCell);\n"
+        "            previewCell.setMessageObject(\n"
+        "                    messageObject,\n"
+        "                    sourceCell.getCurrentMessagesGroup(),\n"
+        "                    sourceCell.pinnedBottom,\n"
+        "                    sourceCell.pinnedTop,\n"
+        "                    sourceCell.firstInChat\n"
+        "            );\n"
+        "        } else {\n"
+        "            previewCell.setMessageObject(messageObject, null, false, false, false);\n"
         "        }\n"
     )
     if old not in text:
@@ -87,9 +100,9 @@ def patch_preview_card_alignment() -> None:
         "                    LayoutHelper.WRAP_CONTENT\n"
         "            );\n"
         "            // AUTHORGRAM_IOS_PREVIEW_CARD_ALIGNMENT\n"
-        "            // The popup gets asymmetric reaction-side margins in ChatActivity.\n"
-        "            // Give the native selected-message cell the same horizontal footprint\n"
-        "            // instead of laying it out from x=0 and clipping it at the screen edge.\n"
+        "            // The action popup gets asymmetric reaction-side margins in\n"
+        "            // ChatActivity. Give the native selected-message cell the same\n"
+        "            // horizontal footprint instead of laying it out from x=0.\n"
         "            if (popupWindowLayout != null\n"
         "                    && popupWindowLayout.getLayoutParams() instanceof LinearLayout.LayoutParams) {\n"
         "                LinearLayout.LayoutParams popupParams =\n"
@@ -124,8 +137,8 @@ def patch_natural_footer_height() -> None:
     new = (
         "            // AUTHORGRAM_NATURAL_MENU_FOOTER_HEIGHT\n"
         "            // applyViewBottom() is also used by Telegram informational blocks.\n"
-        "            // Preserve a real declared height and otherwise let the child measure\n"
-        "            // naturally; never crop arbitrary bottom content to a 44dp strip.\n"
+        "            // Preserve a declared height and otherwise let the child measure\n"
+        "            // naturally; never crop arbitrary bottom content to 44dp.\n"
         "            int footerHeight = oldParams != null && oldParams.height > 0\n"
         "                    ? oldParams.height\n"
         "                    : LayoutHelper.WRAP_CONTENT;\n"
@@ -147,15 +160,13 @@ def patch_recent_me_url_diff() -> None:
     )
     new = (
         "                // AUTHORGRAM_TELEGRAM_ME_URL_DIFF_FIX\n"
-        "                // Upstream Telegram correctness fix: compare old and new items.\n"
-        "                // Self-comparison makes distinct .me/t.me hints look identical to DiffUtil.\n"
+        "                // Compare the old and new URL items. Self-comparison makes\n"
+        "                // distinct .me/t.me hints look identical to DiffUtil.\n"
         "                return recentMeUrl != null && itemInternal.recentMeUrl != null "
         "&& recentMeUrl.url != null && recentMeUrl.url.equals(itemInternal.recentMeUrl.url);\n"
     )
     if old not in text:
-        already_fixed = (
-            "recentMeUrl.url != null && recentMeUrl.url.equals(itemInternal.recentMeUrl.url)"
-        )
+        already_fixed = "recentMeUrl.url != null && recentMeUrl.url.equals(itemInternal.recentMeUrl.url)"
         if already_fixed in text:
             return
         raise SystemExit("DialogsAdapter recent .me URL self-comparison anchor is missing")
@@ -171,6 +182,11 @@ def validate() -> None:
     for token in (
         NATIVE_CONTEXT_MARKER,
         "sourceCell.copyParamsTo(previewCell);",
+        "previewCell.copySpoilerEffect2AttachIndexFrom(sourceCell);",
+        "sourceCell.getCurrentMessagesGroup()",
+        "sourceCell.pinnedBottom",
+        "sourceCell.pinnedTop",
+        "sourceCell.firstInChat",
         "previewCell.setMessageObject(messageObject, null, false, false, false);",
     ):
         if token not in preview:
