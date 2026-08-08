@@ -93,17 +93,23 @@ public abstract class AyuSequentialUtils {
         if (messageWaiter != null) {
             messageWaiter.trySetSendingId(dialogId, existingSendingIds);
         }
+
+        // AUTHORGRAM_PROPAGATE_SYNC_SEND_FAILURE
+        // Never report a timeout/upload/message error as a successful force-forward.
+        boolean success = true;
         if (uploadWaiter != null) {
             if (messageWaiter != null) {
                 uploadWaiter.setMessageId(messageWaiter.sendingId);
             }
-            uploadWaiter.await();
+            boolean uploadCompleted = uploadWaiter.await();
+            success = uploadCompleted && !uploadWaiter.hasFailed();
         }
         if (messageWaiter != null) {
-            messageWaiter.await();
+            boolean messageCompleted = messageWaiter.await();
+            success = success && messageCompleted && !messageWaiter.hasFailed();
         }
 
-        return true;
+        return success;
     }
 
     private static long resolveDialogId(int currentAccount, long targetDialogId) {
