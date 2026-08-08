@@ -1,8 +1,8 @@
 AuthorGram 12.9.2 stable Main release trigger
-requested=2026-08-08T17:15+02:00
+requested=2026-08-08T17:24+02:00
 scope=main-only
-devSource=159af693fae304690bd873bdfac8b1c03c7b751b
-reason=blocked-channel-validator-checks-executable-calls
+devSource=cd7d01f0ea696a4c6bff3b96e9eb9a280104a8e4
+reason=idempotent-natural-footer-generator-and-accurate-release-summary
 iosPreview=telegram-native-chatmessagecell-context
 menuViewport=strict-real-work-area-natural-footer
 regexRuntime=bounded
