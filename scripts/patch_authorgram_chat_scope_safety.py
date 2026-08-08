@@ -12,6 +12,11 @@ There are two validation phases:
 - canonical/final: requires deferred popup ownership plus an exact native source
   ChatMessageCell clone. The action popup may not own, resize or horizontally
   offset the selected-message preview.
+
+The production release may subsequently replace that audited compatibility clone
+with AUTHORGRAM_FINAL_IOS_SENDER_HEADER_POSTPASS. Basic/pre-apply validation
+accepts its explicit sender widgets only when that final marker is present; the
+legacy bitmap/snapshot renderer remains forbidden.
 """
 
 from __future__ import annotations
@@ -36,6 +41,7 @@ STRICT_VIEWPORT_MARKER = "AUTHORGRAM_STRICT_IOS_MENU_VIEWPORT"
 SOURCE_GEOMETRY_MARKER = "AUTHORGRAM_NATIVE_SOURCE_CELL_GEOMETRY"
 WORKAREA_OWNER_MARKER = "AUTHORGRAM_IOS_PREVIEW_CHAT_WORKAREA_OWNER"
 NO_POPUP_WIDTH_MARKER = "AUTHORGRAM_IOS_PREVIEW_NATIVE_SOURCE_GEOMETRY"
+FINAL_HEADER_MARKER = "AUTHORGRAM_FINAL_IOS_SENDER_HEADER_POSTPASS"
 
 BASIC_FORBIDDEN_CHAT_FORMS = (
     "scrimPopupContainerLayout.setFixedMessagePreview(",
@@ -56,6 +62,11 @@ FORBIDDEN_PREVIEW_FORMS = (
     "sourceCell.draw(",
     "getPixels(",
     "NativeCellSnapshotView",
+    "BackupImageView avatarView",
+    "TextView senderNameView",
+)
+
+FINAL_HEADER_ALLOWED_FORMS = (
     "BackupImageView avatarView",
     "TextView senderNameView",
 )
@@ -83,6 +94,7 @@ def basic_failures() -> list[str]:
     chat = read(CHAT)
     preview = read(PREVIEW)
     failures: list[str] = []
+    final_header_present = FINAL_HEADER_MARKER in preview
 
     for forbidden in BASIC_FORBIDDEN_CHAT_FORMS:
         if forbidden in chat:
@@ -92,8 +104,11 @@ def basic_failures() -> list[str]:
         failures.append("legacy conditional scrim bottom-offset geometry remains")
 
     for forbidden in FORBIDDEN_PREVIEW_FORMS:
-        if forbidden in preview:
-            failures.append(f"bitmap/synthetic preview regression remains: {forbidden}")
+        if forbidden not in preview:
+            continue
+        if final_header_present and forbidden in FINAL_HEADER_ALLOWED_FORMS:
+            continue
+        failures.append(f"bitmap/synthetic preview regression remains: {forbidden}")
 
     return failures
 
