@@ -19,6 +19,7 @@ INTERCEPTOR = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/authorg
 SCOPE_GUARD = ROOT / "scripts/patch_authorgram_chat_scope_safety.py"
 STABILITY = ROOT / "scripts/patch_authorgram_main_stability.py"
 BLUR_PATCH = ROOT / "scripts/patch_authorgram_full_screen_ios_blur.py"
+RELEASE_SCRIPT = ROOT / "scripts/final_main_stable_release_12_9_2.sh"
 CHAT = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
 SCRIM = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java"
 ENTER = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
@@ -26,6 +27,15 @@ ENTER = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActiv
 CUSTOM_ROOTS = (
     ROOT / "TMessagesProj/src/main/java/toss/authorgram",
     ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/authorgram",
+)
+
+DEPRECATED_UI_GENERATORS = (
+    "patch_authorgram_ios_menu_v2.py",
+    "patch_authorgram_final_menu_voice.py",
+    "patch_authorgram_unified_message_menu.py",
+    "patch_authorgram_adaptive_ios_preview.py",
+    "patch_authorgram_final_chat_ui.py",
+    "patch_authorgram_ui_12_9_2.py",
 )
 
 
@@ -126,8 +136,6 @@ def audit_ios_message_preview(failures: list[str]) -> None:
         failures,
     )
 
-    # Scope safety is deliberately read-only. The stability pass is the sole
-    # source generator and the guard only rejects bad ownership after that pass.
     require(
         scope,
         (
@@ -195,6 +203,7 @@ def audit_reply_integrity(failures: list[str]) -> None:
         (
             "AUTHORGRAM_SETTINGS_PREVIEW_VALID_REPLY",
             "AUTHORGRAM_SETTINGS_PREVIEW_REPLY_INVARIANT",
+            "AUTHORGRAM_SETTINGS_PREVIEW_SINGLE_AVATAR_DRAW",
             "message.reply_to = new TLRPC.TL_messageReplyHeader();",
             "message.reply_to.reply_to_msg_id = replyMessage.id;",
             "message.replyMessage = replyMessage;",
@@ -209,6 +218,7 @@ def audit_reply_integrity(failures: list[str]) -> None:
         (
             "message.flags = 33027;",
             "message.peer_id.user_id = 0;",
+            "getAvatarImage().draw(canvas);",
         ),
         "AuthorGram Chat settings preview",
         failures,
@@ -225,6 +235,27 @@ def audit_reply_integrity(failures: list[str]) -> None:
         "AuthorGram incoming reply decryption",
         failures,
     )
+
+
+def audit_release_chain(failures: list[str]) -> None:
+    release = read(RELEASE_SCRIPT)
+    require(
+        release,
+        (
+            "patch_authorgram_full_screen_ios_blur.py --mode apply",
+            "patch_authorgram_main_stability.py",
+            "patch_authorgram_chat_scope_safety.py --mode apply",
+            "audit_authorgram_runtime_stability.py",
+            "patch_authorgram_full_screen_ios_blur.py --mode validate",
+        ),
+        "final Main release chain",
+        failures,
+    )
+    for deprecated in DEPRECATED_UI_GENERATORS:
+        if deprecated in release:
+            failures.append(
+                f"final Main release chain invokes deprecated UI generator {deprecated}"
+            )
 
 
 def audit_lifecycle(failures: list[str]) -> None:
@@ -272,6 +303,7 @@ def main() -> int:
     failures: list[str] = []
     audit_ios_message_preview(failures)
     audit_reply_integrity(failures)
+    audit_release_chain(failures)
     audit_lifecycle(failures)
     audit_custom_blocking_calls(failures)
 
@@ -283,8 +315,9 @@ def main() -> int:
     print("AuthorGram runtime stability audit passed")
     print(
         "Checked: full-screen blur, reference iOS menu geometry/ownership, "
-        "native action-card/footer structure, native preview, reply integrity, "
-        "lifecycle and AuthorGram-owned blocking calls"
+        "native action-card/footer structure, native preview, settings reply/draw, "
+        "nested reply decryption, release-chain isolation, lifecycle and "
+        "AuthorGram-owned blocking calls"
     )
     return 0
 
