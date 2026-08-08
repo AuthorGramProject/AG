@@ -1,5 +1,7 @@
 package com.radolyn.ayugram.utils.seq;
 
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserConfig;
@@ -44,6 +46,17 @@ public class DummyMessageWaiter extends SyncWaiter {
             baselineIds.addAll(existingIds);
         }
         baselinePendingCount = baselineIds.size();
+
+        // AUTHORGRAM_NO_UI_THREAD_MESSAGE_POLL
+        // Normal Ayu forwarding executes this on AyuForwardQueue. If a future call
+        // site accidentally reaches this helper from main, never spend up to 3.5s
+        // polling/sleeping there. The base SyncWaiter will also refuse UI await().
+        if (Thread.currentThread() == ApplicationLoader.applicationHandler.getLooper().getThread()) {
+            FileLog.e("AuthorGram: refusing DummyMessageWaiter polling on UI thread");
+            startQueueWatcher(sendMessagesHelper);
+            return;
+        }
+
         long start = System.currentTimeMillis();
         int currentSendingId = 0;
         while (currentSendingId == 0) {
