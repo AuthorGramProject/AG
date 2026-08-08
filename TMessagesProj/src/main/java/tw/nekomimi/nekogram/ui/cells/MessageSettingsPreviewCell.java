@@ -151,8 +151,9 @@ public class MessageSettingsPreviewCell extends FrameLayout {
 
                 @Override
                 protected void dispatchDraw(Canvas canvas) {
-                    super.dispatchDraw(canvas);
-
+                    // AUTHORGRAM_SETTINGS_PREVIEW_SINGLE_AVATAR_DRAW
+                    // Position the native avatar before ChatMessageCell paints it. Do not
+                    // draw the avatar a second time after super.dispatchDraw().
                     if (getAvatarImage() != null && getAvatarImage().getImageHeight() != 0) {
                         getAvatarImage().setImageCoords(
                                 getAvatarImage().getImageX(),
@@ -161,8 +162,11 @@ public class MessageSettingsPreviewCell extends FrameLayout {
                                 getAvatarImage().getImageHeight()
                         );
                         getAvatarImage().setRoundRadius((int) (getAvatarImage().getImageHeight() / 2f));
-                        getAvatarImage().draw(canvas);
+                    }
 
+                    super.dispatchDraw(canvas);
+
+                    if (getAvatarImage() != null && getAvatarImage().getImageHeight() != 0) {
                         boolean onlineEnabled = NaConfig.INSTANCE.getShowOnlineStatus().Bool();
                         if (onlineEnabled != lastOnlineEnabled) {
                             lastOnlineEnabled = onlineEnabled;
