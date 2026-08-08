@@ -115,23 +115,30 @@ verify_apk() {
 
 canonicalize_chat_ui() {
   local directory="$1"
-  local run_legacy_popup_generator="${2:-false}"
+  local run_legacy_popup_preflight="${2:-false}"
   (
     cd "${directory}"
-    # The legacy popup generator is an upgrade step, not an idempotent finalizer:
-    # it still materializes the historical synthetic preview and 8dp padding.
-    # Run it exactly once on the committed dev baseline, then let the stability
-    # generator become the sole owner of the final Main UI representation.
-    if [[ "${run_legacy_popup_generator}" == "true" ]]; then
+
+    # Historical entry point is retained only as a read-only compatibility scan.
+    # It must never materialize the old synthetic/adaptive preview again.
+    if [[ "${run_legacy_popup_preflight}" == "true" ]]; then
       python3 scripts/patch_authorgram_popup_bounds.py
     fi
+
+    # Reference order is deliberate: establish full-screen blur first, then let
+    # one canonical stability generator own reactions/message/action geometry.
+    python3 scripts/patch_authorgram_full_screen_ios_blur.py --mode apply
     python3 scripts/patch_authorgram_main_stability.py
     python3 scripts/patch_authorgram_ios_input_geometry.py --mode apply
-    # The stability generator may replace the selected-message owner block.
-    # Always canonicalize the lexical owner afterwards; never weaken this guard.
+
+    # Scope safety is now a read-only guard. It may reject a bad generated state
+    # but is forbidden from rewriting ChatActivity/IOSMessageMenuPreview.
     python3 scripts/patch_authorgram_chat_scope_safety.py --mode apply
+
+    python3 scripts/patch_authorgram_full_screen_ios_blur.py --mode validate
     python3 scripts/patch_authorgram_ios_input_geometry.py --mode validate
     python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
+    python3 scripts/audit_authorgram_runtime_stability.py
     git diff --check
   )
 }
@@ -227,19 +234,27 @@ Canonical local dev snapshot: ${DEV_COMMIT}
 Play branch/build: untouched
 Dev branch push during release: forbidden
 
-Stability invariants:
+Stability / iOS message-menu invariants:
 - iOS input maintenance is a strict no-op while the iOS input feature is disabled.
 - stale delayed composer callbacks are cancelled before lifecycle/style exits.
 - empty and non-empty Main iOS composer states share one vertical baseline; stale measurement translation cannot leave the input shifted.
 - side-bubble bounds are recalculated after iOS composer layout stabilization.
+- the complete chat surface behind the iOS message menu is blurred/dimmed; no selected source-cell island is exempted.
+- reference visual order is reactions -> native selected message -> separate action card.
 - selected-message preview uses a fresh native Telegram ChatMessageCell bound to the original MessageObject.
-- no full-size bitmap snapshot, getPixels scan, duplicate synthetic sender name or synthetic bubble is used.
-- TL_webPage/link-preview messages use the same native Telegram message renderer as the chat.
-- short selected-message preview stays outside and above the action card; long preview scrolls with actions without clipping.
-- selected-message fixed-preview ownership is canonicalized through the actual ChatScrimPopupContainerLayout parent chain.
-- the Main-only quick-action footer is capped at 40dp.
+- sender avatar, sender name, reply/quote, media, link preview and message content use Telegram's native renderer.
+- no full-size bitmap snapshot, getPixels scan, duplicate synthetic sender name or synthetic message bubble is used.
+- selected-message preview never becomes a child of the action-card ScrollView.
+- tall selected messages remain in the separate preview block and scroll inside that bounded preview instead of joining actions.
+- selected-message fixed-preview ownership is resolved through the actual ChatScrimPopupContainerLayout parent chain.
+- reference spacing around the selected-message block is 8dp above and 8dp below.
+- normal action rows remain in the native popup card; the quick-action footer remains inside the same card below its divider.
+- Main-only quick-action footer is capped at 44dp to preserve the reference footer proportions.
 - classic popup scroll containers have no global artificial 8dp bottom padding.
-- legacy popup generation is never reapplied after the canonical Main UI snapshot is formed.
+- legacy popup generator is read-only and cannot overwrite the canonical Main UI snapshot.
+- scope-safety pass is read-only and cannot rewrite the canonical selected-message owner.
+- settings preview always binds a complete reply target; zero-peer / half-empty synthetic reply state is forbidden.
+- nested AuthorGram reply targets are decrypted independently from the outer incoming message.
 - release is signed, non-debuggable, arm64-v8a only.
 EOF
 
