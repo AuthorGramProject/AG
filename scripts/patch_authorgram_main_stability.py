@@ -529,7 +529,6 @@ def main() -> None:
     patch_scrim_footer()
     patch_popup_padding()
     validate()
-    run_runtime_audit()
 
 
 if __name__ == "__main__":
