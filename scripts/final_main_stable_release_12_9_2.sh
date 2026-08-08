@@ -255,7 +255,7 @@ Stability / iOS message-menu invariants:
 - action-card height is capped to the real remaining work area; no synthetic 96dp minimum can push the footer below the viewport.
 - reference spacing around the selected-message block is 8dp above and 8dp below.
 - normal action rows remain in the native popup card; the quick-action footer remains inside the same card below its divider.
-- Main-only quick-action footer is capped at 44dp to preserve the reference footer proportions.
+- Main-only quick-action/footer bottom content keeps its natural or explicitly declared height inside the scrollable popup card; no arbitrary 44dp crop is allowed.
 - classic popup scroll containers have no global artificial 8dp bottom padding.
 - legacy popup generator is read-only and cannot overwrite the canonical Main UI snapshot.
 - scope-safety pass is read-only and cannot rewrite the canonical selected-message owner.
