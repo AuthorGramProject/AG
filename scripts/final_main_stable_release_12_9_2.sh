@@ -144,6 +144,14 @@ canonicalize_chat_ui() {
     python3 scripts/patch_authorgram_ios_input_geometry.py --mode validate
     python3 scripts/patch_authorgram_chat_scope_safety.py --mode validate
     python3 scripts/audit_authorgram_runtime_stability.py
+
+    # AUTHORGRAM_FINAL_IOS_SENDER_HEADER_POSTPASS
+    # The compatibility/native audit above intentionally verifies the historical
+    # exact-source clone first. This last isolated pass then replaces only the
+    # AuthorGram-owned preview with the production structure required by the iOS
+    # reference: fixed sender header + reflowed native Telegram message body.
+    python3 scripts/patch_authorgram_final_ios_sender_header.py --mode apply
+    python3 scripts/patch_authorgram_final_ios_sender_header.py --mode validate
     git diff --check
   )
 }
@@ -245,10 +253,12 @@ Stability / iOS message-menu invariants:
 - empty and non-empty Main iOS composer states share one vertical baseline; stale measurement translation cannot leave the input shifted.
 - side-bubble bounds are recalculated after iOS composer layout stabilization.
 - the complete chat surface behind the iOS message menu is blurred/dimmed; no selected source-cell island is exempted.
-- reference visual order is reactions -> native selected message -> separate action card.
-- selected-message preview uses a fresh native Telegram ChatMessageCell bound to the original MessageObject.
-- sender avatar, sender name, reply/quote, media, link preview and message content use Telegram's native renderer.
-- no full-size bitmap snapshot, getPixels scan, duplicate synthetic sender name or synthetic message bubble is used.
+- reference visual order is reactions -> explicit sender header -> native selected message -> separate action card.
+- the sender header is always independent from ChatMessageCell chat-list avatar coordinates: 38dp round avatar + bold single-line ellipsized name, with Unknown/generated-avatar fallback.
+- selected-message body uses a fresh native Telegram ChatMessageCell bound to the original MessageObject and reflowed to the current popup work area.
+- source RecyclerView cell width/height/params are never copied into the final popup preview; stale chat-list coordinates cannot crop the right edge or avatar lane.
+- reply/quote, media, link preview and message content remain Telegram-native; no full-size bitmap snapshot or getPixels scan is used.
+- if the custom preview bind throws unexpectedly, only that preview degrades to a bounded raw-text bubble and the chat/context menu remains alive.
 - selected-message preview never becomes a child of the action-card ScrollView.
 - selected-message ownership is resolved only after popup attachment; construction-time popupLayout.getParent() is forbidden.
 - tall selected messages remain in the separate bounded preview; the action card keeps its own native scrolling.
