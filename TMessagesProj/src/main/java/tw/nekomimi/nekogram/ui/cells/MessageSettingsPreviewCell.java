@@ -4,6 +4,7 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Shader;
@@ -11,7 +12,6 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.content.Context;
 import android.os.SystemClock;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -58,6 +58,7 @@ public class MessageSettingsPreviewCell extends FrameLayout {
 
         private final ChatMessageCell cell;
         private final MessageObject messageObject;
+        private final MessageObject replyMessageObject;
         private final Drawable monetBackgroundDrawable;
         private final Drawable shadowDrawable;
         private final INavigationLayout parentLayout;
@@ -77,35 +78,68 @@ public class MessageSettingsPreviewCell extends FrameLayout {
             monetBackgroundDrawable = new ColorDrawable(Theme.getColor(Theme.key_windowBackgroundGray));
             shadowDrawable = Theme.getThemedDrawable(context, R.drawable.greydivider_bottom, Theme.getColor(Theme.key_windowBackgroundGrayShadow));
 
-            int currentAccount = UserConfig.selectedAccount;
-            int now = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
-            long clientUserId = UserConfig.getInstance(currentAccount).getClientUserId();
+            final int currentAccount = UserConfig.selectedAccount;
+            final int now = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+            final long clientUserId = UserConfig.getInstance(currentAccount).getClientUserId();
+            final long safePeerId = clientUserId != 0L ? clientUserId : 1L;
+
+            // AUTHORGRAM_SETTINGS_PREVIEW_VALID_REPLY
+            // Build a complete reply target first. ChatMessageCell must never receive
+            // a reply header pointing to a missing/zero peer or an absent reply object.
+            TLRPC.TL_message replyMessage = new TLRPC.TL_message();
+            replyMessage.message = getString(R.string.MessagePreviewDialogMessage);
+            replyMessage.date = now - 3600;
+            replyMessage.dialog_id = safePeerId;
+            replyMessage.flags = 259;
+            replyMessage.from_id = new TLRPC.TL_peerUser();
+            replyMessage.from_id.user_id = safePeerId;
+            replyMessage.id = 41;
+            replyMessage.media = new TLRPC.TL_messageMediaEmpty();
+            replyMessage.out = true;
+            replyMessage.peer_id = new TLRPC.TL_peerUser();
+            replyMessage.peer_id.user_id = safePeerId;
+
+            replyMessageObject = new MessageObject(currentAccount, replyMessage, true, false);
+            replyMessageObject.skipAyuFiltering = true;
+            replyMessageObject.forceUpdate = true;
+            replyMessageObject.resetLayout();
 
             TLRPC.TL_message message = new TLRPC.TL_message();
             message.message = getString(R.string.MessagePreviewDialogMessage);
             message.date = now - 3540;
             message.edit_date = now - 3480;
-            message.dialog_id = 1L;
-            message.flags = 33027;
+            message.dialog_id = safePeerId;
+            // Keep only fields that are actually populated. The previous magic 33027
+            // advertised optional state that synthetic preview data did not provide.
+            message.flags = 259;
             message.from_id = new TLRPC.TL_peerUser();
-            message.from_id.user_id = clientUserId;
-            message.id = 1;
+            message.from_id.user_id = safePeerId;
+            message.id = 42;
             message.media = new TLRPC.TL_messageMediaEmpty();
             message.out = false;
             message.peer_id = new TLRPC.TL_peerUser();
-            message.peer_id.user_id = 0;
+            message.peer_id.user_id = safePeerId;
+            message.reply_to = new TLRPC.TL_messageReplyHeader();
+            message.reply_to.flags |= 16;
+            message.reply_to.reply_to_msg_id = replyMessage.id;
+            message.replyMessage = replyMessage;
 
             messageObject = new MessageObject(currentAccount, message, true, false);
             messageObject.skipAyuFiltering = true;
             messageObject.forceAvatar = true;
             messageObject.eventId = 1;
+            messageObject.replyMessageObject = replyMessageObject;
             messageObject.resetLayout();
 
             TLRPC.User currentUser = UserConfig.getInstance(currentAccount).getCurrentUser();
             if (currentUser != null) {
-                messageObject.customName = ContactsController.formatName(currentUser.first_name, currentUser.last_name);
+                String currentName = ContactsController.formatName(currentUser.first_name, currentUser.last_name);
+                messageObject.customName = currentName;
+                replyMessageObject.customName = currentName;
                 if (currentUser.photo == null) {
-                    messageObject.customAvatarDrawable = new AvatarDrawable(currentUser, false);
+                    AvatarDrawable avatarDrawable = new AvatarDrawable(currentUser, false);
+                    messageObject.customAvatarDrawable = avatarDrawable;
+                    replyMessageObject.customAvatarDrawable = avatarDrawable;
                 }
             }
 
@@ -117,6 +151,8 @@ public class MessageSettingsPreviewCell extends FrameLayout {
 
                 @Override
                 protected void dispatchDraw(Canvas canvas) {
+                    super.dispatchDraw(canvas);
+
                     if (getAvatarImage() != null && getAvatarImage().getImageHeight() != 0) {
                         getAvatarImage().setImageCoords(
                                 getAvatarImage().getImageX(),
@@ -154,7 +190,6 @@ public class MessageSettingsPreviewCell extends FrameLayout {
                             canvas.drawCircle(cx, cy, innerRadius, onlinePaint);
                         }
                     }
-                    super.dispatchDraw(canvas);
                 }
             };
             cell.setDelegate(new ChatMessageCell.ChatMessageCellDelegate() {
@@ -165,13 +200,27 @@ public class MessageSettingsPreviewCell extends FrameLayout {
             });
             cell.isChat = true;
             cell.setFullyDraw(true);
-            cell.setMessageObject(messageObject, null, false, false, false);
+            bindPreviewMessage();
             addView(cell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
 
-        public void refresh() {
+        private void bindPreviewMessage() {
+            // AUTHORGRAM_SETTINGS_PREVIEW_REPLY_INVARIANT
+            // Reassert the complete relationship before every bind. This prevents a
+            // recycled ChatMessageCell or settings refresh from retaining a half-empty
+            // reply state and rendering a blank reply stripe.
+            messageObject.messageOwner.replyMessage = replyMessageObject.messageOwner;
+            messageObject.replyMessageObject = replyMessageObject;
             messageObject.forceUpdate = true;
+            replyMessageObject.forceUpdate = true;
+            replyMessageObject.resetLayout();
+            messageObject.resetLayout();
             cell.setMessageObject(messageObject, null, false, false, false);
+        }
+
+        public void refresh() {
+            bindPreviewMessage();
+            cell.requestLayout();
             cell.invalidate();
         }
 
@@ -251,6 +300,7 @@ public class MessageSettingsPreviewCell extends FrameLayout {
         @Override
         protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
+            onlineAnimationStop();
             if (backgroundGradientDisposable != null) {
                 backgroundGradientDisposable.dispose();
                 backgroundGradientDisposable = null;
@@ -259,6 +309,11 @@ public class MessageSettingsPreviewCell extends FrameLayout {
                 oldBackgroundGradientDisposable.dispose();
                 oldBackgroundGradientDisposable = null;
             }
+        }
+
+        private void onlineAnimationStop() {
+            cell.animate().cancel();
+            cell.clearAnimation();
         }
 
         @Override
