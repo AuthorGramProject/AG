@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Read-only safety guard for AuthorGram Main iOS message-menu ownership.
 
-The canonical UI generator is scripts/patch_authorgram_main_stability.py. This
-file intentionally NEVER rewrites ChatActivity or IOSMessageMenuPreview.
+The canonical UI generator is scripts/patch_authorgram_main_stability.py and the
+final lifecycle/viewport repair is scripts/patch_authorgram_runtime_regressions.py.
+This file intentionally NEVER rewrites ChatActivity or IOSMessageMenuPreview.
 
 There are two validation phases:
 - pre-apply/basic: accepts known legacy compatibility markers that the canonical
   generator is explicitly responsible for replacing, but rejects active unsafe
   ownership/back-call forms that should never be present on the dev baseline;
-- canonical/final: requires the reference structure and rejects every legacy
-  marker/code path that could put the selected message inside the action card.
+- canonical/final: requires the reference structure plus deferred popup-owner
+  resolution and rejects every legacy path that can lose the selected message or
+  put it inside the action card.
 """
 
 from __future__ import annotations
@@ -21,14 +23,15 @@ ROOT = Path(__file__).resolve().parents[1]
 CHAT = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
 PREVIEW = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java"
 STABILITY = ROOT / "scripts/patch_authorgram_main_stability.py"
+RUNTIME_REPAIR = ROOT / "scripts/patch_authorgram_runtime_regressions.py"
 
 SAFE_MARKER = "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT"
 CANONICAL_MARKER = "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW"
 BOUNDED_MARKER = "AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW"
 REFERENCE_MARKER = "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY"
+DEFERRED_MARKER = "AUTHORGRAM_DEFERRED_IOS_PREVIEW_ATTACH"
+STRICT_VIEWPORT_MARKER = "AUTHORGRAM_STRICT_IOS_MENU_VIEWPORT"
 
-# Active source forms that are unsafe even before canonicalization. These are
-# not harmless comments: they indicate an obsolete receiver/ownership path.
 BASIC_FORBIDDEN_CHAT_FORMS = (
     "scrimPopupContainerLayout.setFixedMessagePreview(",
     "chatActivityEnterView.setFixedMessagePreview(",
@@ -36,14 +39,11 @@ BASIC_FORBIDDEN_CHAT_FORMS = (
     "popupLayout.addView(popupMessagePreview",
 )
 
-# Known historical compatibility markers can exist in the committed baseline.
-# main_stability replaces the whole owner block, so pre-apply must not reject a
-# harmless marker before that repair has had a chance to run. Final validation
-# does reject them absolutely.
 CANONICAL_ONLY_FORBIDDEN_CHAT_FORMS = (
     "AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP",
     "AUTHORGRAM_IOS_MESSAGE_ACTION_GAP",
     "iosPreview.shouldScrollWithActions()",
+    "android.view.ViewParent authorgramIosPreviewParent = popupLayout.getParent();",
 )
 
 FORBIDDEN_PREVIEW_FORMS = (
@@ -80,12 +80,7 @@ def basic_failures() -> list[str]:
 
 
 def validate() -> None:
-    """Compatibility/basic validation used before the final stability pass.
-
-    This intentionally does not require generated markers and intentionally
-    permits known legacy comment markers. It still rejects active ownership
-    code that the baseline should never contain.
-    """
+    """Compatibility/basic validation used before the final stability pass."""
     failures = basic_failures()
     if failures:
         raise SystemExit("ChatActivity basic scope validation failed:\n - " + "\n - ".join(failures))
@@ -97,6 +92,7 @@ def validate_canonical() -> None:
     chat = read(CHAT)
     preview = read(PREVIEW)
     stability = read(STABILITY)
+    runtime_repair = read(RUNTIME_REPAIR)
 
     for forbidden in CANONICAL_ONLY_FORBIDDEN_CHAT_FORMS:
         if forbidden in chat:
@@ -106,13 +102,16 @@ def validate_canonical() -> None:
         CANONICAL_MARKER,
         SAFE_MARKER,
         REFERENCE_MARKER,
-        "android.view.ViewParent authorgramIosPreviewParent = popupLayout.getParent();",
+        DEFERRED_MARKER,
+        "final android.view.View authorGramIosPreviewAnchor = popupLayout;",
+        "authorGramIosPreviewAnchor.post(() -> {",
+        "authorGramIosPreviewAnchor.getParent();",
         "while (authorgramIosPreviewParent != null",
         "authorgramIosPreviewParent instanceof org.telegram.ui.Components.ChatScrimPopupContainerLayout",
         "((android.view.View) authorgramIosPreviewParent).getParent();",
         ".setFixedMessagePreview(iosPreview);",
         "iosPreview.setVisibility(android.view.View.GONE);",
-        "AuthorGram: iOS preview owner not found",
+        "AuthorGram: iOS preview owner not found after attach",
     ):
         if required not in chat:
             failures.append(f"canonical ChatActivity invariant missing: {required}")
@@ -131,31 +130,39 @@ def validate_canonical() -> None:
         if required not in preview:
             failures.append(f"canonical native preview invariant missing: {required}")
 
-    # Cross-check the generator itself, not just the materialized Java source.
+    # The generator owns rendering/geometry; the final repair owns attachment timing.
     for required in (
         CANONICAL_MARKER,
         SAFE_MARKER,
         BOUNDED_MARKER,
         REFERENCE_MARKER,
         ".setFixedMessagePreview(iosPreview);",
-        "iosPreview.setVisibility(android.view.View.GONE);",
     ):
         if required not in stability:
             failures.append(f"stability generator invariant missing: {required}")
 
+    for required in (
+        DEFERRED_MARKER,
+        STRICT_VIEWPORT_MARKER,
+        "authorGramIosPreviewAnchor.post(() -> {",
+        "authorGramIosPreviewAnchor.getParent();",
+        "pre-attach popupLayout.getParent() lookup remains",
+        "AndroidUtilities.dp(96)",
+    ):
+        if required not in runtime_repair:
+            failures.append(f"runtime repair invariant missing: {required}")
+
     if failures:
         raise SystemExit("ChatActivity canonical scope validation failed:\n - " + "\n - ".join(failures))
-    print("AuthorGram canonical iOS preview ownership validation passed")
+    print("AuthorGram canonical deferred iOS preview ownership validation passed")
 
 
 def pre_apply_check() -> None:
-    """Read-only inventory used before any canonical generator runs."""
     validate()
     print("AuthorGram ChatActivity pre-apply safety scan passed")
 
 
 def apply() -> None:
-    """No mutation by design; require the canonical generator output."""
     validate_canonical()
     print("AuthorGram scope guard is read-only; no source rewrite performed")
 
