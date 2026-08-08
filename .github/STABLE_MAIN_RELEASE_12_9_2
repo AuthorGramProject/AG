@@ -1,9 +1,11 @@
 AuthorGram 12.9.2 stable Main release trigger
-requested=2026-08-08T17:24+02:00
+requested=2026-08-08T18:25+02:00
 scope=main-only
-devSource=cd7d01f0ea696a4c6bff3b96e9eb9a280104a8e4
-reason=idempotent-natural-footer-generator-and-accurate-release-summary
-iosPreview=telegram-native-chatmessagecell-context
+devSource=7dda3c378d2847c2b7172d3365aee6da780738aa
+reason=native-visible-cell-context-and-full-width-message-preview
+iosPreview=telegram-full-live-cell-clone-copyVisiblePartTo-copyParamsTo
+messageWidth=real-parent-work-area-not-action-card-width
+messageHeight=bounded-46-percent-up-to-420dp
 menuViewport=strict-real-work-area-natural-footer
 regexRuntime=bounded
 filterCache=globally-bounded
