@@ -3,7 +3,7 @@
 
 This does not build the APK. It enforces high-value invariants around the custom
 AuthorGram layer so known UI/reply/lifecycle regressions cannot silently return.
-Run it before a release build after all patch generators have been applied.
+Run it after the canonical stability generator and before Gradle.
 """
 
 from __future__ import annotations
@@ -17,6 +17,8 @@ PREVIEW = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMess
 SETTINGS_PREVIEW = ROOT / "TMessagesProj/src/main/java/tw/nekomimi/nekogram/ui/cells/MessageSettingsPreviewCell.java"
 INTERCEPTOR = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java"
 SCOPE_GUARD = ROOT / "scripts/patch_authorgram_chat_scope_safety.py"
+STABILITY = ROOT / "scripts/patch_authorgram_main_stability.py"
+CHAT = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
 SCRIM = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatScrimPopupContainerLayout.java"
 ENTER = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
 
@@ -46,15 +48,19 @@ def forbid(text: str, tokens: tuple[str, ...], label: str, failures: list[str]) 
 
 def audit_ios_message_preview(failures: list[str]) -> None:
     preview = read(PREVIEW)
+    chat = read(CHAT)
     scope = read(SCOPE_GUARD)
+    stability = read(STABILITY)
     scrim = read(SCRIM)
 
     require(
         preview,
         (
             "AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW",
+            "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY",
             "new ChatMessageCell(context, currentAccount)",
             "new ScrollView(context)",
+            "previewScroll.setNestedScrollingEnabled(true);",
             "maxPreviewHeight",
             "previewCell.setMessageObject(messageObject, null, false, false, false);",
             "public boolean shouldScrollWithActions()",
@@ -70,25 +76,74 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "sourceCell.draw(",
             "getPixels(",
             "NativeCellSnapshotView",
+            "BackupImageView avatarView",
+            "TextView senderNameView",
         ),
         "iOS selected-message preview",
         failures,
     )
 
-    # The guard intentionally contains regex/text literals describing historical
-    # bad forms, so do not scan the generator source for those literal strings.
-    # Instead require the canonical generated behavior and its hard-failure path.
     require(
-        scope,
+        chat,
         (
             "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW",
+            "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY",
             "AUTHORGRAM_SCOPE_SAFE_IOS_PREVIEW_PARENT",
             ".setFixedMessagePreview(iosPreview);",
             "iosPreview.setVisibility(android.view.View.GONE);",
-            "AuthorGram: iOS preview owner not found",
-            "preview/action ownership regression remains",
         ),
-        "iOS preview owner guard",
+        "iOS selected-message owner",
+        failures,
+    )
+    forbid(
+        chat,
+        (
+            "popupLayout.addView(iosPreview",
+            "popupLayout.addView(popupMessagePreview",
+            "iosPreview.shouldScrollWithActions()",
+            "AUTHORGRAM_IOS_LONG_MESSAGE_ACTION_GAP",
+            "AUTHORGRAM_IOS_MESSAGE_ACTION_GAP",
+        ),
+        "iOS selected-message owner",
+        failures,
+    )
+
+    # Scope safety is now deliberately read-only. The stability pass is the sole
+    # source generator and the guard only rejects bad ownership after that pass.
+    require(
+        scope,
+        (
+            "Read-only safety guard",
+            "validate_canonical",
+            "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW",
+            "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY",
+            "scope guard is read-only; no source rewrite performed",
+        ),
+        "iOS preview scope guard",
+        failures,
+    )
+    forbid(
+        scope,
+        (
+            "write_chat(",
+            "write_preview(",
+            "PREVIEW_SOURCE =",
+        ),
+        "iOS preview scope guard",
+        failures,
+    )
+
+    require(
+        stability,
+        (
+            "AUTHORGRAM_CANONICAL_SEPARATE_IOS_PREVIEW",
+            "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY",
+            "AUTHORGRAM_BOUNDED_NATIVE_IOS_PREVIEW",
+            "Math.min(oldParams.height, AndroidUtilities.dp(44))",
+            "params.topMargin = AndroidUtilities.dp(8);",
+            "params.bottomMargin = AndroidUtilities.dp(8);",
+        ),
+        "canonical iOS menu generator",
         failures,
     )
 
@@ -99,8 +154,14 @@ def audit_ios_message_preview(failures: list[str]) -> None:
             "public void setFixedMessagePreview(View preview)",
             "AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW",
             "AUTHORGRAM_ADAPTIVE_POPUP_BOUNDS",
+            "AUTHORGRAM_REFERENCE_IOS_MENU_GEOMETRY",
+            "Math.min(oldParams.height, AndroidUtilities.dp(44))",
+            "params.topMargin = AndroidUtilities.dp(8);",
+            "params.bottomMargin = AndroidUtilities.dp(8);",
+            "AUTHORGRAM_MENU_FOOTER_SEPARATOR",
+            "bottomView.setBackground(null);",
         ),
-        "ChatScrim preview container",
+        "ChatScrim reference geometry",
         failures,
     )
 
@@ -162,7 +223,7 @@ def audit_lifecycle(failures: list[str]) -> None:
 
 def audit_custom_blocking_calls(failures: list[str]) -> None:
     # AuthorGram-owned code must not intentionally block the UI/runtime thread.
-    # Upstream Telegram/WebRTC code is deliberately outside this scan.
+    # Upstream Telegram/Ayu/WebRTC code is deliberately outside this scan.
     forbidden_patterns = (
         (re.compile(r"\bThread\.sleep\s*\("), "Thread.sleep"),
         (re.compile(r"\bSystem\.gc\s*\("), "System.gc"),
@@ -200,7 +261,10 @@ def main() -> int:
         )
 
     print("AuthorGram runtime stability audit passed")
-    print("Checked: iOS menu ownership, native preview, reply integrity, lifecycle, custom blocking calls")
+    print(
+        "Checked: reference iOS menu geometry, ownership, native preview, "
+        "reply integrity, lifecycle and AuthorGram-owned blocking calls"
+    )
     return 0
 
 
