@@ -1,13 +1,8 @@
-AuthorGram 12.9.2 verified Main and Play correction trigger.
-Build exactly two signed release APKs: Main and Play. Do not generate or upload AAB artifacts.
-In the Main-only iOS Message Menu, render a separate selected-message block above the action panel with the real sender or channel avatar, sender or channel name and the native ChatMessageCell content.
-Keep Telegram's native reactions row above the selected-message block and never remove or merge it into the action panel.
-Blur the complete chat background in iOS menu mode by using no exempt original message cell; keep only reactions, the independent selected-message preview and the action panel sharp above the blur.
-Never apply preview-local blur and never leave the original selected cell elevated at its old chat position.
-When the iOS composer contains any character, clear stale MENU drawable and Lottie state, hide and disable the media/menu container before animation early returns, and enforce the same invariant again after delayed animations.
-Keep the actual chat overflow menu responsive while composer text is non-empty.
-When composer text is cleared, restore the microphone or video-round container without changing classic or Play UI behavior.
-Preserve every existing AuthorGram feature, package identity, signing identity, protected author_badge policy and launcher artwork.
-Run Python syntax, source invariants, popup ordering, sender identity, blur ownership, composer state and badge checks before Android SDK setup.
-Verify both APK packages, versions, signatures, zip alignment, integrity markers, Play publication policy and absence of raw protected badge identifiers.
-Main and Play correction release request: 2026-08-06T11:26:00+02:00.
+AuthorGram 12.9.2 exact pre-menu release trigger.
+Release application source is commit 388a3a3efb03339e5d54860bdb0c988cced6775d: iOS Input only.
+Do not introduce iOS Message Menu, IOSMessageMenuPreview, custom message-menu blur, selected-message preview or popup ownership changes.
+Preserve the iOS Input composer fix and stale icon guard already present in the selected commit.
+Preserve package identities, Main-only feature policy, signing identity, author_badge protection and launcher artwork.
+Historical Actions cleanup is best-effort and must never block any guard or compilation step.
+Build the verified Main and Play release APK workflow without AAB artifacts.
+Release retry after nested cleanup guard fix: 2026-08-09T19:52:00+02:00.

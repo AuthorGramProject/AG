@@ -194,15 +194,6 @@ public class ActionBarPopupWindow extends PopupWindow {
                         }
                     });
                     scrollView.setVerticalScrollBarEnabled(false);
-                    // AUTHORGRAM_RELIABLE_POPUP_SCROLL
-                    // Keep the content naturally tall and constrain only the viewport.
-                    // This prevents the final action from being measured out or clipped.
-                    scrollView.setFillViewport(false);
-                    scrollView.setScrollContainer(true);
-                    scrollView.setNestedScrollingEnabled(true);
-                    scrollView.setClipToPadding(false);
-                    scrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-                    scrollView.setPadding(0, 0, 0, dp(8));
                     if (swipeBackLayout != null) {
                         swipeBackLayout.addView(scrollView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, shownFromBottom ? Gravity.BOTTOM : Gravity.TOP));
                     } else {
@@ -519,25 +510,7 @@ public class ActionBarPopupWindow extends PopupWindow {
                         break;
                     }
                 }
-                // AUTHORGRAM_IOS_PREVIEW_TRANSPARENT_BACKGROUND
-                // A native message preview is not part of the submenu card.
-                // Skip the first background segment and let the transparent
-                // GapView start a fresh rounded action panel underneath it.
-                boolean authorGramNativeMessagePreview = linearLayout.getChildCount() > 1
-                        && "AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW".equals(
-                                String.valueOf(linearLayout.getChildAt(0).getTag())
-                        );
-                if (authorGramNativeMessagePreview) {
-                    View preview = linearLayout.getChildAt(0);
-                    View gap = linearLayout.getChildAt(1);
-                    int scrollOffset = scrollView == null ? 0 : scrollView.getScrollY();
-                    start = preview.getBottom() - scrollOffset;
-                    end = gap.getBottom() - scrollOffset;
-                }
                 for (int a = 0; a < 2; a++) {
-                    if (authorGramNativeMessagePreview && a == 0) {
-                        continue;
-                    }
                     if (a == 1 && start < -dp(16)) {
                         break;
                     }

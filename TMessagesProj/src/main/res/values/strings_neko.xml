@@ -56,8 +56,6 @@
     <string name="HideKeyboardOnChatScroll">Hide Keyboard on Scroll</string>
     <string name="iOSMessageInputField">iOS-styled message input field</string>
     <string name="iOSMessageInputFieldNotice">Moves the attachment icon to the left and splits buttons into separate bubbles. Overrides the attach-enter-menu mode while enabled</string>
-    <string name="iOSMessageMenu">iOS Message Menu</string>
-    <string name="iOSMessageMenuNotice">Shows the selected message with its sender and avatar above a blurred, adaptive action menu. Main version only</string>
     <string name="UserRestrictionsSendStickers2">Send Stickers</string>
     <string name="UserRestrictionsSendGifs">Send GIFs</string>
     <string name="CheckAllAdministrated">Add administrated</string>

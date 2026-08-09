@@ -55,15 +55,11 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
     }
 
     public void setState(State state, boolean animate) {
-        // AUTHORGRAM_IOS_STALE_MENU_GLYPH_GUARD
-        // MENU is a classic-layout glyph. Clear both View and Lottie state
-        // before resolving to VOICE so stale three-dots cannot be redrawn.
-        if (state == State.MENU && iosInput()) {
-            stopAnimation();
-            clearAnimation();
-            setImageDrawable(null);
+        // AUTHORGRAM_IOS_INPUT_NO_MENU_GLYPH: the media slot is voice/video only.
+        // Normalizing before transition lookup also replaces a stale MENU drawable
+        // immediately when the composer returns from a cancelled typing animation.
+        if (iosInput() && state == State.MENU) {
             state = State.VOICE;
-            animate = false;
         }
         if (animate && state == currentState) {
             return;

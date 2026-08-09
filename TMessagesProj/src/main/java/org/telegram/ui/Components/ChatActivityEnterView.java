@@ -8238,7 +8238,6 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                     transformToSeekbar = 0;
                     isRecordingStateChanged();
                     hideRecordedAudioPanelInternal();
-                    authorGramRestoreIosAttachAfterVoiceDraftDelete(); // AUTHORGRAM_IOS_VOICE_DRAFT_ATTACH_RESTORE
                     if (recordCircle != null) {
                         recordCircle.setSendButtonInvisible();
                     }
@@ -8250,43 +8249,6 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         }
         if (controlsView != null) {
             controlsView.invalidate();
-        }
-    }
-
-    // AUTHORGRAM_IOS_VOICE_DRAFT_ATTACH_RESTORE
-    // The recorded-audio panel can hide attachLayout while the draft owns the
-    // composer. After trash/cancel, restore the complete iOS attachment state
-    // only after Telegram has cleared the recorded draft.
-    private void authorGramRestoreIosAttachAfterVoiceDraftDelete() {
-        if (!isIOSInputStyle() || attachLayout == null || attachButton == null) {
-            return;
-        }
-
-        if (attachButtonAnimator != null) {
-            attachButtonAnimator.cancel();
-            attachButtonAnimator = null;
-        }
-        attachLayout.animate().cancel();
-        attachButton.animate().cancel();
-
-        attachLayout.setVisibility(VISIBLE);
-        attachLayoutAlpha = 1.0f;
-        updateAttachLayoutParams();
-        attachLayout.setScaleX(1.0f);
-
-        attachButton.setVisibility(VISIBLE);
-        attachButton.setTag(2);
-        attachButton.setAlpha(attachButtonAlpha = 1.0f);
-        attachButton.setScaleX(1.0f);
-        attachButton.setScaleY(1.0f);
-        attachButton.setTranslationX(0.0f);
-        attachButton.setTranslationY(0.0f);
-        attachButton.setClickable(true);
-        attachButton.setEnabled(true);
-
-        updateFieldRight(1);
-        if (delegate != null && getVisibility() == VISIBLE) {
-            delegate.onAttachButtonShow();
         }
     }
 
@@ -9189,74 +9151,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
         return isInScheduleMode() || animatorEphemeralMessageVisibility.getValue();
     }
 
-    // AUTHORGRAM_INPUT_MENU_INVARIANT_HELPER
-    // AUTHORGRAM_IOS_SEND_BUTTON_INVARIANT
-    // AUTHORGRAM_IOS_SEND_BUTTON_COMPILE_FIX
-    private final Runnable authorGramInputMenuInvariantRunnable =
-            this::authorGramEnforceInputMenuInvariant;
-
-    private void authorGramEnforceInputMenuInvariant() {
-        if (!isIOSInputStyle()
-                || audioVideoButtonContainer == null
-                || recordingAudioVideo
-                || editingMessageObject != null) {
-            return;
-        }
-
-        CharSequence composerText = messageEditText == null
-                ? ""
-                : AndroidUtilities.getTrimmedString(messageEditText.getTextToUse());
-        final boolean hasComposerText = !TextUtils.isEmpty(composerText);
-        final boolean finiteSlowModeOwnsSlot = slowModeTimer > 0
-                && slowModeTimer != Integer.MAX_VALUE
-                && !isSlowModeIgnored();
-
-        audioVideoButtonContainer.animate().cancel();
-        audioVideoButtonContainer.clearAnimation();
-        audioVideoButtonContainer.setTranslationX(0.0f);
-        audioVideoButtonContainer.setTranslationY(0.0f);
-        audioVideoButtonContainer.setScaleX(1.0f);
-        audioVideoButtonContainer.setScaleY(1.0f);
-
-        View sendButtonView = getSendButtonInternal();
-        if (hasComposerText && !finiteSlowModeOwnsSlot) {
-            audioVideoButtonContainer.setVisibility(GONE);
-            audioVideoButtonContainer.setAlpha(0.0f);
-            audioVideoButtonContainer.setClickable(false);
-            audioVideoButtonContainer.setEnabled(false);
-
-            if (sendButtonView != null) {
-                sendButtonView.animate().cancel();
-                sendButtonView.setVisibility(VISIBLE);
-                sendButtonView.setAlpha(1.0f);
-                sendButtonView.setScaleX(1.0f);
-                sendButtonView.setScaleY(1.0f);
-                sendButtonView.setClickable(true);
-                sendButtonView.setEnabled(true);
-                sendButtonView.bringToFront();
-            }
-        } else if (!hasComposerText && !finiteSlowModeOwnsSlot) {
-            // AUTHORGRAM_IOS_INPUT_MEDIA_RESTORE
-            audioVideoButtonContainer.setVisibility(VISIBLE);
-            audioVideoButtonContainer.setAlpha(1.0f);
-            audioVideoButtonContainer.setClickable(true);
-            audioVideoButtonContainer.setEnabled(true);
-        }
-    }
-
-    private void authorGramScheduleInputMenuInvariant() {
-        authorGramEnforceInputMenuInvariant();
-        if (audioVideoButtonContainer == null) {
-            return;
-        }
-        audioVideoButtonContainer.removeCallbacks(authorGramInputMenuInvariantRunnable);
-        audioVideoButtonContainer.post(authorGramInputMenuInvariantRunnable);
-        audioVideoButtonContainer.postDelayed(authorGramInputMenuInvariantRunnable, 260L);
-    }
-
     public void checkSendButton(boolean animated) {
-        // Enforce before any animation-state early return.
-        authorGramEnforceInputMenuInvariant();
         if (editingMessageObject != null || recordingAudioVideo) {
             return;
         }
@@ -10211,12 +10106,6 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 }
             }
         }
-        // AUTHORGRAM_IOS_INPUT_MENU_GUARD
-        // AUTHORGRAM_TYPING_OVERLAY_GUARD_V3
-        // Re-run after all send-button mutations and again after delayed
-        // icon animations. This also keeps the header menu touchable.
-        authorGramScheduleInputMenuInvariant();
-
         if (isStories && suggestButton != null) {
             if (animated) {
                 suggestButton.animate().translationX(shownSendButton ? -Math.max(0, sendButton.width() - dp(64)) : dp(42)).setDuration(320).setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).start();
@@ -16523,7 +16412,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     }
 
     private boolean computeIOSInputStyle() {
-        // AUTHORGRAM_MAIN_ONLY_IOS_INPUT
+        // AUTHORGRAM_MAIN_ONLY_IOS_INPUT: Play never creates iOS composer geometry.
         if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
                 || !NekoConfig.iOSMessageInputField.Bool()
                 || isStories

@@ -2,7 +2,6 @@ package org.telegram.ui.Components;
 
 import android.content.Context;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
@@ -10,7 +9,6 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBarPopupWindow;
-import org.telegram.ui.ActionBar.Theme;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,12 +17,10 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
     private float bottomViewReactionsOffset;
     private float bottomViewYOffset;
     private final List<FrameLayout> bottomViews = new ArrayList<>();
-    private boolean authorGramUnifiedFooterSeparatorAdded; // AUTHORGRAM_UNIFIED_MENU_FOOTER
     private float currentPopupAlpha = 1.0f;
     private float expandSize;
     private float lastReactionsTransitionProgress;
     private int maxHeight;
-    private View fixedMessagePreview; // AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW
     private float popupLayoutLeftOffset;
     private ActionBarPopupWindow.ActionBarPopupWindowLayout popupWindowLayout;
     private float progressToSwipeBack;
@@ -43,78 +39,11 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        // AUTHORGRAM_ADAPTIVE_POPUP_BOUNDS
-        // Some OEM/window combinations pass an effectively unbounded measure spec.
-        // Always cap the menu to the real display/work-area height so the internal
-        // ScrollView scrolls instead of the popup escaping below the screen.
-        int parentMode = MeasureSpec.getMode(heightMeasureSpec);
-        int parentHeight = MeasureSpec.getSize(heightMeasureSpec);
-        int displayHeight = Math.max(AndroidUtilities.dp(240), AndroidUtilities.displaySize.y);
-        int availableHeight = parentMode == MeasureSpec.UNSPECIFIED || parentHeight <= 0
-                ? displayHeight
-                : Math.min(parentHeight, displayHeight);
-        availableHeight = Math.max(AndroidUtilities.dp(160), availableHeight - AndroidUtilities.dp(16));
-        int effectiveMaxHeight = maxHeight > 0
-                ? Math.min(maxHeight, availableHeight)
-                : availableHeight;
-        int constrainedHeightSpec = MeasureSpec.makeMeasureSpec(effectiveMaxHeight, MeasureSpec.AT_MOST);
+        int constrainedHeightSpec = maxHeight != 0 ? MeasureSpec.makeMeasureSpec(maxHeight, MeasureSpec.AT_MOST) : heightMeasureSpec;
         int adjustedWidthSpec = widthMeasureSpec;
-
-        authorGramAttachPendingBottomViews(); // AUTHORGRAM_UNIFIED_MENU_FOOTER
-
-        // Reset a previous viewport cap before measuring natural popup content.
-        if (popupWindowLayout != null) {
-            LinearLayout.LayoutParams popupParams =
-                    (LinearLayout.LayoutParams) popupWindowLayout.getLayoutParams();
-            if (popupParams.height != LayoutHelper.WRAP_CONTENT) {
-                popupParams.height = LayoutHelper.WRAP_CONTENT;
-            }
-        }
         super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);
         if (popupWindowLayout == null) {
             return;
-        }
-
-        // AUTHORGRAM_FIXED_IOS_MESSAGE_PREVIEW
-        // AUTHORGRAM_ADAPTIVE_IOS_PREVIEW_SCROLL
-        // Top-level children (reactions and, for short messages, the preview)
-        // remain fixed. The popup receives exactly the remaining viewport.
-        // When a long preview is inside popupLayout, it scrolls with all actions.
-        int occupiedHeight = getPaddingTop() + getPaddingBottom();
-        for (int i = 0; i < getChildCount(); i++) {
-            View child = getChildAt(i);
-            if (child == popupWindowLayout || child.getVisibility() == GONE) {
-                continue;
-            }
-            LinearLayout.LayoutParams childParams =
-                    (LinearLayout.LayoutParams) child.getLayoutParams();
-            occupiedHeight += child.getMeasuredHeight()
-                    + childParams.topMargin
-                    + childParams.bottomMargin;
-        }
-        // AUTHORGRAM_STRICT_MENU_VIEWPORT
-        // Never force the popup beyond the real work area. Content that does
-        // not fit belongs to ActionBarPopupWindowLayout's internal ScrollView.
-        int availableForActions = Math.max(
-                1,
-                effectiveMaxHeight - occupiedHeight
-        );
-        LinearLayout.LayoutParams popupParams =
-                (LinearLayout.LayoutParams) popupWindowLayout.getLayoutParams();
-        int desiredPopupHeight = popupWindowLayout.getMeasuredHeight();
-        if (desiredPopupHeight > availableForActions) {
-            popupParams.height = availableForActions;
-            super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);
-        }
-
-        if (fixedMessagePreview != null) {
-            int popupWidthForPreview = popupWindowLayout.getMeasuredWidth();
-            LinearLayout.LayoutParams previewParams =
-                    (LinearLayout.LayoutParams) fixedMessagePreview.getLayoutParams();
-            if (popupWidthForPreview > 0 && previewParams.width != popupWidthForPreview) {
-                previewParams.width = popupWidthForPreview;
-                super.onMeasure(adjustedWidthSpec, constrainedHeightSpec);
-            }
         }
 
         if (reactionsLayout != null) {
@@ -205,9 +134,15 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
                 continue;
             }
             LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) view.getLayoutParams();
-            // AUTHORGRAM_MENU_FOOTER_WIDTH_PARITY
-            // Bottom quick-action blocks must exactly match the menu card width.
-            int newWidth = popupWidth > 0 ? popupWidth : foregroundWidth;
+            int newWidth;
+            if ((reactionsLayout == null || !reactionsLayout.showCustomEmojiReaction()) && view.getTag(R.id.fit_width_tag) == null) {
+                newWidth = LayoutHelper.MATCH_PARENT;
+            } else {
+                newWidth = foregroundWidth + AndroidUtilities.dp(16);
+                if (popupWidth > 0 && newWidth > popupWidth) {
+                    newWidth = popupWidth;
+                }
+            }
             int newSideMargin = popupWindowLayout.getSwipeBack() != null ? AndroidUtilities.dp(36) + safeSwipeBackWidthDiff : AndroidUtilities.dp(36);
             int currentSideMargin = LocaleController.isRTL ? layoutParams.leftMargin : layoutParams.rightMargin;
             if (layoutParams.width != newWidth || currentSideMargin != newSideMargin) {
@@ -242,99 +177,13 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
         }
     }
 
-    // AUTHORGRAM_UNIFIED_MENU_FOOTER
-    // Move quick actions into the same ActionBarPopupWindowLayout content as the
-    // normal action rows. ActionBarPopupWindowLayout.addView() routes these views
-    // into its internal LinearLayout/ScrollView, making the entire card reachable.
-    private void authorGramAttachPendingBottomViews() {
-        if (popupWindowLayout == null || bottomViews.isEmpty()) {
-            return;
-        }
-
-        ArrayList<FrameLayout> pendingBottomViews = new ArrayList<>(bottomViews);
-        bottomViews.clear();
-
-        if (!authorGramUnifiedFooterSeparatorAdded) {
-            View authorGramFooterSeparator = new View(getContext());
-            // AUTHORGRAM_MENU_FOOTER_SEPARATOR
-            authorGramFooterSeparator.setBackgroundColor(Theme.getColor(Theme.key_divider));
-            popupWindowLayout.addView(
-                    authorGramFooterSeparator,
-                    new LinearLayout.LayoutParams(
-                            LayoutHelper.MATCH_PARENT,
-                            AndroidUtilities.dp(1)
-                    )
-            );
-            authorGramUnifiedFooterSeparatorAdded = true;
-        }
-
-        for (FrameLayout bottomView : pendingBottomViews) {
-            if (bottomView == null) {
-                continue;
-            }
-            ViewGroup.LayoutParams oldParams = bottomView.getLayoutParams();
-            int footerHeight = oldParams != null && oldParams.height != 0
-                    ? oldParams.height
-                    : LayoutHelper.WRAP_CONTENT;
-
-            if (bottomView.getParent() instanceof ViewGroup) {
-                ((ViewGroup) bottomView.getParent()).removeView(bottomView);
-            }
-
-            // The popup owns the single rounded card background. Keeping a second
-            // footer background here would recreate the visually detached block.
-            bottomView.setBackground(null);
-            bottomView.setAlpha(1.0f);
-            bottomView.setTranslationX(0.0f);
-            bottomView.setTranslationY(0.0f);
-            bottomView.setScaleX(1.0f);
-            bottomView.setScaleY(1.0f);
-
-            LinearLayout.LayoutParams footerParams = new LinearLayout.LayoutParams(
-                    LayoutHelper.MATCH_PARENT,
-                    footerHeight
-            );
-            footerParams.leftMargin = 0;
-            footerParams.rightMargin = 0;
-            footerParams.topMargin = 0;
-            footerParams.bottomMargin = 0;
-            popupWindowLayout.addView(bottomView, footerParams);
-        }
-    }
-
     public void applyViewBottom(FrameLayout bottomView) {
-        if (bottomView != null && !bottomViews.contains(bottomView)) {
-            // AUTHORGRAM_UNIFIED_MENU_FOOTER
-            // Queue until measure: by then all normal menu rows are present,
-            // so the footer is appended last inside the popup ScrollView.
+        if (bottomView != null) {
             bottomViews.add(bottomView);
-            requestLayout();
-        }
-    }
-
-    public void setFixedMessagePreview(View preview) {
-        if (fixedMessagePreview == preview) {
-            return;
-        }
-        if (fixedMessagePreview != null && fixedMessagePreview.getParent() == this) {
-            removeView(fixedMessagePreview);
-        }
-        fixedMessagePreview = preview;
-        if (preview != null) {
-            if (preview.getParent() instanceof ViewGroup) {
-                ((ViewGroup) preview.getParent()).removeView(preview);
+            if (popupWindowLayout != null) {
+                updateBottomOffset();
             }
-            int popupIndex = popupWindowLayout == null
-                    ? getChildCount()
-                    : indexOfChild(popupWindowLayout);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    LayoutHelper.WRAP_CONTENT,
-                    LayoutHelper.WRAP_CONTENT
-            );
-            params.bottomMargin = AndroidUtilities.dp(8);
-            addView(preview, Math.max(0, popupIndex), params);
         }
-        requestLayout();
     }
 
     public void setReactionsLayout(ReactionsContainerLayout reactionsLayout) {
@@ -351,16 +200,6 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
 
     public void setPopupWindowLayout(ActionBarPopupWindow.ActionBarPopupWindowLayout popupWindowLayout) {
         this.popupWindowLayout = popupWindowLayout;
-        if (fixedMessagePreview != null) {
-            int popupIndex = indexOfChild(popupWindowLayout);
-            int previewIndex = indexOfChild(fixedMessagePreview);
-            if (popupIndex >= 0 && previewIndex > popupIndex) {
-                LinearLayout.LayoutParams previewParams =
-                        (LinearLayout.LayoutParams) fixedMessagePreview.getLayoutParams();
-                removeView(fixedMessagePreview);
-                addView(fixedMessagePreview, popupIndex, previewParams);
-            }
-        }
         popupWindowLayout.setOnSizeChangedListener(this::updateBottomOffset);
         if (popupWindowLayout.getSwipeBack() != null) {
             popupWindowLayout.getSwipeBack().addOnSwipeBackProgressListener((layout, toProgress, progress) -> {
@@ -397,9 +236,7 @@ public class ChatScrimPopupContainerLayout extends LinearLayout {
     }
 
     public void setMaxHeight(int maxHeight) {
-        int safeDisplayHeight = Math.max(AndroidUtilities.dp(160), AndroidUtilities.displaySize.y - AndroidUtilities.dp(16));
-        this.maxHeight = maxHeight > 0 ? Math.min(maxHeight, safeDisplayHeight) : safeDisplayHeight;
-        requestLayout();
+        this.maxHeight = maxHeight;
     }
 
     public void setExpandSize(float expandSize) {

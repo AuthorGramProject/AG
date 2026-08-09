@@ -34134,52 +34134,8 @@ public class ChatActivity extends BaseFragment implements
                         popupLayout.addView(new ActionBarPopupWindow.GapView(contentView.getContext(), themeDelegate), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
                     }
                 }
-                // AUTHORGRAM_IOS_MESSAGE_MENU_PREVIEW
-                // AUTHORGRAM_IOS_NATIVE_MESSAGE_PREVIEW
-                // AUTHORGRAM_UNIFIED_MESSAGE_MENU_FLOW
-                // Short and long selected-message previews share exactly one
-                // layout owner. popupLayout is the action ScrollView content,
-                // so the preview can never overlay the first action and the full
-                // preview/actions/footer surface remains reachable by scrolling.
-                if (selectedObject != null
-                        && v instanceof org.telegram.ui.Cells.ChatMessageCell
-                        && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
-                        && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool()) {
-                    org.telegram.ui.Cells.ChatMessageCell selectedMessageCell =
-                            (org.telegram.ui.Cells.ChatMessageCell) v;
-                    org.telegram.ui.Components.IOSMessageMenuPreview iosPreview =
-                            new org.telegram.ui.Components.IOSMessageMenuPreview(
-                                    getParentActivity(),
-                                    currentAccount,
-                                    selectedObject,
-                                    selectedMessageCell,
-                                    themeDelegate
-                            );
-                    LinearLayout.LayoutParams iosPreviewParams = LayoutHelper.createLinear(
-                            LayoutHelper.MATCH_PARENT,
-                            LayoutHelper.WRAP_CONTENT
-                    );
-                    iosPreviewParams.topMargin = AndroidUtilities.dp(2);
-                    popupLayout.addView(iosPreview, iosPreviewParams);
-
-                    org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView previewGap =
-                            new org.telegram.ui.ActionBar.ActionBarPopupWindow.GapView(
-                                    getParentActivity(),
-                                    android.graphics.Color.TRANSPARENT,
-                                    android.graphics.Color.TRANSPARENT
-                            );
-                    previewGap.setTag("AUTHORGRAM_IOS_MESSAGE_PREVIEW_GAP");
-                    popupLayout.addView(previewGap, LayoutHelper.createLinear(
-                            LayoutHelper.MATCH_PARENT,
-                            8
-                    ));
-                }
-
                 scrimPopupWindowItems = new ActionBarMenuSubItem[items.size()];
-                // AUTHORGRAM_NATIVE_IOS_MESSAGE_MENU_ACTIONS
-                final boolean hasGroupedIcons = GroupedIconsView.useGroupedIcons()
-                        || (org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
-                                && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool());
+                final boolean hasGroupedIcons = GroupedIconsView.useGroupedIcons();
                 for (int a = 0, N = items.size(); a < N; a++) {
                     ActionBarMenuSubItem cell = new ActionBarMenuSubItem(getParentActivity(), a == 0, a == N - 1, themeDelegate);
                     cell.setMinimumWidth(AndroidUtilities.dp(200));
@@ -34842,15 +34798,7 @@ public class ChatActivity extends BaseFragment implements
             }
             chatListView.stopScroll();
             chatLayoutManager.setCanScrollVertically(false);
-            // AUTHORGRAM_FULL_SCREEN_IOS_MENU_BLUR
-            // Passing no exempt source cell blurs the complete chat surface.
-            // The independent popup preview stays sharp above that background.
-            if (org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
-                    && tw.nekomimi.nekogram.NekoConfig.iOSMessageMenu.Bool()) {
-                dimBehindView(null, true, true);
-            } else {
-                dimBehindView(v, true);
-            }
+            dimBehindView(v, true);
             hideHints(false);
             if (topUndoView != null) {
                 topUndoView.hide(true, 1);

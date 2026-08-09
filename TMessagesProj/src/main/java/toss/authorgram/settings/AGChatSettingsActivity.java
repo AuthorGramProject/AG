@@ -100,16 +100,6 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         ));
     }
 
-    private AbstractConfigCell appendIOSMessageMenuRow() {
-        if (AuthorGramPlayPolicy.isPlayBuild()) {
-            return null;
-        }
-        return cellGroup.appendCell(new ConfigCellTextCheck(
-                NekoConfig.iOSMessageMenu,
-                getString(R.string.iOSMessageMenuNotice)
-        ));
-    }
-
     @Override
     protected RecyclerListView.SelectionAdapter getListAdapter() {
         return listAdapter;
@@ -176,7 +166,6 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
     }}, null));
     private final AbstractConfigCell hideShareButtonInChannelRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getHideShareButtonInChannel()));
     private final AbstractConfigCell groupedMessageMenuRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getGroupedMessageMenu(), getString(R.string.GroupedMessageMenuNotice)));
-    private final AbstractConfigCell iOSMessageMenuRow = appendIOSMessageMenuRow();
     private final AbstractConfigCell showMessageIDRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowMessageID()));
     private final AbstractConfigCell dateOfForwardMsgRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDateOfForwardedMsg()));
     private final AbstractConfigCell dividerMessages = cellGroup.appendCell(new ConfigCellDivider());

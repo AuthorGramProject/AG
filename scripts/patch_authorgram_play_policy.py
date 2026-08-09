@@ -116,7 +116,6 @@ def patch_messages_controller():
 
     return write(relative, content) if changed else False
 
-
 def patch_build_integrity():
     relative = "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramBuildIntegrity.java"
     content = read(relative)
@@ -131,20 +130,7 @@ def patch_build_integrity():
 
 def validate():
     policy = read("TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java")
-    for item in (
-        'values.put("hideSponsoredMessage", false)',
-        'values.put("HideProxySponsorChannel", false)',
-        'values.put("localPremium", false)',
-        'values.put("EnableSaveDeletedMessages", false)',
-        'values.put("EnableSaveEditsHistory", false)',
-        'values.put("sendReadMessagePackets", true)',
-        'values.put("ignoreContentRestrictions", false)',
-        'values.put("iOSMessageInputField", false)',
-        'values.put("iOSMessageMenu", false)',
-        "public static boolean canUseIosUi()",
-        "OWNER_DIALOG_ID = 6316376597L",
-        "return !isPlayBuild();",
-    ):
+    for item in ('values.put("hideSponsoredMessage", false)', 'values.put("HideProxySponsorChannel", false)', 'values.put("localPremium", false)', 'values.put("EnableSaveDeletedMessages", false)', 'values.put("EnableSaveEditsHistory", false)', 'values.put("sendReadMessagePackets", true)', 'values.put("ignoreContentRestrictions", false)', 'values.put("iOSMessageInputField", false)', "OWNER_DIALOG_ID = 6316376597L", "return !isPlayBuild();"):
         if item not in policy:
             raise RuntimeError("Play policy validation failed: " + item)
 
@@ -162,16 +148,7 @@ def validate():
 
 
 def main():
-    operations = sum(
-        int(operation())
-        for operation in (
-            patch_defaults,
-            patch_config_item,
-            patch_router,
-            patch_messages_controller,
-            patch_build_integrity,
-        )
-    )
+    operations = sum(int(operation()) for operation in (patch_defaults, patch_config_item, patch_router, patch_messages_controller, patch_build_integrity))
     validate()
     print("AuthorGram strict Play policy patch passed; changed files: " + str(operations))
     return 0

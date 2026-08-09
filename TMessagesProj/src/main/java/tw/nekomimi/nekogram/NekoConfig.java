@@ -109,7 +109,6 @@ public class NekoConfig {
     public static ConfigItem openArchiveOnPull = addConfig("OpenArchiveOnPull", configTypeBool, false);
     public static ConfigItem hideKeyboardOnChatScroll = addConfig("HideKeyboardOnChatScroll", configTypeBool, false);
     public static ConfigItem iOSMessageInputField = addConfig("iOSMessageInputField", configTypeBool, false);
-    public static ConfigItem iOSMessageMenu = addConfig("iOSMessageMenu", configTypeBool, true);
     public static ConfigItem useSystemEmoji = addConfig("EmojiUseDefault", configTypeBool, false);
     public static ConfigItem rearVideoMessages = addConfig("RearVideoMessages", configTypeBool, false);
     public static ConfigItem hideAllTab = addConfig("HideAllTab", configTypeBool, false);
