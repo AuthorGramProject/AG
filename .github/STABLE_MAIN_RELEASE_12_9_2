@@ -1,0 +1,17 @@
+AuthorGram 12.9.2 stable Main release trigger
+requested=2026-08-09T00:10+02:00
+scope=main-only
+devSource=b01577919ed4e1d0c8e5e2b2473aa6eeca3e7a73
+reason=explicit-sender-header-reflow-preview-scope-compatible
+iosPreview=fixed-avatar-name-header-plus-fresh-reflowed-telegram-chatmessagecell
+messageOwner=full-chat-work-area-no-action-popup-margins
+messageWidth=reflow-to-current-preview-work-area-never-source-cell-width-height
+messageHeight=bounded-message-scroll-up-to-340dp-plus-fixed-50dp-sender-header
+senderIdentity=explicit-38dp-round-avatar-bold-ellipsized-name-unknown-fallback
+previewFallback=raw-message-text-only-on-authorgram-preview-bind-failure
+scopeGuard=legacy-synthetic-header-still-forbidden-unless-final-header-marker-present
+menuViewport=strict-real-work-area-natural-footer
+settingsLinks=lifecycle-safe-router-plus-me-url-diffutil-fix
+blockedChannelLookup=no-ui-thread-db
+inputRuntime=zero-width-post-loop-guarded
+playTouched=false
