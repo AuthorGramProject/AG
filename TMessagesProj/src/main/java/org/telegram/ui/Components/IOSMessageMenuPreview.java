@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
@@ -12,11 +14,13 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -44,13 +48,17 @@ import org.telegram.ui.Cells.ChatMessageCell;
  */
 public final class IOSMessageMenuPreview extends View {
     private static final int SCREEN_EDGE_DP = 12;
-    private static final int PREVIEW_TOP_GAP_DP = 4;
-    private static final int PREVIEW_MENU_GAP_DP = 8;
+    private static final int PREVIEW_TOP_GAP_DP = 10;
+    private static final int PREVIEW_MENU_GAP_DP = 12;
+    private static final int PREVIEW_EXTRA_WIDTH_DP = 24;
     private static final int AVATAR_SIZE_DP = 36;
     private static final int AVATAR_GAP_DP = 8;
-    private static final int MIN_PREVIEW_VIEWPORT_DP = 96;
-    private static final int MAX_PREVIEW_VIEWPORT_DP = 220;
-    private static final int MIN_MENU_VIEWPORT_DP = 200;
+    private static final int SENDER_NAME_HEIGHT_DP = 20;
+    private static final int SENDER_NAME_BOTTOM_GAP_DP = 4;
+    private static final int MIN_PREVIEW_VIEWPORT_DP = 104;
+    private static final int MAX_PREVIEW_VIEWPORT_DP = 260;
+    private static final int MIN_MENU_VIEWPORT_DP = 150;
+    private static final int MAX_MENU_VIEWPORT_DP = 220;
     private static final int BACKGROUND_DOWNSCALE = 12;
     private static final int BACKGROUND_BLUR_RADIUS = 15;
 
@@ -64,6 +72,7 @@ public final class IOSMessageMenuPreview extends View {
     private FrameLayout previewContent;
     private ImageView messagePreviewView;
     private BackupImageView avatarPreviewView;
+    private TextView senderNameView;
 
     private Bitmap messageSnapshot;
     private int snapshotWidth;
@@ -72,6 +81,7 @@ public final class IOSMessageMenuPreview extends View {
     private ChatScrimPopupContainerLayout scrimContainer;
     private View menuDirectChild;
     private int currentGroupHeight;
+    private boolean previewRevealed;
     private boolean cleanedUp;
 
     private IOSMessageMenuPreview(
@@ -81,7 +91,7 @@ public final class IOSMessageMenuPreview extends View {
             Theme.ResourcesProvider resourcesProvider
     ) {
         super(context);
-        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V5_VADYM_REFERENCE");
+        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V6_FINAL");
         setVisibility(GONE);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
 
@@ -108,9 +118,17 @@ public final class IOSMessageMenuPreview extends View {
 
         MessageObject messageObject = sourceCell.getMessageObject();
         TLObject senderPeer = resolveSenderPeer(currentAccount, messageObject);
+        boolean showExternalSenderName = sourceCell.getAvatarImage() == null;
 
         createBlurOverlay(context, resourcesProvider);
-        createPreviewViews(context, currentAccount, messageObject, senderPeer);
+        createPreviewViews(
+                context,
+                currentAccount,
+                messageObject,
+                senderPeer,
+                showExternalSenderName,
+                resourcesProvider
+        );
 
         // If popup creation is aborted before the controller reaches a window,
         // never leave the blur layer attached to the activity root.
@@ -203,13 +221,16 @@ public final class IOSMessageMenuPreview extends View {
             Context context,
             int currentAccount,
             MessageObject messageObject,
-            TLObject senderPeer
+            TLObject senderPeer,
+            boolean showExternalSenderName,
+            Theme.ResourcesProvider resourcesProvider
     ) {
         previewHost = new FrameLayout(context);
         previewHost.setTag("AUTHORGRAM_IOS_MESSAGE_PREVIEW_HOST");
         previewHost.setBackgroundColor(Color.TRANSPARENT);
-        previewHost.setClipChildren(false);
-        previewHost.setClipToPadding(false);
+        previewHost.setClipChildren(true);
+        previewHost.setClipToPadding(true);
+        previewHost.setVisibility(INVISIBLE);
         previewHost.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
 
         previewScrollView = new ScrollView(context);
@@ -249,6 +270,31 @@ public final class IOSMessageMenuPreview extends View {
                 new FrameLayout.LayoutParams(snapshotWidth, snapshotHeight)
         );
 
+        if (showExternalSenderName) {
+            String senderName = resolveSenderName(senderPeer);
+            if (!TextUtils.isEmpty(senderName)) {
+                TextView name = new TextView(context);
+                name.setSingleLine(true);
+                name.setEllipsize(TextUtils.TruncateAt.END);
+                name.setText(senderName);
+                name.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+                name.setTypeface(AndroidUtilities.bold());
+                name.setTextColor(Theme.getColor(
+                        Theme.key_actionBarDefaultSubmenuItem,
+                        resourcesProvider
+                ));
+                name.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+                previewContent.addView(
+                        name,
+                        new FrameLayout.LayoutParams(
+                                Math.max(1, snapshotWidth),
+                                AndroidUtilities.dp(SENDER_NAME_HEIGHT_DP)
+                        )
+                );
+                senderNameView = name;
+            }
+        }
+
         if (senderPeer != null) {
             BackupImageView avatar = new BackupImageView(context);
             avatar.setRoundRadius(AndroidUtilities.dp(AVATAR_SIZE_DP / 2));
@@ -279,11 +325,6 @@ public final class IOSMessageMenuPreview extends View {
 
             removeLegacyTopGap();
             attachPreviewBetweenReactionsAndMenu();
-            if (scrimContainer != null) {
-                scrimContainer.requestLayout();
-                scrimContainer.post(this::reflowPreviewAndMenu);
-                scrimContainer.postDelayed(this::reflowPreviewAndMenu, 32L);
-            }
         });
     }
 
@@ -339,17 +380,37 @@ public final class IOSMessageMenuPreview extends View {
             return;
         }
 
+        int menuWidth = menuDirectChild.getMeasuredWidth();
+        if (menuWidth <= 0) {
+            menuWidth = menuDirectChild.getWidth();
+        }
+        if (menuWidth <= 0) {
+            scrimContainer.post(this::attachPreviewBetweenReactionsAndMenu);
+            return;
+        }
+
+        int previewWidth = calculatePreviewWidth(menuWidth);
+        currentGroupHeight = configurePreviewContentForWidth(previewWidth);
         int initialHeight = Math.min(
-                Math.max(snapshotHeight, AndroidUtilities.dp(AVATAR_SIZE_DP)),
+                Math.max(1, currentGroupHeight),
                 AndroidUtilities.dp(MAX_PREVIEW_VIEWPORT_DP)
         );
+
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                Math.max(1, initialHeight)
+                initialHeight
         );
         params.topMargin = AndroidUtilities.dp(PREVIEW_TOP_GAP_DP);
         params.bottomMargin = AndroidUtilities.dp(PREVIEW_MENU_GAP_DP);
+
+        FrameLayout.LayoutParams scrollParams =
+                (FrameLayout.LayoutParams) previewScrollView.getLayoutParams();
+        scrollParams.width = previewWidth;
+        scrollParams.height = initialHeight;
+        previewScrollView.setLayoutParams(scrollParams);
+
         scrimContainer.addView(previewHost, menuIndex, params);
+        reflowPreviewAndMenu();
     }
 
     private ChatScrimPopupContainerLayout findScrimAncestor() {
@@ -394,7 +455,8 @@ public final class IOSMessageMenuPreview extends View {
             return;
         }
 
-        int groupHeight = configurePreviewContentForWidth(menuWidth);
+        int previewWidth = calculatePreviewWidth(menuWidth);
+        int groupHeight = configurePreviewContentForWidth(previewWidth);
         if (groupHeight <= 0) {
             return;
         }
@@ -426,29 +488,44 @@ public final class IOSMessageMenuPreview extends View {
                         - hostMargins
         );
 
-        int previewViewportHeight;
-        int menuViewportLimit;
-        if (groupHeight + naturalMenuHeight <= stackCapacity) {
-            previewViewportHeight = groupHeight;
-            menuViewportLimit = naturalMenuHeight;
-        } else {
-            int minMenu = Math.min(
-                    naturalMenuHeight,
-                    AndroidUtilities.dp(MIN_MENU_VIEWPORT_DP)
+        int desiredMenuViewport = Math.min(
+                naturalMenuHeight,
+                AndroidUtilities.dp(MAX_MENU_VIEWPORT_DP)
+        );
+        int minimumMenuViewport = Math.min(
+                naturalMenuHeight,
+                AndroidUtilities.dp(MIN_MENU_VIEWPORT_DP)
+        );
+        int minimumPreviewViewport = Math.min(
+                groupHeight,
+                AndroidUtilities.dp(MIN_PREVIEW_VIEWPORT_DP)
+        );
+        int previewCeiling = Math.min(
+                groupHeight,
+                AndroidUtilities.dp(MAX_PREVIEW_VIEWPORT_DP)
+        );
+
+        int previewViewportHeight = Math.min(
+                previewCeiling,
+                Math.max(minimumPreviewViewport, stackCapacity - minimumMenuViewport)
+        );
+        previewViewportHeight = Math.min(
+                previewViewportHeight,
+                Math.max(1, stackCapacity - AndroidUtilities.dp(96))
+        );
+
+        int menuViewportLimit = Math.min(
+                desiredMenuViewport,
+                Math.max(AndroidUtilities.dp(96), stackCapacity - previewViewportHeight)
+        );
+        if (menuViewportLimit < minimumMenuViewport
+                && previewViewportHeight > minimumPreviewViewport) {
+            int giveBack = Math.min(
+                    previewViewportHeight - minimumPreviewViewport,
+                    minimumMenuViewport - menuViewportLimit
             );
-            int maxHeightForPreview = Math.max(
-                    AndroidUtilities.dp(MIN_PREVIEW_VIEWPORT_DP),
-                    stackCapacity - minMenu
-            );
-            maxHeightForPreview = Math.min(
-                    maxHeightForPreview,
-                    AndroidUtilities.dp(MAX_PREVIEW_VIEWPORT_DP)
-            );
-            previewViewportHeight = Math.min(groupHeight, maxHeightForPreview);
-            menuViewportLimit = Math.max(
-                    AndroidUtilities.dp(96),
-                    stackCapacity - previewViewportHeight
-            );
+            previewViewportHeight -= giveBack;
+            menuViewportLimit += giveBack;
         }
 
         if (hostParams.height != previewViewportHeight) {
@@ -458,7 +535,7 @@ public final class IOSMessageMenuPreview extends View {
 
         FrameLayout.LayoutParams scrollParams =
                 (FrameLayout.LayoutParams) previewScrollView.getLayoutParams();
-        scrollParams.width = menuWidth;
+        scrollParams.width = previewWidth;
         scrollParams.height = previewViewportHeight;
         previewScrollView.setLayoutParams(scrollParams);
 
@@ -474,51 +551,71 @@ public final class IOSMessageMenuPreview extends View {
      * scale. A tall message therefore keeps its real proportions and becomes
      * vertically scrollable inside previewScrollView.
      */
-    private int configurePreviewContentForWidth(int menuWidth) {
-        int avatarSize = avatarPreviewView == null
-                ? 0
-                : AndroidUtilities.dp(AVATAR_SIZE_DP);
-        int avatarGap = avatarPreviewView == null
-                ? 0
-                : AndroidUtilities.dp(AVATAR_GAP_DP);
+    private int configurePreviewContentForWidth(int previewWidth) {
+        int avatarSize = avatarPreviewView == null ? 0 : AndroidUtilities.dp(AVATAR_SIZE_DP);
+        int avatarGap = avatarPreviewView == null ? 0 : AndroidUtilities.dp(AVATAR_GAP_DP);
+        int senderNameHeight = senderNameView == null ? 0 : AndroidUtilities.dp(SENDER_NAME_HEIGHT_DP);
+        int senderNameGap = senderNameView == null ? 0 : AndroidUtilities.dp(SENDER_NAME_BOTTOM_GAP_DP);
 
         int availableMessageWidth = Math.max(
                 AndroidUtilities.dp(96),
-                menuWidth - avatarSize - avatarGap
+                previewWidth - avatarSize - avatarGap
         );
         float widthScale = Math.min(1.0f, availableMessageWidth / (float) snapshotWidth);
 
         int messageWidth = Math.max(1, Math.round(snapshotWidth * widthScale));
         int messageHeight = Math.max(1, Math.round(snapshotHeight * widthScale));
         int groupWidth = messageWidth + avatarSize + avatarGap;
-        int groupHeight = Math.max(messageHeight, avatarSize);
+        int groupLeft = Math.max(0, (previewWidth - groupWidth) / 2);
+        int bodyTop = senderNameHeight + senderNameGap;
+        int bodyHeight = Math.max(messageHeight, avatarSize);
+        int groupHeight = bodyTop + bodyHeight;
 
         FrameLayout.LayoutParams messageParams =
                 (FrameLayout.LayoutParams) messagePreviewView.getLayoutParams();
         messageParams.width = messageWidth;
         messageParams.height = messageHeight;
-        messageParams.leftMargin = avatarSize + avatarGap;
-        messageParams.topMargin = groupHeight - messageHeight;
+        messageParams.leftMargin = groupLeft + avatarSize + avatarGap;
+        messageParams.topMargin = bodyTop + bodyHeight - messageHeight;
         messagePreviewView.setLayoutParams(messageParams);
+
+        if (senderNameView != null) {
+            FrameLayout.LayoutParams nameParams =
+                    (FrameLayout.LayoutParams) senderNameView.getLayoutParams();
+            nameParams.width = messageWidth;
+            nameParams.height = senderNameHeight;
+            nameParams.leftMargin = groupLeft + avatarSize + avatarGap;
+            nameParams.topMargin = 0;
+            senderNameView.setLayoutParams(nameParams);
+        }
 
         if (avatarPreviewView != null) {
             FrameLayout.LayoutParams avatarParams =
                     (FrameLayout.LayoutParams) avatarPreviewView.getLayoutParams();
             avatarParams.width = avatarSize;
             avatarParams.height = avatarSize;
-            avatarParams.leftMargin = 0;
-            // Matches the reference screenshot: avatar is bottom-aligned to the bubble.
-            avatarParams.topMargin = groupHeight - avatarSize;
+            avatarParams.leftMargin = groupLeft;
+            avatarParams.topMargin = bodyTop + bodyHeight - avatarSize;
             avatarPreviewView.setRoundRadius(avatarSize / 2);
             avatarPreviewView.setLayoutParams(avatarParams);
         }
 
         ViewGroup.LayoutParams contentParams = previewContent.getLayoutParams();
-        contentParams.width = groupWidth;
+        contentParams.width = previewWidth;
         contentParams.height = groupHeight;
         previewContent.setLayoutParams(contentParams);
-
         return groupHeight;
+    }
+
+    private int calculatePreviewWidth(int menuWidth) {
+        int maxAvailable = Math.max(
+                menuWidth,
+                rootView.getWidth() - AndroidUtilities.dp(SCREEN_EDGE_DP * 2)
+        );
+        return Math.min(
+                maxAvailable,
+                menuWidth + AndroidUtilities.dp(PREVIEW_EXTRA_WIDTH_DP)
+        );
     }
 
     private int getFixedScrimChildrenHeight() {
@@ -646,7 +743,8 @@ public final class IOSMessageMenuPreview extends View {
 
         FrameLayout.LayoutParams params =
                 (FrameLayout.LayoutParams) previewScrollView.getLayoutParams();
-        int left = menuLocation[0] - hostLocation[0];
+        int left = menuLocation[0] - hostLocation[0]
+                - Math.max(0, params.width - menuDirectChild.getWidth()) / 2;
         left = clamp(
                 left,
                 0,
@@ -662,6 +760,22 @@ public final class IOSMessageMenuPreview extends View {
         if (currentGroupHeight <= previewScrollView.getHeight()) {
             previewScrollView.scrollTo(0, 0);
         }
+
+        if (!previewRevealed) {
+            previewScrollView.scrollTo(0, 0);
+            previewHost.setVisibility(VISIBLE);
+            previewRevealed = true;
+        }
+    }
+
+    private static String resolveSenderName(TLObject senderPeer) {
+        if (senderPeer instanceof TLRPC.User) {
+            return UserObject.getUserName((TLRPC.User) senderPeer);
+        }
+        if (senderPeer instanceof TLRPC.Chat) {
+            return ((TLRPC.Chat) senderPeer).title;
+        }
+        return null;
     }
 
     private static TLObject resolveSenderPeer(int currentAccount, MessageObject messageObject) {
