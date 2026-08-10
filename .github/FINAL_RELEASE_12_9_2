@@ -1,8 +1,11 @@
-AuthorGram 12.9.2 exact pre-menu release trigger.
-Release application source is commit 388a3a3efb03339e5d54860bdb0c988cced6775d: iOS Input only.
-Do not introduce iOS Message Menu, IOSMessageMenuPreview, custom message-menu blur, selected-message preview or popup ownership changes.
-Preserve the iOS Input composer fix and stale icon guard already present in the selected commit.
-Preserve package identities, Main-only feature policy, signing identity, author_badge protection and launcher artwork.
-Historical Actions cleanup is best-effort and must never block any guard or compilation step.
-Build the verified Main and Play release APK workflow without AAB artifacts.
-Release retry after nested cleanup guard fix: 2026-08-09T19:52:00+02:00.
+AuthorGram+ 12.9.2 dev-only release trigger.
+Branch: dev
+Package: fork.risin42.nagramx
+App name: AuthorGram+
+Build type: release
+Artifact: APK only
+ABI: arm64-v8a
+Signing identity: existing AuthorGram release key restored only inside the GitHub Actions runner from historical Main commit eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369.
+Play Market branch must not be modified or built.
+No AAB artifacts.
+Triggered: 2026-08-10T16:43:00+02:00
