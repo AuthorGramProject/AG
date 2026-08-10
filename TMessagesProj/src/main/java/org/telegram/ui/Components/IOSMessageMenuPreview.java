@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -19,36 +20,58 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
 
 /**
  * Dev-only controller for the AuthorGram iOS-style message context preview.
  *
- * The selected message is rendered in a full-screen overlay behind Telegram's
- * ActionBarPopupWindow. It is therefore visually separate from the action list,
- * while the popup keeps its native actions, reactions and click handling.
+ * Reference geometry is intentionally the iOS-style example with the message
+ * from "Vadym Yemelianov":
  *
- * The implementation deliberately snapshots the already-bound ChatMessageCell
- * instead of re-binding MessageObject data. This keeps reply/link/media handling
- * isolated from the context-menu preview and avoids the historical chat crashes.
+ *     reactions
+ *     selected native Telegram message (avatar + bubble)
+ *     action menu
+ *
+ * The selected message is NOT part of the action-menu background. It is placed
+ * as a transparent sibling immediately before the popup menu inside
+ * ChatScrimPopupContainerLayout, while a full-screen blurred snapshot remains
+ * behind the complete popup composition.
+ *
+ * The source ChatMessageCell is only snapshotted. MessageObject is never rebound,
+ * so reply/link/media/settings-link processing remains isolated from this UI.
  */
 public final class IOSMessageMenuPreview extends View {
-    private static final int MAX_PREVIEW_WIDTH_DP = 360;
     private static final int SCREEN_EDGE_DP = 12;
+    private static final int PREVIEW_TOP_GAP_DP = 4;
     private static final int PREVIEW_MENU_GAP_DP = 8;
     private static final int AVATAR_SIZE_DP = 36;
     private static final int AVATAR_GAP_DP = 8;
+    private static final int MIN_PREVIEW_VIEWPORT_DP = 96;
+    private static final int MAX_PREVIEW_VIEWPORT_DP = 220;
+    private static final int MIN_MENU_VIEWPORT_DP = 200;
     private static final int BACKGROUND_DOWNSCALE = 12;
     private static final int BACKGROUND_BLUR_RADIUS = 15;
 
-    private final ViewGroup rootView;
-    private final FrameLayout overlay;
-    private final ImageView blurredBackgroundView;
-    private final ImageView messagePreviewView;
-    private final Bitmap messageSnapshot;
-    private final BackupImageView avatarPreviewView;
+    private ViewGroup rootView;
+    private FrameLayout blurOverlay;
+    private ImageView blurredBackgroundView;
     private Bitmap blurredBackground;
+
+    private FrameLayout previewHost;
+    private ScrollView previewScrollView;
+    private FrameLayout previewContent;
+    private ImageView messagePreviewView;
+    private BackupImageView avatarPreviewView;
+
+    private Bitmap messageSnapshot;
+    private int snapshotWidth;
+    private int snapshotHeight;
+
+    private ChatScrimPopupContainerLayout scrimContainer;
+    private View menuDirectChild;
+    private int currentGroupHeight;
     private boolean cleanedUp;
 
     private IOSMessageMenuPreview(
@@ -58,137 +81,46 @@ public final class IOSMessageMenuPreview extends View {
             Theme.ResourcesProvider resourcesProvider
     ) {
         super(context);
-        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V4");
+        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V5_VADYM_REFERENCE");
         setVisibility(GONE);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
 
-        View root = sourceCell == null ? null : sourceCell.getRootView();
-        if (!(root instanceof ViewGroup)
-                || root.getWidth() <= 0
-                || root.getHeight() <= 0
+        if (sourceCell == null
                 || sourceCell.getWidth() <= 0
-                || sourceCell.getHeight() <= 0) {
-            rootView = null;
-            overlay = null;
-            blurredBackgroundView = null;
-            messagePreviewView = null;
-            messageSnapshot = null;
-            avatarPreviewView = null;
+                || sourceCell.getHeight() <= 0
+                || !(sourceCell.getRootView() instanceof ViewGroup)) {
             return;
         }
 
+        View root = sourceCell.getRootView();
+        if (root.getWidth() <= 0 || root.getHeight() <= 0) {
+            return;
+        }
         rootView = (ViewGroup) root;
+
+        SnapshotResult result = captureNativeCell(sourceCell);
+        messageSnapshot = result.bitmap;
+        snapshotWidth = result.width;
+        snapshotHeight = result.height;
+        if (messageSnapshot == null || snapshotWidth <= 0 || snapshotHeight <= 0) {
+            return;
+        }
 
         MessageObject messageObject = sourceCell.getMessageObject();
         TLObject senderPeer = resolveSenderPeer(currentAccount, messageObject);
-        boolean showStandaloneAvatar = senderPeer != null;
 
-        SnapshotResult messageResult = captureNativeCell(
-                sourceCell,
-                rootView.getWidth(),
-                rootView.getHeight(),
-                showStandaloneAvatar
-        );
-        messageSnapshot = messageResult.bitmap;
-        if (messageSnapshot == null) {
-            overlay = null;
-            blurredBackgroundView = null;
-            messagePreviewView = null;
-            avatarPreviewView = null;
-            return;
+        createBlurOverlay(context, resourcesProvider);
+        createPreviewViews(context, currentAccount, messageObject, senderPeer);
+
+        // If popup creation is aborted before the controller reaches a window,
+        // never leave the blur layer attached to the activity root.
+        if (blurOverlay != null) {
+            blurOverlay.postDelayed(() -> {
+                if (!isAttachedToWindow()) {
+                    cleanup();
+                }
+            }, 2500L);
         }
-
-        blurredBackground = captureBlurredBackground(rootView);
-
-        overlay = new FrameLayout(context);
-        overlay.setTag("AUTHORGRAM_IOS_MESSAGE_MENU_BLUR_OVERLAY");
-        overlay.setClickable(false);
-        overlay.setFocusable(false);
-        overlay.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
-        overlay.setClipChildren(false);
-        overlay.setClipToPadding(false);
-
-        blurredBackgroundView = new ImageView(context);
-        blurredBackgroundView.setScaleType(ImageView.ScaleType.FIT_XY);
-        blurredBackgroundView.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-        if (blurredBackground != null) {
-            blurredBackgroundView.setImageBitmap(blurredBackground);
-        } else {
-            // Defensive fallback: menu functionality must survive a failed blur allocation.
-            blurredBackgroundView.setBackgroundColor(
-                    Theme.multAlpha(
-                            Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider),
-                            0.55f
-                    )
-            );
-        }
-        overlay.addView(
-                blurredBackgroundView,
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                )
-        );
-
-        View dim = new View(context);
-        dim.setBackgroundColor(Color.argb(52, 0, 0, 0));
-        dim.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-        overlay.addView(
-                dim,
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                )
-        );
-
-        messagePreviewView = new ImageView(context);
-        messagePreviewView.setScaleType(ImageView.ScaleType.FIT_XY);
-        messagePreviewView.setAdjustViewBounds(false);
-        messagePreviewView.setImageBitmap(messageSnapshot);
-        messagePreviewView.setVisibility(INVISIBLE);
-        messagePreviewView.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-        overlay.addView(
-                messagePreviewView,
-                new FrameLayout.LayoutParams(messageResult.width, messageResult.height)
-        );
-
-        if (showStandaloneAvatar) {
-            BackupImageView avatar = new BackupImageView(context);
-            avatar.setRoundRadius(AndroidUtilities.dp(AVATAR_SIZE_DP / 2));
-            avatar.setVisibility(INVISIBLE);
-            avatar.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-
-            AvatarDrawable avatarDrawable = new AvatarDrawable();
-            avatarDrawable.setInfo(currentAccount, senderPeer);
-            avatar.setForUserOrChat(senderPeer, avatarDrawable, messageObject);
-
-            overlay.addView(
-                    avatar,
-                    new FrameLayout.LayoutParams(
-                            AndroidUtilities.dp(AVATAR_SIZE_DP),
-                            AndroidUtilities.dp(AVATAR_SIZE_DP)
-                    )
-            );
-            avatarPreviewView = avatar;
-        } else {
-            avatarPreviewView = null;
-        }
-
-        rootView.addView(
-                overlay,
-                new ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                )
-        );
-
-        // If popup creation is aborted before this controller is attached,
-        // never leave the blur layer behind.
-        overlay.postDelayed(() -> {
-            if (!isAttachedToWindow()) {
-                cleanup();
-            }
-        }, 2500L);
     }
 
     public static IOSMessageMenuPreview create(
@@ -209,71 +141,458 @@ public final class IOSMessageMenuPreview extends View {
     public boolean isUsable() {
         return !cleanedUp
                 && rootView != null
-                && overlay != null
+                && blurOverlay != null
+                && previewHost != null
+                && previewScrollView != null
+                && previewContent != null
                 && messagePreviewView != null
                 && messageSnapshot != null;
+    }
+
+    private void createBlurOverlay(Context context, Theme.ResourcesProvider resourcesProvider) {
+        blurredBackground = captureBlurredBackground(rootView);
+
+        blurOverlay = new FrameLayout(context);
+        blurOverlay.setTag("AUTHORGRAM_IOS_MESSAGE_MENU_BLUR_OVERLAY");
+        blurOverlay.setClickable(false);
+        blurOverlay.setFocusable(false);
+        blurOverlay.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+
+        blurredBackgroundView = new ImageView(context);
+        blurredBackgroundView.setScaleType(ImageView.ScaleType.FIT_XY);
+        blurredBackgroundView.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        if (blurredBackground != null) {
+            blurredBackgroundView.setImageBitmap(blurredBackground);
+        } else {
+            blurredBackgroundView.setBackgroundColor(
+                    Theme.multAlpha(
+                            Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider),
+                            0.55f
+                    )
+            );
+        }
+        blurOverlay.addView(
+                blurredBackgroundView,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                )
+        );
+
+        View dim = new View(context);
+        dim.setBackgroundColor(Color.argb(52, 0, 0, 0));
+        dim.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        blurOverlay.addView(
+                dim,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                )
+        );
+
+        rootView.addView(
+                blurOverlay,
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                )
+        );
+    }
+
+    private void createPreviewViews(
+            Context context,
+            int currentAccount,
+            MessageObject messageObject,
+            TLObject senderPeer
+    ) {
+        previewHost = new FrameLayout(context);
+        previewHost.setTag("AUTHORGRAM_IOS_MESSAGE_PREVIEW_HOST");
+        previewHost.setBackgroundColor(Color.TRANSPARENT);
+        previewHost.setClipChildren(false);
+        previewHost.setClipToPadding(false);
+        previewHost.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+
+        previewScrollView = new ScrollView(context);
+        previewScrollView.setFillViewport(false);
+        previewScrollView.setVerticalScrollBarEnabled(false);
+        previewScrollView.setVerticalFadingEdgeEnabled(false);
+        previewScrollView.setOverScrollMode(OVER_SCROLL_NEVER);
+        previewScrollView.setClipChildren(true);
+        previewScrollView.setClipToPadding(true);
+
+        previewContent = new FrameLayout(context);
+        previewContent.setClipChildren(false);
+        previewContent.setClipToPadding(false);
+        previewScrollView.addView(
+                previewContent,
+                new ScrollView.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+        );
+
+        previewHost.addView(
+                previewScrollView,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT
+                )
+        );
+
+        messagePreviewView = new ImageView(context);
+        messagePreviewView.setScaleType(ImageView.ScaleType.FIT_XY);
+        messagePreviewView.setAdjustViewBounds(false);
+        messagePreviewView.setImageBitmap(messageSnapshot);
+        messagePreviewView.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        previewContent.addView(
+                messagePreviewView,
+                new FrameLayout.LayoutParams(snapshotWidth, snapshotHeight)
+        );
+
+        if (senderPeer != null) {
+            BackupImageView avatar = new BackupImageView(context);
+            avatar.setRoundRadius(AndroidUtilities.dp(AVATAR_SIZE_DP / 2));
+            avatar.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+
+            AvatarDrawable avatarDrawable = new AvatarDrawable();
+            avatarDrawable.setInfo(currentAccount, senderPeer);
+            avatar.setForUserOrChat(senderPeer, avatarDrawable, messageObject);
+
+            previewContent.addView(
+                    avatar,
+                    new FrameLayout.LayoutParams(
+                            AndroidUtilities.dp(AVATAR_SIZE_DP),
+                            AndroidUtilities.dp(AVATAR_SIZE_DP)
+                    )
+            );
+            avatarPreviewView = avatar;
+        }
     }
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-
-        /*
-         * Telegram's popup layout contains an internal ScrollView. With many
-         * AuthorGram/Nagram actions its WRAP_CONTENT height can exceed the
-         * visible window, leaving the final actions below the navigation area.
-         * Cap only this popup's ScrollView to the actual visible viewport. The
-         * LinearLayout remains full-height inside it, so every action is still
-         * reachable by native scrolling.
-         */
         post(() -> {
-            constrainMenuScrollToViewport();
-            post(this::placeMessagePreviewOutsideMenu);
+            if (!isUsable()) {
+                return;
+            }
+
+            removeLegacyTopGap();
+            attachPreviewBetweenReactionsAndMenu();
+            if (scrimContainer != null) {
+                scrimContainer.requestLayout();
+                scrimContainer.post(this::reflowPreviewAndMenu);
+                scrimContainer.postDelayed(this::reflowPreviewAndMenu, 32L);
+            }
         });
     }
 
     /**
-     * Keep the action list inside the visible window without changing any menu
-     * items or their ordering. Short menus retain WRAP_CONTENT-like dimensions;
-     * only overflowing menus receive a finite ScrollView height.
+     * Older V4 integration inserted an 8dp GapView after this controller. The
+     * V5 preview is now a true sibling between reactions and menu, so that old
+     * separator must not consume space at the top of the action block.
      */
-    private void constrainMenuScrollToViewport() {
-        if (!isUsable()) {
+    private void removeLegacyTopGap() {
+        ViewParent parent = getParent();
+        if (!(parent instanceof LinearLayout)) {
             return;
         }
+        LinearLayout list = (LinearLayout) parent;
+        int index = list.indexOfChild(this);
+        if (index < 0 || index + 1 >= list.getChildCount()) {
+            return;
+        }
+        View next = list.getChildAt(index + 1);
+        if (!(next instanceof ActionBarPopupWindow.GapView)) {
+            return;
+        }
+        ViewGroup.LayoutParams params = next.getLayoutParams();
+        if (params == null
+                || params.height == AndroidUtilities.dp(8)
+                || params.height == ViewGroup.LayoutParams.WRAP_CONTENT) {
+            list.removeView(next);
+        }
+    }
+
+    /**
+     * Moves only the visible preview host into the popup's vertical scrim flow:
+     * reactions -> preview -> menu. The hidden controller remains in the native
+     * popup layout solely to share the popup lifecycle.
+     */
+    private void attachPreviewBetweenReactionsAndMenu() {
+        if (!isUsable() || previewHost.getParent() != null) {
+            return;
+        }
+
+        scrimContainer = findScrimAncestor();
+        if (scrimContainer == null) {
+            return;
+        }
+
+        menuDirectChild = findDirectChildBelowScrim(scrimContainer);
+        if (menuDirectChild == null) {
+            return;
+        }
+
+        int menuIndex = scrimContainer.indexOfChild(menuDirectChild);
+        if (menuIndex < 0) {
+            return;
+        }
+
+        int initialHeight = Math.min(
+                Math.max(snapshotHeight, AndroidUtilities.dp(AVATAR_SIZE_DP)),
+                AndroidUtilities.dp(MAX_PREVIEW_VIEWPORT_DP)
+        );
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                Math.max(1, initialHeight)
+        );
+        params.topMargin = AndroidUtilities.dp(PREVIEW_TOP_GAP_DP);
+        params.bottomMargin = AndroidUtilities.dp(PREVIEW_MENU_GAP_DP);
+        scrimContainer.addView(previewHost, menuIndex, params);
+    }
+
+    private ChatScrimPopupContainerLayout findScrimAncestor() {
+        ViewParent parent = getParent();
+        while (parent != null) {
+            if (parent instanceof ChatScrimPopupContainerLayout) {
+                return (ChatScrimPopupContainerLayout) parent;
+            }
+            if (parent instanceof View) {
+                parent = ((View) parent).getParent();
+            } else {
+                break;
+            }
+        }
+        return null;
+    }
+
+    private View findDirectChildBelowScrim(ChatScrimPopupContainerLayout scrim) {
+        View node = this;
+        ViewParent parent = node.getParent();
+        while (parent instanceof View && parent != scrim) {
+            node = (View) parent;
+            parent = node.getParent();
+        }
+        return parent == scrim ? node : null;
+    }
+
+    private void reflowPreviewAndMenu() {
+        if (!isUsable()
+                || scrimContainer == null
+                || menuDirectChild == null
+                || previewHost.getParent() != scrimContainer) {
+            return;
+        }
+
+        int menuWidth = menuDirectChild.getMeasuredWidth();
+        if (menuWidth <= 0) {
+            menuWidth = menuDirectChild.getWidth();
+        }
+        if (menuWidth <= 0) {
+            scrimContainer.post(this::reflowPreviewAndMenu);
+            return;
+        }
+
+        int groupHeight = configurePreviewContentForWidth(menuWidth);
+        if (groupHeight <= 0) {
+            return;
+        }
+        currentGroupHeight = groupHeight;
 
         ScrollView menuScroll = findMenuScrollView();
-        View menuContent = getParent() instanceof View ? (View) getParent() : null;
-        if (menuScroll == null || menuContent == null) {
-            return;
+        int naturalMenuHeight = getNaturalMenuHeight(menuScroll);
+        if (naturalMenuHeight <= 0) {
+            naturalMenuHeight = Math.max(1, menuDirectChild.getMeasuredHeight());
         }
-
-        int contentHeight = menuContent.getHeight();
-        if (contentHeight <= 0) {
-            contentHeight = menuContent.getMeasuredHeight();
-        }
-        if (contentHeight <= 0) {
-            menuScroll.post(this::constrainMenuScrollToViewport);
-            return;
-        }
-
-        int[] scrollLocation = new int[2];
-        menuScroll.getLocationOnScreen(scrollLocation);
 
         Rect visibleFrame = new Rect();
         rootView.getWindowVisibleDisplayFrame(visibleFrame);
+        int visibleHeight = visibleFrame.height();
+        if (visibleHeight <= 0) {
+            visibleHeight = rootView.getHeight();
+        }
 
-        int edge = AndroidUtilities.dp(SCREEN_EDGE_DP);
-        int maxVisibleHeight = visibleFrame.bottom - scrollLocation[1] - edge;
-        if (maxVisibleHeight <= AndroidUtilities.dp(96)) {
-            // Location can still be settling during the popup's first layout.
-            menuScroll.post(this::constrainMenuScrollToViewport);
+        int fixedHeight = getFixedScrimChildrenHeight();
+        LinearLayout.LayoutParams hostParams =
+                (LinearLayout.LayoutParams) previewHost.getLayoutParams();
+        int hostMargins = hostParams.topMargin + hostParams.bottomMargin;
+
+        int stackCapacity = Math.max(
+                AndroidUtilities.dp(MIN_PREVIEW_VIEWPORT_DP + 96),
+                visibleHeight
+                        - AndroidUtilities.dp(SCREEN_EDGE_DP * 2)
+                        - fixedHeight
+                        - hostMargins
+        );
+
+        int previewViewportHeight;
+        int menuViewportLimit;
+        if (groupHeight + naturalMenuHeight <= stackCapacity) {
+            previewViewportHeight = groupHeight;
+            menuViewportLimit = naturalMenuHeight;
+        } else {
+            int minMenu = Math.min(
+                    naturalMenuHeight,
+                    AndroidUtilities.dp(MIN_MENU_VIEWPORT_DP)
+            );
+            int maxHeightForPreview = Math.max(
+                    AndroidUtilities.dp(MIN_PREVIEW_VIEWPORT_DP),
+                    stackCapacity - minMenu
+            );
+            maxHeightForPreview = Math.min(
+                    maxHeightForPreview,
+                    AndroidUtilities.dp(MAX_PREVIEW_VIEWPORT_DP)
+            );
+            previewViewportHeight = Math.min(groupHeight, maxHeightForPreview);
+            menuViewportLimit = Math.max(
+                    AndroidUtilities.dp(96),
+                    stackCapacity - previewViewportHeight
+            );
+        }
+
+        if (hostParams.height != previewViewportHeight) {
+            hostParams.height = previewViewportHeight;
+            previewHost.setLayoutParams(hostParams);
+        }
+
+        FrameLayout.LayoutParams scrollParams =
+                (FrameLayout.LayoutParams) previewScrollView.getLayoutParams();
+        scrollParams.width = menuWidth;
+        scrollParams.height = previewViewportHeight;
+        previewScrollView.setLayoutParams(scrollParams);
+
+        constrainMenuScroll(menuScroll, menuViewportLimit);
+
+        previewHost.requestLayout();
+        scrimContainer.requestLayout();
+        scrimContainer.post(this::alignPreviewWithMenu);
+    }
+
+    /**
+     * Applies exactly one scale factor and only for width. Height never affects
+     * scale. A tall message therefore keeps its real proportions and becomes
+     * vertically scrollable inside previewScrollView.
+     */
+    private int configurePreviewContentForWidth(int menuWidth) {
+        int avatarSize = avatarPreviewView == null
+                ? 0
+                : AndroidUtilities.dp(AVATAR_SIZE_DP);
+        int avatarGap = avatarPreviewView == null
+                ? 0
+                : AndroidUtilities.dp(AVATAR_GAP_DP);
+
+        int availableMessageWidth = Math.max(
+                AndroidUtilities.dp(96),
+                menuWidth - avatarSize - avatarGap
+        );
+        float widthScale = Math.min(1.0f, availableMessageWidth / (float) snapshotWidth);
+
+        int messageWidth = Math.max(1, Math.round(snapshotWidth * widthScale));
+        int messageHeight = Math.max(1, Math.round(snapshotHeight * widthScale));
+        int groupWidth = messageWidth + avatarSize + avatarGap;
+        int groupHeight = Math.max(messageHeight, avatarSize);
+
+        FrameLayout.LayoutParams messageParams =
+                (FrameLayout.LayoutParams) messagePreviewView.getLayoutParams();
+        messageParams.width = messageWidth;
+        messageParams.height = messageHeight;
+        messageParams.leftMargin = avatarSize + avatarGap;
+        messageParams.topMargin = groupHeight - messageHeight;
+        messagePreviewView.setLayoutParams(messageParams);
+
+        if (avatarPreviewView != null) {
+            FrameLayout.LayoutParams avatarParams =
+                    (FrameLayout.LayoutParams) avatarPreviewView.getLayoutParams();
+            avatarParams.width = avatarSize;
+            avatarParams.height = avatarSize;
+            avatarParams.leftMargin = 0;
+            // Matches the reference screenshot: avatar is bottom-aligned to the bubble.
+            avatarParams.topMargin = groupHeight - avatarSize;
+            avatarPreviewView.setRoundRadius(avatarSize / 2);
+            avatarPreviewView.setLayoutParams(avatarParams);
+        }
+
+        ViewGroup.LayoutParams contentParams = previewContent.getLayoutParams();
+        contentParams.width = groupWidth;
+        contentParams.height = groupHeight;
+        previewContent.setLayoutParams(contentParams);
+
+        return groupHeight;
+    }
+
+    private int getFixedScrimChildrenHeight() {
+        int total = 0;
+        for (int i = 0; i < scrimContainer.getChildCount(); i++) {
+            View child = scrimContainer.getChildAt(i);
+            if (child == previewHost
+                    || child == menuDirectChild
+                    || child.getVisibility() == GONE) {
+                continue;
+            }
+            int height = child.getMeasuredHeight();
+            ViewGroup.LayoutParams params = child.getLayoutParams();
+            if (params instanceof ViewGroup.MarginLayoutParams) {
+                ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
+                height += margins.topMargin + margins.bottomMargin;
+            }
+            total += Math.max(0, height);
+        }
+        return total;
+    }
+
+    private int getNaturalMenuHeight(ScrollView menuScroll) {
+        if (menuScroll == null) {
+            return menuDirectChild == null ? 0 : menuDirectChild.getMeasuredHeight();
+        }
+
+        int contentHeight = 0;
+        if (menuScroll.getChildCount() > 0) {
+            View content = menuScroll.getChildAt(0);
+            contentHeight = content.getMeasuredHeight();
+            if (contentHeight <= 0) {
+                contentHeight = content.getHeight();
+            }
+        }
+
+        View popup = findPopupLayoutAncestor();
+        int verticalPadding = popup == null ? 0 : popup.getPaddingTop() + popup.getPaddingBottom();
+        return Math.max(0, contentHeight) + verticalPadding;
+    }
+
+    private void constrainMenuScroll(ScrollView menuScroll, int menuViewportLimit) {
+        if (menuScroll == null || menuViewportLimit <= 0) {
             return;
         }
 
-        int desiredHeight = Math.min(contentHeight, maxVisibleHeight);
+        int contentHeight = 0;
+        if (menuScroll.getChildCount() > 0) {
+            View content = menuScroll.getChildAt(0);
+            contentHeight = content.getMeasuredHeight();
+            if (contentHeight <= 0) {
+                contentHeight = content.getHeight();
+            }
+        }
+        if (contentHeight <= 0) {
+            return;
+        }
+
+        View popup = findPopupLayoutAncestor();
+        int verticalPadding = popup == null ? 0 : popup.getPaddingTop() + popup.getPaddingBottom();
+        int maxScrollHeight = Math.max(
+                AndroidUtilities.dp(96),
+                menuViewportLimit - verticalPadding
+        );
+
         ViewGroup.LayoutParams params = menuScroll.getLayoutParams();
-        if (params != null && contentHeight > maxVisibleHeight && params.height != desiredHeight) {
+        if (params == null) {
+            return;
+        }
+
+        int desiredHeight = contentHeight > maxScrollHeight
+                ? maxScrollHeight
+                : ViewGroup.LayoutParams.WRAP_CONTENT;
+        if (params.height != desiredHeight) {
             params.height = desiredHeight;
             menuScroll.setLayoutParams(params);
             menuScroll.setFillViewport(false);
@@ -281,9 +600,24 @@ public final class IOSMessageMenuPreview extends View {
         }
     }
 
+    private View findPopupLayoutAncestor() {
+        ViewParent parent = getParent();
+        while (parent != null && parent != scrimContainer) {
+            if (parent instanceof ActionBarPopupWindow.ActionBarPopupWindowLayout) {
+                return (View) parent;
+            }
+            if (parent instanceof View) {
+                parent = ((View) parent).getParent();
+            } else {
+                break;
+            }
+        }
+        return null;
+    }
+
     private ScrollView findMenuScrollView() {
         ViewParent parent = getParent();
-        while (parent != null) {
+        while (parent != null && parent != scrimContainer) {
             if (parent instanceof ScrollView) {
                 return (ScrollView) parent;
             }
@@ -296,87 +630,37 @@ public final class IOSMessageMenuPreview extends View {
         return null;
     }
 
-    /**
-     * The selected message is always a separate element above the visible menu.
-     * If screen geometry is unusually tight, the complete snapshot is uniformly
-     * scaled to the available space rather than cropped or allowed to overlap.
-     */
-    private void placeMessagePreviewOutsideMenu() {
-        if (!isUsable() || !(getParent() instanceof View)) {
+    /** Align the transparent preview viewport to the actual popup block. */
+    private void alignPreviewWithMenu() {
+        if (!isUsable()
+                || previewHost.getWidth() <= 0
+                || menuDirectChild == null
+                || menuDirectChild.getWidth() <= 0) {
             return;
         }
 
-        ScrollView menuScroll = findMenuScrollView();
-        View menuViewport = menuScroll != null ? menuScroll : (View) getParent();
-        if (menuViewport.getWidth() <= 0 || menuViewport.getHeight() <= 0) {
-            menuViewport.post(this::placeMessagePreviewOutsideMenu);
-            return;
-        }
-
-        int[] rootLocation = new int[2];
+        int[] hostLocation = new int[2];
         int[] menuLocation = new int[2];
-        rootView.getLocationOnScreen(rootLocation);
-        menuViewport.getLocationOnScreen(menuLocation);
+        previewHost.getLocationOnScreen(hostLocation);
+        menuDirectChild.getLocationOnScreen(menuLocation);
 
-        Rect visibleFrame = new Rect();
-        rootView.getWindowVisibleDisplayFrame(visibleFrame);
-
-        FrameLayout.LayoutParams messageParams =
-                (FrameLayout.LayoutParams) messagePreviewView.getLayoutParams();
-
-        int edge = AndroidUtilities.dp(SCREEN_EDGE_DP);
-        int gap = AndroidUtilities.dp(PREVIEW_MENU_GAP_DP);
-        int avatarGap = avatarPreviewView == null ? 0 : AndroidUtilities.dp(AVATAR_GAP_DP);
-        int avatarSize = avatarPreviewView == null ? 0 : AndroidUtilities.dp(AVATAR_SIZE_DP);
-
-        int minY = Math.max(
-                edge,
-                visibleFrame.top - rootLocation[1] + edge
+        FrameLayout.LayoutParams params =
+                (FrameLayout.LayoutParams) previewScrollView.getLayoutParams();
+        int left = menuLocation[0] - hostLocation[0];
+        left = clamp(
+                left,
+                0,
+                Math.max(0, previewHost.getWidth() - params.width)
         );
-        int menuY = menuLocation[1] - rootLocation[1];
-        int availableAbove = Math.max(1, menuY - gap - minY);
-
-        int naturalMessageWidth = messageParams.width;
-        int naturalMessageHeight = messageParams.height;
-        int naturalGroupHeight = Math.max(naturalMessageHeight, avatarSize);
-
-        float fitScale = Math.min(1.0f, availableAbove / (float) naturalGroupHeight);
-        int fittedMessageWidth = Math.max(1, Math.round(naturalMessageWidth * fitScale));
-        int fittedMessageHeight = Math.max(1, Math.round(naturalMessageHeight * fitScale));
-        int fittedAvatarSize = avatarPreviewView == null
-                ? 0
-                : Math.max(1, Math.round(avatarSize * fitScale));
-        int fittedAvatarGap = avatarPreviewView == null
-                ? 0
-                : Math.max(1, Math.round(avatarGap * fitScale));
-
-        if (messageParams.width != fittedMessageWidth || messageParams.height != fittedMessageHeight) {
-            messageParams.width = fittedMessageWidth;
-            messageParams.height = fittedMessageHeight;
+        if (params.leftMargin != left) {
+            params.leftMargin = left;
+            previewScrollView.setLayoutParams(params);
         }
 
-        int groupWidth = fittedMessageWidth + fittedAvatarSize + fittedAvatarGap;
-        int x = menuLocation[0] - rootLocation[0];
-        x = clamp(x, edge, Math.max(edge, rootView.getWidth() - groupWidth - edge));
-
-        int groupHeight = Math.max(fittedMessageHeight, fittedAvatarSize);
-        int y = Math.max(minY, menuY - groupHeight - gap);
-
-        messageParams.leftMargin = x + fittedAvatarSize + fittedAvatarGap;
-        messageParams.topMargin = y + groupHeight - fittedMessageHeight;
-        messagePreviewView.setLayoutParams(messageParams);
-        messagePreviewView.setVisibility(VISIBLE);
-
-        if (avatarPreviewView != null) {
-            FrameLayout.LayoutParams avatarParams =
-                    (FrameLayout.LayoutParams) avatarPreviewView.getLayoutParams();
-            avatarParams.width = fittedAvatarSize;
-            avatarParams.height = fittedAvatarSize;
-            avatarParams.leftMargin = x;
-            avatarParams.topMargin = y + groupHeight - fittedAvatarSize;
-            avatarPreviewView.setRoundRadius(fittedAvatarSize / 2);
-            avatarPreviewView.setLayoutParams(avatarParams);
-            avatarPreviewView.setVisibility(VISIBLE);
+        // Short messages show in full. Long messages start at the top and can be
+        // scrolled to the bottom without changing scale or cropping the bitmap.
+        if (currentGroupHeight <= previewScrollView.getHeight()) {
+            previewScrollView.scrollTo(0, 0);
         }
     }
 
@@ -430,16 +714,15 @@ public final class IOSMessageMenuPreview extends View {
     }
 
     /**
-     * Snapshot exactly the already-bound native ChatMessageCell. The crop starts
-     * at the bubble itself; sender avatar is rendered as a real BackupImageView
-     * beside it so private/outgoing messages also show the actual profile photo.
+     * Captures the complete native Telegram bubble at source resolution. No
+     * height-based scale or crop is applied. Width adaptation happens later,
+     * against the real menu width.
+     *
+     * Telegram can draw an outgoing bubble background through parent-assisted
+     * rendering. For own messages we therefore explicitly paint the native
+     * Theme.MessageDrawable before drawing the already-bound ChatMessageCell.
      */
-    private static SnapshotResult captureNativeCell(
-            ChatMessageCell sourceCell,
-            int rootWidth,
-            int rootHeight,
-            boolean reserveAvatarSpace
-    ) {
+    private static SnapshotResult captureNativeCell(ChatMessageCell sourceCell) {
         final int sourceWidth = sourceCell.getWidth();
         final int sourceHeight = sourceCell.getHeight();
         if (sourceWidth <= 0 || sourceHeight <= 0) {
@@ -473,39 +756,36 @@ public final class IOSMessageMenuPreview extends View {
         final int cropWidth = Math.max(1, right - left);
         final int cropHeight = Math.max(1, bottom - top);
 
-        int reservedWidth = reserveAvatarSpace
-                ? AndroidUtilities.dp(AVATAR_SIZE_DP + AVATAR_GAP_DP)
-                : 0;
-        int horizontalRoom = Math.max(
-                AndroidUtilities.dp(120),
-                rootWidth - AndroidUtilities.dp(SCREEN_EDGE_DP * 2) - reservedWidth
-        );
-        int maxWidth = Math.min(AndroidUtilities.dp(MAX_PREVIEW_WIDTH_DP), horizontalRoom);
-        int verticalRoom = Math.max(
-                AndroidUtilities.dp(120),
-                rootHeight - AndroidUtilities.statusBarHeight - AndroidUtilities.dp(48)
-        );
-
-        float scale = Math.min(1.0f, maxWidth / (float) cropWidth);
-        if (cropHeight * scale > verticalRoom) {
-            scale = Math.min(scale, verticalRoom / (float) cropHeight);
-        }
-
-        int targetWidth = Math.max(1, Math.round(cropWidth * scale));
-        int targetHeight = Math.max(1, Math.round(cropHeight * scale));
-
+        Bitmap bitmap = null;
         try {
-            Bitmap bitmap = Bitmap.createBitmap(
-                    targetWidth,
-                    targetHeight,
-                    Bitmap.Config.ARGB_8888
-            );
+            bitmap = Bitmap.createBitmap(cropWidth, cropHeight, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bitmap);
-            canvas.scale(scale, scale);
             canvas.translate(-left, -top);
+
+            MessageObject messageObject = sourceCell.getMessageObject();
+            if (messageObject != null
+                    && messageObject.isOutOwner()
+                    && !messageObject.isAnimatedEmojiStickers()) {
+                Theme.MessageDrawable bubble = sourceCell.getCurrentBackgroundDrawable(true);
+                if (bubble != null) {
+                    bubble.setBounds(
+                            sourceCell.getBackgroundDrawableLeft(),
+                            sourceCell.getBackgroundDrawableTop(),
+                            sourceCell.getBackgroundDrawableRight(),
+                            sourceCell.getBackgroundDrawableBottom()
+                    );
+                    bubble.setDrawFullBubble(true);
+                    bubble.draw(canvas);
+                    bubble.setDrawFullBubble(false);
+                }
+            }
+
             sourceCell.draw(canvas);
-            return new SnapshotResult(bitmap, targetWidth, targetHeight);
+            return new SnapshotResult(bitmap, cropWidth, cropHeight);
         } catch (Throwable ignored) {
+            if (bitmap != null && !bitmap.isRecycled()) {
+                bitmap.recycle();
+            }
             return SnapshotResult.EMPTY;
         }
     }
@@ -535,13 +815,19 @@ public final class IOSMessageMenuPreview extends View {
         if (blurredBackgroundView != null) {
             blurredBackgroundView.setImageDrawable(null);
         }
-        if (overlay != null && overlay.getParent() instanceof ViewGroup) {
-            ((ViewGroup) overlay.getParent()).removeView(overlay);
+
+        if (previewHost != null && previewHost.getParent() instanceof ViewGroup) {
+            ((ViewGroup) previewHost.getParent()).removeView(previewHost);
+        }
+        if (blurOverlay != null && blurOverlay.getParent() instanceof ViewGroup) {
+            ((ViewGroup) blurOverlay.getParent()).removeView(blurOverlay);
         }
 
         if (messageSnapshot != null && !messageSnapshot.isRecycled()) {
             messageSnapshot.recycle();
         }
+        messageSnapshot = null;
+
         if (blurredBackground != null && !blurredBackground.isRecycled()) {
             blurredBackground.recycle();
         }
