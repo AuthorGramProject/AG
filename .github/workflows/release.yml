@@ -78,6 +78,23 @@ jobs:
             git push origin HEAD:dev
           fi
 
+      - name: Apply and persist final iOS message menu V6
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/finalize_ios_message_menu_v6.py
+          python3 scripts/finalize_ios_message_menu_v6.py
+          python3 scripts/finalize_ios_message_menu_v6.py --check
+          git diff --check
+
+          if ! git diff --quiet -- TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java; then
+            git config user.name "AuthorGram Source Bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java
+            git commit -m "[skip ci] Finalize iOS message menu V6"
+            git push origin HEAD:dev
+          fi
+
       - name: Validate dev identity and protected feature baseline
         shell: bash
         run: |
@@ -95,6 +112,7 @@ jobs:
           grep -Fq 'defaultConfig.applicationId = APP_PACKAGE' TMessagesProj/build.gradle
           grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
           python3 scripts/restore_authorgram_ios_ui.py --check
+          python3 scripts/finalize_ios_message_menu_v6.py --check
           git diff --check
 
       - name: Set up Java 21
