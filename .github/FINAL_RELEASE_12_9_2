@@ -8,6 +8,6 @@ ABI: arm64-v8a
 Signing identity: existing AuthorGram release key restored only inside the GitHub Actions runner from historical Main commit eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369.
 Play Market branch must not be modified or built.
 No AAB artifacts.
-Triggered: 2026-08-10T16:50:00+02:00
+Triggered: 2026-08-10T17:02:00+02:00
 Status context: authorgram/dev-release
-Preflight: direct static verification only; obsolete mutating authorgram_guard removed from release path.
+Preflight: corrected iOS UI v2 patcher; AuthorGram+ branding; isolated formatting/undo/AI checks; Play boundary enforced.
