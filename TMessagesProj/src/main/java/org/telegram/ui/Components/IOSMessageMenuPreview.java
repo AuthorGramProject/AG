@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.graphics.Rect;
 import android.text.TextUtils;
 import android.util.TypedValue;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
@@ -91,7 +92,7 @@ public final class IOSMessageMenuPreview extends View {
             Theme.ResourcesProvider resourcesProvider
     ) {
         super(context);
-        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V6_FINAL");
+        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V7_TOUCH_CLEANUP");
         setVisibility(GONE);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
 
@@ -170,10 +171,24 @@ public final class IOSMessageMenuPreview extends View {
     private void createBlurOverlay(Context context, Theme.ResourcesProvider resourcesProvider) {
         blurredBackground = captureBlurredBackground(rootView);
 
-        blurOverlay = new FrameLayout(context);
+        // This overlay is visual only. It must never become a touch target,
+        // even for a single frame after the popup starts its dismiss animation.
+        blurOverlay = new FrameLayout(context) {
+            @Override
+            public boolean dispatchTouchEvent(MotionEvent event) {
+                return false;
+            }
+
+            @Override
+            public boolean onInterceptTouchEvent(MotionEvent event) {
+                return false;
+            }
+        };
         blurOverlay.setTag("AUTHORGRAM_IOS_MESSAGE_MENU_BLUR_OVERLAY");
         blurOverlay.setClickable(false);
+        blurOverlay.setLongClickable(false);
         blurOverlay.setFocusable(false);
+        blurOverlay.setEnabled(false);
         blurOverlay.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
 
         blurredBackgroundView = new ImageView(context);
@@ -369,6 +384,21 @@ public final class IOSMessageMenuPreview extends View {
         if (scrimContainer == null) {
             return;
         }
+
+        // The visible preview was moved out of the popup's inner LinearLayout,
+        // so do not rely solely on this hidden controller's detach callback.
+        // Bind cleanup to the actual popup root as well.
+        scrimContainer.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                v.removeOnAttachStateChangeListener(this);
+                cleanup();
+            }
+        });
 
         menuDirectChild = findDirectChildBelowScrim(scrimContainer);
         if (menuDirectChild == null) {
@@ -906,6 +936,14 @@ public final class IOSMessageMenuPreview extends View {
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    @Override
+    protected void onWindowVisibilityChanged(int visibility) {
+        super.onWindowVisibilityChanged(visibility);
+        if (visibility != VISIBLE && previewRevealed) {
+            cleanup();
+        }
     }
 
     @Override
