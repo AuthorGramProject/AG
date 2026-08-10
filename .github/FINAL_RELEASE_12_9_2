@@ -8,6 +8,6 @@ ABI: arm64-v8a
 Signing identity: existing AuthorGram release key restored only inside the GitHub Actions runner from historical Main commit eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369.
 Play Market branch must not be modified or built.
 No AAB artifacts.
-Triggered: 2026-08-10T21:53:00+02:00
+Triggered: 2026-08-10T22:56:00+02:00
 Status context: authorgram/dev-release
-Preflight: iOS message preview V5 based on Vadym Yemelianov reference; reactions -> preview -> menu; width-only preview scaling; long-preview vertical scrolling; native outgoing bubble retained; corrected composer feature checks; AuthorGram+ branding; Play boundary enforced.
+Preflight: iOS message preview V6 final; sender names when native cell has no sender header; clipped stable preview host; one-pass pre-sized layout; wider preview viewport; compact scrollable action menu; more preview breathing room; reactions -> preview -> menu; width-only message scaling; long-preview vertical scrolling; Play boundary enforced.
