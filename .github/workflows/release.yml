@@ -8,7 +8,7 @@ on:
       - .github/FINAL_RELEASE_12_9_2
 
 permissions:
-  contents: read
+  contents: write
   actions: read
   statuses: write
 
@@ -54,7 +54,29 @@ jobs:
           ref: dev
           fetch-depth: 1
           submodules: recursive
-          persist-credentials: false
+          persist-credentials: true
+
+      - name: Restore and persist iOS UI source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/restore_authorgram_ios_ui.py
+          python3 scripts/restore_authorgram_ios_ui.py
+          python3 scripts/restore_authorgram_ios_ui.py --check
+          git diff --check
+
+          if ! git diff --quiet; then
+            git config user.name "AuthorGram Source Bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add \
+              TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java \
+              TMessagesProj/src/main/java/tw/nekomimi/nekogram/NekoConfig.java \
+              TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java \
+              TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramDefaults.java \
+              TMessagesProj/src/main/res/values/strings_neko.xml
+            git commit -m "[skip ci] Restore stable iOS input and iOS message menu"
+            git push origin HEAD:dev
+          fi
 
       - name: Validate dev identity and protected feature baseline
         shell: bash
@@ -72,6 +94,7 @@ jobs:
           grep -Fq 'public static final String PLAY_PACKAGE = "toss.authorgram.apk";' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
           grep -Fq 'defaultConfig.applicationId = APP_PACKAGE' TMessagesProj/build.gradle
           grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
+          python3 scripts/restore_authorgram_ios_ui.py --check
           git diff --check
 
       - name: Set up Java 21
@@ -175,9 +198,11 @@ jobs:
             cd "${RUNNER_TEMP}/authorgram-plus-dev"
             sha256sum "AuthorGram+-Dev-v${VERSION_NAME}-release-arm64-v8a.apk" > SHA256SUMS.txt
           )
+          SOURCE_COMMIT="$(git rev-parse HEAD)"
           cat > "${RUNNER_TEMP}/authorgram-plus-dev/BUILD.txt" <<EOF
           branch=dev
-          commit=${GITHUB_SHA}
+          sourceCommit=${SOURCE_COMMIT}
+          triggerCommit=${GITHUB_SHA}
           package=${DEV_PACKAGE}
           appName=AuthorGram+
           versionName=${VERSION_NAME}
