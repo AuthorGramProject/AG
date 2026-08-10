@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AppName">AuthorGram</string>
-    <string name="AppNameBeta">AuthorGram</string>
+    <string name="AppName">AuthorGram+</string>
+    <string name="AppNameBeta">AuthorGram+</string>
     <string name="TOSS">AuthorGram</string>
     <string name="AGSettings">AuthorGram-Einstellungen</string>
     <string name="AGRegexFilters">Nachrichtenfilter</string>
