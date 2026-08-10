@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AppName">AuthorGram</string>
-    <string name="AppNameBeta">AuthorGram</string>
-    <string name="TOSS">AuthorGram</string>
-    <string name="AGAboutInfo">AuthorGram</string>
-    <string name="NekoSettings">AuthorGram Settings</string>
-    <string name="NaxAboutDesc">AuthorGram is a privacy-focused Telegram client by AuthorChe.</string>
-    <string name="TOSSAboutDesc">AuthorGram is a privacy-focused Telegram client by AuthorChe for secure communication, flexible controls and convenient everyday use.</string>
-    <string name="AGCreditsText">AuthorGram is based on Telegram for Android and includes GPL-compatible work from Cherrygram, AuthorGram and AuthorGram. These names are shown only for proper legal attribution of open-source code.</string>
+    <string name="AppName">AuthorGram+</string>
+    <string name="AppNameBeta">AuthorGram+</string>
+    <string name="TOSS">AuthorGram+</string>
+    <string name="AGAboutInfo">AuthorGram+</string>
+    <string name="NekoSettings">AuthorGram+ Settings</string>
+    <string name="NaxAboutDesc">AuthorGram+ is a privacy-focused Telegram client by AuthorChe.</string>
+    <string name="TOSSAboutDesc">AuthorGram+ is a privacy-focused Telegram client by AuthorChe for secure communication, flexible controls and convenient everyday use.</string>
+    <string name="AGCreditsText">AuthorGram+ is based on Telegram for Android and includes GPL-compatible open-source work used by AuthorGram. These names are shown only for proper legal attribution of open-source code.</string>
     <string name="AuthorGramKeySettings">AuthorGram chat encryption</string>
     <string name="AuthorGramSystemKeyLocked">This chat always uses the AuthorGram system key. A separate chat passphrase cannot be configured here.</string>
     <string name="AuthorGramCustomKeyActive">A private chat passphrase is active. Previous derived keys remain protected locally so older messages stay readable.</string>
