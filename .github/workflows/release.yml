@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
   actions: read
+  statuses: write
 
 concurrency:
   group: authorgram-plus-dev-release
@@ -33,6 +34,20 @@ jobs:
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
 
     steps:
+      - name: Publish pending release status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'pending',
+              context: 'authorgram/dev-release',
+              description: 'AuthorGram+ Dev release APK is building',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+
       - name: Checkout dev
         uses: actions/checkout@v4
         with:
@@ -157,7 +172,7 @@ jobs:
           cp "${APK}" "${DEST}"
           (
             cd "${RUNNER_TEMP}/authorgram-plus-dev"
-            sha256sum 'AuthorGram+-Dev-v12.9.2-release-arm64-v8a.apk' > SHA256SUMS.txt
+            sha256sum "AuthorGram+-Dev-v${VERSION_NAME}-release-arm64-v8a.apk" > SHA256SUMS.txt
           )
           cat > "${RUNNER_TEMP}/authorgram-plus-dev/BUILD.txt" <<EOF
           branch=dev
@@ -179,6 +194,36 @@ jobs:
           path: ${{ runner.temp }}/authorgram-plus-dev/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish successful release status
+        if: ${{ success() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'success',
+              context: 'authorgram/dev-release',
+              description: 'AuthorGram+ Dev release APK verified successfully',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+
+      - name: Publish failed release status
+        if: ${{ failure() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'failure',
+              context: 'authorgram/dev-release',
+              description: 'AuthorGram+ Dev release APK build failed',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
 
       - name: Remove signing key from runner
         if: always()
