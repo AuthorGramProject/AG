@@ -33381,6 +33381,31 @@ public class ChatActivity extends BaseFragment implements
             Drawable shadowDrawable = getParentActivity().getResources().getDrawable(R.drawable.popup_fixed_alert4).mutate();
             shadowDrawable.getPadding(backgroundPaddings);
             popupLayout.setBackgroundColor(getThemedColor(Theme.key_actionBarDefaultSubmenuBackground));
+            // AUTHORGRAM_IOS_MESSAGE_MENU_V2: visual-only native-cell snapshot.
+            final org.telegram.ui.Components.IOSMessageMenuPreview authorGramIosMessagePreview =
+                    optionsView == null
+                            && org.telegram.messenger.authorgram.AuthorGramPlayPolicy.canUseIosUi()
+                            && NekoConfig.iOSMessageMenu.Bool()
+                            && v instanceof org.telegram.ui.Cells.ChatMessageCell
+                            ? org.telegram.ui.Components.IOSMessageMenuPreview.create(
+                                    contentView.getContext(),
+                                    currentAccount,
+                                    (org.telegram.ui.Cells.ChatMessageCell) v,
+                                    themeDelegate
+                            )
+                            : null;
+            if (authorGramIosMessagePreview != null) {
+                LinearLayout.LayoutParams authorGramPreviewParams = LayoutHelper.createLinear(
+                        LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT);
+                authorGramPreviewParams.leftMargin = AndroidUtilities.dp(8);
+                authorGramPreviewParams.topMargin = AndroidUtilities.dp(8);
+                authorGramPreviewParams.rightMargin = AndroidUtilities.dp(8);
+                authorGramPreviewParams.bottomMargin = AndroidUtilities.dp(8);
+                popupLayout.addView(authorGramIosMessagePreview, authorGramPreviewParams);
+                popupLayout.addView(
+                        new ActionBarPopupWindow.GapView(contentView.getContext(), themeDelegate),
+                        LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
+            }
             MessageSeenView messageSeenView = null;
 
             boolean addGap = false;
@@ -50626,16 +50651,8 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private boolean canShowCenteredTitle(ChatActivity parentFragment) {
-        if (!NaConfig.INSTANCE.getCenterActionBarTitle().Bool()) {
-            return false;
-        }
-        if (parentFragment == null) {
-            return false;
-        }
-        if (parentFragment.isReplyChatComment() || parentFragment.isReport()) {
-            return false;
-        }
-        return parentFragment.getChatMode() != ChatActivity.MODE_SEARCH && parentFragment.getChatMode() != ChatActivity.MODE_SAVED;
+        // AUTHORGRAM_NATIVE_CHAT_HEADER: chats always keep Telegram's native header geometry.
+        return false;
     }
 
     public MessageObject getMessageForTranslate() {

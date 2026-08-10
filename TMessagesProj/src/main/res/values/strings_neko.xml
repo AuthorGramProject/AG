@@ -271,4 +271,6 @@
     <string name="EmojiUseDefault">Use system emoji</string>
     <string name="Chat">Chats</string>
     <string name="Appearance">Appearance</string>
+    <string name="iOSMessageMenu">iOS Message Menu</string>
+    <string name="iOSMessageMenuNotice">Shows the selected message above the actions and keeps long menus scrollable.</string>
 </resources>

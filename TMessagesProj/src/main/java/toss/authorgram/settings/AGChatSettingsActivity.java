@@ -100,6 +100,16 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         ));
     }
 
+    private AbstractConfigCell appendIOSMessageMenuRow() {
+        if (!AuthorGramPlayPolicy.canUseIosUi()) {
+            return null;
+        }
+        return cellGroup.appendCell(new ConfigCellTextCheck(
+                NekoConfig.iOSMessageMenu,
+                getString(R.string.iOSMessageMenuNotice)
+        ));
+    }
+
     @Override
     protected RecyclerListView.SelectionAdapter getListAdapter() {
         return listAdapter;
@@ -188,6 +198,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
     private final AbstractConfigCell sendCommentAfterForwardRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.sendCommentAfterForward));
     private final AbstractConfigCell useChatAttachMediaMenuRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.useChatAttachMediaMenu, getString(R.string.UseChatAttachEnterMenuNotice)));
     private final AbstractConfigCell iOSMessageInputFieldRow = appendIOSMessageInputFieldRow();
+    private final AbstractConfigCell iOSMessageMenuRow = appendIOSMessageMenuRow();
     private final AbstractConfigCell fixLinkPreviewRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getFixLinkPreview(), "x.com -> fixupx.com"));
     private final AbstractConfigCell disableLinkPreviewByDefaultRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableLinkPreviewByDefault));
     private final AbstractConfigCell deleteChatForBothSidesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDeleteChatForBothSides()));

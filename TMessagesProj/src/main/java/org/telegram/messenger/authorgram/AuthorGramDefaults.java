@@ -10,6 +10,9 @@ import android.content.SharedPreferences;
  */
 public final class AuthorGramDefaults {
 
+    private static final String UI_CONFIG_RESET_MARKER =
+            "AUTHORGRAM_UI_CONFIG_EPOCH_20260810";
+
     private AuthorGramDefaults() {
     }
 
@@ -24,6 +27,8 @@ public final class AuthorGramDefaults {
             AuthorGramPlayPolicy.applyStartupPolicy(context);
             return;
         }
+
+        resetUiConfigPreservingCredentials(context);
 
         applyDefaults(
                 context,
@@ -179,6 +184,8 @@ public final class AuthorGramDefaults {
                 {"disableChoosingSticker", true},
                 {"CenterActionBarTitle", true},
                 {"CenterActionBarTitleType", 1},
+                {"iOSMessageInputField", true},
+                {"iOSMessageMenu", true},
                 {"SaveMediaInPublicChannels", false},
                 {"sendOfflinePacketAfterOnline", false},
                 {"ShowSmallGIF", true},
@@ -218,6 +225,69 @@ public final class AuthorGramDefaults {
                 {"activePills", ""}
                 }
         );
+    }
+
+    /**
+     * One-time reset of AuthorGram/Nagram UI preferences only.
+     * Telegram accounts, dialogs, messages, files and encryption state are not
+     * stored in nkmrcfg and are not touched. Credential-like values are copied
+     * out and restored verbatim before defaults are applied.
+     */
+    private static void resetUiConfigPreservingCredentials(Context context) {
+        SharedPreferences preferences =
+                context.getSharedPreferences("nkmrcfg", Context.MODE_PRIVATE);
+        if (preferences.getBoolean(UI_CONFIG_RESET_MARKER, false)) {
+            return;
+        }
+
+        java.util.Map<String, ?> oldValues =
+                new java.util.LinkedHashMap<>(preferences.getAll());
+        SharedPreferences.Editor editor = preferences.edit().clear();
+
+        for (java.util.Map.Entry<String, ?> entry : oldValues.entrySet()) {
+            if (isCredentialPreference(entry.getKey())) {
+                putPreferenceValue(editor, entry.getKey(), entry.getValue());
+            }
+        }
+
+        editor.putBoolean(UI_CONFIG_RESET_MARKER, true);
+        if (!editor.commit()) {
+            throw new IllegalStateException("Unable to persist AuthorGram UI preference migration");
+        }
+    }
+
+    private static boolean isCredentialPreference(String key) {
+        if (key == null) {
+            return false;
+        }
+        String normalized = key.toLowerCase(java.util.Locale.ROOT);
+        return normalized.endsWith("key")
+                || normalized.contains("apikey")
+                || normalized.contains("api_key")
+                || normalized.contains("credential")
+                || normalized.contains("token")
+                || normalized.contains("secret");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void putPreferenceValue(
+            SharedPreferences.Editor editor,
+            String key,
+            Object value
+    ) {
+        if (value instanceof Boolean) {
+            editor.putBoolean(key, (Boolean) value);
+        } else if (value instanceof Integer) {
+            editor.putInt(key, (Integer) value);
+        } else if (value instanceof Long) {
+            editor.putLong(key, (Long) value);
+        } else if (value instanceof Float) {
+            editor.putFloat(key, (Float) value);
+        } else if (value instanceof String) {
+            editor.putString(key, (String) value);
+        } else if (value instanceof java.util.Set) {
+            editor.putStringSet(key, new java.util.HashSet<>((java.util.Set<String>) value));
+        }
     }
 
     private static void applyDefaults(
