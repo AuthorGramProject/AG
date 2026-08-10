@@ -2,8 +2,6 @@ package org.telegram.ui.Components;
 
 import android.content.Context;
 
-import androidx.annotation.Nullable;
-
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
@@ -18,32 +16,13 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
     private State currentState;
     private TransitState animatingState;
     private final int sizeDp;
+    private final Map<TransitState, RLottieDrawable> stateMap = new HashMap<>();
+    private Boolean drawableIosMode;
 
     private static boolean iosInput() {
         return AuthorGramPlayPolicy.canUseIosUi()
                 && NekoConfig.iOSMessageInputField.Bool();
     }
-
-    private Map<TransitState, RLottieDrawable> stateMap = new HashMap<TransitState, RLottieDrawable>() {
-        @Nullable
-        @Override
-        public RLottieDrawable get(@Nullable Object key) {
-            RLottieDrawable obj = super.get(key);
-            if (obj == null) {
-                TransitState state = (TransitState) key;
-                int res = state.resource;
-                if (iosInput()) {
-                    if (state == TransitState.VOICE_TO_VIDEO) {
-                        res = R.raw.voice_and_video_cg;
-                    } else if (state == TransitState.VIDEO_TO_VOICE) {
-                        res = R.raw.voice_and_video_cg_2;
-                    }
-                }
-                return new RLottieDrawable(res, String.valueOf(res), AndroidUtilities.dp(sizeDp), AndroidUtilities.dp(sizeDp));
-            }
-            return obj;
-        }
-    };
 
     public ChatActivityEnterViewAnimatedIconView(Context context) {
         this(context, 32);
@@ -54,54 +33,113 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
         this.sizeDp = sizeDp;
     }
 
-    public void setState(State state, boolean animate) {
-        // AUTHORGRAM_IOS_INPUT_NO_MENU_GLYPH: the media slot is voice/video only.
-        // Normalizing before transition lookup also replaces a stale MENU drawable
-        // immediately when the composer returns from a cancelled typing animation.
+    private State normalizeState(State state) {
         if (iosInput() && state == State.MENU) {
-            state = State.VOICE;
+            // In iOS-input mode this slot is reserved for voice/video. The chat
+            // overflow menu remains in Telegram's ordinary header and must never
+            // replace the composer media glyph.
+            return State.VOICE;
         }
-        if (animate && state == currentState) {
+        return state;
+    }
+
+    private RLottieDrawable drawableFor(TransitState state) {
+        if (state == null) {
+            return null;
+        }
+
+        boolean iosMode = iosInput();
+        if (drawableIosMode == null || drawableIosMode != iosMode) {
+            stateMap.clear();
+            drawableIosMode = iosMode;
+        }
+
+        RLottieDrawable drawable = stateMap.get(state);
+        if (drawable != null) {
+            return drawable;
+        }
+
+        int res = state.resource;
+        if (iosMode) {
+            if (state == TransitState.VOICE_TO_VIDEO) {
+                res = R.raw.voice_and_video_cg;
+            } else if (state == TransitState.VIDEO_TO_VOICE) {
+                res = R.raw.voice_and_video_cg_2;
+            }
+        }
+
+        drawable = new RLottieDrawable(
+                res,
+                String.valueOf(res),
+                AndroidUtilities.dp(sizeDp),
+                AndroidUtilities.dp(sizeDp)
+        );
+        stateMap.put(state, drawable);
+        return drawable;
+    }
+
+    public void setState(State requestedState, boolean animate) {
+        State state = normalizeState(requestedState);
+
+        // A previous animation may have been detached while the composer changed
+        // mode. Do not keep a logically correct state with an empty ImageView.
+        if (animate && state == currentState && getDrawable() != null) {
             return;
         }
+
         State fromState = currentState;
         currentState = state;
-        if (!animate || fromState == null || getState(fromState, currentState) == null) {
-            if (currentState == State.MENU) {
-                stopAnimation();
+        TransitState transition = fromState == null ? null : getState(fromState, state);
+
+        if (!animate || fromState == null || transition == null) {
+            animatingState = null;
+            stopAnimation();
+
+            if (state == State.MENU) {
                 setImageResource(R.drawable.ic_ab_other);
             } else {
-                RLottieDrawable drawable = stateMap.get(getAnyState(currentState));
-                if (drawable == null) return;
+                RLottieDrawable drawable = drawableFor(getAnyState(state));
+                if (drawable == null) {
+                    return;
+                }
                 drawable.stop();
-
-                drawable.setProgress(state == State.VOICE && !iosInput() ? 0.5f : 0, false);
+                drawable.setProgress(state == State.VOICE && !iosInput() ? 0.5f : 0.0f, false);
                 setAnimation(drawable);
             }
         } else {
-            TransitState transitState = getState(fromState, currentState);
-            if (transitState == animatingState) {
+            if (transition == animatingState && getDrawable() != null) {
                 return;
             }
 
-            animatingState = transitState;
-            RLottieDrawable drawable = stateMap.get(transitState);
-            if (drawable == null) return;
+            animatingState = transition;
+            RLottieDrawable drawable = drawableFor(transition);
+            if (drawable == null) {
+                animatingState = null;
+                return;
+            }
             drawable.stop();
-            if (transitState == TransitState.VIDEO_TO_VOICE && !iosInput()) {
+
+            if (transition == TransitState.VIDEO_TO_VOICE && !iosInput()) {
                 drawable.setCustomEndFrame(30);
                 drawable.setProgress(0, false);
-            } else if (transitState == TransitState.VOICE_TO_VIDEO && !iosInput()) {
+            } else if (transition == TransitState.VOICE_TO_VIDEO && !iosInput()) {
                 drawable.setCustomEndFrame(60);
                 drawable.setProgress(0.5f, false);
             } else {
                 drawable.setProgress(0, false);
             }
+
             drawable.setAutoRepeat(0);
             drawable.setOnAnimationEndListener(() -> animatingState = null);
             setAnimation(drawable);
             AndroidUtilities.runOnUIThread(drawable::start);
         }
+
+        // Explicitly restore the visual slot after every state change. This is
+        // what prevents the old black/empty area after clearing input text,
+        // cancelling an edit, closing emoji/sticker/GIF, or switching voice/video.
+        setVisibility(VISIBLE);
+        setAlpha(1.0f);
 
         switch (state) {
             case VOICE:
@@ -149,7 +187,8 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
         SMILE_TO_STICKER(State.SMILE, State.STICKER, R.raw.smile_to_sticker),
         STICKER_TO_SMILE(State.STICKER, State.SMILE, R.raw.sticker_to_smile);
 
-        final State firstState, secondState;
+        final State firstState;
+        final State secondState;
         final int resource;
 
         TransitState(State firstState, State secondState, int resource) {
