@@ -69,8 +69,9 @@ jobs:
           grep -Fq 'NekoConfig.hideProxySponsorChannel' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
           grep -Fq 'getEnableSaveDeletedMessages' TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java
           grep -Fq 'getEnableSaveEditsHistory' TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java
+          grep -Fq 'public static final String PLAY_PACKAGE = "toss.authorgram.apk";' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
+          grep -Fq 'defaultConfig.applicationId = APP_PACKAGE' TMessagesProj/build.gradle
           grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
-          python3 scripts/authorgram_guard.py --expected-package "${DEV_PACKAGE}"
           git diff --check
 
       - name: Set up Java 21
