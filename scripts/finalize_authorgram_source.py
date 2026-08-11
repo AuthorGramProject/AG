@@ -317,9 +317,10 @@ def validate(role: str, package_id: str) -> None:
     interceptor = read(
         "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java"
     )
-    for required in ("quote_text = null", "quote_entities.clear()", "quote_offset = 0"):
-        if required not in interceptor:
-            failures.append(f"Encrypted-reply sanitizer is missing: {required}")
+    if role != "play":
+        for required in ("quote_text = null", "quote_entities.clear()", "quote_offset = 0"):
+            if required not in interceptor:
+                failures.append(f"Encrypted-reply sanitizer is missing: {required}")
 
     key_dialog = read(
         "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramKeyDialog.java"
@@ -343,6 +344,17 @@ def validate(role: str, package_id: str) -> None:
         raise RuntimeError("\n".join(failures))
 
 
+def apply_play_sanitizer(check_only: bool) -> None:
+    import strip_authorgram_play_runtime
+
+    if check_only:
+        strip_authorgram_play_runtime.validate_stubs()
+    else:
+        result = strip_authorgram_play_runtime.main()
+        if result != 0:
+            raise RuntimeError(f"Play runtime sanitizer failed with status {result}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--role", choices=("dev", "main", "play"), required=True)
@@ -362,6 +374,9 @@ def main() -> int:
         operations += int(patch_build_gradle())
         operations += int(patch_encrypted_reply())
         operations += rebrand_visible_text()
+
+    if args.role == "play":
+        apply_play_sanitizer(args.check)
 
     validate(args.role, args.package)
     print(
