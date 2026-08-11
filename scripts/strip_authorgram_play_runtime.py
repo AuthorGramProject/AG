@@ -31,6 +31,8 @@ REMOVE_TARGETS = (
     "TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java",
     "TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java",
     "TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java",
+    "scripts/apply_authorgram_exact_icon_and_spy.py",
+    "scripts/fix_authorgram_spy_compile.py",
 )
 
 
@@ -148,7 +150,7 @@ def validate_templates() -> None:
             raise RuntimeError(f"Play sanitized source drifted: {relative}")
     for relative in REMOVE_TARGETS:
         if (ROOT / relative).exists():
-            raise RuntimeError(f"Dead Play-only history source still exists: {relative}")
+            raise RuntimeError(f"Forbidden Play source still exists: {relative}")
 
 
 def validate_direct_gates() -> None:
