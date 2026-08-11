@@ -19,6 +19,7 @@ PLAY_SANITIZED_EXACT = {
     "TMessagesProj/src/main/java/com/radolyn/ayugram/utils/AyuGhostUtils.java",
     "TMessagesProj/src/main/java/com/radolyn/ayugram/messages/AyuSavePreferences.java",
     "TMessagesProj/src/main/java/com/radolyn/ayugram/messages/AyuMessagesController.java",
+    "TMessagesProj/src/main/java/com/radolyn/ayugram/database/AyuData.java",
     "TMessagesProj/src/main/java/com/radolyn/ayugram/utils/LastSeenHelper.java",
     "TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/helper/LocalPremiumStatusHelper.kt",
     "TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/helper/LocalPeerColorHelper.kt",
