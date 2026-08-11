@@ -11,6 +11,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -35,17 +36,19 @@ import org.telegram.ui.Cells.ChatMessageCell;
  * Reference geometry is intentionally the current accepted iOS-style layout:
  * reactions -> selected native Telegram message -> action menu.
  *
- * AUTHORGRAM_IOS_MESSAGE_MENU_V9_DEFERRED_DISMISS_CLEANUP
+ * AUTHORGRAM_IOS_MESSAGE_MENU_V11_PREDRAW_ATOMIC_LAYOUT
  *
- * Visual/layout behavior is kept identical to V8. The only change is teardown:
- * Telegram's popup/scrim hierarchy is never synchronously mutated while it is
- * detaching. The root blur layer and bitmaps are released after the native popup
- * has yielded the UI thread, preventing the post-dismiss application freeze.
+ * V11 keeps the stable V9 deferred-dismiss invariant, but makes presentation
+ * atomic for the human eye. The first popup draw is held by a bounded pre-draw
+ * gate until the AuthorGram preview has joined the already-laid-out Telegram
+ * hierarchy. Telegram's native scrim is never hidden, translated or detached.
+ * A normal 12dp layout spacer lowers reactions, preview and menu as one stack.
  */
 public final class IOSMessageMenuPreview extends View {
     private static final int SCREEN_EDGE_DP = 12;
     private static final int PREVIEW_TOP_GAP_DP = 10;
     private static final int PREVIEW_MENU_GAP_DP = 12;
+    private static final int STACK_TOP_OFFSET_DP = 12;
     private static final int PREVIEW_EXTRA_WIDTH_DP = 24;
     private static final int AVATAR_SIZE_DP = 36;
     private static final int AVATAR_GAP_DP = 8;
@@ -81,9 +84,14 @@ public final class IOSMessageMenuPreview extends View {
     private boolean cleanedUp;
     private boolean resourcesReleased;
     private boolean bitmapsRecycled;
+    private int firstFramePreDrawAttempts;
+    private ViewTreeObserver firstFrameObserver;
+    private ViewTreeObserver.OnPreDrawListener firstFramePreDrawListener;
+    private View stackTopSpacer;
 
     // V8 visual layout retry guard retained unchanged.
     private static final int MAX_LAYOUT_RETRY_COUNT = 4;
+    private static final int MAX_FIRST_FRAME_PREDRAW_ATTEMPTS = 4;
     private int attachLayoutRetryCount;
     private int reflowLayoutRetryCount;
     private boolean attachLayoutRetryPosted;
@@ -355,14 +363,82 @@ public final class IOSMessageMenuPreview extends View {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        post(() -> {
-            if (!isUsable()) {
-                return;
+        installFirstFrameGate();
+    }
+
+    /**
+     * Prevent Telegram's native popup-only frame from ever reaching the display.
+     * We do not hide or translate Telegram views. Instead, the shared ViewTree
+     * draw is held for at most four pre-draw passes while the already-created
+     * popup hierarchy receives the AuthorGram preview and final geometry.
+     */
+    private void installFirstFrameGate() {
+        if (!isUsable() || firstFramePreDrawListener != null) {
+            return;
+        }
+        firstFramePreDrawAttempts = 0;
+        firstFrameObserver = getViewTreeObserver();
+        firstFramePreDrawListener = () -> {
+            if (!isUsable() || cleanedUp) {
+                removeFirstFrameGate();
+                return true;
             }
 
-            removeLegacyTopGap();
-            attachPreviewBetweenReactionsAndMenu();
-        });
+            firstFramePreDrawAttempts++;
+            preparePreviewForFirstFrame();
+            if (previewRevealed) {
+                removeFirstFrameGate();
+                return true;
+            }
+
+            if (firstFramePreDrawAttempts >= MAX_FIRST_FRAME_PREDRAW_ATTEMPTS) {
+                removeFirstFrameGate();
+                post(this::finishDeferredFirstFramePreparation);
+                return true;
+            }
+            return false;
+        };
+
+        if (firstFrameObserver != null && firstFrameObserver.isAlive()) {
+            firstFrameObserver.addOnPreDrawListener(firstFramePreDrawListener);
+        } else {
+            firstFrameObserver = null;
+            firstFramePreDrawListener = null;
+            post(this::finishDeferredFirstFramePreparation);
+        }
+    }
+
+    private void preparePreviewForFirstFrame() {
+        if (!isUsable()) {
+            return;
+        }
+        removeLegacyTopGap();
+        attachPreviewBetweenReactionsAndMenu();
+        if (scrimContainer != null
+                && menuDirectChild != null
+                && previewHost.getParent() == scrimContainer) {
+            reflowPreviewAndMenu();
+            if (previewHost.getWidth() > 0 && menuDirectChild.getWidth() > 0) {
+                alignPreviewWithMenu();
+            }
+        }
+    }
+
+    private void removeFirstFrameGate() {
+        if (firstFrameObserver != null
+                && firstFramePreDrawListener != null
+                && firstFrameObserver.isAlive()) {
+            firstFrameObserver.removeOnPreDrawListener(firstFramePreDrawListener);
+        }
+        firstFrameObserver = null;
+        firstFramePreDrawListener = null;
+    }
+
+    private void finishDeferredFirstFramePreparation() {
+        if (!isUsable() || previewRevealed) {
+            return;
+        }
+        preparePreviewForFirstFrame();
     }
 
     /**
@@ -407,6 +483,7 @@ public final class IOSMessageMenuPreview extends View {
         if (scrimContainer == null) {
             return;
         }
+        ensureStackTopSpacer();
 
         menuDirectChild = findDirectChildBelowScrim(scrimContainer);
         if (menuDirectChild == null) {
@@ -495,6 +572,32 @@ public final class IOSMessageMenuPreview extends View {
             }
         }
         return null;
+    }
+
+    private void ensureStackTopSpacer() {
+        if (scrimContainer == null || stackTopSpacer != null) {
+            return;
+        }
+        for (int i = 0; i < scrimContainer.getChildCount(); i++) {
+            View child = scrimContainer.getChildAt(i);
+            if ("AUTHORGRAM_IOS_MESSAGE_STACK_TOP_SPACER".equals(child.getTag())) {
+                stackTopSpacer = child;
+                return;
+            }
+        }
+
+        View spacer = new View(getContext());
+        spacer.setTag("AUTHORGRAM_IOS_MESSAGE_STACK_TOP_SPACER");
+        spacer.setClickable(false);
+        spacer.setLongClickable(false);
+        spacer.setFocusable(false);
+        spacer.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                AndroidUtilities.dp(STACK_TOP_OFFSET_DP)
+        );
+        scrimContainer.addView(spacer, 0, params);
+        stackTopSpacer = spacer;
     }
 
     private View findDirectChildBelowScrim(ChatScrimPopupContainerLayout scrim) {
@@ -983,6 +1086,7 @@ public final class IOSMessageMenuPreview extends View {
             return;
         }
         cleanedUp = true;
+        removeFirstFrameGate();
 
         // Stop every AuthorGram callback immediately, but do not mutate the
         // native popup hierarchy while its dismiss traversal is in progress.
