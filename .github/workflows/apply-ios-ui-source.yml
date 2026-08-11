@@ -25,13 +25,17 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
-      - name: Apply deterministic source patch
+      - name: Apply deterministic iOS source patches
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile scripts/restore_authorgram_ios_ui.py
+          python3 -m py_compile \
+            scripts/restore_authorgram_ios_ui.py \
+            scripts/finalize_ios_message_menu_v6.py
           python3 scripts/restore_authorgram_ios_ui.py
           python3 scripts/restore_authorgram_ios_ui.py --check
+          python3 scripts/finalize_ios_message_menu_v6.py
+          python3 scripts/finalize_ios_message_menu_v6.py --check
           git diff --check
 
       - name: Commit restored source
@@ -42,13 +46,14 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add \
             TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java \
+            TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java \
             TMessagesProj/src/main/java/tw/nekomimi/nekogram/NekoConfig.java \
             TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java \
             TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramDefaults.java \
             TMessagesProj/src/main/res/values/strings_neko.xml
           if git diff --cached --quiet; then
-            echo "Source already restored."
+            echo "Source already restored and V11 validated."
             exit 0
           fi
-          git commit -m "[skip ci] Restore stable iOS input and iOS message menu"
+          git commit -m "[skip ci] Apply stable iOS menu V11 atomic layout"
           git push origin HEAD:dev
