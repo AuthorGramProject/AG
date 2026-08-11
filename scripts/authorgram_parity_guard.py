@@ -26,6 +26,7 @@ PLAY_SANITIZED_EXACT = {
     "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java",
     "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatState.java",
     "TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java",
+    "TMessagesProj/src/main/java/tw/nekomimi/nekogram/config/ConfigItem.java",
 }
 ALLOWED_EXACT = REQUIRED_EXACT | PLAY_SANITIZED_EXACT
 DYNAMIC_ARTIFACT_LINE = (
