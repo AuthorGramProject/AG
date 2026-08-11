@@ -21,8 +21,6 @@ import org.telegram.tgnet.tl.TL_account;
 
 import java.util.Arrays;
 
-import tw.nekomimi.nekogram.NekoConfig;
-
 public class UserConfig extends BaseController {
 
     public static int selectedAccount;
@@ -345,7 +343,7 @@ public class UserConfig extends BaseController {
                 FileLog.e(e);
             }
 
-            migrateOffsetId = preferences.getInt("6migrateOffsetId", 0);
+            migrateOffsetId = preferences.getInt("6dialogsLoadOffsetId", 0);
             if (migrateOffsetId != -1) {
                 migrateOffsetDate = preferences.getInt("6migrateOffsetDate", 0);
                 migrateOffsetUserId = AndroidUtilities.getPrefIntOrLong(preferences, "6migrateOffsetUserId", 0);
@@ -583,10 +581,7 @@ public class UserConfig extends BaseController {
 
     public boolean isPremiumOrLocal() {
         TLRPC.User user = currentUser;
-        if (user == null) {
-            return false;
-        }
-        return user.premium || NekoConfig.localPremium.Bool();
+        return user != null && user.premium;
     }
 
     public Long getEmojiStatus() {
