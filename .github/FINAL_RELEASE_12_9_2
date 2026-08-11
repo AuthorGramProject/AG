@@ -8,6 +8,6 @@ ABI: arm64-v8a
 Signing identity: existing AuthorGram release key restored only inside the GitHub Actions runner from historical Main commit eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369.
 Play Market branch must not be modified or built.
 No AAB artifacts.
-Triggered: 2026-08-11
+Triggered: 2026-08-11 11:20 Europe/Berlin
 Status context: authorgram/dev-release
-Preflight: iOS message preview V8 dismiss-freeze fix; unbounded layout self-post loops removed; layout retries limited to four animation frames while the popup is attached and visible; pending retry callbacks are cancelled during cleanup; popup-root detach listener is registered only once; V7 touch-transparent blur protections retained; reactions -> preview -> menu unchanged; width-only scaling unchanged; long-preview scrolling unchanged; Play boundary enforced.
+Preflight: iOS message menu V10 first-frame-ready layout; accepted V9/V8 geometry retained; intermediate oversized popup frame hidden until preview/menu alignment is ready; first-frame fallback capped at 120 ms; complete popup stack shifted down by 10dp; deferred dismiss cleanup retained; preview-host is never synchronously removed during Telegram popup detach; bitmap recycling remains deferred; bounded layout retries retained; reactions -> preview -> menu unchanged; width-only scaling unchanged; long-preview scrolling unchanged; Play boundary enforced.
