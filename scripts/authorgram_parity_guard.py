@@ -16,6 +16,7 @@ PLAY_SANITIZED_EXACT = {
     "TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java",
     "TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java",
     "TMessagesProj/src/main/java/toss/authorgram/settings/GhostModeActivity.java",
+    "TMessagesProj/src/main/java/toss/authorgram/settings/AGExperimentalSettingsActivity.java",
     "TMessagesProj/src/main/java/com/radolyn/ayugram/utils/AyuGhostUtils.java",
     "TMessagesProj/src/main/java/com/radolyn/ayugram/messages/AyuSavePreferences.java",
     "TMessagesProj/src/main/java/com/radolyn/ayugram/messages/AyuMessagesController.java",
