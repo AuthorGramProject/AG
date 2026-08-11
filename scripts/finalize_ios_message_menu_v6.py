@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
+import subprocess
 
 TARGET = Path("TMessagesProj/src/main/java/org/telegram/ui/Components/IOSMessageMenuPreview.java")
 BASE_MARKER = "AUTHORGRAM_IOS_MESSAGE_MENU_V9_DEFERRED_DISMISS_CLEANUP"
@@ -35,19 +37,16 @@ def validate(text: str) -> None:
         "private static final int BACKGROUND_DOWNSCALE = 12;",
         "private static final int BACKGROUND_BLUR_RADIUS = 15;",
         "Color.argb(52, 0, 0, 0)",
-        # Current accepted visual composition.
         "scrimContainer.addView(previewHost, menuIndex, params);",
         "private void reflowPreviewAndMenu()",
         "private void constrainMenuScroll(ScrollView menuScroll, int menuViewportLimit)",
         "private void alignPreviewWithMenu()",
         "private static final int MAX_LAYOUT_RETRY_COUNT = 4;",
-        # First-frame gate: never expose the oversized intermediate popup.
         "scrimContainer.setAlpha(0.0f);",
         "scrimContainer.setTranslationY(AndroidUtilities.dp(STACK_VERTICAL_OFFSET_DP));",
         "scrimContainer.postDelayed(firstFrameRevealFallbackRunnable, 120L);",
         "private void revealPreparedPopup()",
         "scrimContainer.setAlpha(1.0f);",
-        # Stable dismiss lifecycle from V9 must remain intact.
         "protected void onDetachedFromWindow()",
         "rootView.postOnAnimation(releaseResourcesRunnable);",
         "rootView.postDelayed(recycleBitmapsRunnable, 64L);",
@@ -82,7 +81,6 @@ def patch(text: str) -> str:
     if BASE_MARKER not in text:
         raise SystemExit("unexpected iOS message menu baseline: expected V9 or V10")
 
-    # Upgrade both the source marker comment and View tag.
     text = text.replace(BASE_MARKER, MARKER)
 
     text = replace_once(
@@ -142,8 +140,8 @@ def patch(text: str) -> str:
         }
 
         // Do not expose Telegram's first oversized/unfinished layout pass.
-        // The same V8/V9 geometry is prepared while the popup stack is fully
-        // transparent, then revealed as soon as the preview is aligned.
+        // The accepted V8/V9 geometry is prepared while the popup stack is
+        // transparent, then revealed as soon as preview alignment is complete.
         scrimContainer = findScrimAncestor();
         if (scrimContainer != null) {
             scrimContainer.setAlpha(0.0f);
@@ -220,6 +218,27 @@ def patch(text: str) -> str:
     return text
 
 
+def run_git(*args: str) -> None:
+    subprocess.run(["git", *args], check=True)
+
+
+def persist_source_in_actions() -> None:
+    """Persist only the helper and preserve any concurrent dev commits."""
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+
+    run_git("config", "user.name", "AuthorGram Source Bot")
+    run_git("config", "user.email", "actions@users.noreply.github.com")
+    run_git("add", str(TARGET))
+    run_git("commit", "-m", "[skip ci] Finalize iOS message menu V10")
+
+    # dev can legitimately move while checkout/submodules are preparing. Rebase
+    # this one-file source commit instead of overwriting or rejecting new work.
+    run_git("fetch", "origin", "dev")
+    run_git("rebase", "origin/dev")
+    run_git("push", "origin", "HEAD:dev")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
@@ -240,6 +259,7 @@ def main() -> int:
     if updated != original:
         TARGET.write_text(updated, encoding="utf-8")
         print("AuthorGram iOS message menu upgraded to V10 first-frame-ready layout")
+        persist_source_in_actions()
     else:
         print("AuthorGram iOS message menu V10 already applied")
     return 0
