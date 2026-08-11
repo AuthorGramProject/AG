@@ -8,10 +8,13 @@ MAIN_DIR="${WORK_ROOT}/main"
 PLAY_DIR="${WORK_ROOT}/play"
 ARTIFACT_DIR="${WORK_ROOT}/artifacts"
 TEST_DIR="${WORK_ROOT}/kdf-test"
+SIGNING_KEY_BACKUP="${WORK_ROOT}/stable-release.keystore"
 MAIN_PACKAGE="${MAIN_PACKAGE:-fork.risin42.nagramx}"
 PLAY_PACKAGE="${PLAY_PACKAGE:-toss.authorgram.apk}"
 VERSION_NAME="${VERSION_NAME:-12.9.2}"
 VERSION_CODE="${VERSION_CODE:-6991}"
+SIGNING_SOURCE_COMMIT="${AUTHORGRAM_SIGNING_SOURCE_COMMIT:-d3c34906d9d6dbbfe82bdb391d7d268110d66737}"
+SIGNING_KEY_BLOB_SHA="5c0f63c668f7ad06ea674560f10ffb256ff2c092"
 
 log() {
   printf '\n==> %s\n' "$*"
@@ -23,7 +26,9 @@ fail() {
 }
 
 cleanup() {
+  rm -f "${MAIN_DIR}/TMessagesProj/release.keystore" 2>/dev/null || true
   rm -f "${PLAY_DIR}/TMessagesProj/release.keystore" 2>/dev/null || true
+  rm -f "${SIGNING_KEY_BACKUP}" 2>/dev/null || true
   git -C "${ROOT}" worktree remove --force "${MAIN_DIR}" >/dev/null 2>&1 || true
   git -C "${ROOT}" worktree remove --force "${PLAY_DIR}" >/dev/null 2>&1 || true
 }
@@ -67,26 +72,13 @@ commit_and_push() {
 
 sync_from_dev() {
   local destination="$1"
-  local preserve_keystore="${2:-false}"
-  local keystore_backup="${WORK_ROOT}/main-release.keystore"
 
-  if [[ "${preserve_keystore}" == "true" ]]; then
-    [[ -f "${destination}/TMessagesProj/release.keystore" ]] \
-      || fail "Main release.keystore is missing before source synchronization"
-    cp "${destination}/TMessagesProj/release.keystore" "${keystore_backup}"
-  fi
-
-  # Replace the branch tree with the exact finalized dev tree. Unlike a file copy,
-  # read-tree preserves upstream gitlinks for FFmpeg, dav1d and libvpx.
+  # Replace the Play branch tree with the exact finalized dev tree first. The
+  # Play finalizer then strips Main-only policy-sensitive runtime deterministically.
   git -C "${destination}" read-tree --reset -u "${DEV_COMMIT}"
   rm -f "${destination}/local.properties"
+  rm -f "${destination}/TMessagesProj/release.keystore"
   rm -rf "${destination}/.gradle" "${destination}/TMessagesProj/build"
-
-  if [[ "${preserve_keystore}" == "true" ]]; then
-    cp "${keystore_backup}" "${destination}/TMessagesProj/release.keystore"
-  else
-    rm -f "${destination}/TMessagesProj/release.keystore"
-  fi
 
   git -C "${destination}" submodule sync --recursive
   git -C "${destination}" submodule update --init --depth 1 --jobs 3
@@ -158,11 +150,19 @@ git worktree prune
 git config core.fileMode false
 git config user.name "AuthorGram Release Bot"
 git config user.email "actions@users.noreply.github.com"
-git fetch --force --prune origin dev main play-market
+git fetch --force --prune origin dev play-market
+git fetch --force origin "${SIGNING_SOURCE_COMMIT}" || fail "Unable to fetch stable signing source commit"
 git reset --hard origin/dev
 git clean -fd
 rm -rf "${WORK_ROOT}"
 mkdir -p "${ARTIFACT_DIR}" "${TEST_DIR}"
+
+log "Recover the existing stable release signing key without committing it"
+actual_signing_blob="$(git rev-parse "${SIGNING_SOURCE_COMMIT}:TMessagesProj/release.keystore")"
+[[ "${actual_signing_blob}" == "${SIGNING_KEY_BLOB_SHA}" ]] \
+  || fail "Stable release.keystore blob identity changed"
+git show "${SIGNING_SOURCE_COMMIT}:TMessagesProj/release.keystore" > "${SIGNING_KEY_BACKUP}"
+[[ -s "${SIGNING_KEY_BACKUP}" ]] || fail "Recovered release.keystore is empty"
 
 log "Finalize and validate the latest dev source"
 python3 scripts/finalize_authorgram_source.py --role dev --package "${MAIN_PACKAGE}"
@@ -171,9 +171,9 @@ git diff --check
 commit_and_push "${ROOT}" dev "[skip ci] Align dev source for final AuthorGram release"
 DEV_COMMIT="$(git -C "${ROOT}" rev-parse HEAD)"
 
-log "Create isolated Main and Play worktrees"
-git fetch --force origin main play-market
-git worktree add --force --detach "${MAIN_DIR}" origin/main >/dev/null
+log "Create isolated dev/Main and Play worktrees"
+git fetch --force origin dev play-market
+git worktree add --force --detach "${MAIN_DIR}" "${DEV_COMMIT}" >/dev/null
 git worktree add --force --detach "${PLAY_DIR}" origin/play-market >/dev/null
 for checkout in "${MAIN_DIR}" "${PLAY_DIR}"; do
   git -C "${checkout}" config core.fileMode false
@@ -181,26 +181,29 @@ for checkout in "${MAIN_DIR}" "${PLAY_DIR}"; do
   git -C "${checkout}" config user.email "actions@users.noreply.github.com"
 done
 
-log "Synchronize finalized app source into Main"
-sync_from_dev "${MAIN_DIR}" true
+log "Validate canonical dev source as the Main build"
+git -C "${MAIN_DIR}" submodule sync --recursive
+git -C "${MAIN_DIR}" submodule update --init --depth 1 --jobs 3
 python3 "${MAIN_DIR}/scripts/finalize_authorgram_source.py" \
   --role main --package "${MAIN_PACKAGE}"
-commit_and_push "${MAIN_DIR}" main "[skip ci] Synchronize finalized AuthorGram Main source"
+git -C "${MAIN_DIR}" diff --check
+git -C "${MAIN_DIR}" diff --quiet \
+  || fail "Main finalization changed canonical dev source unexpectedly"
+cp "${SIGNING_KEY_BACKUP}" "${MAIN_DIR}/TMessagesProj/release.keystore"
 
-log "Synchronize finalized app source into Play Market"
-sync_from_dev "${PLAY_DIR}" false
-rm -f "${PLAY_DIR}/TMessagesProj/release.keystore"
+log "Synchronize finalized app source into Play Market and strip Main-only runtime"
+sync_from_dev "${PLAY_DIR}"
 python3 "${PLAY_DIR}/scripts/finalize_authorgram_source.py" \
   --role play --package "${PLAY_PACKAGE}"
-commit_and_push "${PLAY_DIR}" play-market "[skip ci] Synchronize finalized AuthorGram Play source"
+commit_and_push "${PLAY_DIR}" play-market "[skip ci] Synchronize sanitized AuthorGram Play source"
 
-log "Verify Main and Play application-source parity"
-git fetch --force origin main play-market
+log "Verify dev/Main and Play application-source parity"
+git fetch --force origin dev play-market
 python3 scripts/authorgram_parity_guard.py \
-  --main-ref origin/main \
+  --main-ref origin/dev \
   --play-ref origin/play-market
 
-MAIN_COMMIT="$(git -C "${MAIN_DIR}" rev-parse HEAD)"
+MAIN_COMMIT="${DEV_COMMIT}"
 PLAY_COMMIT="$(git -C "${PLAY_DIR}" rev-parse HEAD)"
 
 log "Validate versions, signing inputs and deterministic passphrase KDF"
@@ -214,14 +217,14 @@ log "Validate versions, signing inputs and deterministic passphrase KDF"
 [[ "$(sed -n 's/^APP_VERSION_CODE=//p' "${PLAY_DIR}/gradle.properties")" == "${VERSION_CODE}" ]] \
   || fail "Play versionCode mismatch"
 [[ -f "${MAIN_DIR}/TMessagesProj/release.keystore" ]] \
-  || fail "Main release.keystore is missing"
+  || fail "Recovered stable release.keystore is missing from Main build workspace"
 
 javac -encoding UTF-8 -d "${TEST_DIR}" \
   "${MAIN_DIR}/TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPassphraseKdf.java" \
   "${MAIN_DIR}/scripts/java/org/telegram/messenger/authorgram/AuthorGramPassphraseKdfSelfTest.java"
 java -cp "${TEST_DIR}" org.telegram.messenger.authorgram.AuthorGramPassphraseKdfSelfTest
 
-log "Build Main release APK"
+log "Build Main release APK from canonical dev"
 printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > "${MAIN_DIR}/local.properties"
 (
   cd "${MAIN_DIR}"
@@ -230,11 +233,11 @@ printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > "${MAIN_DIR}/local.properties"
 MAIN_APK="$(find_arm64_apk "${MAIN_DIR}")"
 verify_apk "${MAIN_APK}" "${MAIN_PACKAGE}" "${ARTIFACT_DIR}/Main-CERTIFICATE.txt"
 mv "${MAIN_APK}" "${ARTIFACT_DIR}/AuthorGram-Main-v${VERSION_NAME}-release-arm64-v8a.apk"
-log "Release Main build workspace to preserve runner disk"
+log "Release Main build outputs while preserving the temporary signing key"
 rm -rf "${MAIN_DIR}/TMessagesProj/build" "${MAIN_DIR}/.gradle"
 df -h "${WORK_ROOT}" || true
 
-log "Build Play release APK with stable release signing identity"
+log "Build sanitized Play release APK with the same stable signing identity"
 cp "${MAIN_DIR}/TMessagesProj/release.keystore" "${PLAY_DIR}/TMessagesProj/release.keystore"
 printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > "${PLAY_DIR}/local.properties"
 (
@@ -251,7 +254,7 @@ df -h "${WORK_ROOT}" || true
 
 log "Produce release metadata and checksums"
 cat > "${ARTIFACT_DIR}/Main-BUILD.txt" <<EOF
-branch=main
+branch=dev
 commit=${MAIN_COMMIT}
 package=${MAIN_PACKAGE}
 versionName=${VERSION_NAME}
@@ -271,28 +274,34 @@ EOF
   sha256sum AuthorGram-*.apk > SHA256SUMS.txt
 )
 cat > "${ARTIFACT_DIR}/RELEASE-SUMMARY.txt" <<EOF
-AuthorGram ${VERSION_NAME} final verified two-APK release
+AuthorGram ${VERSION_NAME} final verified dev/Main + sanitized Play release
 
+Main source branch: dev
 Main package: ${MAIN_PACKAGE}
+Play source branch: play-market
 Play package: ${PLAY_PACKAGE}
 Main commit: ${MAIN_COMMIT}
 Play commit: ${PLAY_COMMIT}
 Canonical dev commit: ${DEV_COMMIT}
+Stable signing source commit: ${SIGNING_SOURCE_COMMIT}
+Stable signing key blob: ${SIGNING_KEY_BLOB_SHA}
 
 Verified invariants:
-- Main and Play application source are synchronized.
-- The only application identity difference is APP_PACKAGE.
+- dev is the canonical Main source; no deleted main branch is required.
+- Play starts from finalized dev and then applies deterministic source-level policy sanitization.
+- Spy retention/history, Ghost request interception, Local Premium emulation and outgoing AuthorGram custom-wire encryption are absent or compile-only inert facades in Play.
+- Incoming AuthorGram encrypted-message decryption compatibility remains available in Play.
+- Telegram-sponsored content and ordinary Telegram presence/read behaviour cannot be disabled by Play policy settings.
+- Play Premium entitlement is server-authoritative.
 - Main and Play artifact names are selected from the package in common Gradle source.
 - Encrypted-message replies cannot carry plaintext quote text or quote entities.
-- AuthorGram custom-wire encryption and the NagramXF-authored iOS input are Main-only.
-- Play forces normal Telegram read/presence behaviour and cannot send AuthorGram-encrypted payloads.
 - Legacy visible Nagram/Nekogram branding is rejected except exact legal upstream attribution.
 - Both APKs are signed, non-debuggable, minified and shrink resources.
 - Main can request user-approved APK installation; Play omits the restricted permission.
-- Main and Play APKs use the stable existing release signing identity.
-- Signing material is not included in APK artifacts or committed to Play source.
+- Main and Play APKs use the exact stable historical release.keystore recovered into the temporary build workspace only.
+- Signing material is not included in APK artifacts or committed to dev/Play source.
 - Deterministic AuthorGram passphrase KDF self-test passed.
 - No Android App Bundle was generated or uploaded.
 EOF
 cat "${ARTIFACT_DIR}/SHA256SUMS.txt"
-log "AuthorGram two-APK release artifacts are verified"
+log "AuthorGram dev/Main + sanitized Play release artifacts are verified"
