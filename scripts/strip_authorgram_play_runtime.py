@@ -24,7 +24,14 @@ TARGETS = {
     "AuthorGramChatState.java": "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatState.java",
     "AuthorGramCrypto.java": "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCrypto.java",
     "AuthorGramChatCrypto.java": "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatCrypto.java",
+    "AuthorGramKeyDialog.java": "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramKeyDialog.java",
 }
+
+REMOVE_TARGETS = (
+    "TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java",
+    "TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java",
+    "TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java",
+)
 
 
 def read(relative: str) -> str:
@@ -67,6 +74,16 @@ def apply_templates() -> int:
     changed = 0
     for name, relative in TARGETS.items():
         changed += int(write(relative, template(name)))
+    return changed
+
+
+def remove_dead_sources() -> int:
+    changed = 0
+    for relative in REMOVE_TARGETS:
+        path = ROOT / relative
+        if path.exists():
+            path.unlink()
+            changed += 1
     return changed
 
 
@@ -129,6 +146,9 @@ def validate_templates() -> None:
     for name, relative in TARGETS.items():
         if read(relative) != template(name):
             raise RuntimeError(f"Play sanitized source drifted: {relative}")
+    for relative in REMOVE_TARGETS:
+        if (ROOT / relative).exists():
+            raise RuntimeError(f"Dead Play-only history source still exists: {relative}")
 
 
 def validate_direct_gates() -> None:
@@ -182,6 +202,11 @@ def validate_runtime_absence() -> None:
     chat_state = read(TARGETS["AuthorGramChatState.java"])
     if "SharedPreferences" in chat_state or "return false;" not in chat_state:
         raise RuntimeError("Outgoing AuthorGram encryption state remains in Play")
+
+    key_dialog = read(TARGETS["AuthorGramKeyDialog.java"])
+    for forbidden in ("EditText", "ClipboardManager", "AuthorGramChatKeyStore", "setPositiveButton"):
+        if forbidden in key_dialog:
+            raise RuntimeError(f"Custom encryption-key UI remains in Play: {forbidden}")
 
     interceptor = read(TARGETS["AuthorGramCryptoInterceptor.java"])
     if "encryptOutgoingText" in interceptor or "AuthorGramChatCrypto.encryptText" in interceptor:
@@ -255,6 +280,7 @@ def main() -> int:
         raise RuntimeError("Refusing to sanitize Main/dev: APP_PACKAGE is not the Play package")
 
     changed = apply_templates()
+    changed += remove_dead_sources()
     changed += int(patch_user_config())
     changed += int(patch_config_read_lock())
     changed += int(patch_experimental_premium_rows())
