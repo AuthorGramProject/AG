@@ -85,6 +85,34 @@ public final class IOSMessageMenuPreview extends View {
     private boolean previewRevealed;
     private boolean cleanedUp;
 
+    // AUTHORGRAM_IOS_MESSAGE_MENU_V8_BOUNDED_LAYOUT_RETRY
+    // Layout retries are allowed only for a few display frames while the popup
+    // is actually attached. An unbounded View.post(self) loop can otherwise
+    // survive popup dismissal with a zero-width menu and starve Android's main
+    // thread, blocking taps, Back and Activity lifecycle callbacks.
+    private static final int MAX_LAYOUT_RETRY_COUNT = 4;
+    private int attachLayoutRetryCount;
+    private int reflowLayoutRetryCount;
+    private boolean attachLayoutRetryPosted;
+    private boolean reflowLayoutRetryPosted;
+    private boolean scrimLifecycleBound;
+
+    private final Runnable attachLayoutRetryRunnable = () -> {
+        attachLayoutRetryPosted = false;
+        if (!canRunLayoutRetry()) {
+            return;
+        }
+        attachPreviewBetweenReactionsAndMenu();
+    };
+
+    private final Runnable reflowLayoutRetryRunnable = () -> {
+        reflowLayoutRetryPosted = false;
+        if (!canRunLayoutRetry()) {
+            return;
+        }
+        reflowPreviewAndMenu();
+    };
+
     private IOSMessageMenuPreview(
             Context context,
             int currentAccount,
@@ -387,18 +415,22 @@ public final class IOSMessageMenuPreview extends View {
 
         // The visible preview was moved out of the popup's inner LinearLayout,
         // so do not rely solely on this hidden controller's detach callback.
-        // Bind cleanup to the actual popup root as well.
-        scrimContainer.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
-            @Override
-            public void onViewAttachedToWindow(View v) {
-            }
+        // Register the popup-root lifecycle listener exactly once: retries must
+        // never accumulate additional listeners while the menu is measuring.
+        if (!scrimLifecycleBound) {
+            scrimLifecycleBound = true;
+            scrimContainer.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+                @Override
+                public void onViewAttachedToWindow(View v) {
+                }
 
-            @Override
-            public void onViewDetachedFromWindow(View v) {
-                v.removeOnAttachStateChangeListener(this);
-                cleanup();
-            }
-        });
+                @Override
+                public void onViewDetachedFromWindow(View v) {
+                    v.removeOnAttachStateChangeListener(this);
+                    cleanup();
+                }
+            });
+        }
 
         menuDirectChild = findDirectChildBelowScrim(scrimContainer);
         if (menuDirectChild == null) {
@@ -415,7 +447,7 @@ public final class IOSMessageMenuPreview extends View {
             menuWidth = menuDirectChild.getWidth();
         }
         if (menuWidth <= 0) {
-            scrimContainer.post(this::attachPreviewBetweenReactionsAndMenu);
+            scheduleAttachLayoutRetry();
             return;
         }
 
@@ -441,6 +473,37 @@ public final class IOSMessageMenuPreview extends View {
 
         scrimContainer.addView(previewHost, menuIndex, params);
         reflowPreviewAndMenu();
+    }
+
+    private boolean canRunLayoutRetry() {
+        return !cleanedUp
+                && isAttachedToWindow()
+                && getWindowVisibility() == VISIBLE
+                && scrimContainer != null
+                && scrimContainer.isAttachedToWindow()
+                && scrimContainer.getWindowVisibility() == VISIBLE;
+    }
+
+    private void scheduleAttachLayoutRetry() {
+        if (!canRunLayoutRetry()
+                || attachLayoutRetryPosted
+                || attachLayoutRetryCount >= MAX_LAYOUT_RETRY_COUNT) {
+            return;
+        }
+        attachLayoutRetryCount++;
+        attachLayoutRetryPosted = true;
+        scrimContainer.postOnAnimation(attachLayoutRetryRunnable);
+    }
+
+    private void scheduleReflowLayoutRetry() {
+        if (!canRunLayoutRetry()
+                || reflowLayoutRetryPosted
+                || reflowLayoutRetryCount >= MAX_LAYOUT_RETRY_COUNT) {
+            return;
+        }
+        reflowLayoutRetryCount++;
+        reflowLayoutRetryPosted = true;
+        scrimContainer.postOnAnimation(reflowLayoutRetryRunnable);
     }
 
     private ChatScrimPopupContainerLayout findScrimAncestor() {
@@ -481,7 +544,7 @@ public final class IOSMessageMenuPreview extends View {
             menuWidth = menuDirectChild.getWidth();
         }
         if (menuWidth <= 0) {
-            scrimContainer.post(this::reflowPreviewAndMenu);
+            scheduleReflowLayoutRetry();
             return;
         }
 
@@ -957,6 +1020,18 @@ public final class IOSMessageMenuPreview extends View {
             return;
         }
         cleanedUp = true;
+
+        // Cancel every layout retry before detaching visual children. This is
+        // the critical dismissal invariant: no preview callback may keep the
+        // UI queue alive after the popup has started closing.
+        if (scrimContainer != null) {
+            scrimContainer.removeCallbacks(attachLayoutRetryRunnable);
+            scrimContainer.removeCallbacks(reflowLayoutRetryRunnable);
+        }
+        removeCallbacks(attachLayoutRetryRunnable);
+        removeCallbacks(reflowLayoutRetryRunnable);
+        attachLayoutRetryPosted = false;
+        reflowLayoutRetryPosted = false;
 
         if (messagePreviewView != null) {
             messagePreviewView.setImageDrawable(null);
