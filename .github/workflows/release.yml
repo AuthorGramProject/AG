@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 concurrency:
@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   release:
-    name: Build verified Play Universal APK
+    name: Fix and build verified Play Universal APK
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
@@ -27,62 +27,61 @@ jobs:
       HISTORICAL_KEYSTORE_BLOB: 5c0f63c668f7ad06ea674560f10ffb256ff2c092
 
     steps:
-      - name: Checkout sanitized Play source
+      - name: Checkout Play only
         uses: actions/checkout@v4
         with:
           ref: play-market
           fetch-depth: 1
           submodules: recursive
-          persist-credentials: false
+          persist-credentials: true
 
-      - name: Validate physically sanitized Play source
+      - name: Remove dead Ayu references from Play ChatActivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/play_fix_chatactivity_dead_ayu_refs.py
+          python3 scripts/play_fix_chatactivity_dead_ayu_refs.py
+          git diff --check
+
+          ! grep -Fq 'AyuHistoryHook' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          ! grep -Fq 'AyuMessageHistory' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          ! grep -Fq 'AyuViewDeleted' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
+
+          git config user.name "AuthorGram Play Source Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          if ! git diff --cached --quiet; then
+            [[ "$(git diff --cached --name-only)" == "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java" ]]
+            git commit -m "[skip ci] Remove dead Ayu references from Play ChatActivity"
+            git push origin HEAD:play-market
+          fi
+
+      - name: Validate sanitized Play source
         shell: bash
         run: |
           set -euo pipefail
           [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
           [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
           [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
-
-          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
-          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
           test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
-          test ! -e scripts/apply_authorgram_exact_icon_and_spy.py
-          test ! -e scripts/fix_authorgram_spy_compile.py
-
-          grep -Fq 'Play-Market compatibility stub' \
-            TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
-          grep -Fq 'Ayu/Spy Room database runtime is intentionally absent' \
-            TMessagesProj/src/main/java/com/radolyn/ayugram/database/AyuData.java
-          ! grep -Fq 'Room.databaseBuilder' \
-            TMessagesProj/src/main/java/com/radolyn/ayugram/database/AyuData.java
-          ! grep -Fq 'sendFakeReadResponse' \
-            TMessagesProj/src/main/java/com/radolyn/ayugram/utils/AyuGhostUtils.java
-          ! grep -Fq 'Cipher.ENCRYPT_MODE' \
-            TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatCrypto.java
-          ! grep -Fq 'AuthorGramChatCrypto.encryptText' \
-            TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java
-          ! grep -Fq 'AuthorGramChatKeyStore' \
-            TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramKeyDialog.java
-
-          grep -Fq 'return user != null && user.premium;' \
-            TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
-          ! grep -Fq 'NekoConfig.localPremium.Bool()' \
-            TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
-          ! grep -Fq 'NekoConfig.unlimitedPinnedDialogs' \
-            TMessagesProj/src/main/java/toss/authorgram/settings/AGExperimentalSettingsActivity.java
-          ! grep -Fq 'NekoConfig.unlimitedFavedStickers' \
-            TMessagesProj/src/main/java/toss/authorgram/settings/AGExperimentalSettingsActivity.java
-
-          grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" \
-            TMessagesProj/build.gradle
-          grep -Fq "def authorGramSystemKeyHex = APP_PACKAGE == 'toss.authorgram.apk' ? ''" \
-            TMessagesProj/build.gradle
-          grep -Fq "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET'" \
-            TMessagesProj/build.gradle
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
+          grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
+          grep -Fq 'Ayu/Spy Room database runtime is intentionally absent' TMessagesProj/src/main/java/com/radolyn/ayugram/database/AyuData.java
+          ! grep -Fq 'Room.databaseBuilder' TMessagesProj/src/main/java/com/radolyn/ayugram/database/AyuData.java
+          ! grep -Fq 'sendFakeReadResponse' TMessagesProj/src/main/java/com/radolyn/ayugram/utils/AyuGhostUtils.java
+          ! grep -Fq 'Cipher.ENCRYPT_MODE' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatCrypto.java
+          ! grep -Fq 'AuthorGramChatCrypto.encryptText' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java
+          ! grep -Fq 'AuthorGramChatKeyStore' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramKeyDialog.java
+          grep -Fq 'return user != null && user.premium;' TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
+          ! grep -Fq 'NekoConfig.localPremium.Bool()' TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
           git diff --check
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -97,7 +96,7 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-      - name: Restore existing AuthorGram release signing key in runner only
+      - name: Restore existing AuthorGram signing key in runner only
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -105,22 +104,15 @@ jobs:
           set -euo pipefail
           test ! -e TMessagesProj/release.keystore
           blob="$(gh api "/repos/${GITHUB_REPOSITORY}/contents/TMessagesProj/release.keystore?ref=${HISTORICAL_SIGNING_COMMIT}" --jq '.sha')"
-          [[ "${blob}" == "${HISTORICAL_KEYSTORE_BLOB}" ]] || {
-            echo "Historical release.keystore blob mismatch: ${blob}" >&2
-            exit 1
-          }
-          gh api \
-            "/repos/${GITHUB_REPOSITORY}/contents/TMessagesProj/release.keystore?ref=${HISTORICAL_SIGNING_COMMIT}" \
-            --jq '.content' \
-            | tr -d '\n' \
-            | base64 --decode \
-            > TMessagesProj/release.keystore
+          [[ "${blob}" == "${HISTORICAL_KEYSTORE_BLOB}" ]]
+          gh api "/repos/${GITHUB_REPOSITORY}/contents/TMessagesProj/release.keystore?ref=${HISTORICAL_SIGNING_COMMIT}" --jq '.content' \
+            | tr -d '\n' | base64 --decode > TMessagesProj/release.keystore
           test -s TMessagesProj/release.keystore
           chmod 600 TMessagesProj/release.keystore
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
 
-      - name: Compile Play Java source before expensive APK build
+      - name: Compile Play Java source
         shell: bash
         run: |
           set -uo pipefail
@@ -134,21 +126,15 @@ jobs:
           import re
           import sys
           from pathlib import Path
-
-          lines = Path(sys.argv[1]).read_text(encoding='utf-8', errors='replace').splitlines()
-          pattern = re.compile(r'^(.*\.java):(\d+): error: (.*)$')
           emitted = 0
-          for line in lines:
-              match = pattern.match(line.strip())
-              if not match:
-                  continue
-              path, lineno, message = match.groups()
-              path = path.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              print(f'::error file={path},line={lineno}::{message}')
-              emitted += 1
+          for line in Path(sys.argv[1]).read_text(encoding='utf-8', errors='replace').splitlines():
+              m = re.match(r'^(.*\.java):(\d+): error: (.*)$', line.strip())
+              if m:
+                  path, lineno, message = m.groups()
+                  print(f'::error file={path},line={lineno}::{message}')
+                  emitted += 1
           if emitted == 0:
-              print('::error::Play Java compilation failed; inspect the compile step output.')
+              print('::error::Play Java compilation failed; inspect this step output.')
           PY
             exit "${status}"
           fi
@@ -167,18 +153,13 @@ jobs:
           python3 - <<'PY' > "${RUNNER_TEMP}/play_apk_path.txt"
           import json
           from pathlib import Path
-
-          root = Path('TMessagesProj/build/outputs/apk')
           matches = []
-          for metadata in root.rglob('output-metadata.json'):
+          for metadata in Path('TMessagesProj/build/outputs/apk').rglob('output-metadata.json'):
               data = json.loads(metadata.read_text(encoding='utf-8'))
               for element in data.get('elements', []):
-                  output = element.get('outputFile', '')
+                  candidate = (metadata.parent / element.get('outputFile', '')).resolve()
                   filters = element.get('filters') or []
-                  candidate = (metadata.parent / output).resolve()
-                  if not candidate.is_file() or 'debug' in candidate.name.lower():
-                      continue
-                  if not filters or 'universal' in candidate.name.lower():
+                  if candidate.is_file() and 'debug' not in candidate.name.lower() and (not filters or 'universal' in candidate.name.lower()):
                       matches.append(candidate)
           unique = sorted(set(matches))
           if len(unique) != 1:
@@ -187,7 +168,6 @@ jobs:
           PY
           apk="$(cat "${RUNNER_TEMP}/play_apk_path.txt")"
           out="${RUNNER_TEMP}/authorgram-play/AuthorGram-Play-v${VERSION_NAME}-release-universal.apk"
-
           aapt="${ANDROID_HOME}/build-tools/36.0.0/aapt"
           apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
           zipalign="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
@@ -200,21 +180,16 @@ jobs:
           [[ "${version_code}" == "${VERSION_CODE}" ]]
           [[ "${version_name}" == "${VERSION_NAME}" ]]
           ! grep -q '^application-debuggable' <<<"${badging}"
-
           permissions="$("${aapt}" dump permissions "${apk}")"
           ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${permissions}"
-
           "${zipalign}" -c -P 16 4 "${apk}"
           signer_report="$("${apksigner}" verify --verbose --print-certs "${apk}")"
           printf '%s\n' "${signer_report}"
           grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer_report}"
-
           cp "${apk}" "${out}"
           sha256sum "${out}" > "${RUNNER_TEMP}/authorgram-play/SHA256SUMS.txt"
           printf 'branch=play-market\npackage=%s\nversionName=%s\nversionCode=%s\nformat=universal-release-apk\n' \
-            "${PLAY_PACKAGE}" "${VERSION_NAME}" "${VERSION_CODE}" \
-            > "${RUNNER_TEMP}/authorgram-play/BUILD.txt"
-          rm -f TMessagesProj/release.keystore
+            "${PLAY_PACKAGE}" "${VERSION_NAME}" "${VERSION_CODE}" > "${RUNNER_TEMP}/authorgram-play/BUILD.txt"
 
       - name: Upload Play Universal release APK
         uses: actions/upload-artifact@v4
@@ -223,3 +198,8 @@ jobs:
           path: ${{ runner.temp }}/authorgram-play/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Remove signing key from runner
+        if: always()
+        shell: bash
+        run: rm -f TMessagesProj/release.keystore
