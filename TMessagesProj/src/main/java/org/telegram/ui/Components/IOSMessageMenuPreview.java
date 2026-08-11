@@ -32,20 +32,15 @@ import org.telegram.ui.Cells.ChatMessageCell;
 /**
  * Dev-only controller for the AuthorGram iOS-style message context preview.
  *
- * Reference geometry is intentionally the iOS-style example with the message
- * from "Vadym Yemelianov":
+ * Reference geometry is intentionally the current accepted iOS-style layout:
+ * reactions -> selected native Telegram message -> action menu.
  *
- *     reactions
- *     selected native Telegram message (avatar + bubble)
- *     action menu
+ * AUTHORGRAM_IOS_MESSAGE_MENU_V9_DEFERRED_DISMISS_CLEANUP
  *
- * The selected message is NOT part of the action-menu background. It is placed
- * as a transparent sibling immediately before the popup menu inside
- * ChatScrimPopupContainerLayout, while a full-screen blurred snapshot remains
- * behind the complete popup composition.
- *
- * The source ChatMessageCell is only snapshotted. MessageObject is never rebound,
- * so reply/link/media/settings-link processing remains isolated from this UI.
+ * Visual/layout behavior is kept identical to V8. The only change is teardown:
+ * Telegram's popup/scrim hierarchy is never synchronously mutated while it is
+ * detaching. The root blur layer and bitmaps are released after the native popup
+ * has yielded the UI thread, preventing the post-dismiss application freeze.
  */
 public final class IOSMessageMenuPreview extends View {
     private static final int SCREEN_EDGE_DP = 12;
@@ -84,18 +79,15 @@ public final class IOSMessageMenuPreview extends View {
     private int currentGroupHeight;
     private boolean previewRevealed;
     private boolean cleanedUp;
+    private boolean resourcesReleased;
+    private boolean bitmapsRecycled;
 
-    // AUTHORGRAM_IOS_MESSAGE_MENU_V8_BOUNDED_LAYOUT_RETRY
-    // Layout retries are allowed only for a few display frames while the popup
-    // is actually attached. An unbounded View.post(self) loop can otherwise
-    // survive popup dismissal with a zero-width menu and starve Android's main
-    // thread, blocking taps, Back and Activity lifecycle callbacks.
+    // V8 visual layout retry guard retained unchanged.
     private static final int MAX_LAYOUT_RETRY_COUNT = 4;
     private int attachLayoutRetryCount;
     private int reflowLayoutRetryCount;
     private boolean attachLayoutRetryPosted;
     private boolean reflowLayoutRetryPosted;
-    private boolean scrimLifecycleBound;
 
     private final Runnable attachLayoutRetryRunnable = () -> {
         attachLayoutRetryPosted = false;
@@ -113,6 +105,9 @@ public final class IOSMessageMenuPreview extends View {
         reflowPreviewAndMenu();
     };
 
+    private final Runnable releaseResourcesRunnable = this::releaseResources;
+    private final Runnable recycleBitmapsRunnable = this::recycleBitmaps;
+
     private IOSMessageMenuPreview(
             Context context,
             int currentAccount,
@@ -120,7 +115,7 @@ public final class IOSMessageMenuPreview extends View {
             Theme.ResourcesProvider resourcesProvider
     ) {
         super(context);
-        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V7_TOUCH_CLEANUP");
+        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V9_DEFERRED_DISMISS_CLEANUP");
         setVisibility(GONE);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
 
@@ -159,8 +154,8 @@ public final class IOSMessageMenuPreview extends View {
                 resourcesProvider
         );
 
-        // If popup creation is aborted before the controller reaches a window,
-        // never leave the blur layer attached to the activity root.
+        // If popup construction aborts before this controller ever attaches,
+        // release only our independent visual resources. No popup hierarchy is touched.
         if (blurOverlay != null) {
             blurOverlay.postDelayed(() -> {
                 if (!isAttachedToWindow()) {
@@ -199,8 +194,7 @@ public final class IOSMessageMenuPreview extends View {
     private void createBlurOverlay(Context context, Theme.ResourcesProvider resourcesProvider) {
         blurredBackground = captureBlurredBackground(rootView);
 
-        // This overlay is visual only. It must never become a touch target,
-        // even for a single frame after the popup starts its dismiss animation.
+        // Visual only. It must never become a touch target.
         blurOverlay = new FrameLayout(context) {
             @Override
             public boolean dispatchTouchEvent(MotionEvent event) {
@@ -373,7 +367,7 @@ public final class IOSMessageMenuPreview extends View {
 
     /**
      * Older V4 integration inserted an 8dp GapView after this controller. The
-     * V5 preview is now a true sibling between reactions and menu, so that old
+     * current preview is a true sibling between reactions and menu, so the old
      * separator must not consume space at the top of the action block.
      */
     private void removeLegacyTopGap() {
@@ -399,9 +393,10 @@ public final class IOSMessageMenuPreview extends View {
     }
 
     /**
-     * Moves only the visible preview host into the popup's vertical scrim flow:
-     * reactions -> preview -> menu. The hidden controller remains in the native
-     * popup layout solely to share the popup lifecycle.
+     * V8 visual composition retained unchanged: reactions -> preview -> menu.
+     * No lifecycle listener is installed on the scrim. The hidden controller's
+     * own detach callback is sufficient and avoids mutating the scrim while the
+     * native popup itself is being torn down.
      */
     private void attachPreviewBetweenReactionsAndMenu() {
         if (!isUsable() || previewHost.getParent() != null) {
@@ -411,25 +406,6 @@ public final class IOSMessageMenuPreview extends View {
         scrimContainer = findScrimAncestor();
         if (scrimContainer == null) {
             return;
-        }
-
-        // The visible preview was moved out of the popup's inner LinearLayout,
-        // so do not rely solely on this hidden controller's detach callback.
-        // Register the popup-root lifecycle listener exactly once: retries must
-        // never accumulate additional listeners while the menu is measuring.
-        if (!scrimLifecycleBound) {
-            scrimLifecycleBound = true;
-            scrimContainer.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
-                @Override
-                public void onViewAttachedToWindow(View v) {
-                }
-
-                @Override
-                public void onViewDetachedFromWindow(View v) {
-                    v.removeOnAttachStateChangeListener(this);
-                    cleanup();
-                }
-            });
         }
 
         menuDirectChild = findDirectChildBelowScrim(scrimContainer);
@@ -848,8 +824,6 @@ public final class IOSMessageMenuPreview extends View {
             previewScrollView.setLayoutParams(params);
         }
 
-        // Short messages show in full. Long messages start at the top and can be
-        // scrolled to the bottom without changing scale or cropping the bitmap.
         if (currentGroupHeight <= previewScrollView.getHeight()) {
             previewScrollView.scrollTo(0, 0);
         }
@@ -921,13 +895,8 @@ public final class IOSMessageMenuPreview extends View {
     }
 
     /**
-     * Captures the complete native Telegram bubble at source resolution. No
-     * height-based scale or crop is applied. Width adaptation happens later,
-     * against the real menu width.
-     *
-     * Telegram can draw an outgoing bubble background through parent-assisted
-     * rendering. For own messages we therefore explicitly paint the native
-     * Theme.MessageDrawable before drawing the already-bound ChatMessageCell.
+     * Captures the complete native Telegram bubble at source resolution. Width
+     * adaptation happens later against the real menu width; height never crops.
      */
     private static SnapshotResult captureNativeCell(ChatMessageCell sourceCell) {
         final int sourceWidth = sourceCell.getWidth();
@@ -1002,15 +971,9 @@ public final class IOSMessageMenuPreview extends View {
     }
 
     @Override
-    protected void onWindowVisibilityChanged(int visibility) {
-        super.onWindowVisibilityChanged(visibility);
-        if (visibility != VISIBLE && previewRevealed) {
-            cleanup();
-        }
-    }
-
-    @Override
     protected void onDetachedFromWindow() {
+        // Important: do not remove previewHost from scrimContainer here. This
+        // callback runs while Telegram itself is detaching that same popup tree.
         cleanup();
         super.onDetachedFromWindow();
     }
@@ -1021,9 +984,8 @@ public final class IOSMessageMenuPreview extends View {
         }
         cleanedUp = true;
 
-        // Cancel every layout retry before detaching visual children. This is
-        // the critical dismissal invariant: no preview callback may keep the
-        // UI queue alive after the popup has started closing.
+        // Stop every AuthorGram callback immediately, but do not mutate the
+        // native popup hierarchy while its dismiss traversal is in progress.
         if (scrimContainer != null) {
             scrimContainer.removeCallbacks(attachLayoutRetryRunnable);
             scrimContainer.removeCallbacks(reflowLayoutRetryRunnable);
@@ -1032,6 +994,19 @@ public final class IOSMessageMenuPreview extends View {
         removeCallbacks(reflowLayoutRetryRunnable);
         attachLayoutRetryPosted = false;
         reflowLayoutRetryPosted = false;
+
+        if (rootView != null && rootView.isAttachedToWindow()) {
+            rootView.postOnAnimation(releaseResourcesRunnable);
+        } else {
+            releaseResources();
+        }
+    }
+
+    private void releaseResources() {
+        if (resourcesReleased) {
+            return;
+        }
+        resourcesReleased = true;
 
         if (messagePreviewView != null) {
             messagePreviewView.setImageDrawable(null);
@@ -1043,12 +1018,26 @@ public final class IOSMessageMenuPreview extends View {
             blurredBackgroundView.setImageDrawable(null);
         }
 
-        if (previewHost != null && previewHost.getParent() instanceof ViewGroup) {
-            ((ViewGroup) previewHost.getParent()).removeView(previewHost);
-        }
+        // previewHost belongs to Telegram's popup scrim and is intentionally not
+        // removed here. Telegram already owns and detaches that hierarchy.
         if (blurOverlay != null && blurOverlay.getParent() instanceof ViewGroup) {
             ((ViewGroup) blurOverlay.getParent()).removeView(blurOverlay);
         }
+
+        // Keep recycled bitmap memory out of the same frame in which the popup
+        // and overlay are being detached from RenderThread display lists.
+        if (rootView != null && rootView.isAttachedToWindow()) {
+            rootView.postDelayed(recycleBitmapsRunnable, 64L);
+        } else {
+            recycleBitmaps();
+        }
+    }
+
+    private void recycleBitmaps() {
+        if (bitmapsRecycled) {
+            return;
+        }
+        bitmapsRecycled = true;
 
         if (messageSnapshot != null && !messageSnapshot.isRecycled()) {
             messageSnapshot.recycle();
