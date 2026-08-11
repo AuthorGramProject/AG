@@ -25,6 +25,8 @@ PLAY_SANITIZED_EXACT = {
     "TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/helper/LocalPeerColorHelper.kt",
     "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCryptoInterceptor.java",
     "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatState.java",
+    "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramCrypto.java",
+    "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramChatCrypto.java",
     "TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java",
     "TMessagesProj/src/main/java/tw/nekomimi/nekogram/config/ConfigItem.java",
 }
