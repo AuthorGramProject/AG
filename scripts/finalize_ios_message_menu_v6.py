@@ -48,7 +48,6 @@ def validate(text: str) -> None:
         "private void reflowPreviewAndMenu()",
         "private void constrainMenuScroll(ScrollView menuScroll, int menuViewportLimit)",
         "private void alignPreviewWithMenu()",
-        # V9 dismiss-safety invariants must remain untouched.
         "protected void onDetachedFromWindow()",
         "removeFirstFrameGate();",
         "rootView.postOnAnimation(releaseResourcesRunnable);",
@@ -62,8 +61,6 @@ def validate(text: str) -> None:
         if needle not in text:
             raise SystemExit(f"iOS message menu V11 validation failed: missing {needle!r}")
 
-    # V10 broke the popup by mutating Telegram's native scrim itself. V11 must
-    # never hide, translate, detach or lifecycle-bind that native container.
     forbidden = (
         BAD_V10_MARKER,
         "scrimContainer.setAlpha(0.0f)",
@@ -87,7 +84,7 @@ def patch(text: str) -> str:
         validate(text)
         return text
     if BAD_V10_MARKER in text:
-        raise SystemExit("Refusing to patch unsafe V10 baseline; restore stable V9 first")
+        raise SystemExit("Refusing unsafe V10 baseline; restore stable V9 first")
     if BASE_MARKER not in text:
         raise SystemExit("Unexpected iOS message menu baseline: expected stable V9 or V11")
 
@@ -100,18 +97,21 @@ def patch(text: str) -> str:
         "ViewTreeObserver import",
     )
 
-    old_comment = """ * Visual/layout behavior is kept identical to V8. The only change is teardown:
+    text = replace_once(
+        text,
+        """ * Visual/layout behavior is kept identical to V8. The only change is teardown:
  * Telegram's popup/scrim hierarchy is never synchronously mutated while it is
  * detaching. The root blur layer and bitmaps are released after the native popup
  * has yielded the UI thread, preventing the post-dismiss application freeze.
-"""
-    new_comment = """ * V11 keeps the stable V9 deferred-dismiss invariant, but makes presentation
+""",
+        """ * V11 keeps the stable V9 deferred-dismiss invariant, but makes presentation
  * atomic for the human eye. The first popup draw is held by a bounded pre-draw
  * gate until the AuthorGram preview has joined the already-laid-out Telegram
  * hierarchy. Telegram's native scrim is never hidden, translated or detached.
  * A normal 12dp layout spacer lowers reactions, preview and menu as one stack.
-"""
-    text = replace_once(text, old_comment, new_comment, "V11 class comment")
+""",
+        "V11 class comment",
+    )
 
     text = replace_once(
         text,
@@ -123,9 +123,7 @@ def patch(text: str) -> str:
 
     text = replace_once(
         text,
-        "    // V8 visual layout retry guard retained unchanged.\n"
         "    private static final int MAX_LAYOUT_RETRY_COUNT = 4;\n",
-        "    // V8/V9 bounded retry behavior remains unchanged.\n"
         "    private static final int MAX_LAYOUT_RETRY_COUNT = 4;\n"
         "    private static final int MAX_FIRST_FRAME_PREDRAW_ATTEMPTS = 4;\n",
         "first-frame attempt bound",
@@ -147,12 +145,14 @@ def patch(text: str) -> str:
     private ViewTreeObserver.OnPreDrawListener firstFramePreDrawListener;
     private View stackTopSpacer;
 
-    // V8/V9 bounded retry behavior remains unchanged.
+    // V8 visual layout retry guard retained unchanged.
 """,
         "first-frame state",
     )
 
-    old_attach = """    @Override
+    text = replace_once(
+        text,
+        """    @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         post(() -> {
@@ -165,8 +165,8 @@ def patch(text: str) -> str:
         });
     }
 
-"""
-    new_attach = """    @Override
+""",
+        """    @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         installFirstFrameGate();
@@ -198,9 +198,6 @@ def patch(text: str) -> str:
             }
 
             if (firstFramePreDrawAttempts >= MAX_FIRST_FRAME_PREDRAW_ATTEMPTS) {
-                // Fail open rather than risk starving the UI thread on an
-                // unexpected Telegram layout. The normal bounded V9 retries can
-                // still complete the preview after this exceptionally rare path.
                 removeFirstFrameGate();
                 post(this::finishDeferredFirstFramePreparation);
                 return true;
@@ -250,8 +247,9 @@ def patch(text: str) -> str:
         preparePreviewForFirstFrame();
     }
 
-"""
-    text = replace_once(text, old_attach, new_attach, "bounded pre-draw first-frame gate")
+""",
+        "bounded pre-draw first-frame gate",
+    )
 
     text = replace_once(
         text,
@@ -273,7 +271,10 @@ def patch(text: str) -> str:
         "stack spacer insertion point",
     )
 
-    spacer_method = """    private void ensureStackTopSpacer() {
+    text = replace_once(
+        text,
+        "    private View findDirectChildBelowScrim(ChatScrimPopupContainerLayout scrim) {\n",
+        """    private void ensureStackTopSpacer() {
         if (scrimContainer == null || stackTopSpacer != null) {
             return;
         }
@@ -299,11 +300,8 @@ def patch(text: str) -> str:
         stackTopSpacer = spacer;
     }
 
-"""
-    text = replace_once(
-        text,
-        "    private View findDirectChildBelowScrim(ChatScrimPopupContainerLayout scrim) {\n",
-        spacer_method + "    private View findDirectChildBelowScrim(ChatScrimPopupContainerLayout scrim) {\n",
+    private View findDirectChildBelowScrim(ChatScrimPopupContainerLayout scrim) {
+""",
         "stack spacer helper",
     )
 
