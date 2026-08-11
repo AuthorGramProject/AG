@@ -11,7 +11,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_EXACT = {
     "gradle.properties",
-    "TMessagesProj/release.keystore",
 }
 PLAY_SANITIZED_EXACT = {
     "TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java",
@@ -110,7 +109,7 @@ def main() -> int:
 
     actual_sanitized = sorted(application_changes & PLAY_SANITIZED_EXACT)
     print(
-        "AuthorGram dev/Play parity passed: only package/keystore and allowlisted "
+        "AuthorGram dev/Play parity passed: only package and allowlisted "
         f"Play runtime stripping differ ({len(actual_sanitized)} sanitized source files)"
     )
     return 0
