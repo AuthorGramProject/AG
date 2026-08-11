@@ -16,6 +16,7 @@ TARGETS = {
     "AyuGhostUtils.java": "TMessagesProj/src/main/java/com/radolyn/ayugram/utils/AyuGhostUtils.java",
     "AyuSavePreferences.java": "TMessagesProj/src/main/java/com/radolyn/ayugram/messages/AyuSavePreferences.java",
     "AyuMessagesController.java": "TMessagesProj/src/main/java/com/radolyn/ayugram/messages/AyuMessagesController.java",
+    "AyuData.java": "TMessagesProj/src/main/java/com/radolyn/ayugram/database/AyuData.java",
     "LastSeenHelper.java": "TMessagesProj/src/main/java/com/radolyn/ayugram/utils/LastSeenHelper.java",
     "LocalPremiumStatusHelper.kt": "TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/helper/LocalPremiumStatusHelper.kt",
     "LocalPeerColorHelper.kt": "TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/helper/LocalPeerColorHelper.kt",
@@ -143,6 +144,11 @@ def validate_runtime_absence() -> None:
     for forbidden in ("AyuData", "DeletedMessageDao", "EditedMessageDao", ".insert(", "clearMediaPath"):
         if forbidden in retention:
             raise RuntimeError(f"Retention runtime marker remains: {forbidden}")
+
+    ayu_data = read(TARGETS["AyuData.java"])
+    for forbidden in ("androidx.room", "Room.databaseBuilder", "Migration", "ZipInputStream", "getWritableDatabase"):
+        if forbidden in ayu_data:
+            raise RuntimeError(f"Spy database runtime remains in Play: {forbidden}")
 
     save_prefs = read(TARGETS["AyuSavePreferences.java"])
     if "return false;" not in save_prefs or "NaConfig" in save_prefs:
