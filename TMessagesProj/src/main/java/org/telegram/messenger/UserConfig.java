@@ -343,7 +343,7 @@ public class UserConfig extends BaseController {
                 FileLog.e(e);
             }
 
-            migrateOffsetId = preferences.getInt("6dialogsLoadOffsetId", 0);
+            migrateOffsetId = preferences.getInt("6migrateOffsetId", 0);
             if (migrateOffsetId != -1) {
                 migrateOffsetDate = preferences.getInt("6migrateOffsetDate", 0);
                 migrateOffsetUserId = AndroidUtilities.getPrefIntOrLong(preferences, "6migrateOffsetUserId", 0);
