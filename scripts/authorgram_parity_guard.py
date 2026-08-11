@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that Main and Play differ only by controlled Play publication changes."""
+"""Verify that canonical dev and Play differ only by controlled publication changes."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def git(*args: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--main-ref", default="origin/main")
+    parser.add_argument("--main-ref", default="origin/dev")
     parser.add_argument("--play-ref", default="origin/play-market")
     args = parser.parse_args()
 
@@ -80,7 +80,7 @@ def main() -> int:
     main_properties = git("show", f"{args.main_ref}:gradle.properties")
     play_properties = git("show", f"{args.play_ref}:gradle.properties")
     if "APP_PACKAGE=fork.risin42.nagramx" not in main_properties:
-        failures.append("Main package must be fork.risin42.nagramx")
+        failures.append("Canonical dev package must be fork.risin42.nagramx")
     if "APP_PACKAGE=toss.authorgram.apk" not in play_properties:
         failures.append("Play package must be toss.authorgram.apk")
 
@@ -96,21 +96,21 @@ def main() -> int:
     main_build = git("show", f"{args.main_ref}:TMessagesProj/build.gradle")
     play_build = git("show", f"{args.play_ref}:TMessagesProj/build.gradle")
     if main_build != play_build:
-        failures.append("TMessagesProj/build.gradle must remain identical in Main and Play")
+        failures.append("TMessagesProj/build.gradle must remain identical in dev and Play")
     if DYNAMIC_ARTIFACT_LINE not in main_build:
         failures.append(
             "Common Gradle source does not select Main/Play artifact names from APP_PACKAGE"
         )
 
     if failures:
-        print("AuthorGram branch parity failed:", file=sys.stderr)
+        print("AuthorGram dev/Play parity failed:", file=sys.stderr)
         for failure in failures:
             print(f" - {failure}", file=sys.stderr)
         return 1
 
     actual_sanitized = sorted(application_changes & PLAY_SANITIZED_EXACT)
     print(
-        "AuthorGram Main/Play parity passed: only package/keystore and allowlisted "
+        "AuthorGram dev/Play parity passed: only package/keystore and allowlisted "
         f"Play runtime stripping differ ({len(actual_sanitized)} sanitized source files)"
     )
     return 0
