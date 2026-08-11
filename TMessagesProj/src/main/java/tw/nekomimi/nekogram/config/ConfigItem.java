@@ -46,6 +46,7 @@ public class ConfigItem {
     // Read config
 
     public boolean Bool() {
+        value = AuthorGramPlayPolicy.sanitizeConfigValue(key, value);
         return (boolean) value;
     }
 
