@@ -117,14 +117,47 @@ jobs:
             > TMessagesProj/release.keystore
           test -s TMessagesProj/release.keystore
           chmod 600 TMessagesProj/release.keystore
+          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
+          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+
+      - name: Compile Play Java source before expensive APK build
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="${RUNNER_TEMP}/play-javac.log"
+          set +e
+          ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:compileReleaseJavaWithJavac 2>&1 | tee "${log}"
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ ${status} -ne 0 ]]; then
+            python3 - "${log}" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          lines = Path(sys.argv[1]).read_text(encoding='utf-8', errors='replace').splitlines()
+          pattern = re.compile(r'^(.*\.java):(\d+): error: (.*)$')
+          emitted = 0
+          for line in lines:
+              match = pattern.match(line.strip())
+              if not match:
+                  continue
+              path, lineno, message = match.groups()
+              path = path.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::error file={path},line={lineno}::{message}')
+              emitted += 1
+          if emitted == 0:
+              print('::error::Play Java compilation failed; inspect the compile step output.')
+          PY
+            exit "${status}"
+          fi
 
       - name: Build Play Universal release APK
         shell: bash
         run: |
           set -euo pipefail
-          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
-          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
-          ./gradlew --no-daemon --stacktrace clean TMessagesProj:assembleRelease
+          ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:assembleRelease
 
       - name: Verify and package Universal APK
         shell: bash
