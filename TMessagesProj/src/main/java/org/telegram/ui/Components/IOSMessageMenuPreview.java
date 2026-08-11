@@ -35,7 +35,7 @@ import org.telegram.ui.Cells.ChatMessageCell;
  * Reference geometry is intentionally the current accepted iOS-style layout:
  * reactions -> selected native Telegram message -> action menu.
  *
- * AUTHORGRAM_IOS_MESSAGE_MENU_V10_FIRST_FRAME_READY
+ * AUTHORGRAM_IOS_MESSAGE_MENU_V9_DEFERRED_DISMISS_CLEANUP
  *
  * Visual/layout behavior is kept identical to V8. The only change is teardown:
  * Telegram's popup/scrim hierarchy is never synchronously mutated while it is
@@ -46,7 +46,6 @@ public final class IOSMessageMenuPreview extends View {
     private static final int SCREEN_EDGE_DP = 12;
     private static final int PREVIEW_TOP_GAP_DP = 10;
     private static final int PREVIEW_MENU_GAP_DP = 12;
-    private static final int STACK_VERTICAL_OFFSET_DP = 10;
     private static final int PREVIEW_EXTRA_WIDTH_DP = 24;
     private static final int AVATAR_SIZE_DP = 36;
     private static final int AVATAR_GAP_DP = 8;
@@ -82,7 +81,6 @@ public final class IOSMessageMenuPreview extends View {
     private boolean cleanedUp;
     private boolean resourcesReleased;
     private boolean bitmapsRecycled;
-    private boolean firstFrameGateActive;
 
     // V8 visual layout retry guard retained unchanged.
     private static final int MAX_LAYOUT_RETRY_COUNT = 4;
@@ -109,7 +107,6 @@ public final class IOSMessageMenuPreview extends View {
 
     private final Runnable releaseResourcesRunnable = this::releaseResources;
     private final Runnable recycleBitmapsRunnable = this::recycleBitmaps;
-    private final Runnable firstFrameRevealFallbackRunnable = this::revealPreparedPopup;
 
     private IOSMessageMenuPreview(
             Context context,
@@ -118,7 +115,7 @@ public final class IOSMessageMenuPreview extends View {
             Theme.ResourcesProvider resourcesProvider
     ) {
         super(context);
-        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V10_FIRST_FRAME_READY");
+        setTag("AUTHORGRAM_IOS_MESSAGE_MENU_V9_DEFERRED_DISMISS_CLEANUP");
         setVisibility(GONE);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
 
@@ -358,24 +355,14 @@ public final class IOSMessageMenuPreview extends View {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        if (!isUsable()) {
-            return;
-        }
+        post(() -> {
+            if (!isUsable()) {
+                return;
+            }
 
-        // Do not expose Telegram's first oversized/unfinished layout pass.
-        // The accepted V8/V9 geometry is prepared while the popup stack is
-        // transparent, then revealed as soon as preview alignment is complete.
-        scrimContainer = findScrimAncestor();
-        if (scrimContainer != null) {
-            scrimContainer.setAlpha(0.0f);
-            scrimContainer.setTranslationY(AndroidUtilities.dp(STACK_VERTICAL_OFFSET_DP));
-            firstFrameGateActive = true;
-            scrimContainer.removeCallbacks(firstFrameRevealFallbackRunnable);
-            scrimContainer.postDelayed(firstFrameRevealFallbackRunnable, 120L);
-        }
-
-        removeLegacyTopGap();
-        attachPreviewBetweenReactionsAndMenu();
+            removeLegacyTopGap();
+            attachPreviewBetweenReactionsAndMenu();
+        });
     }
 
     /**
@@ -846,20 +833,6 @@ public final class IOSMessageMenuPreview extends View {
             previewHost.setVisibility(VISIBLE);
             previewRevealed = true;
         }
-        revealPreparedPopup();
-    }
-
-    private void revealPreparedPopup() {
-        if (!firstFrameGateActive) {
-            return;
-        }
-        firstFrameGateActive = false;
-        if (scrimContainer != null) {
-            scrimContainer.removeCallbacks(firstFrameRevealFallbackRunnable);
-            if (!cleanedUp && scrimContainer.isAttachedToWindow()) {
-                scrimContainer.setAlpha(1.0f);
-            }
-        }
     }
 
     private static String resolveSenderName(TLObject senderPeer) {
@@ -1016,9 +989,7 @@ public final class IOSMessageMenuPreview extends View {
         if (scrimContainer != null) {
             scrimContainer.removeCallbacks(attachLayoutRetryRunnable);
             scrimContainer.removeCallbacks(reflowLayoutRetryRunnable);
-            scrimContainer.removeCallbacks(firstFrameRevealFallbackRunnable);
         }
-        firstFrameGateActive = false;
         removeCallbacks(attachLayoutRetryRunnable);
         removeCallbacks(reflowLayoutRetryRunnable);
         attachLayoutRetryPosted = false;
