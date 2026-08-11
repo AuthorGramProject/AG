@@ -109,6 +109,22 @@ def patch_config_read_lock() -> bool:
     return replace_once(relative, old, new)
 
 
+def patch_experimental_premium_rows() -> bool:
+    relative = "TMessagesProj/src/main/java/toss/authorgram/settings/AGExperimentalSettingsActivity.java"
+    content = read(relative)
+    changed = False
+    for line in (
+        "    private final AbstractConfigCell unlimitedPinnedDialogsRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.unlimitedPinnedDialogs, getString(R.string.UnlimitedPinnedDialogsAbout)));\n",
+        "    private final AbstractConfigCell unlimitedFavedStickersRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.unlimitedFavedStickers, getString(R.string.UnlimitedFavoredStickersAbout)));\n",
+    ):
+        if line in content:
+            content = content.replace(line, "", 1)
+            changed = True
+    if "NekoConfig.unlimitedPinnedDialogs" in content or "NekoConfig.unlimitedFavedStickers" in content:
+        raise RuntimeError("Play Experimental settings still exposes unlimited Premium controls")
+    return write(relative, content) if changed else False
+
+
 def validate_templates() -> None:
     for name, relative in TARGETS.items():
         if read(relative) != template(name):
@@ -126,6 +142,10 @@ def validate_direct_gates() -> None:
     read_guard = "value = AuthorGramPlayPolicy.sanitizeConfigValue(key, value);"
     if read_guard not in config_item:
         raise RuntimeError("Play ConfigItem boolean reads are not policy-sanitized")
+
+    experimental = read("TMessagesProj/src/main/java/toss/authorgram/settings/AGExperimentalSettingsActivity.java")
+    if "NekoConfig.unlimitedPinnedDialogs" in experimental or "NekoConfig.unlimitedFavedStickers" in experimental:
+        raise RuntimeError("Unlimited Premium controls remain in Play Experimental settings")
 
 
 def validate_runtime_absence() -> None:
@@ -202,6 +222,8 @@ def validate_policy_consumers() -> None:
         "NekoConfig.localPremium": {
             "TMessagesProj/src/main/java/tw/nekomimi/nekogram/helpers/SettingsBackupHelper.java",
         },
+        "NekoConfig.unlimitedPinnedDialogs": set(),
+        "NekoConfig.unlimitedFavedStickers": set(),
     }
 
     failures: list[str] = []
@@ -235,6 +257,7 @@ def main() -> int:
     changed = apply_templates()
     changed += int(patch_user_config())
     changed += int(patch_config_read_lock())
+    changed += int(patch_experimental_premium_rows())
     validate_stubs()
     print(f"AuthorGram Play source sanitizer passed; changed files: {changed}")
     return 0
