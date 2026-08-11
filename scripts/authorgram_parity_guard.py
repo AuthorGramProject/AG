@@ -34,6 +34,8 @@ PLAY_SANITIZED_EXACT = {
     "TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramKeyDialog.java",
     "TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java",
     "TMessagesProj/src/main/java/tw/nekomimi/nekogram/config/ConfigItem.java",
+    "scripts/apply_authorgram_exact_icon_and_spy.py",
+    "scripts/fix_authorgram_spy_compile.py",
 }
 ALLOWED_EXACT = REQUIRED_EXACT | PLAY_SANITIZED_EXACT
 DYNAMIC_ARTIFACT_LINE = (
