@@ -1,67 +1,80 @@
-name: AuthorGram 12.9.2 Final Verified Release
+name: AuthorGram 12.9.2 Play Universal Release
 
 on:
   workflow_dispatch:
-  push:
-    branches: [dev]
-    paths: [.github/FINAL_RELEASE_12_9_2]
 
 permissions:
-  actions: write
-  contents: write
-  statuses: write
+  contents: read
+  actions: read
 
 concurrency:
-  group: authorgram-12-9-2-final-release
+  group: authorgram-play-universal-release
   cancel-in-progress: true
 
 jobs:
   release:
-    name: Verify and build Main + Play APKs
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'Run final AuthorGram 12.9.2 release'
+    name: Build verified Play Universal APK
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
-      MAIN_PACKAGE: fork.risin42.nagramx
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.9.2
       VERSION_CODE: '6991'
-      NATIVE_TARGET: arm64-v8a
-      PYTHONDONTWRITEBYTECODE: '1'
+      NATIVE_TARGET: ''
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+      HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
+      HISTORICAL_KEYSTORE_BLOB: 5c0f63c668f7ad06ea674560f10ffb256ff2c092
 
     steps:
-      - name: Checkout release controller
+      - name: Checkout sanitized Play source
         uses: actions/checkout@v4
         with:
-          ref: dev
-          fetch-depth: 0
-          persist-credentials: true
+          ref: play-market
+          fetch-depth: 1
+          submodules: recursive
+          persist-credentials: false
 
-      - name: Publish pending release status
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: context.sha,
-              state: 'pending',
-              context: 'authorgram/final-release',
-              description: 'Main and Play release APK verification is running',
-              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-            });
-
-      - name: Preserve 12.9.0 run and remove all other historical runs
+      - name: Validate Play source and publication sanitization
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/cleanup_authorgram_actions.py || echo 'Historical Actions cleanup is best-effort and does not block the release.'
-          git fetch origin dev
-          git merge --ff-only origin/dev
+          [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
+          [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
+          [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
+
+          python3 -m py_compile \
+            scripts/strip_authorgram_play_runtime.py \
+            scripts/finalize_authorgram_source.py \
+            scripts/authorgram_parity_guard.py
+          python3 scripts/strip_authorgram_play_runtime.py
+          git diff --exit-code -- . ':!.github/workflows/release.yml'
+
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
+          test ! -e scripts/apply_authorgram_exact_icon_and_spy.py
+          test ! -e scripts/fix_authorgram_spy_compile.py
+
+          grep -Fq 'return user != null && user.premium;' \
+            TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
+          ! grep -Fq 'NekoConfig.localPremium.Bool()' \
+            TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
+          ! grep -Fq 'NekoConfig.unlimitedPinnedDialogs' \
+            TMessagesProj/src/main/java/toss/authorgram/settings/AGExperimentalSettingsActivity.java
+          ! grep -Fq 'NekoConfig.unlimitedFavedStickers' \
+            TMessagesProj/src/main/java/toss/authorgram/settings/AGExperimentalSettingsActivity.java
+
+          grep -Fq 'Play-Market compatibility stub' \
+            TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
+          grep -Fq 'Ayu/Spy Room database runtime is intentionally absent' \
+            TMessagesProj/src/main/java/com/radolyn/ayugram/database/AyuData.java
+          grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" \
+            TMessagesProj/build.gradle
+          grep -Fq "def authorGramSystemKeyHex = APP_PACKAGE == 'toss.authorgram.apk' ? ''" \
+            TMessagesProj/build.gradle
+          grep -Fq "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET'" \
+            TMessagesProj/build.gradle
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -79,225 +92,96 @@ jobs:
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
-      - name: Validate release controller scripts
+      - name: Restore existing AuthorGram release signing key in runner only
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test ! -e TMessagesProj/release.keystore
+          blob="$(gh api "/repos/${GITHUB_REPOSITORY}/contents/TMessagesProj/release.keystore?ref=${HISTORICAL_SIGNING_COMMIT}" --jq '.sha')"
+          [[ "${blob}" == "${HISTORICAL_KEYSTORE_BLOB}" ]] || {
+            echo "Historical release.keystore blob mismatch: ${blob}" >&2
+            exit 1
+          }
+          gh api \
+            "/repos/${GITHUB_REPOSITORY}/contents/TMessagesProj/release.keystore?ref=${HISTORICAL_SIGNING_COMMIT}" \
+            --jq '.content' \
+            | tr -d '\n' \
+            | base64 --decode \
+            > TMessagesProj/release.keystore
+          test -s TMessagesProj/release.keystore
+          chmod 600 TMessagesProj/release.keystore
+
+      - name: Build Play Universal release APK
         shell: bash
         run: |
           set -euo pipefail
-          bash -n scripts/final_release_12_9_2.sh
-          python3 - <<'PY'
+          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
+          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+          ./gradlew --no-daemon --stacktrace clean TMessagesProj:assembleRelease
+
+      - name: Verify and package Universal APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/authorgram-play"
+          python3 - <<'PY' > "${RUNNER_TEMP}/play_apk_path.txt"
+          import json
           from pathlib import Path
 
-          for relative in (
-              'scripts/apply_authorgram_exact_icon_and_spy.py',
-              'scripts/fix_authorgram_adaptive_icon.py',
-              'scripts/cleanup_authorgram_actions.py',
-              'scripts/finalize_authorgram_source.py',
-              'scripts/authorgram_guard.py',
-              'scripts/authorgram_parity_guard.py',
-              'scripts/patch_authorgram_build_key.py',
-              'scripts/patch_authorgram_play_policy.py',
-          ):
-              source = Path(relative).read_text(encoding='utf-8')
-              compile(source, relative, 'exec')
-              print(f'Python syntax passed: {relative}')
-
-          badge_sources = (
-              Path('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java'),
-              Path('TMessagesProj/src/main/java/org/telegram/ui/Components/StatusBadgeComponent.java'),
-          )
-          forbidden_badge_ids = (
-              '6802848305', '6822670748', '8470484374', '8154455619',
-              '7913929703', '8856346711', '8357439344', '8548193112',
-              '8395237407', '8925149503', '-1003781500049',
-              '-1004297907963', '3781500049', '4297907963',
-          )
-          badge_text = '\n'.join(path.read_text(encoding='utf-8') for path in badge_sources)
-          leaked = [item for item in forbidden_badge_ids if item in badge_text]
-          if leaked:
-              raise SystemExit(f'Raw author_badge identifiers remain in application source: {leaked}')
-          if 'AuthorGramAuthorBadge.matches(objectId)' not in badge_text:
-              raise SystemExit('StatusBadgeComponent is not connected to protected author_badge policy')
-          if 'AuthorGramBuildIntegrity.isTrustedBuild()' not in badge_text:
-              raise SystemExit('author_badge is not bound to release signature integrity')
-          print('Protected author_badge source validation passed')
+          root = Path('TMessagesProj/build/outputs/apk')
+          matches = []
+          for metadata in root.rglob('output-metadata.json'):
+              data = json.loads(metadata.read_text(encoding='utf-8'))
+              for element in data.get('elements', []):
+                  output = element.get('outputFile', '')
+                  filters = element.get('filters') or []
+                  candidate = (metadata.parent / output).resolve()
+                  if not candidate.is_file() or 'debug' in candidate.name.lower():
+                      continue
+                  if not filters or 'universal' in candidate.name.lower():
+                      matches.append(candidate)
+          unique = sorted(set(matches))
+          if len(unique) != 1:
+              raise SystemExit(f'Expected exactly one Universal release APK, found {len(unique)}: {unique}')
+          print(unique[0])
           PY
+          apk="$(cat "${RUNNER_TEMP}/play_apk_path.txt")"
+          out="${RUNNER_TEMP}/authorgram-play/AuthorGram-Play-v${VERSION_NAME}-release-universal.apk"
 
-      - name: Apply icon, crypto repair and Play publication policy
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/apply_authorgram_exact_icon_and_spy.py
-          python3 scripts/fix_authorgram_adaptive_icon.py
-          python3 scripts/patch_authorgram_build_key.py
-          python3 scripts/patch_authorgram_play_policy.py
-          python3 scripts/authorgram_guard.py --expected-package "${MAIN_PACKAGE}"
-          git diff --check
-          git config user.name "AuthorGram Release Bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add -A
-          if ! git diff --cached --quiet; then
-            git commit -m "[skip ci] Apply crypto repair and strict Play policy"
-            git push origin HEAD:dev
-          fi
-
-      - name: Finalize sources and build two verified release APKs
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash scripts/final_release_12_9_2.sh
-
-      - name: Verify two APKs, signatures, integrity and protected author badges
-        shell: bash
-        run: |
-          set -euo pipefail
-          artifact_dir="${RUNNER_TEMP}/authorgram-final/artifacts"
-          mapfile -t apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.apk' -print | sort)
-          mapfile -t aabs < <(find "${artifact_dir}" -maxdepth 1 -type f -name '*.aab' -print | sort)
-          mapfile -t main_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Main-*.apk' -print | sort)
-          mapfile -t play_apks < <(find "${artifact_dir}" -maxdepth 1 -type f -name 'AuthorGram-Play-*.apk' -print | sort)
-
-          [[ "${#apks[@]}" -eq 2 ]] || {
-            printf 'Expected exactly two APKs, found %s\n' "${#apks[@]}" >&2
-            printf '%s\n' "${apks[@]}" >&2
-            exit 1
-          }
-          [[ "${#aabs[@]}" -eq 0 ]] || {
-            printf 'AAB files are forbidden in this release.\n' >&2
-            printf '%s\n' "${aabs[@]}" >&2
-            exit 1
-          }
-          [[ "${#main_apks[@]}" -eq 1 ]] || {
-            printf 'Expected exactly one Main APK, found %s\n' "${#main_apks[@]}" >&2
-            exit 1
-          }
-          [[ "${#play_apks[@]}" -eq 1 ]] || {
-            printf 'Expected exactly one Play APK, found %s\n' "${#play_apks[@]}" >&2
-            exit 1
-          }
-
+          aapt="${ANDROID_HOME}/build-tools/36.0.0/aapt"
           apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
           zipalign="${ANDROID_HOME}/build-tools/36.0.0/zipalign"
-          for apk in "${apks[@]}"; do
-            "${zipalign}" -c -P 16 4 "${apk}"
-            signer_report="$("${apksigner}" verify --verbose --print-certs "${apk}")"
-            printf '%s\n' "${signer_report}"
-            grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer_report}" || {
-              printf 'APK does not have a verified modern APK signature scheme: %s\n' "${apk}" >&2
-              exit 1
-            }
-          done
 
-          main_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Main-CERTIFICATE.txt" | head -n 1)"
-          play_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "${artifact_dir}/Play-CERTIFICATE.txt" | head -n 1)"
-          [[ -n "${main_cert}" && "${main_cert}" == "${play_cert}" ]] || {
-            printf 'Main and Play signing identities differ or are missing.\n' >&2
-            exit 1
-          }
+          badging="$("${aapt}" dump badging "${apk}")"
+          package="$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n 1)"
+          version_code="$(sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n 1)"
+          version_name="$(sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p" <<<"${badging}" | head -n 1)"
+          [[ "${package}" == "${PLAY_PACKAGE}" ]]
+          [[ "${version_code}" == "${VERSION_CODE}" ]]
+          [[ "${version_name}" == "${VERSION_NAME}" ]]
+          ! grep -q '^application-debuggable' <<<"${badging}"
 
-          python3 - "${play_apks[0]}" "${apks[@]}" <<'PY'
-          import hashlib
-          import re
-          import sys
-          import zipfile
+          permissions="$("${aapt}" dump permissions "${apk}")"
+          ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${permissions}"
 
-          play_apk = sys.argv[1]
-          apks = sys.argv[2:]
-          forbidden_digest = "9b34369498a2715d50a94845eaff8d1f7f1ce6570422c8a3653284cffb79de1f"
-          forbidden_badge_ids = (
-              b"6802848305", b"6822670748", b"8470484374", b"8154455619",
-              b"7913929703", b"8856346711", b"8357439344", b"8548193112",
-              b"8395237407", b"8925149503", b"-1003781500049",
-              b"-1004297907963", b"3781500049", b"4297907963",
-          )
-          required_markers = (
-              b"release integrity verification failed; protected features disabled",
-              b"unable to evaluate author badge token",
-          )
+          "${zipalign}" -c -P 16 4 "${apk}"
+          signer_report="$("${apksigner}" verify --verbose --print-certs "${apk}")"
+          printf '%s\n' "${signer_report}"
+          grep -Eq 'Verified using v2 scheme.*true|Verified using v3 scheme.*true' <<<"${signer_report}"
 
-          for apk in apks:
-              with zipfile.ZipFile(apk) as archive:
-                  dex_names = sorted(
-                      name for name in archive.namelist()
-                      if re.fullmatch(r"classes\d*\.dex", name)
-                  )
-                  if not dex_names:
-                      raise SystemExit(f"{apk} contains no classes*.dex")
-                  dex_data = b"".join(archive.read(name) for name in dex_names)
-                  leaked = [item.decode() for item in forbidden_badge_ids if item in dex_data]
-                  if leaked:
-                      raise SystemExit(
-                          f"Raw author_badge identifiers leaked into {apk}: {leaked}"
-                      )
-                  missing = [item.decode() for item in required_markers if item not in dex_data]
-                  if missing:
-                      raise SystemExit(
-                          f"Protected badge/integrity implementation missing from {apk}: {missing}"
-                      )
-                  print(
-                      f"{apk}: protected author_badge and runtime integrity markers passed "
-                      f"across {len(dex_names)} dex file(s)"
-                  )
+          cp "${apk}" "${out}"
+          sha256sum "${out}" > "${RUNNER_TEMP}/authorgram-play/SHA256SUMS.txt"
+          printf 'branch=play-market\npackage=%s\nversionName=%s\nversionCode=%s\nformat=universal-release-apk\n' \
+            "${PLAY_PACKAGE}" "${VERSION_NAME}" "${VERSION_CODE}" \
+            > "${RUNNER_TEMP}/authorgram-play/BUILD.txt"
+          rm -f TMessagesProj/release.keystore
 
-          candidates = 0
-          with zipfile.ZipFile(play_apk) as archive:
-              dex_names = [
-                  name for name in archive.namelist()
-                  if re.fullmatch(r"classes\d*\.dex", name)
-              ]
-              for name in dex_names:
-                  data = archive.read(name)
-                  for match in re.finditer(
-                      rb"(?i)(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])",
-                      data,
-                  ):
-                      candidates += 1
-                      normalized = match.group(0).lower()
-                      if hashlib.sha256(normalized).hexdigest() == forbidden_digest:
-                          raise SystemExit(
-                              "Private Main system encryption key is embedded in Play APK"
-                          )
-          print(
-              f"Play APK system-key scan passed across {len(dex_names)} dex file(s); "
-              f"checked {candidates} 64-hex candidate(s)"
-          )
-          PY
-
-          printf 'Verified APK artifacts:\n%s\n' "${apks[*]}"
-
-      - name: Upload Main and Play release APKs
+      - name: Upload Play Universal release APK
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-12.9.2-Main-and-Play-Release-APKs
-          path: ${{ runner.temp }}/authorgram-final/artifacts/
+          name: AuthorGram-Play-12.9.2-Universal-Release
+          path: ${{ runner.temp }}/authorgram-play/
           if-no-files-found: error
           retention-days: 30
-
-      - name: Publish successful release status
-        if: ${{ success() }}
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: context.sha,
-              state: 'success',
-              context: 'authorgram/final-release',
-              description: 'Main and Play APKs passed crypto, policy, integrity and author_badge verification',
-              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-            });
-
-      - name: Publish failed release status
-        if: ${{ failure() }}
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: context.sha,
-              state: 'failure',
-              context: 'authorgram/final-release',
-              description: 'Final AuthorGram two-APK verification failed',
-              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-            });
