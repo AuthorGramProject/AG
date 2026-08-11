@@ -25,4 +25,4 @@ jobs:
               workflow_id: 'release.yml',
               ref: 'play-market',
             });
-            core.info('Dispatched corrected play-market release.yml');
+            core.info('Dispatched Play Java-preflight + Universal release workflow');
