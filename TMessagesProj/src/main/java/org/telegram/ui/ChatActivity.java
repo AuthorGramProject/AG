@@ -569,10 +569,6 @@ public class ChatActivity extends BaseFragment implements
     private ActionBarMenuItem.Item toTheMessage;
     private ActionBarMenuItem.Item hideTitleItem;
     private ActionBarMenuItem.Item bookmarksItem;
-
-    // AUTHORGRAM_STEP4_UI_FIELDS
-    private static final int AUTHORGRAM_KEY_SETTINGS = 0x6A470002;
-    private ActionBarMenuItem.Item authorGramCryptoItem;
     private ClippingImageView animatingImageView;
     private ThanosEffect chatListThanosEffect;
     private ChatListViewPaddingsAnimator chatListViewPaddingsAnimator;
@@ -4041,21 +4037,6 @@ public class ChatActivity extends BaseFragment implements
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(final int id) {
-
-                // AUTHORGRAM_STEP4_TOGGLE_CLICK
-                if (id == AUTHORGRAM_KEY_SETTINGS) {
-                    if (!canUseAuthorGramProtection()) {
-                        return;
-                    }
-                    org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(
-                            getParentActivity(),
-                            currentAccount,
-                            dialog_id,
-                            ChatActivity.this::refreshAuthorGramProtectionUi
-                    );
-                    return;
-                }
-
                 if (id == -1) {
                     if (isInPollAddOptionMode()) {
                         pollAddOptionModeClose();
@@ -4834,17 +4815,6 @@ public class ChatActivity extends BaseFragment implements
                 avatarContainer.setAvatarOptionsMenuItem(headerItem);
             }
             headerItem.setForceHidden(isTitleCentered());
-
-            // AUTHORGRAM_STEP4_MENU_ITEM
-            if (canUseAuthorGramProtection()) {
-                authorGramCryptoItem =
-                        headerItem.lazilyAddSubItem(
-                                AUTHORGRAM_KEY_SETTINGS,
-                                R.drawable.msg_secret,
-                                getAuthorGramToggleText()
-                        );
-            }
-
 
             if (currentUser != null && currentUser.self && chatMode != MODE_SAVED) {
                 savedChatsItem = headerItem.lazilyAddSubItem(view_as_topics, R.drawable.msg_topics, LocaleController.getString(R.string.SavedViewAsChats));
@@ -21075,15 +21045,6 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void refreshAuthorGramProtectionUi() {
-        if (authorGramCryptoItem != null) {
-            authorGramCryptoItem.setText(
-                    getAuthorGramToggleText()
-            );
-            authorGramCryptoItem.setIcon(
-                    R.drawable.msg_secret
-            );
-        }
-
         updateTitle(false);
         updateTitleIcons();
 
