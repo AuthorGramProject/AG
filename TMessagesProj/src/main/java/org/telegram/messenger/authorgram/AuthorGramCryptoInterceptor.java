@@ -1,5 +1,6 @@
 package org.telegram.messenger.authorgram;
 
+import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessageObject;
 import org.telegram.tgnet.TLObject;
@@ -9,25 +10,89 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 /**
- * Play-Market crypto compatibility boundary.
+ * AuthorGram text interceptor.
  *
- * Play can recognize/decrypt incoming AuthorGram payloads for compatibility, but
- * contains no outgoing-encryption path. Replies to encrypted messages still drop
- * optional plaintext quote metadata so a normal Play reply cannot leak quoted text.
+ * The per-chat toggle controls outgoing encryption only. Incoming AuthorGram
+ * payload recognition and decryption remains marker-driven and always active.
  */
 public final class AuthorGramCryptoInterceptor {
 
     private AuthorGramCryptoInterceptor() {
     }
 
+    /**
+     * Intercepts the final Telegram network request.
+     *
+     * false means encryption was required but failed. The caller must abort
+     * sending so plaintext can never leak accidentally.
+     */
     public static boolean prepareOutgoingRequest(
             int account,
             TLObject request,
             MessageObject messageObject
     ) {
-        if (request != null && messageObject != null) {
-            sanitizeReplyToEncryptedSource(account, request, messageObject);
+        if (request == null || messageObject == null) {
+            return true;
         }
+
+        long dialogId = messageObject.getDialogId();
+
+        /* Native Telegram Secret Chats use Telegram's own protocol. */
+        if (DialogObject.isEncryptedDialog(dialogId)) {
+            return true;
+        }
+
+        sanitizeReplyToEncryptedSource(account, request, messageObject);
+
+        if (!AuthorGramChatState.isEnabled(account, dialogId)) {
+            return true;
+        }
+
+        if (request instanceof TLRPC.TL_messages_sendMessage) {
+            TLRPC.TL_messages_sendMessage sendRequest =
+                    (TLRPC.TL_messages_sendMessage) request;
+
+            boolean success = encryptOutgoingText(
+                    account,
+                    dialogId,
+                    sendRequest.message,
+                    encrypted -> sendRequest.message = encrypted
+            );
+
+            if (success && AuthorGramCrypto.isAuthorGramPayload(sendRequest.message)) {
+                sanitizeEncryptedReply(sendRequest.reply_to);
+                if (sendRequest.entities != null) {
+                    sendRequest.entities.clear();
+                }
+                sendRequest.flags &= ~8;
+                AuthorGramMessageMeta.markOutgoing(account, messageObject);
+            }
+
+            return success;
+        }
+
+        if (request instanceof TLRPC.TL_messages_editMessage) {
+            TLRPC.TL_messages_editMessage editRequest =
+                    (TLRPC.TL_messages_editMessage) request;
+
+            boolean success = encryptOutgoingText(
+                    account,
+                    dialogId,
+                    editRequest.message,
+                    encrypted -> editRequest.message = encrypted
+            );
+
+            if (success && AuthorGramCrypto.isAuthorGramPayload(editRequest.message)) {
+                if (editRequest.entities != null) {
+                    editRequest.entities.clear();
+                }
+                editRequest.flags &= ~8;
+                AuthorGramMessageMeta.markOutgoing(account, messageObject);
+            }
+
+            return success;
+        }
+
         return true;
     }
 
@@ -43,7 +108,9 @@ public final class AuthorGramCryptoInterceptor {
                 MessageObject.getDialogId(message),
                 message.message
         );
+
         if (plaintext == null) {
+            FileLog.e("AuthorGram: incoming AES-GCM authentication failed");
             return false;
         }
 
@@ -51,6 +118,7 @@ public final class AuthorGramCryptoInterceptor {
         if (message.entities != null) {
             message.entities.clear();
         }
+
         AuthorGramMessageMeta.markDecrypted(account, message);
         return true;
     }
@@ -72,7 +140,7 @@ public final class AuthorGramCryptoInterceptor {
                 sanitizeEncryptedReply((TLRPC.InputReplyTo) replyValue);
             }
         } catch (NoSuchFieldException ignored) {
-            // Request type does not support replies.
+            // This request type does not support replies.
         } catch (IllegalAccessException exception) {
             FileLog.e("AuthorGram: unable to sanitize outgoing reply metadata", exception);
         }
@@ -84,6 +152,7 @@ public final class AuthorGramCryptoInterceptor {
         if (!(replyTo instanceof TLRPC.TL_inputReplyToMessage)) {
             return;
         }
+
         replyTo.flags &= ~(TLObject.FLAG_2 | TLObject.FLAG_3 | TLObject.FLAG_4);
         replyTo.quote_text = null;
         if (replyTo.quote_entities != null) {
@@ -127,7 +196,40 @@ public final class AuthorGramCryptoInterceptor {
             Field field = target.getClass().getField(name);
             field.set(target, value);
         } catch (NoSuchFieldException | IllegalAccessException ignored) {
-            // Telegram schema variants may omit optional quote fields.
+            // Telegram schema variants may omit an optional field.
         }
+    }
+
+    private static boolean encryptOutgoingText(
+            int account,
+            long dialogId,
+            String plaintext,
+            EncryptedTextConsumer consumer
+    ) {
+        if (plaintext == null || plaintext.isEmpty()) {
+            return true;
+        }
+
+        if (AuthorGramCrypto.isAuthorGramPayload(plaintext)) {
+            return true;
+        }
+
+        String encrypted = AuthorGramChatCrypto.encryptText(
+                account,
+                dialogId,
+                plaintext
+        );
+
+        if (encrypted == null) {
+            FileLog.e("AuthorGram: outgoing AES-GCM encryption failed");
+            return false;
+        }
+
+        consumer.accept(encrypted);
+        return true;
+    }
+
+    private interface EncryptedTextConsumer {
+        void accept(String encryptedText);
     }
 }
