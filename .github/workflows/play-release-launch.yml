@@ -25,4 +25,4 @@ jobs:
               workflow_id: 'release.yml',
               ref: 'play-market',
             });
-            core.info('Dispatched repaired Play source + Universal release workflow');
+            core.info('Dispatched Play release after dead-reference validator fix');
