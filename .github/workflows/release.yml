@@ -43,9 +43,12 @@ jobs:
           python3 scripts/play_fix_chatactivity_dead_ayu_refs.py
           git diff --check
 
-          ! grep -Fq 'AyuHistoryHook' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
-          ! grep -Fq 'AyuMessageHistory' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
-          ! grep -Fq 'AyuViewDeleted' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          ! grep -Fq 'import com.radolyn.ayugram.proprietary.AyuHistoryHook;' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          ! grep -Fq 'import com.radolyn.ayugram.ui.AyuMessageHistory;' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          ! grep -Fq 'import com.radolyn.ayugram.ui.AyuViewDeleted;' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          ! grep -Fq 'AyuHistoryHook.' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          ! grep -Fq 'new AyuMessageHistory(' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          ! grep -Fq 'new AyuViewDeleted(' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
           test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
           test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
