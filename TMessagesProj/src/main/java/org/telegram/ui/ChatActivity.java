@@ -140,10 +140,7 @@ import com.radolyn.ayugram.AyuConstants;
 import com.radolyn.ayugram.AyuUtils;
 import com.radolyn.ayugram.messages.AyuMessagesController;
 import com.radolyn.ayugram.messages.AyuSavePreferences;
-import com.radolyn.ayugram.proprietary.AyuHistoryHook;
 import com.radolyn.ayugram.utils.AyuMessageUtils;
-import com.radolyn.ayugram.ui.AyuMessageHistory;
-import com.radolyn.ayugram.ui.AyuViewDeleted;
 import com.radolyn.ayugram.ui.DummyView;
 import com.radolyn.ayugram.utils.AyuGhostPreferences;
 import com.radolyn.ayugram.utils.AyuGhostUtils;
@@ -9958,14 +9955,6 @@ public class ChatActivity extends BaseFragment implements
             lp.width = LayoutHelper.MATCH_PARENT;
             lp.height = AndroidUtilities.dp(48);
             showFilteredItem.setLayoutParams(lp);
-        }
-
-        if (showViewDeleted) {
-            ActionBarMenuSubItem viewDeletedItem = ActionBarMenuItem.addItem(ayuLayout, R.drawable.msg_view_file, getString(R.string.ViewDeleted), false, getResourceProvider());
-            viewDeletedItem.setOnClickListener(v -> {
-                dismissMenu.run();
-                AndroidUtilities.runOnUIThread(() -> presentFragment(new AyuViewDeleted(dialog_id)), 50);
-            });
         }
 
         if (showClearDeleted) {
@@ -22709,7 +22698,8 @@ public class ChatActivity extends BaseFragment implements
             // ...deleted messages
             long endId = minVal; // bottom message
 
-            Pair<Integer, Integer> msgIds = AyuHistoryHook.getMinAndMaxIds(messArr);
+            // Play: deleted-message history restoration is physically absent.
+            Pair<Integer, Integer> msgIds = new Pair<>(minVal, minVal);
 
             if (!DialogObject.isEncryptedDialog(dialogId)) {
                 if (!messArr.isEmpty()) {
@@ -22792,7 +22782,7 @@ public class ChatActivity extends BaseFragment implements
             if (!isChannelComment && !isInScheduleMode() && chatMode != MODE_PINNED && (startId != minVal || endId != minVal)) {
                 boolean needToReset = messArr.size() == count;
                 int limit = 200;
-                AyuHistoryHook.doHookAsync(currentAccount, startId, endId, dialogId, limit, topicId, load_type, isChannelComment, threadMessageId, isTopic);
+                // Play: no deleted-history hook is executed.
                 if (needToReset) {
                     count = messArr.size();
                 }
@@ -35684,9 +35674,6 @@ public class ChatActivity extends BaseFragment implements
         }
         boolean preserveDim = false;
         switch (option) {
-            case AyuConstants.OPTION_HISTORY:
-                presentFragment(new AyuMessageHistory(selectedObject));
-                break;
             case AyuConstants.OPTION_TTL:
                 AyuState.setAllowReadPacket(true, 1);
                 if (selectedObject.messageOwner.ttl == 0x7FFFFFFF) {
@@ -47338,8 +47325,6 @@ public class ChatActivity extends BaseFragment implements
             if (button != null) {
                 button.setTextColor(Theme.getColor(Theme.key_dialogTextRed));
             }
-        } else if (id == agbtn_viewDeleted) {
-            presentFragment(new AyuViewDeleted(dialog_id));
         } else if (id == agbtn_bookmarks_manager) {
             presentFragment(new BookmarksActivity(dialog_id));
         } else if (id == nkheaderbtn_upgrade) {
