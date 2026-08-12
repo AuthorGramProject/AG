@@ -19,7 +19,7 @@ def verCode = Integer.parseInt(APP_VERSION_CODE.toString())
 def officialVer = APP_VERSION_NAME
 def officialCode = APP_VERSION_CODE
 def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'
-def authorGramSystemKeyHex = APP_PACKAGE == 'toss.authorgram.apk' ? '' : '6b8ce70d889daed80852c204106d51bf91f114ad32936b6b17068e7b399ef3fa'
+def authorGramSystemKeyHex = ''
 def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'
 
 def keystorePwd = null
@@ -318,7 +318,6 @@ dependencies {
         exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
     }
     implementation 'com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1'
-    implementation 'com.google.android.gms:play-services-mlkit-image-labeling:16.0.8'
     implementation "androidx.credentials:credentials:1.6.0-alpha04"
     implementation "androidx.credentials:credentials-play-services-auth:1.6.0-alpha04"
     // payment
