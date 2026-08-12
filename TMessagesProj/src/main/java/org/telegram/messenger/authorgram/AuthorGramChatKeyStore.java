@@ -15,6 +15,7 @@ import java.util.Arrays;
 
 /** Per-account and per-dialog AuthorGram key storage and passphrase derivation. */
 public final class AuthorGramChatKeyStore {
+    /** Kept for source compatibility only; Play has no system-key dialog. */
     public static final long SYSTEM_KEY_DIALOG_ID = AuthorGramPlayPolicy.OWNER_DIALOG_ID;
 
     private static final String PREFS = "authorgram_chat_keys_v1";
@@ -26,8 +27,9 @@ public final class AuthorGramChatKeyStore {
     private AuthorGramChatKeyStore() {
     }
 
+    /** Play never locks a dialog to a global/system key. */
     public static boolean isSystemKeyLocked(long dialogId) {
-        return dialogId == SYSTEM_KEY_DIALOG_ID;
+        return false;
     }
 
     public static int getMaxPassphraseCodePoints() {
@@ -37,7 +39,6 @@ public final class AuthorGramChatKeyStore {
     public static synchronized boolean hasCustomKey(int account, long dialogId) {
         return dialogId != 0
                 && !AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)
-                && !isSystemKeyLocked(dialogId)
                 && preferences().contains(currentName(account, dialogId));
     }
 
@@ -62,38 +63,18 @@ public final class AuthorGramChatKeyStore {
         }
     }
 
+    /** No system-key fallback exists in Play. */
     public static synchronized boolean useSystemKey(int account, long dialogId) {
-        if (AuthorGramPlayPolicy.isPlayBuild()
-                || dialogId == 0
-                || isSystemKeyLocked(dialogId)) {
-            return false;
-        }
-
-        SharedPreferences prefs = preferences();
-        String currentName = currentName(account, dialogId);
-        String previous = prefs.getString(currentName, null);
-        if (previous == null) {
-            return true;
-        }
-
-        SharedPreferences.Editor editor = prefs.edit().remove(currentName);
-        putAtHistoryFront(editor, prefs, account, dialogId, previous);
-        boolean committed = editor.commit();
-        if (!committed) {
-            FileLog.e("AuthorGram: unable to switch the chat back to the system key");
-        }
-        return committed;
+        return false;
     }
 
     @Deprecated
     public static synchronized boolean clearCustomKeys(int account, long dialogId) {
-        return useSystemKey(account, dialogId);
+        return false;
     }
 
     static synchronized byte[] getCurrentKey(int account, long dialogId) {
-        if (dialogId == 0
-                || AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)
-                || isSystemKeyLocked(dialogId)) {
+        if (dialogId == 0 || AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)) {
             return null;
         }
         try {
@@ -106,9 +87,7 @@ public final class AuthorGramChatKeyStore {
 
     static synchronized ArrayList<byte[]> getDecryptionKeys(int account, long dialogId) {
         ArrayList<byte[]> result = new ArrayList<>();
-        if (dialogId == 0
-                || AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)
-                || isSystemKeyLocked(dialogId)) {
+        if (dialogId == 0 || AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)) {
             return result;
         }
         SharedPreferences prefs = preferences();
@@ -289,12 +268,7 @@ public final class AuthorGramChatKeyStore {
         }
         if (AuthorGramPlayPolicy.isEncryptionForbidden(dialogId)) {
             throw new GeneralSecurityException(
-                    "Encryption is unavailable for this Play Market dialog"
-            );
-        }
-        if (isSystemKeyLocked(dialogId)) {
-            throw new GeneralSecurityException(
-                    "This dialog always uses the private Main system key"
+                    "Encryption is unavailable for this dialog"
             );
         }
     }
