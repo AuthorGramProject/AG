@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,7 +50,6 @@ view_deleted_block = (
     "        }\n\n"
 )
 text = text.replace(view_deleted_block, "")
-
 text = text.replace(
     "        } else if (id == agbtn_viewDeleted) {\n"
     "            presentFragment(new AyuViewDeleted(dialog_id));\n"
@@ -57,64 +57,47 @@ text = text.replace(
     "        } else if (id == agbtn_bookmarks_manager) {\n",
 )
 
-# Play has no custom encryption-key editor and no outgoing AuthorGram encryption.
-# Remove the actual ChatActivity entry point instead of restoring a dormant show()
-# API on AuthorGramKeyDialog.
-key_click_block = (
-    "                // AUTHORGRAM_STEP4_TOGGLE_CLICK\n"
-    "                if (id == AUTHORGRAM_KEY_SETTINGS) {\n"
-    "                    if (!canUseAuthorGramProtection()) {\n"
-    "                        return;\n"
-    "                    }\n"
-    "                    org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(\n"
-    "                            getParentActivity(),\n"
-    "                            currentAccount,\n"
-    "                            dialog_id,\n"
-    "                            ChatActivity.this::refreshAuthorGramProtectionUi\n"
-    "                    );\n"
-    "                    return;\n"
-    "                }\n\n"
-)
-text = text.replace(key_click_block, "")
-
-key_menu_block = (
-    "            // AUTHORGRAM_STEP4_MENU_ITEM\n"
-    "            if (canUseAuthorGramProtection()) {\n"
-    "                authorGramCryptoItem =\n"
-    "                        headerItem.lazilyAddSubItem(\n"
-    "                                AUTHORGRAM_KEY_SETTINGS,\n"
-    "                                R.drawable.msg_secret,\n"
-    "                                getAuthorGramToggleText()\n"
-    "                        );\n"
-    "            }\n\n"
-)
-text = text.replace(key_menu_block, "")
-
-text = text.replace(
-    "    // AUTHORGRAM_STEP4_UI_FIELDS\n"
-    "    private static final int AUTHORGRAM_KEY_SETTINGS = 0x6A470002;\n"
-    "    private ActionBarMenuItem.Item authorGramCryptoItem;\n",
-    "",
+# Play has no custom encryption-key editor or outgoing AuthorGram encryption.
+# Remove the actual menu entry/click path instead of restoring a dormant show() API.
+text, click_count = re.subn(
+    r"\n\s*// AUTHORGRAM_STEP4_TOGGLE_CLICK\n"
+    r"\s*if \(id == AUTHORGRAM_KEY_SETTINGS\) \{.*?\n\s*\}\n\n"
+    r"(?=\s*if \(id == -1\))",
+    "\n",
+    text,
+    count=1,
+    flags=re.S,
 )
 
-# The menu item no longer exists in Play. Keep this helper compile-safe for any
-# shared call sites while making it incapable of exposing/re-enabling key UI.
-refresh_block = (
-    "    private void refreshAuthorGramProtectionUi() {\n"
-    "        if (authorGramCryptoItem != null) {\n"
-    "            authorGramCryptoItem.setText(\n"
-    "                    getAuthorGramToggleText()\n"
-    "            );\n"
-    "            authorGramCryptoItem.setIcon(\n"
-    "                    R.drawable.msg_secret\n"
-    "            );\n"
-    "        }\n\n"
-    "        updateTitle(false);\n"
-    "    }\n"
+text, menu_count = re.subn(
+    r"\n\s*// AUTHORGRAM_STEP4_MENU_ITEM\n"
+    r"\s*if \(canUseAuthorGramProtection\(\)\) \{.*?\n\s*\}\n\n"
+    r"(?=\s*if \(currentUser != null && currentUser\.self && chatMode != MODE_SAVED\))",
+    "\n",
+    text,
+    count=1,
+    flags=re.S,
 )
-text = text.replace(refresh_block, "    private void refreshAuthorGramProtectionUi() {\n        updateTitle(false);\n    }\n")
 
-forbidden_runtime_markers = (
+# Field/ID are now dead in Play.
+text = re.sub(r"\n\s*// AUTHORGRAM_STEP4_UI_FIELDS\n", "\n", text, count=1)
+text = re.sub(r"^\s*private static final int AUTHORGRAM_KEY_SETTINGS = 0x6A470002;\n", "", text, count=1, flags=re.M)
+text = re.sub(r"^\s*private ActionBarMenuItem\.Item authorGramCryptoItem;\n", "", text, count=1, flags=re.M)
+
+# Remove the stale menu-item refresh body while preserving title refresh behavior.
+text, refresh_count = re.subn(
+    r"(private void refreshAuthorGramProtectionUi\(\) \{)\n"
+    r"\s*if \(authorGramCryptoItem != null\) \{.*?\n\s*\}\n\n"
+    r"(\s*updateTitle\(false\);)",
+    r"\1\n\2",
+    text,
+    count=1,
+    flags=re.S,
+)
+
+# On an already-sanitized ChatActivity the counts may be zero; if the live key UI
+# call is still present, however, its structural block must have been removed now.
+for forbidden in (
     "import com.radolyn.ayugram.proprietary.AyuHistoryHook;",
     "import com.radolyn.ayugram.ui.AyuMessageHistory;",
     "import com.radolyn.ayugram.ui.AyuViewDeleted;",
@@ -124,8 +107,7 @@ forbidden_runtime_markers = (
     "AuthorGramKeyDialog.show(",
     "AUTHORGRAM_KEY_SETTINGS",
     "authorGramCryptoItem",
-)
-for forbidden in forbidden_runtime_markers:
+):
     if forbidden in text:
         raise SystemExit(f"Play ChatActivity still has live removed-feature reference: {forbidden}")
 
@@ -133,4 +115,7 @@ if text == original:
     print("Play ChatActivity removed-feature references already absent")
 else:
     TARGET.write_text(text, encoding="utf-8")
-    print("Removed dead Ayu history/view and AuthorGram key-UI references from Play ChatActivity")
+    print(
+        "Removed Play-only forbidden callers from ChatActivity "
+        f"(keyClick={click_count}, keyMenu={menu_count}, refresh={refresh_count})"
+    )
