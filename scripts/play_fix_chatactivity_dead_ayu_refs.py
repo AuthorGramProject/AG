@@ -58,9 +58,17 @@ text = text.replace(
     "        } else if (id == agbtn_bookmarks_manager) {\n",
 )
 
-for forbidden in ("AyuHistoryHook", "AyuMessageHistory", "AyuViewDeleted"):
+forbidden_runtime_markers = (
+    "import com.radolyn.ayugram.proprietary.AyuHistoryHook;",
+    "import com.radolyn.ayugram.ui.AyuMessageHistory;",
+    "import com.radolyn.ayugram.ui.AyuViewDeleted;",
+    "AyuHistoryHook.",
+    "new AyuMessageHistory(",
+    "new AyuViewDeleted(",
+)
+for forbidden in forbidden_runtime_markers:
     if forbidden in text:
-        raise SystemExit(f"Play ChatActivity still references removed class: {forbidden}")
+        raise SystemExit(f"Play ChatActivity still has live removed-class reference: {forbidden}")
 
 if text == original:
     print("Play ChatActivity dead Ayu references already removed")
