@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import org.telegram.messenger.BuildConfig;
-import org.telegram.messenger.UserConfig;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -17,9 +16,6 @@ public final class AuthorGramPlayPolicy {
     public static final long OWNER_DIALOG_ID = 6316376597L;
 
     private static final String NEKO_PREFS = "nkmrcfg";
-    private static final String CRYPTO_PREFS = "authorgram_crypto";
-    private static final String CHAT_KEYS_PREFS = "authorgram_chat_keys_v1";
-    private static final String CRYPTO_PREFIX = "e2ee_enabled_";
 
     private static final Map<String, Object> LOCKED_CONFIGS;
 
@@ -57,7 +53,7 @@ public final class AuthorGramPlayPolicy {
         // Do not bypass Telegram content restrictions in the Play package.
         values.put("ignoreContentRestrictions", false);
 
-        // AuthorGram iOS-inspired interface variants are intentionally Main-only.
+        // AuthorGram iOS-inspired interface variants remain Main-only.
         values.put("iOSMessageInputField", false);
         values.put("iOSMessageMenu", false);
 
@@ -71,11 +67,14 @@ public final class AuthorGramPlayPolicy {
         return PLAY_PACKAGE.equals(BuildConfig.APPLICATION_ID);
     }
 
-    /** Single policy boundary for every AuthorGram iOS-inspired interface feature. */
     public static boolean canUseIosUi() {
         return !isPlayBuild();
     }
 
+    /**
+     * Play deliberately contains no embedded/global AuthorGram system key.
+     * Encryption in Play is exclusively backed by user-created per-chat keys.
+     */
     public static boolean hasEmbeddedSystemKey() {
         String value = BuildConfig.AUTHORGRAM_SYSTEM_KEY_HEX;
         return !isPlayBuild() && value != null && value.length() == 64;
@@ -85,17 +84,18 @@ public final class AuthorGramPlayPolicy {
         return dialogId == OWNER_DIALOG_ID;
     }
 
+    /** No Play dialog is blocked from user-created per-chat encryption. */
     public static boolean isEncryptionForbidden(long dialogId) {
-        return isOwnerDialog(dialogId);
+        return false;
     }
 
+    /**
+     * AuthorGram custom encryption is available for every real dialog.
+     * Native Telegram Secret Chats are filtered by ChatActivity/interceptor and
+     * continue to use Telegram's own protocol.
+     */
     public static boolean canEnableEncryption(int account, long dialogId) {
-        if (dialogId == 0 || isEncryptionForbidden(dialogId)) {
-            return false;
-        }
-        // Custom wire-format encryption is Main-only: Telegram clients that do not
-        // implement AuthorGram's format must never receive unreadable Play messages.
-        return !isPlayBuild();
+        return dialogId != 0;
     }
 
     public static boolean canDelete(long dialogId) {
@@ -126,8 +126,9 @@ public final class AuthorGramPlayPolicy {
     }
 
     /**
-     * Runs before NekoConfig and NaConfig load. It also migrates existing Play
-     * installations that received unsafe AuthorGram defaults in an older APK.
+     * Runs before NekoConfig and NaConfig load. It only enforces Play policy for
+     * restricted features; it does not delete AuthorGram per-chat encryption
+     * state or keys.
      */
     public static void applyStartupPolicy(Context context) {
         if (!isPlayBuild() || context == null) {
@@ -152,24 +153,5 @@ public final class AuthorGramPlayPolicy {
             }
         }
         editor.commit();
-
-        SharedPreferences crypto =
-                context.getSharedPreferences(CRYPTO_PREFS, Context.MODE_PRIVATE);
-        SharedPreferences.Editor cryptoEditor = crypto.edit();
-        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
-            cryptoEditor.remove(CRYPTO_PREFIX + account + "_" + OWNER_DIALOG_ID);
-        }
-        cryptoEditor.commit();
-
-        SharedPreferences keys =
-                context.getSharedPreferences(CHAT_KEYS_PREFS, Context.MODE_PRIVATE);
-        SharedPreferences.Editor keysEditor = keys.edit();
-        String suffix = "_" + OWNER_DIALOG_ID;
-        for (String key : keys.getAll().keySet()) {
-            if (key.contains(suffix)) {
-                keysEditor.remove(key);
-            }
-        }
-        keysEditor.commit();
     }
 }
