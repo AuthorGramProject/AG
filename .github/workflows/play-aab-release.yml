@@ -62,6 +62,11 @@ jobs:
           grep -Fq "def authorGramSystemKeyHex = ''" TMessagesProj/build.gradle
           grep -Fq "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'" TMessagesProj/build.gradle
 
+          grep -Fq "def bundleBuildRequested = requestedTasks.any { it.contains('bundle') }" TMessagesProj/build.gradle
+          grep -Fq 'enable = !bundleBuildRequested' TMessagesProj/build.gradle
+          grep -Fq 'universalApk = !bundleBuildRequested && nativeTarget.isBlank()' TMessagesProj/build.gradle
+          grep -Fq "abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'" TMessagesProj/build.gradle
+
           grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
           grep -Fq 'Deleted-message retention, edit-history retention' TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java
           test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
