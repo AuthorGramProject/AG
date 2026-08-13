@@ -1,0 +1,217 @@
+name: AuthorGram Google Play AAB Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [play-market]
+    paths:
+      - .github/workflows/play-aab-release.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: authorgram-google-play-aab-release
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Build and verify Google Play AAB
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      PLAY_PACKAGE: toss.authorgram.apk
+      VERSION_NAME: 12.9.2
+      VERSION_CODE: '6991'
+      BUNDLETOOL_VERSION: 1.18.3
+      LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+      HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
+      HISTORICAL_KEYSTORE_BLOB: 5c0f63c668f7ad06ea674560f10ffb256ff2c092
+
+    steps:
+      - name: Checkout Play source
+        uses: actions/checkout@v4
+        with:
+          ref: play-market
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Validate Play source policy and release configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
+          [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
+          [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
+
+          grep -Fq 'compileSdk = 36' build.gradle
+          grep -Fq 'targetSdk = 36' build.gradle
+          grep -Fq "implementation 'com.android.billingclient:billing:8.2.1'" TMessagesProj/build.gradle
+          ! grep -Fq "com.android.billingclient:billing:7.1.1" TMessagesProj/build.gradle
+
+          grep -Fq 'PendingPurchasesParams.newBuilder()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
+          grep -Fq '.enableOneTimeProducts()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
+          grep -Fq '.enableAutoServiceReconnection()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
+          grep -Fq 'productDetailsResult.getProductDetailsList()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
+          ! grep -Fq '.enablePendingPurchases()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
+
+          grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
+          grep -Fq "def authorGramSystemKeyHex = ''" TMessagesProj/build.gradle
+          grep -Fq "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'" TMessagesProj/build.gradle
+
+          grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
+          grep -Fq 'Deleted-message retention, edit-history retention' TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
+
+          grep -Fq 'values.put("hideSponsoredMessage", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
+          grep -Fq 'values.put("HideProxySponsorChannel", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
+          grep -Fq 'values.put("localPremium", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
+          grep -Fq 'values.put("EnableSaveDeletedMessages", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
+          grep -Fq 'values.put("ignoreContentRestrictions", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
+
+          git diff --check
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
+
+      - name: Restore AuthorGram release signing key
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -f TMessagesProj/release.keystore
+          meta="$(gh api -H 'Accept: application/vnd.github+json' "/repos/${GITHUB_REPOSITORY}/contents/TMessagesProj/release.keystore?ref=${HISTORICAL_SIGNING_COMMIT}")"
+          [[ "$(jq -r '.sha' <<<"${meta}")" == "${HISTORICAL_KEYSTORE_BLOB}" ]]
+          jq -r '.content' <<<"${meta}" | tr -d '\n' | base64 --decode > TMessagesProj/release.keystore
+          test -s TMessagesProj/release.keystore
+          chmod 600 TMessagesProj/release.keystore
+          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
+          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+
+      - name: Compile Play release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          NATIVE_TARGET=SKIP ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:compileReleaseJavaWithJavac
+
+      - name: Build signed release AAB
+        shell: bash
+        run: |
+          set -euo pipefail
+          NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:bundleRelease
+
+      - name: Verify Google Play AAB
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "${RUNNER_TEMP}/authorgram-play-aab"
+
+          mapfile -t bundles < <(find TMessagesProj/build/outputs/bundle -type f -name '*.aab' | sort)
+          if [[ ${#bundles[@]} -ne 1 ]]; then
+            printf 'Expected exactly one AAB, found %s:\n' "${#bundles[@]}" >&2
+            printf '%s\n' "${bundles[@]:-}" >&2
+            exit 1
+          fi
+          AAB="${bundles[0]}"
+
+          BUNDLETOOL="${RUNNER_TEMP}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar" \
+            --output "${BUNDLETOOL}"
+          test -s "${BUNDLETOOL}"
+
+          java -jar "${BUNDLETOOL}" validate --bundle="${AAB}" \
+            | tee "${RUNNER_TEMP}/authorgram-play-aab/BUNDLETOOL_VALIDATION.txt"
+
+          java -jar "${BUNDLETOOL}" dump manifest --bundle="${AAB}" --module=base \
+            > "${RUNNER_TEMP}/authorgram-play-aab/AndroidManifest.xml"
+          MANIFEST="${RUNNER_TEMP}/authorgram-play-aab/AndroidManifest.xml"
+
+          grep -Fq "package=\"${PLAY_PACKAGE}\"" "${MANIFEST}"
+          grep -Fq "android:versionCode=\"${VERSION_CODE}\"" "${MANIFEST}"
+          grep -Fq "android:versionName=\"${VERSION_NAME}\"" "${MANIFEST}"
+          grep -Fq 'android:targetSdkVersion="36"' "${MANIFEST}"
+          grep -Fq 'android:minSdkVersion="27"' "${MANIFEST}"
+          grep -Fq 'android.permission.INTERNET' "${MANIFEST}"
+          grep -Fq 'com.android.vending.BILLING' "${MANIFEST}"
+          ! grep -Fq 'android.permission.REQUEST_INSTALL_PACKAGES' "${MANIFEST}"
+
+          unzip -Z1 "${AAB}" > "${RUNNER_TEMP}/authorgram-play-aab/BUNDLE_CONTENTS.txt"
+          CONTENTS="${RUNNER_TEMP}/authorgram-play-aab/BUNDLE_CONTENTS.txt"
+          grep -Eq '^base/lib/arm64-v8a/' "${CONTENTS}"
+          grep -Eq '^base/lib/armeabi-v7a/' "${CONTENTS}"
+          grep -Eq '^base/lib/x86_64/' "${CONTENTS}"
+          if grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks|[^/]*\.p12|[^/]*\.pfx)$' "${CONTENTS}"; then
+            echo 'Signing material was packaged into the AAB' >&2
+            exit 1
+          fi
+
+          jarsigner -verify -strict -verbose -certs "${AAB}" \
+            > "${RUNNER_TEMP}/authorgram-play-aab/JARSIGNER_VERIFY.txt"
+          keytool -printcert -jarfile "${AAB}" \
+            > "${RUNNER_TEMP}/authorgram-play-aab/CERTIFICATE.txt"
+
+          DEST="${RUNNER_TEMP}/authorgram-play-aab/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-release.aab"
+          cp "${AAB}" "${DEST}"
+
+          if [[ -f TMessagesProj/build/outputs/mapping/release/mapping.txt ]]; then
+            cp TMessagesProj/build/outputs/mapping/release/mapping.txt \
+              "${RUNNER_TEMP}/authorgram-play-aab/mapping.txt"
+          fi
+
+          (
+            cd "${RUNNER_TEMP}/authorgram-play-aab"
+            sha256sum "$(basename "${DEST}")" > SHA256SUMS.txt
+          )
+
+          cat > "${RUNNER_TEMP}/authorgram-play-aab/BUILD.txt" <<EOF
+          branch=play-market
+          sourceCommit=${GITHUB_SHA}
+          package=${PLAY_PACKAGE}
+          versionName=${VERSION_NAME}
+          versionCode=${VERSION_CODE}
+          targetSdk=36
+          compileSdk=36
+          minSdk=27
+          billingLibrary=8.2.1
+          format=aab
+          buildType=release
+          abi=armeabi-v7a,arm64-v8a,x86_64
+          requestInstallPackages=absent
+          systemKey=absent
+          signingKeySourceCommit=${HISTORICAL_SIGNING_COMMIT}
+          bundletool=${BUNDLETOOL_VERSION}
+          EOF
+
+      - name: Upload verified Google Play AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuthorGram-Play-12.9.2-Google-Play-AAB
+          path: ${{ runner.temp }}/authorgram-play-aab/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove signing material from runner
+        if: always()
+        shell: bash
+        run: rm -f TMessagesProj/release.keystore local.properties
