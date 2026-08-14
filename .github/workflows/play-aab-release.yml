@@ -2,6 +2,10 @@ name: AuthorGram Google Play AAB Release
 
 on:
   workflow_dispatch:
+  push:
+    branches: [play-market]
+    paths:
+      - .github/workflows/play-aab-release.yml
 
 permissions:
   contents: read
