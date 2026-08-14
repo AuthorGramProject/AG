@@ -1,4 +1,5 @@
 name: AuthorGram Google Play AAB Release
+# Triggered after fixing the Play About Telegram label compile error.
 
 on:
   workflow_dispatch:
