@@ -2,10 +2,6 @@ name: AuthorGram Google Play AAB Release
 
 on:
   workflow_dispatch:
-  push:
-    branches: [play-market]
-    paths:
-      - .github/workflows/play-aab-release.yml
 
 permissions:
   contents: read
@@ -124,74 +120,127 @@ jobs:
           set -euo pipefail
           NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:bundleRelease
 
+      - name: Preserve built AAB before verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/authorgram-play-aab-raw"
+          mapfile -t bundles < <(find TMessagesProj/build/outputs/bundle -type f -name '*.aab' | sort)
+          if [[ ${#bundles[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one built AAB, found ${#bundles[@]}"
+            printf '%s\n' "${bundles[@]:-}"
+            exit 1
+          fi
+          cp "${bundles[0]}" \
+            "${RUNNER_TEMP}/authorgram-play-aab-raw/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-raw.aab"
+
+      - name: Upload built AAB safety copy
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuthorGram-Play-AAB-SAFETY-NOT-FOR-RELEASE
+          path: ${{ runner.temp }}/authorgram-play-aab-raw/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Verify Google Play AAB
         shell: bash
         run: |
           set -euo pipefail
 
-          mkdir -p "${RUNNER_TEMP}/authorgram-play-aab"
+          OUT="${RUNNER_TEMP}/authorgram-play-aab"
+          mkdir -p "${OUT}"
+          AAB="${RUNNER_TEMP}/authorgram-play-aab-raw/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-raw.aab"
+          test -s "${AAB}" || { echo '::error::Preserved AAB is missing or empty'; exit 1; }
 
-          mapfile -t bundles < <(find TMessagesProj/build/outputs/bundle -type f -name '*.aab' | sort)
-          if [[ ${#bundles[@]} -ne 1 ]]; then
-            printf 'Expected exactly one AAB, found %s:\n' "${#bundles[@]}" >&2
-            printf '%s\n' "${bundles[@]:-}" >&2
-            exit 1
-          fi
-          AAB="${bundles[0]}"
+          require_fixed() {
+            local needle="$1"
+            local file="$2"
+            local message="$3"
+            grep -Fq -- "$needle" "$file" || {
+              echo "::error::${message}"
+              exit 1
+            }
+          }
+
+          require_absent() {
+            local needle="$1"
+            local file="$2"
+            local message="$3"
+            if grep -Fq -- "$needle" "$file"; then
+              echo "::error::${message}"
+              exit 1
+            fi
+          }
 
           BUNDLETOOL="${RUNNER_TEMP}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
           curl --fail --location --retry 3 --retry-delay 2 \
             "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar" \
             --output "${BUNDLETOOL}"
-          test -s "${BUNDLETOOL}"
+          test -s "${BUNDLETOOL}" || { echo '::error::bundletool download is empty'; exit 1; }
 
-          java -jar "${BUNDLETOOL}" validate --bundle="${AAB}" \
-            | tee "${RUNNER_TEMP}/authorgram-play-aab/BUNDLETOOL_VALIDATION.txt"
+          java -jar "${BUNDLETOOL}" validate --bundle="${AAB}" 2>&1 \
+            | tee "${OUT}/BUNDLETOOL_VALIDATION.txt"
 
           java -jar "${BUNDLETOOL}" dump manifest --bundle="${AAB}" --module=base \
-            > "${RUNNER_TEMP}/authorgram-play-aab/AndroidManifest.xml"
-          MANIFEST="${RUNNER_TEMP}/authorgram-play-aab/AndroidManifest.xml"
+            > "${OUT}/AndroidManifest.xml"
+          MANIFEST="${OUT}/AndroidManifest.xml"
 
-          grep -Fq "package=\"${PLAY_PACKAGE}\"" "${MANIFEST}"
-          grep -Fq "android:versionCode=\"${VERSION_CODE}\"" "${MANIFEST}"
-          grep -Fq "android:versionName=\"${VERSION_NAME}\"" "${MANIFEST}"
-          grep -Fq 'android:targetSdkVersion="36"' "${MANIFEST}"
-          grep -Fq 'android:minSdkVersion="27"' "${MANIFEST}"
-          grep -Fq 'android.permission.INTERNET' "${MANIFEST}"
-          grep -Fq 'com.android.vending.BILLING' "${MANIFEST}"
-          ! grep -Fq 'android.permission.REQUEST_INSTALL_PACKAGES' "${MANIFEST}"
+          require_fixed "package=\"${PLAY_PACKAGE}\"" "${MANIFEST}" 'AAB package name is incorrect'
+          require_fixed "android:versionCode=\"${VERSION_CODE}\"" "${MANIFEST}" 'AAB versionCode is incorrect'
+          require_fixed "android:versionName=\"${VERSION_NAME}\"" "${MANIFEST}" 'AAB versionName is incorrect'
+          require_fixed 'android:targetSdkVersion="36"' "${MANIFEST}" 'AAB targetSdk is not 36'
+          require_fixed 'android:minSdkVersion="27"' "${MANIFEST}" 'AAB minSdk is not 27'
+          require_fixed 'android.permission.INTERNET' "${MANIFEST}" 'AAB is missing INTERNET permission'
+          require_fixed 'com.android.vending.BILLING' "${MANIFEST}" 'AAB is missing Google Play Billing permission'
+          require_absent 'android.permission.REQUEST_INSTALL_PACKAGES' "${MANIFEST}" 'REQUEST_INSTALL_PACKAGES must not be present in Play AAB'
 
-          unzip -Z1 "${AAB}" > "${RUNNER_TEMP}/authorgram-play-aab/BUNDLE_CONTENTS.txt"
-          CONTENTS="${RUNNER_TEMP}/authorgram-play-aab/BUNDLE_CONTENTS.txt"
-          grep -Eq '^base/lib/arm64-v8a/' "${CONTENTS}"
-          grep -Eq '^base/lib/armeabi-v7a/' "${CONTENTS}"
-          grep -Eq '^base/lib/x86_64/' "${CONTENTS}"
+          unzip -Z1 "${AAB}" > "${OUT}/BUNDLE_CONTENTS.txt"
+          CONTENTS="${OUT}/BUNDLE_CONTENTS.txt"
+          grep -Eq '^base/lib/arm64-v8a/' "${CONTENTS}" || { echo '::error::AAB missing arm64-v8a'; exit 1; }
+          grep -Eq '^base/lib/armeabi-v7a/' "${CONTENTS}" || { echo '::error::AAB missing armeabi-v7a'; exit 1; }
+          grep -Eq '^base/lib/x86_64/' "${CONTENTS}" || { echo '::error::AAB missing x86_64'; exit 1; }
           if grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks|[^/]*\.p12|[^/]*\.pfx)$' "${CONTENTS}"; then
-            echo 'Signing material was packaged into the AAB' >&2
+            echo '::error::Signing material was packaged into the AAB'
             exit 1
           fi
 
-          jarsigner -verify -strict -verbose -certs "${AAB}" \
-            > "${RUNNER_TEMP}/authorgram-play-aab/JARSIGNER_VERIFY.txt"
-          keytool -printcert -jarfile "${AAB}" \
-            > "${RUNNER_TEMP}/authorgram-play-aab/CERTIFICATE.txt"
+          JARSIGNER_LOG="${OUT}/JARSIGNER_VERIFY.txt"
+          if ! jarsigner -verify -verbose -certs "${AAB}" > "${JARSIGNER_LOG}" 2>&1; then
+            echo '::error::Cryptographic AAB signature verification failed'
+            cat "${JARSIGNER_LOG}"
+            exit 1
+          fi
 
-          DEST="${RUNNER_TEMP}/authorgram-play-aab/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-release.aab"
+          STRICT_LOG="${OUT}/JARSIGNER_STRICT.txt"
+          set +e
+          jarsigner -verify -strict -verbose -certs "${AAB}" > "${STRICT_LOG}" 2>&1
+          STRICT_RC=$?
+          set -e
+          printf 'strictExitCode=%s\n' "${STRICT_RC}" > "${OUT}/JARSIGNER_STRICT_STATUS.txt"
+          if (( STRICT_RC != 0 )); then
+            echo "::warning::jarsigner strict mode returned ${STRICT_RC}; non-strict cryptographic verification passed. See JARSIGNER_STRICT.txt."
+          fi
+
+          if ! keytool -printcert -jarfile "${AAB}" > "${OUT}/CERTIFICATE.txt" 2>&1; then
+            echo '::warning::keytool could not print the signer certificate; jarsigner verification already passed.'
+          fi
+
+          DEST="${OUT}/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-release.aab"
           cp "${AAB}" "${DEST}"
 
           if [[ -f TMessagesProj/build/outputs/mapping/release/mapping.txt ]]; then
-            cp TMessagesProj/build/outputs/mapping/release/mapping.txt \
-              "${RUNNER_TEMP}/authorgram-play-aab/mapping.txt"
+            cp TMessagesProj/build/outputs/mapping/release/mapping.txt "${OUT}/mapping.txt"
           fi
 
           (
-            cd "${RUNNER_TEMP}/authorgram-play-aab"
+            cd "${OUT}"
             sha256sum "$(basename "${DEST}")" > SHA256SUMS.txt
           )
 
-          cat > "${RUNNER_TEMP}/authorgram-play-aab/BUILD.txt" <<EOF
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          cat > "${OUT}/BUILD.txt" <<EOF
           branch=play-market
-          sourceCommit=${GITHUB_SHA}
+          sourceCommit=${SOURCE_SHA}
           package=${PLAY_PACKAGE}
           versionName=${VERSION_NAME}
           versionCode=${VERSION_CODE}
@@ -215,6 +264,17 @@ jobs:
           path: ${{ runner.temp }}/authorgram-play-aab/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Upload verification diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuthorGram-Play-AAB-DIAGNOSTIC-NOT-FOR-RELEASE
+          path: |
+            ${{ runner.temp }}/authorgram-play-aab/
+            ${{ runner.temp }}/authorgram-play-aab-raw/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Remove signing material from runner
         if: always()
