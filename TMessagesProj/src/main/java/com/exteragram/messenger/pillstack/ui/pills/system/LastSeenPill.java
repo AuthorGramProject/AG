@@ -320,8 +320,8 @@ public class LastSeenPill extends BasePill implements NotificationCenter.Notific
         autoRefreshToggle.setSubtext(LocaleController.getString(periodicEnabled ? R.string.PasswordOn : R.string.PasswordOff));
 
         final ItemOptions options = ItemOptions.makeOptions(fragment, this);
-        options.add(autoRefreshToggle)
-                .addGap()
+        options.add(autoRefreshToggle);
+        options.addGap()
                 .add(R.drawable.msg_retry, LocaleController.getString(R.string.Refresh), this::onPillClicked)
                 .add(R.drawable.msg_settings, LocaleController.getString(R.string.Settings),
                         () -> fragment.presentFragment(new PillStackPreferencesActivity()))
