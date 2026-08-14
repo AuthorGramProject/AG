@@ -37,6 +37,8 @@ public class AGAboutActivity extends BaseAGSettingsActivity {
 
     private int linksHeaderRow;
     private int mainSiteRow;
+    private int privacyPolicyRow;
+    private int telegramChannelRow;
     private int poemsRow;
     private int otherLinksRow;
     private int donateRow;
@@ -45,6 +47,8 @@ public class AGAboutActivity extends BaseAGSettingsActivity {
 
     // ВАЖЛИВО: за потреби заміни URL нижче на актуальні значення.
     private static final String URL_MAIN_SITE = "https://authorche.top";
+    private static final String URL_PRIVACY_POLICY = "https://authorche.top/authorgram/privacy/";
+    private static final String URL_TELEGRAM_CHANNEL = "https://t.me/authorgram_apk";
     private static final String URL_POEMS = "https://authorche.top/poems";
     private static final String URL_OTHER_LINKS = "https://authorche.top/links";
     private static final String URL_DONATE = "https://authorche.top/donate";
@@ -68,6 +72,8 @@ public class AGAboutActivity extends BaseAGSettingsActivity {
 
         linksHeaderRow = addRow();
         mainSiteRow = addRow();
+        privacyPolicyRow = addRow();
+        telegramChannelRow = addRow();
         poemsRow = addRow();
         otherLinksRow = addRow();
         donateRow = addRow();
@@ -113,6 +119,10 @@ public class AGAboutActivity extends BaseAGSettingsActivity {
             FileLog.cleanupLogs();
         } else if (position == mainSiteRow) {
             Browser.openUrl(getParentActivity(), URL_MAIN_SITE);
+        } else if (position == privacyPolicyRow) {
+            Browser.openUrl(getParentActivity(), URL_PRIVACY_POLICY);
+        } else if (position == telegramChannelRow) {
+            Browser.openUrl(getParentActivity(), URL_TELEGRAM_CHANNEL);
         } else if (position == poemsRow) {
             Browser.openUrl(getParentActivity(), URL_POEMS);
         } else if (position == otherLinksRow) {
@@ -128,6 +138,8 @@ public class AGAboutActivity extends BaseAGSettingsActivity {
         infoShadowRow += 2;
         linksHeaderRow += 2;
         mainSiteRow += 2;
+        privacyPolicyRow += 2;
+        telegramChannelRow += 2;
         poemsRow += 2;
         otherLinksRow += 2;
         donateRow += 2;
@@ -140,6 +152,8 @@ public class AGAboutActivity extends BaseAGSettingsActivity {
         infoShadowRow -= 2;
         linksHeaderRow -= 2;
         mainSiteRow -= 2;
+        privacyPolicyRow -= 2;
+        telegramChannelRow -= 2;
         poemsRow -= 2;
         otherLinksRow -= 2;
         donateRow -= 2;
@@ -196,6 +210,10 @@ public class AGAboutActivity extends BaseAGSettingsActivity {
                         textCell.setTextAndIcon(getString(R.string.DebugClearLogs), R.drawable.msg_clear, false);
                     } else if (position == mainSiteRow) {
                         textCell.setTextAndValueAndIcon("Main Site", "authorche.top", R.drawable.msg_info, true);
+                    } else if (position == privacyPolicyRow) {
+                        textCell.setTextAndValueAndIcon(getString(R.string.PrivacyPolicy), "authorche.top/authorgram/privacy/", R.drawable.msg_info, true);
+                    } else if (position == telegramChannelRow) {
+                        textCell.setTextAndValueAndIcon(getString(R.string.Telegram), "t.me/authorgram_apk", R.drawable.msg_discussion, true);
                     } else if (position == poemsRow) {
                         textCell.setTextAndValueAndIcon("Poems", "authorche.top/poems", R.drawable.msg_log, true);
                     } else if (position == otherLinksRow) {
