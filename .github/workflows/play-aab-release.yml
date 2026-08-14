@@ -1,5 +1,5 @@
 name: AuthorGram Google Play AAB Release
-# Triggered after fixing the Play About Telegram label compile error.
+# Google Play update: restore author badges after Play App Signing and remove Ghost Mode UI.
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ jobs:
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.9.2
-      VERSION_CODE: '6992'
+      VERSION_CODE: '6993'
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
@@ -39,7 +39,7 @@ jobs:
           fetch-depth: 1
           submodules: recursive
 
-      - name: Validate Play source policy and release configuration
+      - name: Validate and prepare Play policy-safe source
         shell: bash
         run: |
           set -euo pipefail
@@ -47,6 +47,57 @@ jobs:
           [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
           [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
           [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
+
+          # The upstream chat menu is shared with non-Play builds. For the Play
+          # artifact, remove the Ghost Mode submenu at source level before javac
+          # and remove its chat-menu wrapper entirely. Message Filters remains.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          chat_path = Path('TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java')
+          source = chat_path.read_text(encoding='utf-8')
+
+          import_line = 'import tw.nekomimi.nekogram.menu.ghostmode.GhostModeExclusionPopupWrapper;\n'
+          declaration = '        boolean showGhostMode = !ChatObject.isChannelAndNotMegaGroup(currentChat);\n'
+          old_guard = '        if (!showGhostMode && !showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
+          new_guard = '        if (!showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
+
+          for needle, label in (
+              (import_line, 'GhostModeExclusionPopupWrapper import'),
+              (declaration, 'showGhostMode declaration'),
+              (old_guard, 'AuthorGram submenu visibility guard'),
+          ):
+              if source.count(needle) != 1:
+                  raise SystemExit(f'Expected exactly one {label}, found {source.count(needle)}')
+
+          source = source.replace(import_line, '', 1)
+          source = source.replace(declaration, '', 1)
+          source = source.replace(old_guard, new_guard, 1)
+
+          block = re.compile(
+              r'\n        if \(showGhostMode\) \{\n.*?\n        \}\n\n        if \(showSaveDeleted\) \{',
+              re.DOTALL,
+          )
+          source, count = block.subn('\n        if (showSaveDeleted) {', source, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one Ghost Mode chat-menu block, found {count}')
+
+          if 'GhostModeExclusionPopupWrapper' in source or 'showGhostMode' in source:
+              raise SystemExit('Ghost Mode chat-menu source remains after Play patch')
+          if 'RegexFiltersExclusionPopupWrapper' not in source:
+              raise SystemExit('Message Filters submenu was accidentally removed')
+
+          chat_path.write_text(source, encoding='utf-8', newline='')
+
+          wrapper = Path(
+              'TMessagesProj/src/main/java/tw/nekomimi/nekogram/menu/ghostmode/'
+              'GhostModeExclusionPopupWrapper.java'
+          )
+          if not wrapper.is_file():
+              raise SystemExit('Expected GhostModeExclusionPopupWrapper.java before Play pruning')
+          wrapper.unlink()
+          PY
 
           grep -Fq 'compileSdk = 36' build.gradle
           grep -Fq 'targetSdk = 36' build.gradle
@@ -75,6 +126,7 @@ jobs:
 
           grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
           grep -Fq 'Deleted-message retention, edit-history retention' TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java
+          grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/GhostModeActivity.java
           test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
           test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
           test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
@@ -84,6 +136,24 @@ jobs:
           grep -Fq 'values.put("localPremium", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
           grep -Fq 'values.put("EnableSaveDeletedMessages", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
           grep -Fq 'values.put("ignoreContentRestrictions", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
+          grep -Fq 'values.put("showGhostInDrawer", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
+          grep -Fq 'values.put("showGhostModeStatus", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
+
+          # Author badges must survive Google Play App Signing while remaining
+          # token-gated and limited to official Play release/staging variants.
+          grep -Fq '? BuildConfig.OFFICIAL_BUILD' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java
+          grep -Fq ': AuthorGramBuildIntegrity.isTrustedBuild();' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java
+          python3 scripts/verify_authorgram_badge_tokens.py
+
+          # No reachable Ghost Mode controls in Play UI. The main drawer already
+          # excludes it; LastSeenPill and the chat AuthorGram submenu must too.
+          grep -Fq 'allEntries.filterNot { it.id == DrawerLayoutAdapter.agbtnGhostMode }' TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/helper/DrawerMenuHelper.kt
+          ! grep -Fq 'R.string.GhostMode' TMessagesProj/src/main/java/com/exteragram/messenger/pillstack/ui/pills/system/LastSeenPill.java
+          ! grep -Fq 'GhostModeActivity' TMessagesProj/src/main/java/com/exteragram/messenger/pillstack/ui/pills/system/LastSeenPill.java
+          ! grep -Fq 'GhostModeExclusionPopupWrapper' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          ! grep -Fq 'showGhostMode' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          test ! -e TMessagesProj/src/main/java/tw/nekomimi/nekogram/menu/ghostmode/GhostModeExclusionPopupWrapper.java
+          grep -Fq 'RegexFiltersExclusionPopupWrapper' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
 
           git diff --check
 
@@ -263,6 +333,9 @@ jobs:
           abi=armeabi-v7a,arm64-v8a,x86_64
           requestInstallPackages=absent
           systemKey=absent
+          ghostModeChatMenu=absent
+          ghostModeLastSeenMenu=absent
+          authorBadges=play-app-signing-compatible
           privacyPolicy=https://authorche.top/authorgram/privacy/
           telegramChannel=https://t.me/authorgram_apk
           signingKeySourceCommit=${HISTORICAL_SIGNING_COMMIT}
@@ -272,7 +345,7 @@ jobs:
       - name: Upload verified Google Play AAB
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.9.2-6992-Google-Play-AAB
+          name: AuthorGram-Play-12.9.2-6993-Google-Play-AAB
           path: ${{ runner.temp }}/authorgram-play-aab/
           if-no-files-found: error
           retention-days: 30
