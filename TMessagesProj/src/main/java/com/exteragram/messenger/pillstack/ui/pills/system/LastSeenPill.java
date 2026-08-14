@@ -21,6 +21,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.Vector;
@@ -37,16 +38,14 @@ import java.util.Calendar;
 import java.util.Date;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import toss.authorgram.settings.GhostModeActivity;
 
 /**
  * Shows the current account's last-seen status as reported by the Telegram
  * server. Tap = refresh / briefly reveal the text. Long-press = toggle periodic
  * polling every 60s and open pill settings.
  *
- * Independent re-implementation: does not depend on ayuGram's AyuWorker / ghost
- * controllers. Status is fetched with a plain {@code users.getUsers} request
- * against the client's own account.
+ * The Google Play build intentionally exposes no Ghost Mode controls. The
+ * last-seen pill remains a plain status/refresh utility there.
  */
 public class LastSeenPill extends BasePill implements NotificationCenter.NotificationCenterDelegate {
 
@@ -165,12 +164,10 @@ public class LastSeenPill extends BasePill implements NotificationCenter.Notific
             startLoading();
         }
 
-        // If ghost mode's "send offline after online" is on, the server may still
-        // see us as Online because the trailing offline packet for our recent
-        // activity hasn't landed yet. Push a proactive offline update first and
-        // then delay the lookup by the same 1s window AyuGhostUtils uses after
-        // message sends. Without this we'd read back a stale "Online" status.
-        if (NekoConfig.sendOfflinePacketAfterOnline.Bool()) {
+        // Play policy forces the ghost-status preference off. Keep the legacy
+        // fallback for compatibility with persisted data without exposing any
+        // Ghost Mode control in this build.
+        if (!AuthorGramPlayPolicy.isPlayBuild() && NekoConfig.sendOfflinePacketAfterOnline.Bool()) {
             AyuGhostUtils.performStatusRequest(true);
             postDelayed(() -> fetchSelfUser(account, selfId, persistent), 1000L);
         } else {
@@ -317,33 +314,21 @@ public class LastSeenPill extends BasePill implements NotificationCenter.Notific
         if (fragment == null) return false;
         final int account = getAccount();
         final boolean periodicEnabled = PillStackConfig.isLastSeenPeriodicOnlineEnabled(account);
-        final boolean ghostActive = NekoConfig.isGhostModeActive();
-
-        ActionBarMenuSubItem ghostToggle = new ActionBarMenuSubItem(getContext(), false, false, resourcesProvider);
-        ghostToggle.setTextAndIcon(LocaleController.getString(R.string.GhostMode), R.drawable.ayu_ghost);
-        ghostToggle.setSubtext(LocaleController.getString(ghostActive ? R.string.PasswordOn : R.string.PasswordOff));
 
         ActionBarMenuSubItem autoRefreshToggle = new ActionBarMenuSubItem(getContext(), false, false, resourcesProvider);
         autoRefreshToggle.setTextAndIcon(LocaleController.getString(R.string.LastSeenPillAutoRefresh), R.drawable.menu_clear_recent);
         autoRefreshToggle.setSubtext(LocaleController.getString(periodicEnabled ? R.string.PasswordOn : R.string.PasswordOff));
 
         final ItemOptions options = ItemOptions.makeOptions(fragment, this);
-        options.add(ghostToggle);
-        options.add(autoRefreshToggle);
-        options.addGap()
+        options.add(autoRefreshToggle)
+                .addGap()
                 .add(R.drawable.msg_retry, LocaleController.getString(R.string.Refresh), this::onPillClicked)
-                .add(R.drawable.ayu_ghost, LocaleController.getString(R.string.GhostMode),
-                        () -> fragment.presentFragment(new GhostModeActivity()))
                 .add(R.drawable.msg_settings, LocaleController.getString(R.string.Settings),
                         () -> fragment.presentFragment(new PillStackPreferencesActivity()))
                 .setDrawScrim(false)
                 .setDimAlpha(0)
                 .show();
 
-        ghostToggle.setOnClickListener(v -> {
-            NekoConfig.toggleGhostMode();
-            options.dismiss();
-        });
         autoRefreshToggle.setOnClickListener(v -> {
             PillStackConfig.setLastSeenPeriodicOnlineEnabled(account, !periodicEnabled);
             options.dismiss();
@@ -383,8 +368,6 @@ public class LastSeenPill extends BasePill implements NotificationCenter.Notific
             PillStackConfig.checkAndClearPendingUpdate(getPillId());
             onUpdateData(true);
         } else if (id == NotificationCenter.reloadInterface) {
-            // Ghost mode toggles go through reloadInterface; refresh colors and
-            // kick the request so the displayed last-seen matches the new state.
             updateColors();
             if (isPeriodicOnlineEnabled() || statusExpanded) {
                 onUpdateData(true);
@@ -402,7 +385,7 @@ public class LastSeenPill extends BasePill implements NotificationCenter.Notific
     @Override
     public void updateColors() {
         int color;
-        if (NekoConfig.isGhostModeActive()) {
+        if (!AuthorGramPlayPolicy.isPlayBuild() && NekoConfig.isGhostModeActive()) {
             color = getThemedColor(Theme.key_windowBackgroundWhiteGreenText);
         } else {
             color = getThemedColor(Theme.key_windowBackgroundWhiteBlackText, 0.75f);
