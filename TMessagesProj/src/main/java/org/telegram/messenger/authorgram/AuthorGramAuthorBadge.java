@@ -2,6 +2,7 @@ package org.telegram.messenger.authorgram;
 
 import android.util.LruCache;
 
+import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.FileLog;
 
 import java.security.GeneralSecurityException;
@@ -14,9 +15,14 @@ import javax.crypto.spec.SecretKeySpec;
  * AuthorGram-local author badge policy.
  *
  * The allowed Telegram identifiers are not stored as decimal strings or raw
- * long constants. Release builds compare a keyed 128-bit token instead, and
- * the badge is disabled when the installed APK does not carry a trusted
- * AuthorGram signing certificate.
+ * long constants. Release builds compare a keyed 128-bit token instead.
+ *
+ * Non-Play distributions retain the installed-certificate integrity gate.
+ * Google Play builds cannot use that gate for this cosmetic badge because
+ * Google Play App Signing signs delivered APKs with the Play app-signing key,
+ * which is intentionally different from the upload/release key used to build
+ * the AAB. For the Play package we therefore require the official release
+ * build flag and keep the protected HMAC token allow-list as the badge gate.
  */
 public final class AuthorGramAuthorBadge {
     private static final byte[] KEY_PART_A = {
@@ -69,7 +75,19 @@ public final class AuthorGramAuthorBadge {
         // groups/channels are negative. Normalize both forms to the same internal
         // peer identifier before evaluating the protected token.
         long normalizedId = objectId == Long.MIN_VALUE ? 0 : Math.abs(objectId);
-        if (normalizedId == 0 || !AuthorGramBuildIntegrity.isTrustedBuild()) {
+        if (normalizedId == 0) {
+            return false;
+        }
+
+        // Google Play App Signing re-signs delivered APKs, so comparing the
+        // installed signer to the AAB upload key would disable every cosmetic
+        // author badge after Play delivery. Limit this exception strictly to the
+        // Play package's official release/staging variants; all other builds keep
+        // the original certificate-integrity requirement.
+        boolean trustedBadgeBuild = AuthorGramPlayPolicy.isPlayBuild()
+                ? BuildConfig.OFFICIAL_BUILD
+                : AuthorGramBuildIntegrity.isTrustedBuild();
+        if (!trustedBadgeBuild) {
             return false;
         }
 
