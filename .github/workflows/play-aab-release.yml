@@ -23,7 +23,7 @@ jobs:
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.9.2
-      VERSION_CODE: '6991'
+      VERSION_CODE: '6992'
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
@@ -66,6 +66,11 @@ jobs:
           grep -Fq 'enable = !bundleBuildRequested' TMessagesProj/build.gradle
           grep -Fq 'universalApk = !bundleBuildRequested && nativeTarget.isBlank()' TMessagesProj/build.gradle
           grep -Fq "abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'" TMessagesProj/build.gradle
+
+          grep -Fq 'https://authorche.top/authorgram/privacy/' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
+          grep -Fq 'https://t.me/authorgram_apk' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
+          grep -Fq 'privacyPolicyRow = addRow();' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
+          grep -Fq 'telegramChannelRow = addRow();' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
 
           grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
           grep -Fq 'Deleted-message retention, edit-history retention' TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java
@@ -257,6 +262,8 @@ jobs:
           abi=armeabi-v7a,arm64-v8a,x86_64
           requestInstallPackages=absent
           systemKey=absent
+          privacyPolicy=https://authorche.top/authorgram/privacy/
+          telegramChannel=https://t.me/authorgram_apk
           signingKeySourceCommit=${HISTORICAL_SIGNING_COMMIT}
           bundletool=${BUNDLETOOL_VERSION}
           EOF
@@ -264,7 +271,7 @@ jobs:
       - name: Upload verified Google Play AAB
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.9.2-Google-Play-AAB
+          name: AuthorGram-Play-12.9.2-6992-Google-Play-AAB
           path: ${{ runner.temp }}/authorgram-play-aab/
           if-no-files-found: error
           retention-days: 30
