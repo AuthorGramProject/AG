@@ -213,7 +213,7 @@ public class AGAboutActivity extends BaseAGSettingsActivity {
                     } else if (position == privacyPolicyRow) {
                         textCell.setTextAndValueAndIcon(getString(R.string.PrivacyPolicy), "authorche.top/authorgram/privacy/", R.drawable.msg_info, true);
                     } else if (position == telegramChannelRow) {
-                        textCell.setTextAndValueAndIcon(getString(R.string.Telegram), "t.me/authorgram_apk", R.drawable.msg_discussion, true);
+                        textCell.setTextAndValueAndIcon("Telegram", "t.me/authorgram_apk", R.drawable.msg_discussion, true);
                     } else if (position == poemsRow) {
                         textCell.setTextAndValueAndIcon("Poems", "authorche.top/poems", R.drawable.msg_log, true);
                     } else if (position == otherLinksRow) {
