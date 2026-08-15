@@ -20,7 +20,7 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
     private final int sizeDp;
 
     private static boolean iosInput() {
-        return AuthorGramPlayPolicy.canUseIosUi()
+        return AuthorGramPlayPolicy.canUseIosInput()
                 && NekoConfig.iOSMessageInputField.Bool();
     }
 
