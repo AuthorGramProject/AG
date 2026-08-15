@@ -2539,7 +2539,8 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
     }
 
     private boolean isCentered() {
-        return NaConfig.INSTANCE.getCenterActionBarTitle().Bool();
+        return !(parentFragment instanceof org.telegram.ui.ChatActivity)
+                && NaConfig.INSTANCE.getCenterActionBarTitle().Bool();
     }
 
     // --- Spring Animation ---

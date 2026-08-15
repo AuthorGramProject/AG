@@ -91,7 +91,7 @@ import xyz.nextalone.nagram.helper.DoubleTap;
 public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements NotificationCenter.NotificationCenterDelegate, EmojiHelper.EmojiPacksLoadedListener {
 
     private AbstractConfigCell appendIOSMessageInputFieldRow() {
-        if (AuthorGramPlayPolicy.isPlayBuild()) {
+        if (!AuthorGramPlayPolicy.canUseIosInput()) {
             return null;
         }
         return cellGroup.appendCell(new ConfigCellTextCheck(

@@ -397,7 +397,6 @@ import com.exteragram.messenger.ai.ui.GenerateFromMessageBottomSheet;
 import com.exteragram.messenger.ai.ui.ResponseAlert;
 import tw.nekomimi.nekogram.menu.copy.CopyPopupWrapper;
 import tw.nekomimi.nekogram.menu.forward.ForwardPopupWrapper;
-import tw.nekomimi.nekogram.menu.ghostmode.GhostModeExclusionPopupWrapper;
 import tw.nekomimi.nekogram.menu.regexfilters.RegexFiltersExclusionPopupWrapper;
 import tw.nekomimi.nekogram.menu.reply.ReplyPopupWrapper;
 import tw.nekomimi.nekogram.menu.saveDeleted.SaveExclusionPopupWrapper;
@@ -9792,12 +9791,11 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
 
-        boolean showGhostMode = !ChatObject.isChannelAndNotMegaGroup(currentChat);
         boolean showSaveDeleted = NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool();
-        boolean showRegexFilters = NaConfig.INSTANCE.getRegexFiltersEnabled().Bool();
+        boolean showRegexFilters = true;
         boolean showViewDeleted = showSaveDeleted && NaConfig.INSTANCE.getChatMenuItemViewDeleted().Bool();
         boolean showClearDeleted = showSaveDeleted && NaConfig.INSTANCE.getChatMenuItemClearDeleted().Bool();
-        if (!showGhostMode && !showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {
+        if (!showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {
             return;
         }
 
@@ -9840,27 +9838,6 @@ public class ChatActivity extends BaseFragment implements
                 headerItem.toggleSubMenu();
             }
         };
-
-        if (showGhostMode) {
-            GhostModeExclusionPopupWrapper ghostModePopupWrapper = new GhostModeExclusionPopupWrapper(
-                    this,
-                    ayuSwipeBack,
-                    dialog_id,
-                    getResourceProvider()
-            );
-            int ghostModeSwipeBackIndex = ayuLayout.addViewToSwipeBack(ghostModePopupWrapper.windowLayout);
-            if (ayuSwipeBack != null) {
-                ayuSwipeBack.setNewForegroundHeight(ghostModeSwipeBackIndex, ghostModePopupWrapper.windowLayout.precalculateHeight(), false);
-            }
-            ActionBarMenuSubItem ghostModeItem = ActionBarMenuItem.addItem(ayuLayout, R.drawable.ayu_ghost, getString(R.string.GhostMode), false, getResourceProvider());
-            View.OnClickListener ghostModeClickListener = v -> {
-                if (ayuSwipeBack != null) {
-                    ayuSwipeBack.openForeground(ghostModeSwipeBackIndex);
-                }
-            };
-            ghostModeItem.setOnClickListener(ghostModeClickListener);
-            ghostModeItem.setRightIcon(R.drawable.msg_arrowright, ghostModeClickListener);
-        }
 
         if (showSaveDeleted) {
             SaveExclusionPopupWrapper savePopupWrapper = new SaveExclusionPopupWrapper(
@@ -9986,7 +9963,7 @@ public class ChatActivity extends BaseFragment implements
             });
         }
 
-        headerItem.lazilyAddSwipeBackItem(R.drawable.msg2_reactions2, null, getString(R.string.AyuGramMenu), ayuLayout);
+        headerItem.lazilyAddSwipeBackItem(R.drawable.hide_title, null, getString(R.string.RegexFilters), ayuLayout);
     }
 
     private void checkInsets() {
@@ -20416,7 +20393,7 @@ public class ChatActivity extends BaseFragment implements
                                         return MESSAGE_TYPE_XML;
                                     } else if ((messageObject.getDocumentName().toLowerCase().endsWith(".nekox-stickers.json"))) {
                                         return MESSAGE_TYPE_NEKOX_STICKERS_JSON;
-                                    } else if ((messageObject.getDocumentName().toLowerCase().endsWith(".nekox-settings.json"))) {
+                                    } else if (((messageObject.getDocumentName().toLowerCase().endsWith(".authorgram-settings.json") || messageObject.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")))) {
                                         return MESSAGE_TYPE_NEKOX_SETTINGS_JSON;
                                     } else if (!messageObject.isNewGif() && mime.endsWith("/mp4") || mime.endsWith("/png") || mime.endsWith("/jpg") || mime.endsWith("/jpeg")) {
                                         return MESSAGE_TYPE_IMAGE_OR_VIDEO;
@@ -36015,7 +35992,7 @@ public class ChatActivity extends BaseFragment implements
                                     presentFragment(new StickersActivity(finalLocFile));
                                 }
                         );
-                    } else if (locFile.getName().toLowerCase().endsWith(".nekox-settings.json") || fileName.endsWith(".nekox-settings.json")) {
+                    } else if ((locFile.getName().toLowerCase().endsWith(".authorgram-settings.json") || locFile.getName().toLowerCase().endsWith(".nekox-settings.json")) || (fileName.endsWith(".authorgram-settings.json") || fileName.endsWith(".nekox-settings.json"))) {
                         File finalLocFile = locFile;
                         SettingsBackupHelper.importSettings(getParentActivity(), finalLocFile);
                     } else if (getMessageType(selectedObject) == MESSAGE_TYPE_FONT) {
@@ -44358,7 +44335,7 @@ public class ChatActivity extends BaseFragment implements
                             R.drawable.msg_sticker, getString(R.string.Import), false, () -> {
                                 presentFragment(new StickersActivity(finalLocFile));
                             });
-                } else if (message.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")) {
+                } else if ((message.getDocumentName().toLowerCase().endsWith(".authorgram-settings.json") || message.getDocumentName().toLowerCase().endsWith(".nekox-settings.json"))) {
                     File finalLocFile = locFile;
                     SettingsBackupHelper.importSettings(getParentActivity(), finalLocFile);
                 } else {
