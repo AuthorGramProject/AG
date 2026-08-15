@@ -28,6 +28,7 @@ jobs:
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
       HISTORICAL_KEYSTORE_BLOB: 5c0f63c668f7ad06ea674560f10ffb256ff2c092
+      SOURCE_ONLY: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[source-only]') }}
 
     steps:
       - name: Checkout Play source
@@ -36,7 +37,7 @@ jobs:
           ref: play-market
           fetch-depth: 1
 
-      - name: Prepare requested Play source fixes
+      - name: Prepare Play source invariants
         shell: bash
         run: |
           set -euo pipefail
@@ -50,19 +51,18 @@ jobs:
           def write(path, text):
               Path(path).write_text(text, encoding='utf-8', newline='')
 
-          def ensure_replaced(text, old, new, label):
+          def replace_variant(text, variants, new, label):
               if new in text:
                   return text
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 old occurrence, found {count}')
-              return text.replace(old, new, 1)
+              matches = [old for old in variants if old in text]
+              if len(matches) != 1:
+                  raise SystemExit(f'{label}: expected exactly one known variant, found {len(matches)}')
+              return text.replace(matches[0], new, 1)
 
-          # ChatActivity: remove Play-forbidden Ghost Mode and expose Message Filters
-          # directly between the two existing separators.
           chat_path = 'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java'
           chat = read(chat_path)
 
+          # Play-forbidden Ghost Mode stays absent.
           import_line = 'import tw.nekomimi.nekogram.menu.ghostmode.GhostModeExclusionPopupWrapper;\n'
           if import_line in chat:
               chat = chat.replace(import_line, '', 1)
@@ -73,7 +73,10 @@ jobs:
 
           old_guard = '        if (!showGhostMode && !showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
           new_guard = '        if (!showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
-          chat = ensure_replaced(chat, old_guard, new_guard, 'chat submenu guard')
+          if old_guard in chat:
+              chat = chat.replace(old_guard, new_guard, 1)
+          elif new_guard not in chat:
+              raise SystemExit('Message Filters submenu guard is missing')
 
           if 'if (showGhostMode) {' in chat:
               ghost_block = re.compile(
@@ -84,57 +87,65 @@ jobs:
               if count != 1:
                   raise SystemExit(f'Ghost Mode block: expected 1 occurrence, found {count}')
 
-          chat = ensure_replaced(
-              chat,
-              '        boolean showRegexFilters = NaConfig.INSTANCE.getRegexFiltersEnabled().Bool();',
-              '        boolean showRegexFilters = true;',
-              'Message Filters visibility'
-          )
-          chat = ensure_replaced(
-              chat,
-              '        headerItem.lazilyAddSwipeBackItem(R.drawable.msg2_reactions2, null, getString(R.string.AyuGramMenu), ayuLayout);',
-              '        headerItem.lazilyAddSwipeBackItem(R.drawable.hide_title, null, getString(R.string.RegexFilters), ayuLayout);',
-              'Message Filters root item'
-          )
+          old_filters = '        boolean showRegexFilters = NaConfig.INSTANCE.getRegexFiltersEnabled().Bool();'
+          new_filters = '        boolean showRegexFilters = true;'
+          if old_filters in chat:
+              chat = chat.replace(old_filters, new_filters, 1)
+          elif new_filters not in chat:
+              raise SystemExit('Message Filters visibility marker is missing')
 
-          # New AuthorGram backup suffix, with NekoX backward compatibility.
-          if '.authorgram-settings.json' not in chat:
-              suffix_checks = [
-                  'messageObject.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")',
-                  'locFile.getName().toLowerCase().endsWith(".nekox-settings.json")',
-                  'fileName.endsWith(".nekox-settings.json")',
-                  'message.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")',
-              ]
-              for old in suffix_checks:
-                  if old not in chat:
-                      raise SystemExit(f'settings suffix marker missing: {old}')
-                  lhs = old[:-len('.endsWith(".nekox-settings.json")')]
-                  new = f'({lhs}.endsWith(".authorgram-settings.json") || {old})'
-                  chat = chat.replace(old, new)
+          old_root = '        headerItem.lazilyAddSwipeBackItem(R.drawable.msg2_reactions2, null, getString(R.string.AyuGramMenu), ayuLayout);'
+          new_root = '        headerItem.lazilyAddSwipeBackItem(R.drawable.hide_title, null, getString(R.string.RegexFilters), ayuLayout);'
+          if old_root in chat:
+              chat = chat.replace(old_root, new_root, 1)
+          elif new_root not in chat:
+              raise SystemExit('Message Filters root menu marker is missing')
+
+          # Exact Main/Dev behavior: CenterActionBarTitle never changes any ChatActivity
+          # geometry. This controls avatar/header margins, call/search icons, overflow and
+          # headerItem.forceHidden, not only the visual title position.
+          if 'AUTHORGRAM_NATIVE_CHAT_HEADER' not in chat:
+              centered_pattern = re.compile(
+                  r'    private boolean canShowCenteredTitle\(ChatActivity parentFragment\) \{\n.*?\n    \}\n\n    public MessageObject getMessageForTranslate\(\) \{',
+                  re.DOTALL,
+              )
+              replacement = (
+                  '    private boolean canShowCenteredTitle(ChatActivity parentFragment) {\n'
+                  '        // AUTHORGRAM_NATIVE_CHAT_HEADER: chats always keep Telegram\'s native header geometry.\n'
+                  '        return false;\n'
+                  '    }\n\n'
+                  '    public MessageObject getMessageForTranslate() {'
+              )
+              chat, count = centered_pattern.subn(replacement, chat, count=1)
+              if count != 1:
+                  raise SystemExit(f'Native chat header method: expected 1 occurrence, found {count}')
+
+          # Deliberately do not modify AuthorGram/NekoX settings-import suffix handling here.
           write(chat_path, chat)
 
-          # Global title centering remains available, but never changes a chat header.
+          # Keep the ActionBar-level guard too, matching the proven standard-header repair.
           action_path = 'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java'
           action = read(action_path)
-          action = ensure_replaced(
+          desired_action = (
+              '    private boolean isCentered() {\n'
+              '        // AUTHORGRAM_STANDARD_CHAT_HEADER\n'
+              '        // ChatActivity always uses Telegram\'s ordinary non-centered header.\n'
+              '        if (parentFragment instanceof org.telegram.ui.ChatActivity) {\n'
+              '            return false;\n'
+              '        }\n'
+              '        return NaConfig.INSTANCE.getCenterActionBarTitle().Bool();\n'
+              '    }'
+          )
+          action = replace_variant(
               action,
-              '    private boolean isCentered() {\n        return NaConfig.INSTANCE.getCenterActionBarTitle().Bool();\n    }',
-              '    private boolean isCentered() {\n        return !(parentFragment instanceof org.telegram.ui.ChatActivity)\n                && NaConfig.INSTANCE.getCenterActionBarTitle().Bool();\n    }',
-              'chat title centering guard'
+              [
+                  '    private boolean isCentered() {\n        return NaConfig.INSTANCE.getCenterActionBarTitle().Bool();\n    }',
+                  '    private boolean isCentered() {\n        return !(parentFragment instanceof org.telegram.ui.ChatActivity)\n                && NaConfig.INSTANCE.getCenterActionBarTitle().Bool();\n    }',
+              ],
+              desired_action,
+              'ActionBar native chat header guard'
           )
           write(action_path, action)
-
-          # Play gets only the already-implemented iOS input setting; iOS Message Menu
-          # remains policy-locked in AuthorGramPlayPolicy.
-          settings_path = 'TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java'
-          settings = read(settings_path)
-          settings = ensure_replaced(
-              settings,
-              '    private AbstractConfigCell appendIOSMessageInputFieldRow() {\n        if (AuthorGramPlayPolicy.isPlayBuild()) {\n            return null;\n        }\n        return cellGroup.appendCell(new ConfigCellTextCheck(',
-              '    private AbstractConfigCell appendIOSMessageInputFieldRow() {\n        if (!AuthorGramPlayPolicy.canUseIosInput()) {\n            return null;\n        }\n        return cellGroup.appendCell(new ConfigCellTextCheck(',
-              'iOS input settings row'
-          )
-          write(settings_path, settings)
 
           ghost_wrapper = Path('TMessagesProj/src/main/java/tw/nekomimi/nekogram/menu/ghostmode/GhostModeExclusionPopupWrapper.java')
           if ghost_wrapper.is_file():
@@ -158,19 +169,25 @@ jobs:
           grep -Fq 'values.put("localPremium", false);' "${POLICY}"
           grep -Fq 'values.put("EnableSaveDeletedMessages", false);' "${POLICY}"
           grep -Fq 'values.put("ignoreContentRestrictions", false);' "${POLICY}"
+          grep -Fq 'values.put("iOSMessageInputField", false);' "${POLICY}"
           grep -Fq 'values.put("iOSMessageMenu", false);' "${POLICY}"
           grep -Fq 'public static boolean canUseIosInput()' "${POLICY}"
-          ! grep -Fq 'values.put("iOSMessageInputField", false);' "${POLICY}"
 
-          grep -Fq 'AuthorGramPlayPolicy.canUseIosInput()' TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java
+          grep -Fq 'AUTHORGRAM_NATIVE_CHAT_HEADER' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          grep -Fq 'private boolean canShowCenteredTitle(ChatActivity parentFragment)' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          grep -Fq 'AUTHORGRAM_STANDARD_CHAT_HEADER' TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java
           grep -Fq 'parentFragment instanceof org.telegram.ui.ChatActivity' TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java
           grep -Fq 'boolean showRegexFilters = true;' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           grep -Fq 'getString(R.string.RegexFilters), ayuLayout' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
-          grep -Fq '.authorgram-settings.json' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
-          grep -Fq '.nekox-settings.json' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           ! grep -Fq 'GhostModeExclusionPopupWrapper' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           ! grep -Fq 'showGhostMode' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           test ! -e TMessagesProj/src/main/java/tw/nekomimi/nekogram/menu/ghostmode/GhostModeExclusionPopupWrapper.java
+
+          # The settings row remains in shared source but is unreachable in Play because
+          # canUseIosInput() is false for the Play application id, and startup policy
+          # forcibly resets any previously stored value to false.
+          grep -Fq 'AuthorGramPlayPolicy.canUseIosInput()' TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java
+          grep -Fq 'if (!AuthorGramPlayPolicy.canUseIosInput()) {' TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java
 
           grep -Fq '? BuildConfig.OFFICIAL_BUILD' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java
           python3 scripts/verify_authorgram_badge_tokens.py
@@ -182,36 +199,40 @@ jobs:
           set -euo pipefail
           git config user.name 'AuthorGram Release Bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add \
-            TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java \
-            TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java \
-            TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java \
-            TMessagesProj/src/main/java/tw/nekomimi/nekogram/menu/ghostmode/GhostModeExclusionPopupWrapper.java
+          git add -A
           if git diff --cached --quiet; then
-            echo 'Play source already contains all requested fixes.'
+            echo 'Play source already contains all requested source invariants.'
           else
             git diff --cached --check
-            git commit -m 'Play: restore Message Filters and persist UI fixes'
+            git commit -m '[skip ci] Play: use native Telegram chat header'
             git push origin HEAD:play-market
           fi
 
+      - name: Source-only completion
+        if: env.SOURCE_ONLY == 'true'
+        shell: bash
+        run: |
+          echo 'Source-only repair completed. Android SDK, Gradle build, signing restore and AAB upload are intentionally skipped.'
+
       - name: Set up Java 21
+        if: env.SOURCE_ONLY != 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Gradle
+        if: env.SOURCE_ONLY != 'true'
         uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-disabled: true
 
       - name: Set up Android SDK
+        if: env.SOURCE_ONLY != 'true'
         uses: android-actions/setup-android@v3
         with:
           packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
 
       - name: Restore AuthorGram release signing key
+        if: env.SOURCE_ONLY != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -227,12 +248,14 @@ jobs:
           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
 
       - name: Build signed Google Play release AAB
+        if: env.SOURCE_ONLY != 'true'
         shell: bash
         run: |
           set -euo pipefail
           NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:bundleRelease
 
       - name: Verify and stage the single Play AAB
+        if: env.SOURCE_ONLY != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -281,6 +304,7 @@ jobs:
           sha256sum "${DEST}"
 
       - name: Upload Google Play release AAB
+        if: env.SOURCE_ONLY != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: AuthorGram-Play-12.9.2-6994-Google-Play-AAB
@@ -289,6 +313,6 @@ jobs:
           retention-days: 30
 
       - name: Remove signing material from runner
-        if: always()
+        if: ${{ always() && env.SOURCE_ONLY != 'true' }}
         shell: bash
         run: rm -f TMessagesProj/release.keystore local.properties
