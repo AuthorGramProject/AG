@@ -8,7 +8,7 @@ on:
       - .github/workflows/play-aab-release.yml
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 concurrency:
@@ -35,9 +35,8 @@ jobs:
         with:
           ref: play-market
           fetch-depth: 1
-          submodules: recursive
 
-      - name: Prepare requested Play release source
+      - name: Prepare requested Play source fixes
         shell: bash
         run: |
           set -euo pipefail
@@ -51,66 +50,73 @@ jobs:
           def write(path, text):
               Path(path).write_text(text, encoding='utf-8', newline='')
 
-          def replace_once(text, old, new, label):
+          def ensure_replaced(text, old, new, label):
+              if new in text:
+                  return text
               count = text.count(old)
               if count != 1:
-                  raise SystemExit(f'{label}: expected 1 occurrence, found {count}')
+                  raise SystemExit(f'{label}: expected 1 old occurrence, found {count}')
               return text.replace(old, new, 1)
 
-          # ChatActivity is intentionally transformed for the Play artifact.
+          # ChatActivity: remove Play-forbidden Ghost Mode and expose Message Filters
+          # directly between the two existing separators.
           chat_path = 'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java'
           chat = read(chat_path)
 
-          # Remove Ghost Mode from the Play chat menu at source level before javac.
           import_line = 'import tw.nekomimi.nekogram.menu.ghostmode.GhostModeExclusionPopupWrapper;\n'
+          if import_line in chat:
+              chat = chat.replace(import_line, '', 1)
+
           declaration = '        boolean showGhostMode = !ChatObject.isChannelAndNotMegaGroup(currentChat);\n'
+          if declaration in chat:
+              chat = chat.replace(declaration, '', 1)
+
           old_guard = '        if (!showGhostMode && !showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
           new_guard = '        if (!showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
-          chat = replace_once(chat, import_line, '', 'Ghost Mode import')
-          chat = replace_once(chat, declaration, '', 'Ghost Mode declaration')
-          chat = replace_once(chat, old_guard, new_guard, 'chat submenu guard')
-          ghost_block = re.compile(
-              r'\n        if \(showGhostMode\) \{\n.*?\n        \}\n\n        if \(showSaveDeleted\) \{',
-              re.DOTALL,
-          )
-          chat, count = ghost_block.subn('\n        if (showSaveDeleted) {', chat, count=1)
-          if count != 1:
-              raise SystemExit(f'Ghost Mode block: expected 1 occurrence, found {count}')
+          chat = ensure_replaced(chat, old_guard, new_guard, 'chat submenu guard')
 
-          # Restore Message Filters directly between the two existing chat-menu separators.
-          # It is always reachable in Play so users can configure per-chat filters/exclusion.
-          chat = replace_once(
+          if 'if (showGhostMode) {' in chat:
+              ghost_block = re.compile(
+                  r'\n        if \(showGhostMode\) \{\n.*?\n        \}\n\n        if \(showSaveDeleted\) \{',
+                  re.DOTALL,
+              )
+              chat, count = ghost_block.subn('\n        if (showSaveDeleted) {', chat, count=1)
+              if count != 1:
+                  raise SystemExit(f'Ghost Mode block: expected 1 occurrence, found {count}')
+
+          chat = ensure_replaced(
               chat,
               '        boolean showRegexFilters = NaConfig.INSTANCE.getRegexFiltersEnabled().Bool();',
               '        boolean showRegexFilters = true;',
               'Message Filters visibility'
           )
-          chat = replace_once(
+          chat = ensure_replaced(
               chat,
               '        headerItem.lazilyAddSwipeBackItem(R.drawable.msg2_reactions2, null, getString(R.string.AyuGramMenu), ayuLayout);',
               '        headerItem.lazilyAddSwipeBackItem(R.drawable.hide_title, null, getString(R.string.RegexFilters), ayuLayout);',
               'Message Filters root item'
           )
 
-          # Accept the new AuthorGram settings suffix while keeping old NekoX backups compatible.
-          suffix_checks = [
-              'messageObject.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")',
-              'locFile.getName().toLowerCase().endsWith(".nekox-settings.json")',
-              'fileName.endsWith(".nekox-settings.json")',
-              'message.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")',
-          ]
-          for old in suffix_checks:
-              if old not in chat:
-                  raise SystemExit(f'settings suffix marker missing: {old}')
-              lhs = old[:-len('.endsWith(".nekox-settings.json")')]
-              new = f'({lhs}.endsWith(".authorgram-settings.json") || {old})'
-              chat = chat.replace(old, new)
+          # New AuthorGram backup suffix, with NekoX backward compatibility.
+          if '.authorgram-settings.json' not in chat:
+              suffix_checks = [
+                  'messageObject.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")',
+                  'locFile.getName().toLowerCase().endsWith(".nekox-settings.json")',
+                  'fileName.endsWith(".nekox-settings.json")',
+                  'message.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")',
+              ]
+              for old in suffix_checks:
+                  if old not in chat:
+                      raise SystemExit(f'settings suffix marker missing: {old}')
+                  lhs = old[:-len('.endsWith(".nekox-settings.json")')]
+                  new = f'({lhs}.endsWith(".authorgram-settings.json") || {old})'
+                  chat = chat.replace(old, new)
           write(chat_path, chat)
 
-          # Same centered-title behavior as dev: never center a live chat header.
+          # Global title centering remains available, but never changes a chat header.
           action_path = 'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java'
           action = read(action_path)
-          action = replace_once(
+          action = ensure_replaced(
               action,
               '    private boolean isCentered() {\n        return NaConfig.INSTANCE.getCenterActionBarTitle().Bool();\n    }',
               '    private boolean isCentered() {\n        return !(parentFragment instanceof org.telegram.ui.ChatActivity)\n                && NaConfig.INSTANCE.getCenterActionBarTitle().Bool();\n    }',
@@ -118,10 +124,11 @@ jobs:
           )
           write(action_path, action)
 
-          # Expose only the existing iOS input setting in Play; iOS Message Menu stays policy-locked.
+          # Play gets only the already-implemented iOS input setting; iOS Message Menu
+          # remains policy-locked in AuthorGramPlayPolicy.
           settings_path = 'TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java'
           settings = read(settings_path)
-          settings = replace_once(
+          settings = ensure_replaced(
               settings,
               '    private AbstractConfigCell appendIOSMessageInputFieldRow() {\n        if (AuthorGramPlayPolicy.isPlayBuild()) {\n            return null;\n        }\n        return cellGroup.appendCell(new ConfigCellTextCheck(',
               '    private AbstractConfigCell appendIOSMessageInputFieldRow() {\n        if (!AuthorGramPlayPolicy.canUseIosInput()) {\n            return null;\n        }\n        return cellGroup.appendCell(new ConfigCellTextCheck(',
@@ -157,6 +164,7 @@ jobs:
 
           grep -Fq 'AuthorGramPlayPolicy.canUseIosInput()' TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java
           grep -Fq 'parentFragment instanceof org.telegram.ui.ChatActivity' TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java
+          grep -Fq 'boolean showRegexFilters = true;' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           grep -Fq 'getString(R.string.RegexFilters), ayuLayout' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           grep -Fq '.authorgram-settings.json' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           grep -Fq '.nekox-settings.json' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
@@ -167,6 +175,25 @@ jobs:
           grep -Fq '? BuildConfig.OFFICIAL_BUILD' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java
           python3 scripts/verify_authorgram_badge_tokens.py
           git diff --check
+
+      - name: Persist Play source fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'AuthorGram Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add \
+            TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java \
+            TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java \
+            TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java \
+            TMessagesProj/src/main/java/tw/nekomimi/nekogram/menu/ghostmode/GhostModeExclusionPopupWrapper.java
+          if git diff --cached --quiet; then
+            echo 'Play source already contains all requested fixes.'
+          else
+            git diff --cached --check
+            git commit -m 'Play: restore Message Filters and persist UI fixes'
+            git push origin HEAD:play-market
+          fi
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
