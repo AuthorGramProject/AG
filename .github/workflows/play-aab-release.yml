@@ -1,5 +1,4 @@
 name: AuthorGram Google Play AAB Release
-# Google Play update: restore author badges after Play App Signing and remove Ghost Mode UI.
 
 on:
   workflow_dispatch:
@@ -18,16 +17,15 @@ concurrency:
 
 jobs:
   release:
-    name: Build and verify Google Play AAB
+    name: Build one verified Google Play AAB
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.9.2
-      VERSION_CODE: '6993'
+      VERSION_CODE: '6994'
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
       HISTORICAL_KEYSTORE_BLOB: 5c0f63c668f7ad06ea674560f10ffb256ff2c092
 
@@ -39,122 +37,135 @@ jobs:
           fetch-depth: 1
           submodules: recursive
 
-      - name: Validate and prepare Play policy-safe source
+      - name: Prepare requested Play release source
         shell: bash
         run: |
           set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8', newline='')
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, found {count}')
+              return text.replace(old, new, 1)
+
+          # ChatActivity is intentionally transformed for the Play artifact.
+          chat_path = 'TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java'
+          chat = read(chat_path)
+
+          # Remove Ghost Mode from the Play chat menu at source level before javac.
+          import_line = 'import tw.nekomimi.nekogram.menu.ghostmode.GhostModeExclusionPopupWrapper;\n'
+          declaration = '        boolean showGhostMode = !ChatObject.isChannelAndNotMegaGroup(currentChat);\n'
+          old_guard = '        if (!showGhostMode && !showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
+          new_guard = '        if (!showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
+          chat = replace_once(chat, import_line, '', 'Ghost Mode import')
+          chat = replace_once(chat, declaration, '', 'Ghost Mode declaration')
+          chat = replace_once(chat, old_guard, new_guard, 'chat submenu guard')
+          ghost_block = re.compile(
+              r'\n        if \(showGhostMode\) \{\n.*?\n        \}\n\n        if \(showSaveDeleted\) \{',
+              re.DOTALL,
+          )
+          chat, count = ghost_block.subn('\n        if (showSaveDeleted) {', chat, count=1)
+          if count != 1:
+              raise SystemExit(f'Ghost Mode block: expected 1 occurrence, found {count}')
+
+          # Restore Message Filters directly between the two existing chat-menu separators.
+          # It is always reachable in Play so users can configure per-chat filters/exclusion.
+          chat = replace_once(
+              chat,
+              '        boolean showRegexFilters = NaConfig.INSTANCE.getRegexFiltersEnabled().Bool();',
+              '        boolean showRegexFilters = true;',
+              'Message Filters visibility'
+          )
+          chat = replace_once(
+              chat,
+              '        headerItem.lazilyAddSwipeBackItem(R.drawable.msg2_reactions2, null, getString(R.string.AyuGramMenu), ayuLayout);',
+              '        headerItem.lazilyAddSwipeBackItem(R.drawable.hide_title, null, getString(R.string.RegexFilters), ayuLayout);',
+              'Message Filters root item'
+          )
+
+          # Accept the new AuthorGram settings suffix while keeping old NekoX backups compatible.
+          suffix_checks = [
+              'messageObject.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")',
+              'locFile.getName().toLowerCase().endsWith(".nekox-settings.json")',
+              'fileName.endsWith(".nekox-settings.json")',
+              'message.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")',
+          ]
+          for old in suffix_checks:
+              if old not in chat:
+                  raise SystemExit(f'settings suffix marker missing: {old}')
+              lhs = old[:-len('.endsWith(".nekox-settings.json")')]
+              new = f'({lhs}.endsWith(".authorgram-settings.json") || {old})'
+              chat = chat.replace(old, new)
+          write(chat_path, chat)
+
+          # Same centered-title behavior as dev: never center a live chat header.
+          action_path = 'TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java'
+          action = read(action_path)
+          action = replace_once(
+              action,
+              '    private boolean isCentered() {\n        return NaConfig.INSTANCE.getCenterActionBarTitle().Bool();\n    }',
+              '    private boolean isCentered() {\n        return !(parentFragment instanceof org.telegram.ui.ChatActivity)\n                && NaConfig.INSTANCE.getCenterActionBarTitle().Bool();\n    }',
+              'chat title centering guard'
+          )
+          write(action_path, action)
+
+          # Expose only the existing iOS input setting in Play; iOS Message Menu stays policy-locked.
+          settings_path = 'TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java'
+          settings = read(settings_path)
+          settings = replace_once(
+              settings,
+              '    private AbstractConfigCell appendIOSMessageInputFieldRow() {\n        if (AuthorGramPlayPolicy.isPlayBuild()) {\n            return null;\n        }\n        return cellGroup.appendCell(new ConfigCellTextCheck(',
+              '    private AbstractConfigCell appendIOSMessageInputFieldRow() {\n        if (!AuthorGramPlayPolicy.canUseIosInput()) {\n            return null;\n        }\n        return cellGroup.appendCell(new ConfigCellTextCheck(',
+              'iOS input settings row'
+          )
+          write(settings_path, settings)
+
+          ghost_wrapper = Path('TMessagesProj/src/main/java/tw/nekomimi/nekogram/menu/ghostmode/GhostModeExclusionPopupWrapper.java')
+          if ghost_wrapper.is_file():
+              ghost_wrapper.unlink()
+          PY
 
           [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
           [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
           [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
 
-          # The upstream chat menu is shared with non-Play builds. For the Play
-          # artifact, remove the Ghost Mode submenu at source level before javac
-          # and remove its chat-menu wrapper entirely. Message Filters remains.
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          chat_path = Path('TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java')
-          source = chat_path.read_text(encoding='utf-8')
-
-          import_line = 'import tw.nekomimi.nekogram.menu.ghostmode.GhostModeExclusionPopupWrapper;\n'
-          declaration = '        boolean showGhostMode = !ChatObject.isChannelAndNotMegaGroup(currentChat);\n'
-          old_guard = '        if (!showGhostMode && !showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
-          new_guard = '        if (!showSaveDeleted && !showRegexFilters && !showViewDeleted && !showClearDeleted) {\n'
-
-          for needle, label in (
-              (import_line, 'GhostModeExclusionPopupWrapper import'),
-              (declaration, 'showGhostMode declaration'),
-              (old_guard, 'AuthorGram submenu visibility guard'),
-          ):
-              if source.count(needle) != 1:
-                  raise SystemExit(f'Expected exactly one {label}, found {source.count(needle)}')
-
-          source = source.replace(import_line, '', 1)
-          source = source.replace(declaration, '', 1)
-          source = source.replace(old_guard, new_guard, 1)
-
-          block = re.compile(
-              r'\n        if \(showGhostMode\) \{\n.*?\n        \}\n\n        if \(showSaveDeleted\) \{',
-              re.DOTALL,
-          )
-          source, count = block.subn('\n        if (showSaveDeleted) {', source, count=1)
-          if count != 1:
-              raise SystemExit(f'Expected exactly one Ghost Mode chat-menu block, found {count}')
-
-          if 'GhostModeExclusionPopupWrapper' in source or 'showGhostMode' in source:
-              raise SystemExit('Ghost Mode chat-menu source remains after Play patch')
-          if 'RegexFiltersExclusionPopupWrapper' not in source:
-              raise SystemExit('Message Filters submenu was accidentally removed')
-
-          chat_path.write_text(source, encoding='utf-8', newline='')
-
-          wrapper = Path(
-              'TMessagesProj/src/main/java/tw/nekomimi/nekogram/menu/ghostmode/'
-              'GhostModeExclusionPopupWrapper.java'
-          )
-          if not wrapper.is_file():
-              raise SystemExit('Expected GhostModeExclusionPopupWrapper.java before Play pruning')
-          wrapper.unlink()
-          PY
-
           grep -Fq 'compileSdk = 36' build.gradle
           grep -Fq 'targetSdk = 36' build.gradle
           grep -Fq "implementation 'com.android.billingclient:billing:8.2.1'" TMessagesProj/build.gradle
-          ! grep -Fq "com.android.billingclient:billing:7.1.1" TMessagesProj/build.gradle
-
-          grep -Fq 'PendingPurchasesParams.newBuilder()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
-          grep -Fq '.enableOneTimeProducts()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
-          grep -Fq '.enableAutoServiceReconnection()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
-          grep -Fq 'productDetailsResult.getProductDetailsList()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
-          ! grep -Fq '.enablePendingPurchases()' TMessagesProj/src/main/java/org/telegram/messenger/BillingController.java
-
           grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
           grep -Fq "def authorGramSystemKeyHex = ''" TMessagesProj/build.gradle
           grep -Fq "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'" TMessagesProj/build.gradle
 
-          grep -Fq "def bundleBuildRequested = requestedTasks.any { it.contains('bundle') }" TMessagesProj/build.gradle
-          grep -Fq 'enable = !bundleBuildRequested' TMessagesProj/build.gradle
-          grep -Fq 'universalApk = !bundleBuildRequested && nativeTarget.isBlank()' TMessagesProj/build.gradle
-          grep -Fq "abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'" TMessagesProj/build.gradle
+          POLICY='TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java'
+          grep -Fq 'values.put("hideSponsoredMessage", false);' "${POLICY}"
+          grep -Fq 'values.put("HideProxySponsorChannel", false);' "${POLICY}"
+          grep -Fq 'values.put("localPremium", false);' "${POLICY}"
+          grep -Fq 'values.put("EnableSaveDeletedMessages", false);' "${POLICY}"
+          grep -Fq 'values.put("ignoreContentRestrictions", false);' "${POLICY}"
+          grep -Fq 'values.put("iOSMessageMenu", false);' "${POLICY}"
+          grep -Fq 'public static boolean canUseIosInput()' "${POLICY}"
+          ! grep -Fq 'values.put("iOSMessageInputField", false);' "${POLICY}"
 
-          grep -Fq 'https://authorche.top/authorgram/privacy/' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
-          grep -Fq 'https://t.me/authorgram_apk' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
-          grep -Fq 'privacyPolicyRow = addRow();' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
-          grep -Fq 'telegramChannelRow = addRow();' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
-
-          grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
-          grep -Fq 'Deleted-message retention, edit-history retention' TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java
-          grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/GhostModeActivity.java
-          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
-          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
-          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
-
-          grep -Fq 'values.put("hideSponsoredMessage", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
-          grep -Fq 'values.put("HideProxySponsorChannel", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
-          grep -Fq 'values.put("localPremium", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
-          grep -Fq 'values.put("EnableSaveDeletedMessages", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
-          grep -Fq 'values.put("ignoreContentRestrictions", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
-          grep -Fq 'values.put("showGhostInDrawer", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
-          grep -Fq 'values.put("showGhostModeStatus", false);' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
-
-          # Author badges must survive Google Play App Signing while remaining
-          # token-gated and limited to official Play release/staging variants.
-          grep -Fq '? BuildConfig.OFFICIAL_BUILD' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java
-          grep -Fq ': AuthorGramBuildIntegrity.isTrustedBuild();' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java
-          python3 scripts/verify_authorgram_badge_tokens.py
-
-          # No reachable Ghost Mode controls in Play UI. The main drawer already
-          # excludes it; LastSeenPill and the chat AuthorGram submenu must too.
-          grep -Fq 'allEntries.filterNot { it.id == DrawerLayoutAdapter.agbtnGhostMode }' TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/helper/DrawerMenuHelper.kt
-          ! grep -Fq 'R.string.GhostMode' TMessagesProj/src/main/java/com/exteragram/messenger/pillstack/ui/pills/system/LastSeenPill.java
-          ! grep -Fq 'GhostModeActivity' TMessagesProj/src/main/java/com/exteragram/messenger/pillstack/ui/pills/system/LastSeenPill.java
+          grep -Fq 'AuthorGramPlayPolicy.canUseIosInput()' TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java
+          grep -Fq 'parentFragment instanceof org.telegram.ui.ChatActivity' TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java
+          grep -Fq 'getString(R.string.RegexFilters), ayuLayout' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          grep -Fq '.authorgram-settings.json' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          grep -Fq '.nekox-settings.json' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           ! grep -Fq 'GhostModeExclusionPopupWrapper' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           ! grep -Fq 'showGhostMode' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
           test ! -e TMessagesProj/src/main/java/tw/nekomimi/nekogram/menu/ghostmode/GhostModeExclusionPopupWrapper.java
-          grep -Fq 'RegexFiltersExclusionPopupWrapper' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
 
+          grep -Fq '? BuildConfig.OFFICIAL_BUILD' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramAuthorBadge.java
+          python3 scripts/verify_authorgram_badge_tokens.py
           git diff --check
 
       - name: Set up Java 21
@@ -188,178 +199,67 @@ jobs:
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
 
-      - name: Compile Play release source
-        shell: bash
-        run: |
-          set -euo pipefail
-          NATIVE_TARGET=SKIP ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:compileReleaseJavaWithJavac
-
-      - name: Build signed release AAB
+      - name: Build signed Google Play release AAB
         shell: bash
         run: |
           set -euo pipefail
           NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:bundleRelease
 
-      - name: Preserve built AAB before verification
+      - name: Verify and stage the single Play AAB
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "${RUNNER_TEMP}/authorgram-play-aab-raw"
+          OUT="${RUNNER_TEMP}/authorgram-play-release"
+          mkdir -p "${OUT}"
+
           mapfile -t bundles < <(find TMessagesProj/build/outputs/bundle -type f -name '*.aab' | sort)
           if [[ ${#bundles[@]} -ne 1 ]]; then
-            echo "::error::Expected exactly one built AAB, found ${#bundles[@]}"
+            echo "::error::Expected exactly one AAB, found ${#bundles[@]}"
             printf '%s\n' "${bundles[@]:-}"
             exit 1
           fi
-          cp "${bundles[0]}" \
-            "${RUNNER_TEMP}/authorgram-play-aab-raw/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-raw.aab"
-
-      - name: Upload built AAB safety copy
-        uses: actions/upload-artifact@v4
-        with:
-          name: AuthorGram-Play-AAB-SAFETY-NOT-FOR-RELEASE
-          path: ${{ runner.temp }}/authorgram-play-aab-raw/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Verify Google Play AAB
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          OUT="${RUNNER_TEMP}/authorgram-play-aab"
-          mkdir -p "${OUT}"
-          AAB="${RUNNER_TEMP}/authorgram-play-aab-raw/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-raw.aab"
-          test -s "${AAB}" || { echo '::error::Preserved AAB is missing or empty'; exit 1; }
-
-          require_fixed() {
-            local needle="$1"
-            local file="$2"
-            local message="$3"
-            grep -Fq -- "$needle" "$file" || {
-              echo "::error::${message}"
-              exit 1
-            }
-          }
-
-          require_absent() {
-            local needle="$1"
-            local file="$2"
-            local message="$3"
-            if grep -Fq -- "$needle" "$file"; then
-              echo "::error::${message}"
-              exit 1
-            fi
-          }
+          AAB="${bundles[0]}"
 
           BUNDLETOOL="${RUNNER_TEMP}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
           curl --fail --location --retry 3 --retry-delay 2 \
             "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar" \
             --output "${BUNDLETOOL}"
-          test -s "${BUNDLETOOL}" || { echo '::error::bundletool download is empty'; exit 1; }
+          test -s "${BUNDLETOOL}"
+          java -jar "${BUNDLETOOL}" validate --bundle="${AAB}"
 
-          java -jar "${BUNDLETOOL}" validate --bundle="${AAB}" 2>&1 \
-            | tee "${OUT}/BUNDLETOOL_VALIDATION.txt"
+          MANIFEST="${RUNNER_TEMP}/AuthorGram-Play-AndroidManifest.xml"
+          java -jar "${BUNDLETOOL}" dump manifest --bundle="${AAB}" --module=base > "${MANIFEST}"
+          grep -Fq "package=\"${PLAY_PACKAGE}\"" "${MANIFEST}"
+          grep -Fq "android:versionCode=\"${VERSION_CODE}\"" "${MANIFEST}"
+          grep -Fq "android:versionName=\"${VERSION_NAME}\"" "${MANIFEST}"
+          grep -Fq 'android:targetSdkVersion="36"' "${MANIFEST}"
+          grep -Fq 'com.android.vending.BILLING' "${MANIFEST}"
+          ! grep -Fq 'android.permission.REQUEST_INSTALL_PACKAGES' "${MANIFEST}"
 
-          java -jar "${BUNDLETOOL}" dump manifest --bundle="${AAB}" --module=base \
-            > "${OUT}/AndroidManifest.xml"
-          MANIFEST="${OUT}/AndroidManifest.xml"
-
-          require_fixed "package=\"${PLAY_PACKAGE}\"" "${MANIFEST}" 'AAB package name is incorrect'
-          require_fixed "android:versionCode=\"${VERSION_CODE}\"" "${MANIFEST}" 'AAB versionCode is incorrect'
-          require_fixed "android:versionName=\"${VERSION_NAME}\"" "${MANIFEST}" 'AAB versionName is incorrect'
-          require_fixed 'android:targetSdkVersion="36"' "${MANIFEST}" 'AAB targetSdk is not 36'
-          require_fixed 'android:minSdkVersion="27"' "${MANIFEST}" 'AAB minSdk is not 27'
-          require_fixed 'android.permission.INTERNET' "${MANIFEST}" 'AAB is missing INTERNET permission'
-          require_fixed 'com.android.vending.BILLING' "${MANIFEST}" 'AAB is missing Google Play Billing permission'
-          require_absent 'android.permission.REQUEST_INSTALL_PACKAGES' "${MANIFEST}" 'REQUEST_INSTALL_PACKAGES must not be present in Play AAB'
-
-          unzip -Z1 "${AAB}" > "${OUT}/BUNDLE_CONTENTS.txt"
-          CONTENTS="${OUT}/BUNDLE_CONTENTS.txt"
-          grep -Eq '^base/lib/arm64-v8a/' "${CONTENTS}" || { echo '::error::AAB missing arm64-v8a'; exit 1; }
-          grep -Eq '^base/lib/armeabi-v7a/' "${CONTENTS}" || { echo '::error::AAB missing armeabi-v7a'; exit 1; }
-          grep -Eq '^base/lib/x86_64/' "${CONTENTS}" || { echo '::error::AAB missing x86_64'; exit 1; }
+          CONTENTS="${RUNNER_TEMP}/AuthorGram-Play-AAB-contents.txt"
+          unzip -Z1 "${AAB}" > "${CONTENTS}"
+          grep -Eq '^base/lib/arm64-v8a/' "${CONTENTS}"
+          grep -Eq '^base/lib/armeabi-v7a/' "${CONTENTS}"
+          grep -Eq '^base/lib/x86_64/' "${CONTENTS}"
           if grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks|[^/]*\.p12|[^/]*\.pfx)$' "${CONTENTS}"; then
             echo '::error::Signing material was packaged into the AAB'
             exit 1
           fi
 
-          JARSIGNER_LOG="${OUT}/JARSIGNER_VERIFY.txt"
-          if ! jarsigner -verify -verbose -certs "${AAB}" > "${JARSIGNER_LOG}" 2>&1; then
-            echo '::error::Cryptographic AAB signature verification failed'
-            cat "${JARSIGNER_LOG}"
-            exit 1
-          fi
-
-          STRICT_LOG="${OUT}/JARSIGNER_STRICT.txt"
-          set +e
-          jarsigner -verify -strict -verbose -certs "${AAB}" > "${STRICT_LOG}" 2>&1
-          STRICT_RC=$?
-          set -e
-          printf 'strictExitCode=%s\n' "${STRICT_RC}" > "${OUT}/JARSIGNER_STRICT_STATUS.txt"
-          if (( STRICT_RC != 0 )); then
-            echo "::warning::jarsigner strict mode returned ${STRICT_RC}; non-strict cryptographic verification passed. See JARSIGNER_STRICT.txt."
-          fi
-
-          if ! keytool -printcert -jarfile "${AAB}" > "${OUT}/CERTIFICATE.txt" 2>&1; then
-            echo '::warning::keytool could not print the signer certificate; jarsigner verification already passed.'
-          fi
+          jarsigner -verify -verbose -certs "${AAB}" > "${RUNNER_TEMP}/AuthorGram-Play-jarsigner.txt" 2>&1
 
           DEST="${OUT}/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-release.aab"
           cp "${AAB}" "${DEST}"
+          test -s "${DEST}"
+          sha256sum "${DEST}"
 
-          if [[ -f TMessagesProj/build/outputs/mapping/release/mapping.txt ]]; then
-            cp TMessagesProj/build/outputs/mapping/release/mapping.txt "${OUT}/mapping.txt"
-          fi
-
-          (
-            cd "${OUT}"
-            sha256sum "$(basename "${DEST}")" > SHA256SUMS.txt
-          )
-
-          SOURCE_SHA="$(git rev-parse HEAD)"
-          cat > "${OUT}/BUILD.txt" <<EOF
-          branch=play-market
-          sourceCommit=${SOURCE_SHA}
-          package=${PLAY_PACKAGE}
-          versionName=${VERSION_NAME}
-          versionCode=${VERSION_CODE}
-          targetSdk=36
-          compileSdk=36
-          minSdk=27
-          billingLibrary=8.2.1
-          format=aab
-          buildType=release
-          abi=armeabi-v7a,arm64-v8a,x86_64
-          requestInstallPackages=absent
-          systemKey=absent
-          ghostModeChatMenu=absent
-          ghostModeLastSeenMenu=absent
-          authorBadges=play-app-signing-compatible
-          privacyPolicy=https://authorche.top/authorgram/privacy/
-          telegramChannel=https://t.me/authorgram_apk
-          signingKeySourceCommit=${HISTORICAL_SIGNING_COMMIT}
-          bundletool=${BUNDLETOOL_VERSION}
-          EOF
-
-      - name: Upload verified Google Play AAB
+      - name: Upload Google Play release AAB
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.9.2-6993-Google-Play-AAB
-          path: ${{ runner.temp }}/authorgram-play-aab/
+          name: AuthorGram-Play-12.9.2-6994-Google-Play-AAB
+          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.9.2-6994-release.aab
           if-no-files-found: error
           retention-days: 30
-
-      - name: Upload verification diagnostics on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: AuthorGram-Play-AAB-DIAGNOSTIC-NOT-FOR-RELEASE
-          path: |
-            ${{ runner.temp }}/authorgram-play-aab/
-            ${{ runner.temp }}/authorgram-play-aab-raw/
-          if-no-files-found: warn
-          retention-days: 7
 
       - name: Remove signing material from runner
         if: always()
