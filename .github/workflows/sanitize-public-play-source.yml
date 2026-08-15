@@ -31,13 +31,53 @@ jobs:
           git remote add nagramxf https://github.com/Keeperorowner/NagramXF.git
           git fetch --no-tags --depth=2 nagramxf 1b4e59b4b3c995a32e40ba1d44a7a7524a9b829a
           git fetch --no-tags --depth=2 nagramxf edf8adfe57d70e52a9a1ab5add43d205f0b20ef7
+          git cat-file -e 39a04dc565f66a4a783a04d0ddf1349fe17cdcf6^{commit}
 
       - name: Remove upstream iOS input feature
         shell: bash
         run: |
           set -euo pipefail
-          git show --binary --format= edf8adfe57d70e52a9a1ab5add43d205f0b20ef7 > "${RUNNER_TEMP}/ios-input.patch"
-          git apply --reverse --3way "${RUNNER_TEMP}/ios-input.patch"
+          IOS=edf8adfe57d70e52a9a1ab5add43d205f0b20ef7
+          PRE=39a04dc565f66a4a783a04d0ddf1349fe17cdcf6
+          TMP="${RUNNER_TEMP}/ios-feature-subtract"
+          mkdir -p "${TMP}"
+
+          # Subtract exactly the upstream iOS-input feature while retaining
+          # unrelated AuthorGram changes made later in the same files.
+          while IFS=$'\t' read -r status path; do
+            [ -n "${path}" ] || continue
+            case "${status}" in
+              A*)
+                # File did not exist before the iOS feature.
+                rm -f -- "${path}"
+                ;;
+              M*)
+                # A Play file may already have been intentionally removed.
+                [ -f "${path}" ] || continue
+                post="${TMP}/post"
+                pre="${TMP}/pre"
+                merged="${TMP}/merged"
+                git show "${IOS}:${path}" > "${post}"
+                git show "${PRE}:${path}" > "${pre}"
+                # current=Play, base=post-iOS upstream, other=pre-iOS upstream.
+                # Prefer pre-iOS only where later Play edits overlap the feature;
+                # non-overlapping Play edits are preserved by the 3-way merge.
+                git merge-file --theirs -p -- "${path}" "${post}" "${pre}" > "${merged}"
+                mv "${merged}" "${path}"
+                ;;
+              D*)
+                # Not expected for this feature, but restore the pre-feature file
+                # only when it is still relevant to the Play tree.
+                if git cat-file -e "${PRE}:${path}" 2>/dev/null && [ -e "${path}" ]; then
+                  git show "${PRE}:${path}" > "${path}"
+                fi
+                ;;
+              *)
+                echo "Unsupported iOS feature diff status: ${status} ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done < <(git diff-tree --no-commit-id --name-status -r "${PRE}" "${IOS}")
 
       - name: Remove Play-inapplicable compatibility remnants
         shell: bash
@@ -51,6 +91,8 @@ jobs:
 
           def edit(path, transform):
               p = root / path
+              if not p.exists():
+                  return
               s = p.read_text(encoding='utf-8')
               n = transform(s)
               if n != s:
