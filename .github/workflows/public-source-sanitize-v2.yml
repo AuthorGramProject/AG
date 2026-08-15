@@ -75,7 +75,6 @@ jobs:
                   if new != old:
                       p.write_text(new, encoding='utf-8')
 
-          # Strip the last Play-only Spy compatibility UI surface.
           (root/'TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java').unlink(missing_ok=True)
 
           def settings(s):
@@ -112,8 +111,6 @@ jobs:
               return s
           edit('TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java', chat_settings)
 
-          # Later AuthorGram iOS stabilization edits that were layered on top of
-          # the upstream feature are reduced to ordinary Telegram behavior.
           def enter_view(s):
               standard_attach = '''attachButton = new ImageView(context) {\n                @Override\n                public boolean dispatchTouchEvent(MotionEvent event) {\n                    if (getAlpha() < 0.5f) return false;\n                    return super.dispatchTouchEvent(event);\n                }\n            };\n            attachButton.setScaleType'''
               s = re.sub(
@@ -124,9 +121,6 @@ jobs:
               s = s.replace('icons2.setStartDelay(isIOSInputStyle() ? 750 : 110);', 'icons2.setStartDelay(110);')
               s = s.replace('if (attachButton != null && !isIOSInputStyle()) {', 'if (attachButton != null) {')
 
-              # Any remaining standalone iOS-only blocks are later stabilization
-              # blocks. Since the public Play composer has no iOS mode, retain an
-              # else branch when present, otherwise remove the unreachable block.
               marker = 'if (isIOSInputStyle()) {'
               while marker in s:
                   pos = s.rfind(marker)
@@ -186,8 +180,20 @@ jobs:
             echo 'Forbidden Spy/iOS references remain.' >&2
             exit 1
           fi
-          ! find . -type f \( -name '*.jks' -o -name '*.keystore' -o -name '*.p12' -o -name '*.pfx' -o -name '*.aab' -o -name '*.apk' \) -print -quit | grep -q .
-          ! grep -RIlE --exclude-dir=.git '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|RELEASE_STORE_PASSWORD|RELEASE_KEY_PASSWORD|HISTORICAL_KEYSTORE_BLOB)' TMessagesProj build.gradle gradle.properties 2>/dev/null | grep -q .
+
+          # JNI is an unchanged, pinned public NagramXF tree and contains upstream
+          # cryptographic test fixtures. Scan AuthorGram-controlled source instead.
+          if find . -path './TMessagesProj/jni' -prune -o -type f \
+              \( -name '*.jks' -o -name '*.keystore' -o -name '*.p12' -o -name '*.pfx' -o -name '*.aab' -o -name '*.apk' \) -print | grep -q .; then
+            echo 'Sensitive build/signing file remains outside pinned upstream JNI.' >&2
+            exit 1
+          fi
+          if grep -RIlE --exclude-dir=.git --exclude-dir=jni \
+              '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|RELEASE_STORE_PASSWORD|RELEASE_KEY_PASSWORD|HISTORICAL_KEYSTORE_BLOB)' \
+              TMessagesProj build.gradle gradle.properties 2>/dev/null | grep -q .; then
+            echo 'Secret-like material remains in application source.' >&2
+            exit 1
+          fi
 
       - name: Export clean delta
         shell: bash
