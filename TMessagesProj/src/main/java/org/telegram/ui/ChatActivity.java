@@ -50588,16 +50588,8 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private boolean canShowCenteredTitle(ChatActivity parentFragment) {
-        if (!NaConfig.INSTANCE.getCenterActionBarTitle().Bool()) {
-            return false;
-        }
-        if (parentFragment == null) {
-            return false;
-        }
-        if (parentFragment.isReplyChatComment() || parentFragment.isReport()) {
-            return false;
-        }
-        return parentFragment.getChatMode() != ChatActivity.MODE_SEARCH && parentFragment.getChatMode() != ChatActivity.MODE_SAVED;
+        // AUTHORGRAM_NATIVE_CHAT_HEADER: chats always keep Telegram's native header geometry.
+        return false;
     }
 
     public MessageObject getMessageForTranslate() {
