@@ -1,0 +1,170 @@
+name: Build AG-PM Play AAB
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: authorgram-ag-pm-play-aab
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Build signed AAB from AG-PM beta
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      PLAY_PACKAGE: toss.authorgram.apk
+      AG_PM_REPOSITORY: AuthorGramProject/AG-PM
+      AG_PM_REF: beta
+      LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+      HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
+      BUNDLETOOL_VERSION: 1.18.3
+
+    steps:
+      - name: Require private signing configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
+
+      - name: Checkout public AG-PM beta source
+        uses: actions/checkout@v4
+        with:
+          repository: AuthorGramProject/AG-PM
+          ref: beta
+          fetch-depth: 1
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Validate AG-PM Play source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
+
+          FORBIDDEN='AyuSpy|SpyDao|SpyMessage(Read|ContentsRead)|SpyLastSeen|spyQueue|SaveReadDate|AyuSpySettings|authorgram_spy|AGSpySettingsActivity|iOSMessage|IOSMessage|iosInput|isIOSInputStyle'
+          ! grep -RInE --include='*.java' --include='*.kt' --include='*.xml' "${FORBIDDEN}" TMessagesProj/src
+
+          test ! -e release.keystore
+          test ! -e TMessagesProj/release.keystore
+          test ! -e TMessagesProj/google-services.json
+          grep -Fq "def authorGramSystemKeyHex = ''" TMessagesProj/build.gradle
+          grep -Fq 'AUTHORGRAM_NATIVE_CHAT_HEADER' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          grep -Fq 'AUTHORGRAM_STANDARD_CHAT_HEADER' TMessagesProj/src/main/java/org/telegram/ui/ActionBar/ActionBar.java
+          grep -Fq 'boolean showRegexFilters = true;' TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+          grep -Rq '.authorgram-settings.json' TMessagesProj/src/main/java
+          grep -Rq '.nekox-settings.json' TMessagesProj/src/main/java
+          git diff --check
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'build-tools;36.0.0 ndk;27.2.12479018 platforms;android-36'
+
+      - name: Restore private release inputs in runner only
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test ! -e TMessagesProj/release.keystore
+          test ! -e TMessagesProj/google-services.json
+
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/contents/TMessagesProj/release.keystore?ref=${HISTORICAL_SIGNING_COMMIT}" \
+            --jq '.content' \
+            | tr -d '\n' \
+            | base64 --decode \
+            > TMessagesProj/release.keystore
+
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/contents/TMessagesProj/google-services.json?ref=play-market" \
+            --jq '.content' \
+            | tr -d '\n' \
+            | base64 --decode \
+            > TMessagesProj/google-services.json
+
+          test -s TMessagesProj/release.keystore
+          python3 -m json.tool TMessagesProj/google-services.json >/dev/null
+          chmod 600 TMessagesProj/release.keystore TMessagesProj/google-services.json
+
+      - name: Build signed Play release AAB
+        shell: bash
+        run: |
+          set -euo pipefail
+          NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:bundleRelease
+
+      - name: Verify and stage AAB
+        id: bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t bundles < <(find TMessagesProj/build/outputs/bundle -type f -name '*.aab' | sort)
+          if [[ ${#bundles[@]} -ne 1 ]]; then
+            echo "Expected exactly one AAB, found ${#bundles[@]}" >&2
+            printf '%s\n' "${bundles[@]:-}"
+            exit 1
+          fi
+
+          AAB="${bundles[0]}"
+          VERSION_CODE="$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)"
+          VERSION_NAME="$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)"
+          BUNDLETOOL="${RUNNER_TEMP}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar" \
+            --output "${BUNDLETOOL}"
+          java -jar "${BUNDLETOOL}" validate --bundle="${AAB}"
+
+          MANIFEST="${RUNNER_TEMP}/AndroidManifest.xml"
+          java -jar "${BUNDLETOOL}" dump manifest --bundle="${AAB}" --module=base > "${MANIFEST}"
+          grep -Fq "package=\"${PLAY_PACKAGE}\"" "${MANIFEST}"
+          grep -Fq "android:versionCode=\"${VERSION_CODE}\"" "${MANIFEST}"
+          grep -Fq "android:versionName=\"${VERSION_NAME}\"" "${MANIFEST}"
+          grep -Fq 'android:targetSdkVersion="36"' "${MANIFEST}"
+          ! grep -Fq 'android.permission.REQUEST_INSTALL_PACKAGES' "${MANIFEST}"
+
+          unzip -Z1 "${AAB}" > "${RUNNER_TEMP}/aab-contents.txt"
+          grep -Eq '^base/lib/arm64-v8a/' "${RUNNER_TEMP}/aab-contents.txt"
+          grep -Eq '^base/lib/armeabi-v7a/' "${RUNNER_TEMP}/aab-contents.txt"
+          grep -Eq '^base/lib/x86_64/' "${RUNNER_TEMP}/aab-contents.txt"
+          ! grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks|[^/]*\.p12|[^/]*\.pfx|google-services\.json)$' "${RUNNER_TEMP}/aab-contents.txt"
+
+          jarsigner -verify -verbose -certs "${AAB}" > "${RUNNER_TEMP}/jarsigner.txt"
+          grep -Fq 'jar verified.' "${RUNNER_TEMP}/jarsigner.txt"
+
+          DEST="${RUNNER_TEMP}/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}.aab"
+          cp "${AAB}" "${DEST}"
+          sha256sum "${DEST}"
+          echo "path=${DEST}" >> "${GITHUB_OUTPUT}"
+          echo "name=AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload verified Play AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.bundle.outputs.name }}
+          path: ${{ steps.bundle.outputs.path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove private release inputs
+        if: always()
+        shell: bash
+        run: |
+          rm -f TMessagesProj/release.keystore
+          rm -f TMessagesProj/google-services.json
