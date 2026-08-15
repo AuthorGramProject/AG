@@ -1,0 +1,155 @@
+name: Prepare sanitized public Play source
+
+on:
+  push:
+    branches: [play-market]
+    paths:
+      - .github/workflows/sanitize-public-play-source.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: authorgram-public-sanitize
+  cancel-in-progress: true
+
+jobs:
+  sanitize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Play source
+        uses: actions/checkout@v4
+        with:
+          ref: play-market
+          fetch-depth: 1
+
+      - name: Fetch public upstream commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote add nagramxf https://github.com/Keeperorowner/NagramXF.git
+          git fetch --no-tags --depth=2 nagramxf 1b4e59b4b3c995a32e40ba1d44a7a7524a9b829a
+          git fetch --no-tags --depth=2 nagramxf edf8adfe57d70e52a9a1ab5add43d205f0b20ef7
+
+      - name: Remove upstream iOS input feature
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show --binary --format= edf8adfe57d70e52a9a1ab5add43d205f0b20ef7 > "${RUNNER_TEMP}/ios-input.patch"
+          git apply --reverse --3way "${RUNNER_TEMP}/ios-input.patch"
+
+      - name: Remove Play-inapplicable compatibility remnants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+
+          def edit(path, transform):
+              p = root / path
+              s = p.read_text(encoding='utf-8')
+              n = transform(s)
+              if n != s:
+                  p.write_text(n, encoding='utf-8')
+
+          # No Spy compatibility class in the public Play source.
+          (root / 'TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java').unlink(missing_ok=True)
+
+          def clean_settings(s):
+              s = s.replace('    private static final String PLAY_PACKAGE = "toss.authorgram.apk";\n', '')
+              s = s.replace('    private int spyRow;\n', '')
+              s = s.replace('''        if (isPrivateMainBuild()) {\n            spyRow = addRow();\n        } else {\n            spyRow = -1;\n        }\n''', '')
+              s = s.replace('''        } else if (position == spyRow) {\n            presentFragment(new AGSpySettingsActivity());\n''', '')
+              s = re.sub(r'\n    private boolean isPrivateMainBuild\(\) \{\n        return ApplicationLoader\.applicationContext == null\n                \|\| !PLAY_PACKAGE\.equals\(ApplicationLoader\.applicationContext\.getPackageName\(\)\);\n    \}\n', '\n', s)
+              return s
+          edit('TMessagesProj/src/main/java/toss/authorgram/settings/AGSettingsActivity.java', clean_settings)
+
+          def clean_router(s):
+              s = s.replace('import org.telegram.messenger.ApplicationLoader;\n', '')
+              s = s.replace('import org.telegram.messenger.authorgram.AuthorGramPlayPolicy;\n', '')
+              s = s.replace('    private static final String PLAY_PACKAGE = "toss.authorgram.apk";\n', '')
+              s = re.sub(r'\n    private static boolean isPrivateMainBuild\(\) \{\n        return ApplicationLoader\.applicationContext == null\n                \|\| !PLAY_PACKAGE\.equals\(ApplicationLoader\.applicationContext\.getPackageName\(\)\);\n    \}\n', '\n', s)
+              s = s.replace('''                case "spy":\n                    if (!isPrivateMainBuild()) {\n                        unknown.run();\n                        return;\n                    }\n                    fragment = agxFragment = new AGSpySettingsActivity();\n                    break;\n''', '')
+              # Main-only privacy/ghost entry points are not part of the Play source surface.
+              s = s.replace('''                case "privacy":\n                case "security":\n                case "p":\n                    if (!isPrivateMainBuild()) {\n                        unknown.run();\n                        return;\n                    }\n                    fragment = agxFragment = new AGPrivacySettingsActivity();\n                    break;\n''', '')
+              s = s.replace('''                case "ghostmode":\n                case "ghost":\n                    if (AuthorGramPlayPolicy.isPlayBuild()) {\n                        unknown.run();\n                        return;\n                    }\n                    fragment = agxFragment = new GhostModeActivity();\n                    break;\n''', '')
+              s = s.replace('''        if (isPrivateMainBuild()) {\n            fragments.add(new AGSpySettingsActivity());\n            fragments.add(new AGPrivacySettingsActivity());\n        }\n''', '')
+              return s
+          edit('TMessagesProj/src/main/java/toss/authorgram/settings/AGSettingsRouter.java', clean_router)
+
+          def clean_policy(s):
+              s = s.replace('''        // The unfinished iOS-inspired composer and iOS Message Menu are Main-only.\n        // Play always uses Telegram's standard composer/menu implementation.\n        values.put("iOSMessageInputField", false);\n        values.put("iOSMessageMenu", false);\n\n''', '')
+              s = re.sub(r'\n    public static boolean canUseIosInput\(\) \{\n        return !isPlayBuild\(\);\n    \}\n\n    public static boolean canUseIosUi\(\) \{\n        return !isPlayBuild\(\);\n    \}\n', '\n', s)
+              s = s.replace('normalized.equals("spy")\n                || normalized.equals("ayuspy")\n                || ', '')
+              return s
+          edit('TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java', clean_policy)
+
+          def clean_ag_chat(s):
+              s = re.sub(r'\n    private AbstractConfigCell appendIOSMessageInputFieldRow\(\) \{.*?\n    \}\n', '\n', s, flags=re.S)
+              s = re.sub(r'^\s*private final AbstractConfigCell iOSMessageInputFieldRow = appendIOSMessageInputFieldRow\(\);\n', '', s, flags=re.M)
+              return s
+          edit('TMessagesProj/src/main/java/toss/authorgram/settings/AGChatSettingsActivity.java', clean_ag_chat)
+
+          # Remove translations for stripped settings, without touching unrelated resources.
+          for p in (root / 'TMessagesProj/src/main/res').glob('values*/strings_*.xml'):
+              s = p.read_text(encoding='utf-8')
+              s2 = re.sub(r'^\s*<string name="(?:iOSMessageInputField|iOSMessageInputFieldNotice|AyuSpySettings|SaveReadDate|SaveReadDateAbout)"[^>]*>.*?</string>\s*\n?', '', s, flags=re.M)
+              if s2 != s:
+                  p.write_text(s2, encoding='utf-8')
+          PY
+
+      - name: Verify forbidden features and sensitive material are absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='TMessagesProj/src'
+          if grep -RInE --include='*.java' --include='*.kt' --include='*.xml' \
+            '(AyuSpy|SpyDao|SpyMessage(Read|ContentsRead)|SpyLastSeen|spyQueue|SaveReadDate|AyuSpySettings|authorgram_spy|AGSpySettingsActivity|iOSMessage|IOSMessage|iosInput|isIOSInputStyle)' \
+            "${ROOT}"; then
+            echo 'Forbidden Spy/iOS feature references remain.' >&2
+            exit 1
+          fi
+
+          test ! -e release.keystore
+          test ! -e TMessagesProj/release.keystore
+          test ! -e TMessagesProj/google-services.json
+          ! find . -type f \( -name '*.jks' -o -name '*.keystore' -o -name '*.p12' -o -name '*.pfx' -o -name '*.aab' -o -name '*.apk' \) -print -quit | grep -q .
+
+          ! grep -RIlE --exclude-dir=.git --exclude='*.png' --exclude='*.jpg' --exclude='*.webp' \
+            '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|RELEASE_STORE_PASSWORD|RELEASE_KEY_PASSWORD|HISTORICAL_KEYSTORE_BLOB)' \
+            TMessagesProj build.gradle gradle.properties 2>/dev/null | grep -q .
+
+      - name: Export sanitized Play delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="${RUNNER_TEMP}/sanitized-public-play"
+          mkdir -p "${OUT}"
+          git diff --binary --no-renames \
+            1b4e59b4b3c995a32e40ba1d44a7a7524a9b829a -- \
+            build.gradle gradle.properties TMessagesProj \
+            ':(exclude)TMessagesProj/google-services.json' \
+            ':(exclude)TMessagesProj/release.keystore' \
+            ':(exclude)TMessagesProj/jni/**' \
+            > "${OUT}/public-play.patch"
+
+          ! grep -aFq '5c0f63c668f7ad06ea674560f10ffb256ff2c092' "${OUT}/public-play.patch"
+          ! grep -aEqi '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|RELEASE_STORE_PASSWORD|RELEASE_KEY_PASSWORD|HISTORICAL_KEYSTORE_BLOB)' "${OUT}/public-play.patch"
+
+          printf '%s\n' 'upstream=Keeperorowner/NagramXF' > "${OUT}/SOURCE.txt"
+          printf '%s\n' 'upstreamCommit=1b4e59b4b3c995a32e40ba1d44a7a7524a9b829a' >> "${OUT}/SOURCE.txt"
+          printf 'playSource=%s\n' "$(git rev-parse HEAD)" >> "${OUT}/SOURCE.txt"
+          sha256sum "${OUT}/public-play.patch" > "${OUT}/SHA256SUMS.txt"
+          du -h "${OUT}/public-play.patch"
+
+      - name: Upload sanitized source delta
+        uses: actions/upload-artifact@v4
+        with:
+          name: authorgram-sanitized-public-play
+          path: ${{ runner.temp }}/sanitized-public-play/
+          if-no-files-found: error
+          retention-days: 1
