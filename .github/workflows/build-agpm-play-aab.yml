@@ -2,6 +2,10 @@ name: Build AG-PM Play AAB
 
 on:
   workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/build-agpm-play-aab.yml'
 
 permissions:
   contents: read
