@@ -47,8 +47,7 @@ AuthorGram is based on Telegram for Android and includes code or ideas adapted f
 Special thanks to the contributors of:
 
 - Cherrygram;
-- AuthorGram and AuthorGram;
-- AuthorGram;
+- Nagram;
 - exteraGram;
 - AyuGram;
 - OctoGram.
