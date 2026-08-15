@@ -109,7 +109,7 @@ jobs:
           grep -q '^APP_PACKAGE=toss.authorgram.apk$' gradle.properties
           grep -q '^APP_VERSION_NAME=12.9.2$' gradle.properties
           grep -q '^APP_VERSION_CODE=6994$' gradle.properties
-          ! git grep -n -E 'AyuSpy|SpyDao|SpyMessage(Read|ContentsRead)|SpyLastSeen|spyQueue|SaveReadDate|AyuSpySettings|AGSpySettingsActivity|iOSMessage|IOSMessage|iosInput|isIOSInputStyle' -- ':!*.md'
+          ! git grep -n -E 'AyuSpy|SpyDao|SpyMessage(Read|ContentsRead)|SpyLastSeen|spyQueue|SaveReadDate|AyuSpySettings|AGSpySettingsActivity|iOSMessage|IOSMessage|iosInput|isIOSInputStyle' -- ':!*.md' ':!.github/workflows/*'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
