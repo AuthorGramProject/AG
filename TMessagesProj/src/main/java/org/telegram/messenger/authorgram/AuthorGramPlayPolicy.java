@@ -53,7 +53,9 @@ public final class AuthorGramPlayPolicy {
         // Do not bypass Telegram content restrictions in the Play package.
         values.put("ignoreContentRestrictions", false);
 
-        // Google Play may use the iOS-inspired input only. The iOS Message Menu remains disabled.
+        // The unfinished iOS-inspired composer and iOS Message Menu are Main-only.
+        // Play always uses Telegram's standard composer/menu implementation.
+        values.put("iOSMessageInputField", false);
         values.put("iOSMessageMenu", false);
 
         LOCKED_CONFIGS = Collections.unmodifiableMap(values);
@@ -67,7 +69,7 @@ public final class AuthorGramPlayPolicy {
     }
 
     public static boolean canUseIosInput() {
-        return true;
+        return !isPlayBuild();
     }
 
     public static boolean canUseIosUi() {
