@@ -33,12 +33,24 @@ jobs:
           git fetch --no-tags --depth=1 nagramxf 1b4e59b4b3c995a32e40ba1d44a7a7524a9b829a
           git cat-file -e 1b4e59b4b3c995a32e40ba1d44a7a7524a9b829a^{commit}
 
-      - name: Create private source delta
+      - name: Map forbidden feature references
         shell: bash
         run: |
           set -euo pipefail
           OUT="${RUNNER_TEMP}/authorgram-public-source"
           mkdir -p "${OUT}"
+          ROOT='TMessagesProj/src'
+          grep -RInE --include='*.java' --include='*.kt' --include='*.xml' \
+            '(AyuSpy|SpyDao|SpyMessage(Read|ContentsRead)|SpyLastSeen|spyQueue|SaveReadDate|AyuSpySettings|authorgram_spy|AGSpySettingsActivity|iOSMessage|IOSMessage|iosMessage)' \
+            "${ROOT}" > "${OUT}/forbidden-feature-references.txt" || true
+          printf 'feature-reference-lines=%s\n' "$(wc -l < "${OUT}/forbidden-feature-references.txt")"
+          printf 'feature-reference-files=%s\n' "$(cut -d: -f1 "${OUT}/forbidden-feature-references.txt" | sort -u | wc -l)"
+
+      - name: Create private source delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="${RUNNER_TEMP}/authorgram-public-source"
 
           git diff --binary --no-renames \
             1b4e59b4b3c995a32e40ba1d44a7a7524a9b829a HEAD -- \
