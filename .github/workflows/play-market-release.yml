@@ -2,6 +2,10 @@ name: Build AG-PM Play AAB
 
 on:
   workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - .github/BUILD_AG_PM_PLAY
 
 permissions:
   contents: read
