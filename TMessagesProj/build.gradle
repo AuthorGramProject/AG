@@ -309,6 +309,11 @@ dependencies {
     implementation 'com.googlecode.mp4parser:isoparser:1.0.6'
     implementation 'com.google.mlkit:language-id:17.0.6'
     implementation 'com.google.code.gson:gson:2.13.2'
+    // CameraX powers the optional AuthorGram round-video backend.
+    def camerax_version = '1.5.3'
+    implementation "androidx.camera:camera-camera2:${camerax_version}"
+    implementation "androidx.camera:camera-core:${camerax_version}"
+    implementation "androidx.camera:camera-lifecycle:${camerax_version}"
     implementation ('com.google.guava:guava:33.5.0-android') { // 31.1
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
         exclude group: 'org.checkerframework', module: 'checker-compat-qual'

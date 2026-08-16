@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="AGCameraSettings">Camera</string>
+    <string name="AGCameraType">Camera type</string>
+    <string name="AGCameraTypeTelegram">Telegram</string>
+    <string name="AGCameraTypeCamera2">Camera 2 (Telegram)</string>
+    <string name="AGCameraTypeTelegramInfo">Uses Telegram’s selected camera backend and its compatibility defaults.</string>
+    <string name="AGCameraTypeCameraXInfo">Uses CameraX for round video messages, including concurrent cameras, quality, FPS and capture enhancements.</string>
+    <string name="AGCameraTypeCamera2Info">Forces Telegram’s Camera2 backend for round video messages.</string>
+    <string name="AGCameraAspectRatio">Camera aspect ratio</string>
+    <string name="AGCameraVideoMessages">Video messages</string>
+    <string name="AGCameraDual">Dual camera</string>
+    <string name="AGCameraDualInfo">Keeps both cameras open for faster switching while recording. Uses more battery.</string>
+    <string name="AGCameraDualUnsupported">Concurrent front and rear cameras are not supported by this device.</string>
+    <string name="AGCameraRear">Use rear camera</string>
+    <string name="AGCameraRearInfo">Start video messages with the rear camera instead of the front camera.</string>
+    <string name="AGCameraUltraWide">Start from ultra-wide</string>
+    <string name="AGCameraUltraWideInfo">Starts with the widest rear lens exposed by the device.</string>
+    <string name="AGCameraQuality">Camera quality</string>
+    <string name="AGCameraEnhancements">Enhancements</string>
+    <string name="AGCameraEnhancementsInfo">Camera enhancements can improve video quality, but combining several options may not produce the best result on every device.</string>
+    <string name="AGCameraEnhancementStabilization">Video stabilization</string>
+    <string name="AGCameraEnhancementNoise">High-quality noise reduction</string>
+    <string name="AGCameraEnhancementEdge">High-quality edge processing</string>
+    <string name="AGCameraEnhancementHotPixel">Hot-pixel correction</string>
+    <string name="AGCameraEnhancementShading">Lens shading correction</string>
+    <string name="AGCameraEnhancementAberration">Color aberration correction</string>
+    <string name="AGCameraControls">Camera controls</string>
+    <string name="AGCameraExposure">Exposure slider position</string>
+    <string name="AGCameraPositionRight">Right</string>
+    <string name="AGCameraPositionLeft">Left</string>
+    <string name="AGCameraCenterControls">Center control buttons</string>
+    <string name="AGCameraCenterControlsInfo">Center the switch-camera and flashlight buttons.</string>
+</resources>

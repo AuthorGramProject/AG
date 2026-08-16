@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="AGCameraSettings">Kamera</string>
+    <string name="AGCameraType">Kameratyp</string>
+    <string name="AGCameraTypeTelegram">Telegram</string>
+    <string name="AGCameraTypeCamera2">Camera 2 (Telegram)</string>
+    <string name="AGCameraTypeTelegramInfo">Verwendet das in Telegram gewählte Kamera-Backend und dessen Kompatibilitätseinstellungen.</string>
+    <string name="AGCameraTypeCameraXInfo">Verwendet CameraX für Videonachrichten, einschließlich gleichzeitiger Kameras, Qualität, FPS und Verbesserungen.</string>
+    <string name="AGCameraTypeCamera2Info">Erzwingt Telegrams Camera2-Backend für Videonachrichten.</string>
+    <string name="AGCameraAspectRatio">Kamera-Seitenverhältnis</string>
+    <string name="AGCameraVideoMessages">Videonachrichten</string>
+    <string name="AGCameraDual">Dual-Kamera</string>
+    <string name="AGCameraDualInfo">Hält beide Kameras für schnelleres Umschalten während der Aufnahme offen. Verbraucht mehr Akku.</string>
+    <string name="AGCameraDualUnsupported">Gleichzeitige Front- und Rückkameras werden von diesem Gerät nicht unterstützt.</string>
+    <string name="AGCameraRear">Hintere Kamera verwenden</string>
+    <string name="AGCameraRearInfo">Videonachrichten mit der Rückkamera statt der Frontkamera starten.</string>
+    <string name="AGCameraUltraWide">Mit Ultraweitwinkel starten</string>
+    <string name="AGCameraUltraWideInfo">Startet mit dem weitesten verfügbaren hinteren Objektiv.</string>
+    <string name="AGCameraQuality">Kameraqualität</string>
+    <string name="AGCameraEnhancements">Verbesserungen</string>
+    <string name="AGCameraEnhancementsInfo">Kameraverbesserungen können die Videoqualität erhöhen, mehrere Optionen zusammen liefern jedoch nicht auf jedem Gerät das beste Ergebnis.</string>
+    <string name="AGCameraEnhancementStabilization">Videostabilisierung</string>
+    <string name="AGCameraEnhancementNoise">Hochwertige Rauschminderung</string>
+    <string name="AGCameraEnhancementEdge">Hochwertige Kantenverarbeitung</string>
+    <string name="AGCameraEnhancementHotPixel">Hot-Pixel-Korrektur</string>
+    <string name="AGCameraEnhancementShading">Objektiv-Schattierungskorrektur</string>
+    <string name="AGCameraEnhancementAberration">Farbabweichungskorrektur</string>
+    <string name="AGCameraControls">Kamerasteuerung</string>
+    <string name="AGCameraExposure">Position des Belichtungsreglers</string>
+    <string name="AGCameraPositionRight">Rechts</string>
+    <string name="AGCameraPositionLeft">Links</string>
+    <string name="AGCameraCenterControls">Bedientasten zentrieren</string>
+    <string name="AGCameraCenterControlsInfo">Tasten für Kamerawechsel und Blitz zentrieren.</string>
+</resources>

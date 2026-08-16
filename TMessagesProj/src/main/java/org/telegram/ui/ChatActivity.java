@@ -20427,7 +20427,7 @@ public class ChatActivity extends BaseFragment implements
                                         return MESSAGE_TYPE_XML;
                                     } else if ((messageObject.getDocumentName().toLowerCase().endsWith(".nekox-stickers.json"))) {
                                         return MESSAGE_TYPE_NEKOX_STICKERS_JSON;
-                                    } else if ((messageObject.getDocumentName().toLowerCase().endsWith(".nekox-settings.json"))) {
+                                    } else if (((messageObject.getDocumentName().toLowerCase().endsWith(".authorgram-settings.json") || messageObject.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")))) {
                                         return MESSAGE_TYPE_NEKOX_SETTINGS_JSON;
                                     } else if (!messageObject.isNewGif() && mime.endsWith("/mp4") || mime.endsWith("/png") || mime.endsWith("/jpg") || mime.endsWith("/jpeg")) {
                                         return MESSAGE_TYPE_IMAGE_OR_VIDEO;
@@ -36053,7 +36053,7 @@ public class ChatActivity extends BaseFragment implements
                                     presentFragment(new StickersActivity(finalLocFile));
                                 }
                         );
-                    } else if (locFile.getName().toLowerCase().endsWith(".nekox-settings.json") || fileName.endsWith(".nekox-settings.json")) {
+                    } else if ((locFile.getName().toLowerCase().endsWith(".authorgram-settings.json") || locFile.getName().toLowerCase().endsWith(".nekox-settings.json")) || (fileName.endsWith(".authorgram-settings.json") || fileName.endsWith(".nekox-settings.json"))) {
                         File finalLocFile = locFile;
                         SettingsBackupHelper.importSettings(getParentActivity(), finalLocFile);
                     } else if (getMessageType(selectedObject) == MESSAGE_TYPE_FONT) {
@@ -44396,7 +44396,7 @@ public class ChatActivity extends BaseFragment implements
                             R.drawable.msg_sticker, getString(R.string.Import), false, () -> {
                                 presentFragment(new StickersActivity(finalLocFile));
                             });
-                } else if (message.getDocumentName().toLowerCase().endsWith(".nekox-settings.json")) {
+                } else if ((message.getDocumentName().toLowerCase().endsWith(".authorgram-settings.json") || message.getDocumentName().toLowerCase().endsWith(".nekox-settings.json"))) {
                     File finalLocFile = locFile;
                     SettingsBackupHelper.importSettings(getParentActivity(), finalLocFile);
                 } else {
