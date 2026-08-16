@@ -10,3 +10,4 @@ No AAB artifacts.
 Triggered: 2026-08-16 Firebase, background delivery and VoIP reliability fix (Europe/Berlin)
 Status context: authorgram/dev-release
 Preflight: package-specific Firebase configuration; active Google FCM provider; token retry with resident remote-messaging fallback; valid service restart PendingIntent; boot/restart receiver; Android 15/16 foreground-service compliance; Xiaomi lock-screen call fallback; phoneCall foreground type; existing AuthorGram camera and protected Dev features retained.
+Reliable delivery build trigger: 2026-08-16
