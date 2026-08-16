@@ -1533,7 +1533,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                                 }
                             }
                             if (cameraThread != null) {
-                                cameraThread.updateScale();
+                                cameraThread.updateCameraXScale();
                             }
                             applyLockedZoomToCamera();
                             updateFlash();
@@ -1650,6 +1650,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         private final int DO_REINIT_MESSAGE = 2;
         private final int DO_SETSESSION_MESSAGE = 3;
         private final int DO_FLIP = 4;
+        private final int DO_UPDATE_CAMERAX_SCALE = 5;
 
         private int drawProgram;
         private int vertexMatrixHandle;
@@ -1698,6 +1699,27 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             }
             FileLog.d("InstantCamera camera scaleX = " + scaleX + " scaleY = " + scaleY);
 
+        }
+
+        private void updateCameraXTextureScale() {
+            updateScale();
+            if (scaleX <= 0f || scaleY <= 0f) {
+                return;
+            }
+            float tX = 1.0f / scaleX / 2.0f;
+            float tY = 1.0f / scaleY / 2.0f;
+            float[] texData = {
+                    0.5f - tX, 0.5f - tY,
+                    0.5f + tX, 0.5f - tY,
+                    0.5f - tX, 0.5f + tY,
+                    0.5f + tX, 0.5f + tY
+            };
+            FloatBuffer updatedTextureBuffer = ByteBuffer
+                    .allocateDirect(texData.length * 4)
+                    .order(ByteOrder.nativeOrder())
+                    .asFloatBuffer();
+            updatedTextureBuffer.put(texData).position(0);
+            textureBuffer = updatedTextureBuffer;
         }
 
         private boolean initGL() {
@@ -2129,21 +2151,11 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 }
                 case DO_FLIP: {
                     surfaceIndex = 1 - surfaceIndex;
-
-                    updateScale();
-
-                    float tX = 1.0f / scaleX / 2.0f;
-                    float tY = 1.0f / scaleY / 2.0f;
-
-                    float[] texData = {
-                            0.5f - tX, 0.5f - tY,
-                            0.5f + tX, 0.5f - tY,
-                            0.5f - tX, 0.5f + tY,
-                            0.5f + tX, 0.5f + tY
-                    };
-
-                    textureBuffer = ByteBuffer.allocateDirect(texData.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-                    textureBuffer.put(texData).position(0);
+                    updateCameraXTextureScale();
+                    break;
+                }
+                case DO_UPDATE_CAMERAX_SCALE: {
+                    updateCameraXTextureScale();
                     break;
                 }
             }
@@ -2153,6 +2165,13 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             Handler handler = getHandler();
             if (handler != null) {
                 sendMessage(handler.obtainMessage(DO_SHUTDOWN_MESSAGE, send, 0, new SendOptions(notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, 0)), 0);
+            }
+        }
+
+        public void updateCameraXScale() {
+            Handler handler = getHandler();
+            if (handler != null) {
+                sendMessage(handler.obtainMessage(DO_UPDATE_CAMERAX_SCALE), 0);
             }
         }
 

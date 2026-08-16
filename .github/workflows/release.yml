@@ -111,6 +111,9 @@ jobs:
           grep -Fq 'public static final String PLAY_PACKAGE = "toss.authorgram.apk";' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
           grep -Fq 'defaultConfig.applicationId = APP_PACKAGE' TMessagesProj/build.gradle
           grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
+          grep -Fq 'private final int DO_UPDATE_CAMERAX_SCALE = 5;' TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java
+          grep -Fq 'cameraThread.updateCameraXScale();' TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java
+          grep -Fq 'updateCameraXTextureScale();' TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java
           python3 scripts/restore_authorgram_ios_ui.py --check
           python3 scripts/finalize_ios_message_menu_v6.py --check
           git diff --check

@@ -7,6 +7,6 @@ Artifact: APK only
 ABI: arm64-v8a
 Signing identity: existing AuthorGram release key restored only inside the GitHub Actions runner from historical Main commit eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369.
 No AAB artifacts.
-Triggered: 2026-08-16 Europe/Berlin
+Triggered: 2026-08-16 CameraX initial-scale fix (Europe/Berlin)
 Status context: authorgram/dev-release
-Preflight: AuthorGram camera settings; CameraX 1.5.3 preview backend; concurrent front/rear round-video switching with safe single-camera fallback; aspect ratio, quality, FPS, ultra-wide selection, exposure, centered controls and six Camera2 enhancements; AuthorGram and NekoX settings-import suffixes retained.
+Preflight: AuthorGram camera settings; CameraX 1.5.3 preview backend; concurrent front/rear round-video switching with safe single-camera fallback; actual CameraX resolution is applied to GL texture coordinates before the first recorded frame; aspect ratio, quality, FPS, ultra-wide selection, exposure, centered controls and six Camera2 enhancements; AuthorGram and NekoX settings-import suffixes retained.
