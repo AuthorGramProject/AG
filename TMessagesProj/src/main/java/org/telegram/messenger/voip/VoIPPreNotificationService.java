@@ -240,7 +240,20 @@ public class VoIPPreNotificationService { // } extends Service implements AudioM
             builder.setColor(0xff2ca5e0);
             builder.setVibrate(new long[0]);
             builder.setCategory(Notification.CATEGORY_CALL);
-            builder.setFullScreenIntent(PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_MUTABLE), true);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                    && !nm.canUseFullScreenIntent()
+                    && BuildVars.LOGS_ENABLED) {
+                FileLog.w("Full-screen call intent is disabled; Android will use an expanded heads-up notification");
+            }
+            builder.setFullScreenIntent(
+                    PendingIntent.getActivity(
+                            context,
+                            0,
+                            intent,
+                            PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+                    ),
+                    true
+            );
             if (user != null && !TextUtils.isEmpty(user.phone)) {
                 builder.addPerson("tel:" + user.phone);
             }
@@ -414,7 +427,16 @@ public class VoIPPreNotificationService { // } extends Service implements AudioM
             pendingCall = call;
 
             final NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-            nm.notify(VoIPService.ID_INCOMING_CALL_PRENOTIFICATION, makeNotification(context, account, user_id, call.id, video));
+            Notification notification = makeNotification(context, account, user_id, call.id, video);
+            if (notification != null) {
+                try {
+                    nm.notify(VoIPService.ID_INCOMING_CALL_PRENOTIFICATION, notification);
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+            }
+            // Ring even when the user disabled notification/full-screen permissions.
+            // The pending call remains available when the app is opened.
             startRinging(context, account, user_id);
         });
     }
@@ -431,17 +453,15 @@ public class VoIPPreNotificationService { // } extends Service implements AudioM
             }
             return;
         }
-        if (Build.VERSION.SDK_INT >= 19 && XiaomiUtilities.isMIUI() && !XiaomiUtilities.isCustomPermissionGranted(XiaomiUtilities.OP_SHOW_WHEN_LOCKED)) {
-            if (((KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE)).inKeyguardRestrictedInputMode()) {
-                if (BuildVars.LOGS_ENABLED) {
-                    FileLog.e("MIUI: no permission to show when locked but the screen is locked. ¯\\_(ツ)_/¯");
-                }
-                pendingVoIP = null;
-                pendingCall = null;
-                if (currentState != null) {
-                    currentState.destroy();
-                }
-                return;
+        if (Build.VERSION.SDK_INT >= 19
+                && XiaomiUtilities.isMIUI()
+                && !XiaomiUtilities.isCustomPermissionGranted(XiaomiUtilities.OP_SHOW_WHEN_LOCKED)) {
+            KeyguardManager keyguardManager =
+                    (KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
+            if (keyguardManager != null
+                    && keyguardManager.inKeyguardRestrictedInputMode()
+                    && BuildVars.LOGS_ENABLED) {
+                FileLog.w("MIUI lock-screen permission is missing; keeping the call and using notification fallback");
             }
         }
         final TL_phone.receivedCall req = new TL_phone.receivedCall();
