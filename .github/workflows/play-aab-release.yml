@@ -349,3 +349,4 @@ jobs:
         if: ${{ always() && env.SOURCE_ONLY != 'true' }}
         shell: bash
         run: rm -f TMessagesProj/release.keystore local.properties
+# Reliable delivery build trigger: 2026-08-16
