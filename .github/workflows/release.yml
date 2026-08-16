@@ -27,7 +27,7 @@ jobs:
     env:
       DEV_PACKAGE: fork.risin42.nagramx
       VERSION_NAME: 12.9.2
-      VERSION_CODE: '6991'
+      VERSION_CODE: '6992'
       NATIVE_TARGET: arm64-v8a
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
@@ -102,6 +102,29 @@ jobs:
           [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${DEV_PACKAGE}" ]]
           [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
           [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("TMessagesProj/google-services.json").read_text(encoding="utf-8"))
+          assert config["project_info"]["project_id"] == "authorgram-81696"
+          assert config["project_info"]["project_number"] == "992278926997"
+          packages = {
+              client["client_info"]["android_client_info"]["package_name"]
+              for client in config["client"]
+          }
+          assert "fork.risin42.nagramx" in packages
+          PY
+          ! grep -Fq 'prepareAuthorGramNoFirebaseSources' build.gradle
+          ! grep -Fq 'instance = new DummyPushProvider();' build.gradle
+          grep -Fq 'instance = new GooglePushListenerServiceProvider();' TMessagesProj/src/main/java/org/telegram/messenger/PushListenerController.java
+          grep -Fq 'ApplicationLoader.startPushServiceFallback();' TMessagesProj/src/main/java/org/telegram/messenger/GooglePushListenerServiceProvider.java
+          grep -Fq 'PendingIntent.getForegroundService' TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
+          grep -Fq 'FOREGROUND_SERVICE_REMOTE_MESSAGING' TMessagesProj/src/main/AndroidManifest.xml
+          grep -Fq 'android:foregroundServiceType="remoteMessaging"' TMessagesProj/src/main/AndroidManifest.xml
+          grep -Fq 'FOREGROUND_SERVICE_PHONE_CALL' TMessagesProj/src/main/AndroidManifest.xml
+          grep -Fq 'FOREGROUND_SERVICE_TYPE_PHONE_CALL' TMessagesProj/src/main/java/org/telegram/messenger/voip/VoIPService.java
+          grep -Fq 'keeping the call and using notification fallback' TMessagesProj/src/main/java/org/telegram/messenger/voip/VoIPPreNotificationService.java
           grep -Fq '<string name="AppName">AuthorGram+</string>' TMessagesProj/src/release/res/values/authorgram_brand.xml
           grep -Fq 'NekoConfig.localPremium' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
           grep -Fq 'NekoConfig.hideSponsoredMessage' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
