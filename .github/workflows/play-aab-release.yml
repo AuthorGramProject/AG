@@ -23,7 +23,7 @@ jobs:
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.9.2
-      VERSION_CODE: '6995'
+      VERSION_CODE: '6996'
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
@@ -155,6 +155,30 @@ jobs:
           [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
           [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
           [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("TMessagesProj/google-services.json").read_text(encoding="utf-8"))
+          assert config["project_info"]["project_id"] == "authorgram-81696"
+          assert config["project_info"]["project_number"] == "992278926997"
+          packages = {
+              client["client_info"]["android_client_info"]["package_name"]
+              for client in config["client"]
+          }
+          assert "toss.authorgram.apk" in packages
+          PY
+          ! grep -Fq 'prepareAuthorGramNoFirebaseSources' build.gradle
+          ! grep -Fq 'instance = new DummyPushProvider();' build.gradle
+          grep -Fq 'instance = new GooglePushListenerServiceProvider();' TMessagesProj/src/main/java/org/telegram/messenger/PushListenerController.java
+          grep -Fq 'ApplicationLoader.startPushServiceFallback();' TMessagesProj/src/main/java/org/telegram/messenger/GooglePushListenerServiceProvider.java
+          grep -Fq 'PendingIntent.getForegroundService' TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
+          grep -Fq 'FOREGROUND_SERVICE_REMOTE_MESSAGING' TMessagesProj/src/main/AndroidManifest.xml
+          grep -Fq 'android:foregroundServiceType="remoteMessaging"' TMessagesProj/src/main/AndroidManifest.xml
+          grep -Fq 'FOREGROUND_SERVICE_PHONE_CALL' TMessagesProj/src/main/AndroidManifest.xml
+          grep -Fq 'FOREGROUND_SERVICE_TYPE_PHONE_CALL' TMessagesProj/src/main/java/org/telegram/messenger/voip/VoIPService.java
+          grep -Fq 'keeping the call and using notification fallback' TMessagesProj/src/main/java/org/telegram/messenger/voip/VoIPPreNotificationService.java
 
           grep -Fq 'compileSdk = 36' build.gradle
           grep -Fq 'targetSdk = 36' build.gradle
@@ -316,8 +340,8 @@ jobs:
         if: env.SOURCE_ONLY != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.9.2-6995-Google-Play-AAB
-          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.9.2-6995-release.aab
+          name: AuthorGram-Play-12.9.2-6996-Google-Play-AAB
+          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.9.2-6996-release.aab
           if-no-files-found: error
           retention-days: 30
 
