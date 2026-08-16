@@ -15,41 +15,59 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
-import xyz.nextalone.nagram.NaConfig;
-
 public class NotificationsService extends Service {
+
+    private static final int NOTIFICATION_ID = 9999;
+    private static final String CHANNEL_ID = "push_service_channel";
 
     @Override
     public void onCreate() {
         super.onCreate();
-        ApplicationLoader.postInitApplication();
-        if (NaConfig.INSTANCE.getPushServiceTypeInAppDialog().Bool()) {
-            String CHANNEL_ID = "push_service_channel";
-            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, LocaleController.getString(R.string.NagramXPushService), NotificationManager.IMPORTANCE_DEFAULT);
-            notificationManager.createNotificationChannel(channel);
-//            Intent explainIntent = new Intent("android.intent.action.VIEW");
-//            explainIntent.setData(Uri.parse("https://github.com/Telegram-FOSS-Team/Telegram-FOSS/blob/master/Notifications.md"));
-//            PendingIntent explainPendingIntent = PendingIntent.getActivity(this, 0, explainIntent, 0);
-            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-//                    .setContentIntent(explainPendingIntent)
-                    .setShowWhen(false)
-                    .setOngoing(true)
-                    .setSmallIcon(R.drawable.neko_notification)
-                    .setContentText(LocaleController.getString(R.string.NagramXPushService))
-                    .build();
-            try {
-                startForeground(9999, notification);
-            } catch (Throwable e) {
-                Log.e("TFOSS", "Failed to start push service");
+
+        NotificationManager notificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                LocaleController.getString(R.string.NagramXPushService),
+                NotificationManager.IMPORTANCE_LOW
+        );
+        channel.setSound(null, null);
+        channel.enableVibration(false);
+        notificationManager.createNotificationChannel(channel);
+
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setShowWhen(false)
+                .setOngoing(true)
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setSmallIcon(R.drawable.neko_notification)
+                .setContentText(LocaleController.getString(R.string.NagramXPushService))
+                .build();
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
+                );
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
             }
+        } catch (Throwable e) {
+            Log.e("TFOSS", "Failed to start remote messaging service", e);
+            stopSelf();
+            return;
         }
+
+        ApplicationLoader.postInitApplication();
     }
 
     @Override
@@ -62,27 +80,40 @@ public class NotificationsService extends Service {
         return null;
     }
 
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        sendRestartBroadcastIfNeeded();
+        super.onTaskRemoved(rootIntent);
+    }
+
+    @Override
     public void onDestroy() {
-        super.onDestroy();
         try {
-            stopForeground(true);
+            stopForeground(STOP_FOREGROUND_REMOVE);
         } catch (Throwable ignore) {
         }
+        sendRestartBroadcastIfNeeded();
+        super.onDestroy();
+    }
+
+    private void sendRestartBroadcastIfNeeded() {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
-        if (preferences.getBoolean("pushService", true)) {
-            Intent intent = new Intent("org.telegram.start");
-            intent.setPackage(getPackageName());
-            try {
-                sendBroadcast(intent);
-            } catch (Exception ex) {
-                // 辣鷄miui 就你事最多.jpg
-            }
+        if (!preferences.getBoolean("pushService", false)) {
+            return;
+        }
+        Intent intent = new Intent("org.telegram.start");
+        intent.setPackage(getPackageName());
+        try {
+            sendBroadcast(intent);
+        } catch (Throwable e) {
+            FileLog.e(e);
         }
     }
 
     @Override
     public void onTimeout(int startId, int fgsType) {
         super.onTimeout(startId, fgsType);
+        FileLog.w("Remote messaging fallback received an unexpected foreground-service timeout");
         stopSelf();
     }
 }
