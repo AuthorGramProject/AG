@@ -108,6 +108,20 @@ public final class SettingsBackupHelper {
         mainconfig.add("lockRecordAudioVideoHint");
         mainconfig.add("disableVoiceAudioEffects");
         mainconfig.add("chatSwipeAction");
+        mainconfig.add("AG_CameraType");
+        mainconfig.add("AG_CameraAspectRatio");
+        mainconfig.add("AG_CameraStartUltraWide");
+        mainconfig.add("AG_CameraQuality");
+        mainconfig.add("AG_CameraFps");
+        mainconfig.add("AG_CameraExposure");
+        mainconfig.add("AG_CameraCenterControls");
+        mainconfig.add("AG_CameraEnhancementStabilization");
+        mainconfig.add("AG_CameraEnhancementNoiseReduction");
+        mainconfig.add("AG_CameraEnhancementEdge");
+        mainconfig.add("AG_CameraEnhancementHotPixel");
+        mainconfig.add("AG_CameraEnhancementShading");
+        mainconfig.add("AG_CameraEnhancementAberration");
+        mainconfig.add("rounddual_available");
 
         if (!isCloud) mainconfig.add("theme");
         mainconfig.add("selectedAutoNightType");

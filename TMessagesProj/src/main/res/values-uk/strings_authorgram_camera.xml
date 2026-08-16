@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="AGCameraSettings">Камера</string>
+    <string name="AGCameraType">Тип камери</string>
+    <string name="AGCameraTypeTelegram">Telegram</string>
+    <string name="AGCameraTypeCamera2">Camera 2 (Telegram)</string>
+    <string name="AGCameraTypeTelegramInfo">Використовує вибраний у Telegram модуль камери та його параметри сумісності.</string>
+    <string name="AGCameraTypeCameraXInfo">Використовує CameraX для відеоповідомлень, включно з одночасними камерами, якістю, FPS і покращеннями.</string>
+    <string name="AGCameraTypeCamera2Info">Примусово використовує модуль Camera2 від Telegram для відеоповідомлень.</string>
+    <string name="AGCameraAspectRatio">Співвідношення сторін камери</string>
+    <string name="AGCameraVideoMessages">Відеоповідомлення</string>
+    <string name="AGCameraDual">Подвійна камера</string>
+    <string name="AGCameraDualInfo">Тримає обидві камери відкритими для швидшого перемикання під час запису. Споживає більше заряду.</string>
+    <string name="AGCameraDualUnsupported">Цей пристрій не підтримує одночасну роботу фронтальної та задньої камер.</string>
+    <string name="AGCameraRear">Використовувати задню камеру</string>
+    <string name="AGCameraRearInfo">Починати відеоповідомлення із задньої, а не фронтальної камери.</string>
+    <string name="AGCameraUltraWide">Починати з надширококутної</string>
+    <string name="AGCameraUltraWideInfo">Починає з найширшого заднього об’єктива, доступного на пристрої.</string>
+    <string name="AGCameraQuality">Якість камери</string>
+    <string name="AGCameraEnhancements">Покращення</string>
+    <string name="AGCameraEnhancementsInfo">Покращення можуть підвищити якість відео, але поєднання кількох параметрів не завжди дає найкращий результат на кожному пристрої.</string>
+    <string name="AGCameraEnhancementStabilization">Стабілізація відео</string>
+    <string name="AGCameraEnhancementNoise">Якісне шумозаглушення</string>
+    <string name="AGCameraEnhancementEdge">Якісна обробка країв</string>
+    <string name="AGCameraEnhancementHotPixel">Корекція гарячих пікселів</string>
+    <string name="AGCameraEnhancementShading">Корекція затінення об’єктива</string>
+    <string name="AGCameraEnhancementAberration">Корекція кольорових аберацій</string>
+    <string name="AGCameraControls">Керування камерою</string>
+    <string name="AGCameraExposure">Позиція повзунка експозиції</string>
+    <string name="AGCameraPositionRight">Праворуч</string>
+    <string name="AGCameraPositionLeft">Ліворуч</string>
+    <string name="AGCameraCenterControls">Центрувати кнопки керування</string>
+    <string name="AGCameraCenterControlsInfo">Розташувати кнопки перемикання камери та спалаху по центру.</string>
+</resources>

@@ -81,6 +81,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
     private int spyRow;
     private int translatorRow;
     private int chatRow;
+    private int cameraRow;
     private int localFoldersRow; // AUTHORGRAM_LOCAL_FOLDERS_ROW
     private int passcodeRow;
     private int experimentRow;
@@ -108,6 +109,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
         }
         translatorRow = addRow();
         chatRow = addRow();
+        cameraRow = addRow();
         localFoldersRow = addRow();
         if (!PasscodeHelper.isSettingsHidden()) {
             passcodeRow = addRow();
@@ -407,6 +409,8 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
     protected void onItemClick(View view, int position, float x, float y) {
         if (position == chatRow) {
             presentFragment(new AGChatSettingsActivity());
+        } else if (position == cameraRow) {
+            presentFragment(new AGCameraSettingsActivity());
         } else if (position == localFoldersRow) {
             presentFragment(new FiltersSetupActivity());
         } else if (position == generalRow) {
@@ -464,6 +468,8 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                     TextCell textCell = (TextCell) holder.itemView;
                     if (position == chatRow) {
                         textCell.setTextAndIcon(getString(R.string.Chat), R.drawable.msg_discussion, true);
+                    } else if (position == cameraRow) {
+                        textCell.setTextAndIcon(getString(R.string.AGCameraSettings), R.drawable.msg_camera, true);
                     } else if (position == localFoldersRow) {
                         textCell.setTextAndIcon(getString(R.string.BuiltInFolders), R.drawable.msg_folders, true);
                     } else if (position == generalRow) {
@@ -499,7 +505,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
         public int getItemViewType(int position) {
             if (position == categoriesEndRow || position == agSettingsEndRow) {
                 return TYPE_SHADOW;
-            } else if (position == chatRow || position == localFoldersRow || position == generalRow || position == appearanceRow || position == spyRow || position == passcodeRow || position == experimentRow || position == translatorRow ||
+            } else if (position == chatRow || position == cameraRow || position == localFoldersRow || position == generalRow || position == appearanceRow || position == spyRow || position == passcodeRow || position == experimentRow || position == translatorRow ||
                     position == importSettingsRow || position == exportSettingsRow || position == resetSettingsRow || position == appRestartRow ||
                     position == aboutRow) {
                 return TYPE_TEXT;

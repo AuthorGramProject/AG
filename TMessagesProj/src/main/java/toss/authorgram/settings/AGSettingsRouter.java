@@ -83,6 +83,9 @@ public class AGSettingsRouter {
                 case "c":
                     fragment = agxFragment = new AGChatSettingsActivity();
                     break;
+                case "camera":
+                    fragment = agFragment = new AGCameraSettingsActivity();
+                    break;
                 case "appearance":
                 case "a":
                     fragment = agxFragment = new AGAppearanceSettingsActivity();

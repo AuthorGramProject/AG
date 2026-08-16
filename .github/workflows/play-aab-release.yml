@@ -23,7 +23,7 @@ jobs:
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.9.2
-      VERSION_CODE: '6994'
+      VERSION_CODE: '6995'
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
@@ -162,6 +162,14 @@ jobs:
           grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
           grep -Fq "def authorGramSystemKeyHex = ''" TMessagesProj/build.gradle
           grep -Fq "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'" TMessagesProj/build.gradle
+          grep -Fq "def camerax_version = '1.5.3'" TMessagesProj/build.gradle
+          test -f TMessagesProj/src/main/java/toss/authorgram/camera/AuthorGramCameraConfig.java
+          test -f TMessagesProj/src/main/java/toss/authorgram/camera/AuthorGramCameraXController.java
+          test -f TMessagesProj/src/main/java/toss/authorgram/settings/AGCameraSettingsActivity.java
+          grep -Fq 'cameraThread.updateCameraXScale();' TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java
+          grep -Fq 'private final int DO_UPDATE_CAMERAX_SCALE = 5;' TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java
+          grep -Fq 'presentFragment(new AGCameraSettingsActivity());' TMessagesProj/src/main/java/toss/authorgram/settings/AGSettingsActivity.java
+          grep -Fq 'mainconfig.add("AG_CameraType");' TMessagesProj/src/main/java/tw/nekomimi/nekogram/helpers/SettingsBackupHelper.java
 
           POLICY='TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java'
           grep -Fq 'values.put("hideSponsoredMessage", false);' "${POLICY}"
@@ -308,8 +316,8 @@ jobs:
         if: env.SOURCE_ONLY != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.9.2-6994-Google-Play-AAB
-          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.9.2-6994-release.aab
+          name: AuthorGram-Play-12.9.2-6995-Google-Play-AAB
+          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.9.2-6995-release.aab
           if-no-files-found: error
           retention-days: 30
 
