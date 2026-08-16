@@ -7,6 +7,6 @@ Artifact: APK only
 ABI: arm64-v8a
 Signing identity: existing AuthorGram release key restored only inside the GitHub Actions runner from historical Main commit eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369.
 No AAB artifacts.
-Triggered: 2026-08-11 21:13 Europe/Berlin
+Triggered: 2026-08-16 Europe/Berlin
 Status context: authorgram/dev-release
-Preflight: iOS message menu V11 atomic pre-draw layout; stable V9 deferred-dismiss lifecycle retained; first native Telegram-only frame withheld by a bounded ViewTreeObserver pre-draw gate; gate fails open after at most four pre-draw attempts; Telegram ChatScrimPopupContainerLayout alpha/translation/lifecycle are never mutated; reactions -> selected-message preview -> action menu retained; whole stack lowered by a normal 12dp layout spacer; width-only preview scaling retained; long-message and long-menu scrolling retained; no crypto/router/filter/reply/deep-link code changed by this UI patch.
+Preflight: AuthorGram camera settings; CameraX 1.5.3 preview backend; concurrent front/rear round-video switching with safe single-camera fallback; aspect ratio, quality, FPS, ultra-wide selection, exposure, centered controls and six Camera2 enhancements; AuthorGram and NekoX settings-import suffixes retained.
