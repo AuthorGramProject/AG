@@ -1690,7 +1690,11 @@ public class PushListenerController {
         }
     }
 
-    public static IPushListenerServiceProvider getProvider() {
+    public static synchronized void resetProvider() {
+        instance = null;
+    }
+
+    public static synchronized IPushListenerServiceProvider getProvider() {
         if (instance != null)
             return instance;
         switch (NaConfig.INSTANCE.getPushServiceType().Int()) {
