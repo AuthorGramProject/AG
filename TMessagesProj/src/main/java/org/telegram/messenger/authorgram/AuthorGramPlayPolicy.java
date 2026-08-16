@@ -68,10 +68,6 @@ public final class AuthorGramPlayPolicy {
         return PLAY_PACKAGE.equals(BuildConfig.APPLICATION_ID);
     }
 
-    public static boolean canUseIosInput() {
-        return !isPlayBuild();
-    }
-
     public static boolean canUseIosUi() {
         return !isPlayBuild();
     }
