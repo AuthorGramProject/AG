@@ -42,12 +42,11 @@ public class GcmPushListenerService extends FirebaseMessagingService {
     public void onNewToken(@NonNull String token) {
         AndroidUtilities.runOnUIThread(() -> {
             if (BuildVars.LOGS_ENABLED) {
-                FileLog.d("Refreshed FCM token: " + token);
+                FileLog.d("Refreshed FCM token; queuing Telegram registration");
             }
             ApplicationLoader.postInitApplication();
             int selectedType = NaConfig.INSTANCE.getPushServiceType().Int();
             if (selectedType == 1 || selectedType == 3) {
-                ApplicationLoader.stopPushService();
                 PushListenerController.sendRegistrationToServer(PushListenerController.PUSH_TYPE_FIREBASE, token);
             }
         });

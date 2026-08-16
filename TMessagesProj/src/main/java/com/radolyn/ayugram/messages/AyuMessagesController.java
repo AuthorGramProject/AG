@@ -27,6 +27,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.authorgram.AuthorGramSpyPolicy;
 import org.telegram.tgnet.TLRPC;
 
 import java.io.File;
@@ -266,6 +267,9 @@ public class AyuMessagesController {
     }
 
     private void onMessageEditedInner(AyuSavePreferences prefs, TLRPC.Message newMessage, boolean force) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(prefs.getDialogId())) {
+            return;
+        }
         var oldMessage = prefs.getMessage();
 
         boolean sameMedia = isSameMedia(newMessage, force, oldMessage);
@@ -414,45 +418,61 @@ public class AyuMessagesController {
     }
 
     public boolean hasAnyRevisions(long userId, long dialogId, int messageId) {
-        return editedMessageDao.hasAnyRevisions(userId, dialogId, messageId);
+        return !AuthorGramSpyPolicy.isSpyDisabled(dialogId)
+                && editedMessageDao.hasAnyRevisions(userId, dialogId, messageId);
     }
 
     public List<EditedMessage> getRevisions(long userId, long dialogId, int messageId) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            return new ArrayList<>();
+        }
         return editedMessageDao.getAllRevisions(userId, dialogId, messageId);
     }
 
     public DeletedMessageFull getMessage(long userId, long dialogId, int messageId) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            return null;
+        }
         return deletedMessageDao.getMessage(userId, dialogId, messageId);
     }
 
     public List<DeletedMessageFull> getMessages(long userId, long dialogId, long startId, long endId, int limit) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            return new ArrayList<>();
+        }
         return deletedMessageDao.getMessages(userId, dialogId, startId, endId, limit);
     }
 
     public List<DeletedMessageFull> getTopicMessages(long userId, long dialogId, long topicId, long startId, long endId, int limit) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            return new ArrayList<>();
+        }
         return deletedMessageDao.getTopicMessages(userId, dialogId, topicId, startId, endId, limit);
     }
 
     public List<DeletedMessageFull> getThreadMessages(long userId, long dialogId, long threadMessageId, long startId, long endId, int limit) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            return new ArrayList<>();
+        }
         return deletedMessageDao.getThreadMessages(userId, dialogId, threadMessageId, startId, endId, limit);
     }
 
     public List<DeletedMessageFull> getMessagesGroupedIn(long userId, long dialogId, List<Long> groupedIds) {
-        if (groupedIds == null || groupedIds.isEmpty()) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId) || groupedIds == null || groupedIds.isEmpty()) {
             return new ArrayList<>();
         }
         return deletedMessageDao.getMessagesGroupedIn(userId, dialogId, groupedIds);
     }
 
     public List<Integer> getExistingMessageIds(long userId, long dialogId, List<Integer> messageIds) {
-        if (messageIds == null || messageIds.isEmpty()) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId) || messageIds == null || messageIds.isEmpty()) {
             return new ArrayList<>();
         }
         return deletedMessageDao.getExistingMessageIds(userId, dialogId, messageIds);
     }
 
     public List<DeletedMessageFull> getMessagesByIds(long userId, long dialogId, List<Integer> messageIds) {
-        if (messageIds == null || messageIds.isEmpty()) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId) || messageIds == null || messageIds.isEmpty()) {
             return new ArrayList<>();
         }
         return deletedMessageDao.getMessagesByIds(userId, dialogId, messageIds);
@@ -567,19 +587,30 @@ public class AyuMessagesController {
     }
 
     public int getDeletedCount(long userId, long dialogId) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            return 0;
+        }
         return deletedMessageDao.countByDialog(userId, dialogId);
     }
 
     public List<DeletedMessageFull> getLatestMessages(long userId, long dialogId, int limit) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            return new ArrayList<>();
+        }
         return deletedMessageDao.getLatestMessages(userId, dialogId, limit);
     }
 
     public List<DeletedMessageFull> getOlderMessagesBefore(long userId, long dialogId, int before, int limit) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            return new ArrayList<>();
+        }
         return deletedMessageDao.getOlderMessagesBefore(userId, dialogId, before, limit);
     }
 
     public void updateMediaPath(long userId, long dialogId, int messageId, String newPath) {
-        deletedMessageDao.updateMediaPathIfEmpty(userId, dialogId, messageId, newPath);
+        if (!AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            deletedMessageDao.updateMediaPathIfEmpty(userId, dialogId, messageId, newPath);
+        }
     }
 
     public void clean() {

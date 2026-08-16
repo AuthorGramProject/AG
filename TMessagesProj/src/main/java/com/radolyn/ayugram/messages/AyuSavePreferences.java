@@ -14,6 +14,7 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.authorgram.AuthorGramSpyPolicy;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLRPC;
 
@@ -122,6 +123,9 @@ public class AyuSavePreferences {
     }
 
     public static boolean getSaveDeletedExclusion(long chatId) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(chatId)) {
+            return true;
+        }
         if (isSaveDeletedExclusionsLoaded) {
             return Boolean.TRUE.equals(saveDeletedExclusions.getOrDefault(Math.abs(chatId), false));
         } else {

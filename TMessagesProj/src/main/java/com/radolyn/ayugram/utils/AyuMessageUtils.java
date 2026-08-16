@@ -22,6 +22,7 @@ import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.authorgram.AuthorGramSpyPolicy;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.secretmedia.EncryptedFileInputStream;
 import org.telegram.tgnet.NativeByteBuffer;
@@ -241,7 +242,7 @@ public abstract class AyuMessageUtils {
         }
         long currentUserId = UserConfig.getInstance(messageObject.currentAccount).getClientUserId();
         long dialogId = messageObject.getDialogId();
-        return currentUserId != dialogId;
+        return !AuthorGramSpyPolicy.isSpyDisabled(dialogId) && currentUserId != dialogId;
     }
 
     public static boolean hasLocalForwardCopy(MessageObject messageObject) {
@@ -1029,6 +1030,9 @@ public abstract class AyuMessageUtils {
     }
 
     public static boolean shouldSaveMedia(int accountId, long dialogId) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(dialogId)) {
+            return false;
+        }
         if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool() && NaConfig.INSTANCE.getMessageSavingSaveMedia().Bool()) {
             if (DialogObject.isUserDialog(dialogId)) {
                 return NaConfig.INSTANCE.getSaveMediaInPrivateChats().Bool();
@@ -1053,7 +1057,8 @@ public abstract class AyuMessageUtils {
     }
 
     public static File decryptAndSaveMedia(String fileName, File encryptedFile, MessageObject messageObject) {
-        if (!NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+        if ((messageObject != null && AuthorGramSpyPolicy.isSpyDisabled(messageObject.getDialogId()))
+                || !NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
             return null;
         }
         File AttachmentsDir = AyuMessagesController.attachmentsPath;

@@ -70,6 +70,18 @@ public class ApplicationLoader extends Application {
     public static ApplicationLoader applicationLoaderInstance;
 
     private static PendingIntent pendingIntent;
+    private static final String PREF_ALWAYS_ON_DELIVERY = "authorgramAlwaysOnDelivery";
+    private static final String PREF_PUSH_FALLBACK_ACTIVE = "authorgramPushFallbackActive";
+    private static final String PREF_PUSH_SERVICE_RUNTIME = "authorgramPushServiceRuntime";
+    private static final long[] PUSH_REGISTRATION_RETRY_DELAYS_MS = {
+            3_000L,
+            10_000L,
+            30_000L,
+            2 * 60_000L,
+            10 * 60_000L,
+            60 * 60_000L
+    };
+    private static int pushRegistrationGeneration;
 
     @SuppressLint("StaticFieldLeak")
     public static volatile Context applicationContext;
@@ -391,44 +403,55 @@ public class ApplicationLoader extends Application {
         ProxyPingController.init();
     }
 
-    // Local push fallback for devices without a working external push provider.
+    // Local push fallback and optional always-on connection.
     public static void startPushService() {
-        Utilities.stageQueue.postRunnable(() -> startPushServiceInternal(false));
+        Utilities.stageQueue.postRunnable(ApplicationLoader::reconcilePushServiceState);
     }
 
     /**
-     * Starts the local connection even when Google Play services exist but FCM token
-     * acquisition failed. The resident notification is required by modern Android.
+     * Keeps Telegram's native connection alive while an external push token is unavailable
+     * or has not yet been accepted by Telegram.
      */
     public static void startPushServiceFallback() {
-        Utilities.stageQueue.postRunnable(() -> startPushServiceInternal(true));
+        Utilities.stageQueue.postRunnable(() -> {
+            MessagesController.getGlobalNotificationsSettings().edit()
+                    .putBoolean(PREF_PUSH_FALLBACK_ACTIVE, true)
+                    .apply();
+            startPushServiceInternal();
+        });
+    }
+
+    public static void setAlwaysOnDeliveryEnabled(boolean enabled) {
+        Utilities.stageQueue.postRunnable(() -> {
+            MessagesController.getGlobalNotificationsSettings().edit()
+                    .putBoolean(PREF_ALWAYS_ON_DELIVERY, enabled)
+                    .apply();
+            reconcilePushServiceState();
+        });
+    }
+
+    public static boolean shouldKeepPushServiceRunning() {
+        SharedPreferences globalPreferences = MessagesController.getGlobalNotificationsSettings();
+        if (globalPreferences.getBoolean(PREF_ALWAYS_ON_DELIVERY, false)
+                || globalPreferences.getBoolean(PREF_PUSH_FALLBACK_ACTIVE, false)) {
+            return true;
+        }
+        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+            if (MessagesController.getNotificationsSettings(account)
+                    .getBoolean("pushService", false)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void stopPushService() {
         Utilities.stageQueue.postRunnable(() -> {
-            SharedPreferences globalPreferences = MessagesController.getGlobalNotificationsSettings();
-            globalPreferences.edit()
-                    .putBoolean("pushService", false)
-                    .putBoolean("pushConnection", false)
+            pushRegistrationGeneration++;
+            MessagesController.getGlobalNotificationsSettings().edit()
+                    .putBoolean(PREF_PUSH_FALLBACK_ACTIVE, false)
                     .apply();
-            for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
-                MessagesController.getNotificationsSettings(account).edit()
-                        .putBoolean("pushConnection", false)
-                        .apply();
-                ConnectionsManager.getInstance(account).setPushConnectionEnabled(false);
-            }
-            AndroidUtilities.runOnUIThread(() -> {
-                Context context = applicationContext;
-                if (context == null) {
-                    return;
-                }
-                cancelPushServiceAlarm(context);
-                try {
-                    context.stopService(new Intent(context, NotificationsService.class));
-                } catch (Throwable e) {
-                    FileLog.e(e);
-                }
-            });
+            stopPushServiceInternal();
         });
     }
 
@@ -439,20 +462,101 @@ public class ApplicationLoader extends Application {
         initPushServices();
     }
 
-    private static void startPushServiceInternal(boolean forceFallback) {
-        if (!forceFallback && getPushProvider().hasServices()) {
+    public static void onPushRegistrationStarted(@PushListenerController.PushType int pushType, String token) {
+        Utilities.stageQueue.postRunnable(() -> {
+            int generation = ++pushRegistrationGeneration;
+            if (token == null) {
+                MessagesController.getGlobalNotificationsSettings().edit()
+                        .putBoolean(PREF_PUSH_FALLBACK_ACTIVE, true)
+                        .apply();
+                startPushServiceInternal();
+                return;
+            }
+            if (areAllActiveAccountsRegisteredForPush()) {
+                completePushRegistration();
+                return;
+            }
+
+            MessagesController.getGlobalNotificationsSettings().edit()
+                    .putBoolean(PREF_PUSH_FALLBACK_ACTIVE, true)
+                    .apply();
+            startPushServiceInternal();
+            schedulePushRegistrationCheck(generation, pushType, token, 0);
+        });
+    }
+
+    private static boolean areAllActiveAccountsRegisteredForPush() {
+        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+            UserConfig userConfig = UserConfig.getInstance(account);
+            if (userConfig.getClientUserId() != 0 && !userConfig.registeredForPush) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void schedulePushRegistrationCheck(
+            int generation,
+            @PushListenerController.PushType int pushType,
+            String token,
+            int attempt
+    ) {
+        long delay = PUSH_REGISTRATION_RETRY_DELAYS_MS[
+                Math.min(attempt, PUSH_REGISTRATION_RETRY_DELAYS_MS.length - 1)
+        ];
+        Utilities.stageQueue.postRunnable(
+                () -> checkPushRegistration(generation, pushType, token, attempt),
+                delay
+        );
+    }
+
+    private static void checkPushRegistration(
+            int generation,
+            @PushListenerController.PushType int pushType,
+            String token,
+            int attempt
+    ) {
+        if (generation != pushRegistrationGeneration) {
+            return;
+        }
+        if (areAllActiveAccountsRegisteredForPush()) {
+            completePushRegistration();
             return;
         }
 
-        SharedPreferences globalPreferences = MessagesController.getGlobalNotificationsSettings();
-        globalPreferences.edit()
-                .putBoolean("pushService", true)
-                .putBoolean("pushConnection", true)
+        AndroidUtilities.runOnUIThread(() -> {
+            for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+                UserConfig userConfig = UserConfig.getInstance(account);
+                if (userConfig.getClientUserId() != 0 && !userConfig.registeredForPush) {
+                    MessagesController.getInstance(account).registerForPush(pushType, token);
+                }
+            }
+        });
+        schedulePushRegistrationCheck(generation, pushType, token, attempt + 1);
+    }
+
+    private static void completePushRegistration() {
+        MessagesController.getGlobalNotificationsSettings().edit()
+                .putBoolean(PREF_PUSH_FALLBACK_ACTIVE, false)
+                .apply();
+        if (!shouldKeepPushServiceRunning()) {
+            stopPushServiceInternal();
+        }
+    }
+
+    private static void reconcilePushServiceState() {
+        if (shouldKeepPushServiceRunning()) {
+            startPushServiceInternal();
+        } else {
+            stopPushServiceInternal();
+        }
+    }
+
+    private static void startPushServiceInternal() {
+        MessagesController.getGlobalNotificationsSettings().edit()
+                .putBoolean(PREF_PUSH_SERVICE_RUNTIME, true)
                 .apply();
         for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
-            MessagesController.getNotificationsSettings(account).edit()
-                    .putBoolean("pushConnection", true)
-                    .apply();
             ConnectionsManager.getInstance(account).setPushConnectionEnabled(true);
         }
 
@@ -489,6 +593,34 @@ public class ApplicationLoader extends Application {
                 }
             } catch (Throwable e) {
                 Log.e("TFOSS", "Failed to start local push fallback", e);
+                FileLog.e(e);
+            }
+        });
+    }
+
+    private static void stopPushServiceInternal() {
+        MessagesController.getGlobalNotificationsSettings().edit()
+                .putBoolean(PREF_PUSH_SERVICE_RUNTIME, false)
+                .apply();
+        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+            SharedPreferences accountPreferences =
+                    MessagesController.getNotificationsSettings(account);
+            boolean pushConnection = accountPreferences.getBoolean(
+                    "pushConnection",
+                    false
+            );
+            ConnectionsManager.getInstance(account)
+                    .setPushConnectionEnabled(pushConnection);
+        }
+        AndroidUtilities.runOnUIThread(() -> {
+            Context context = applicationContext;
+            if (context == null) {
+                return;
+            }
+            cancelPushServiceAlarm(context);
+            try {
+                context.stopService(new Intent(context, NotificationsService.class));
+            } catch (Throwable e) {
                 FileLog.e(e);
             }
         });
@@ -535,6 +667,7 @@ public class ApplicationLoader extends Application {
     }
 
     private static void initPushServices() {
+        setAlwaysOnDeliveryEnabled(NaConfig.INSTANCE.getAlwaysOnDelivery().Bool());
         AndroidUtilities.runOnUIThread(() -> {
             if (getPushProvider().hasServices()) {
                 getPushProvider().onRequestPushToken();
@@ -544,7 +677,7 @@ public class ApplicationLoader extends Application {
                 }
                 SharedConfig.pushStringStatus = "__NO_GOOGLE_PLAY_SERVICES__";
                 PushListenerController.sendRegistrationToServer(getPushProvider().getPushType(), null);
-                startPushService();
+                startPushServiceFallback();
             }
         }, 1000);
     }

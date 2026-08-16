@@ -11,6 +11,7 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.authorgram.AuthorGramSpyPolicy;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
@@ -74,7 +75,9 @@ public class LastSeenHelper {
     }
 
     public static void saveLastSeen(int currentAccount, long userId, int timestamp) {
-        if (!NaConfig.INSTANCE.getSaveLocalLastSeen().Bool() || timestamp < MIN_LAST_SEEN_TIMESTAMP) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(userId)
+                || !NaConfig.INSTANCE.getSaveLocalLastSeen().Bool()
+                || timestamp < MIN_LAST_SEEN_TIMESTAMP) {
             return;
         }
         if (UserConfig.getInstance(currentAccount).getClientUserId() == userId) {
@@ -193,7 +196,8 @@ public class LastSeenHelper {
     }
 
     public static int getLastSeen(long userId) {
-        if (!NaConfig.INSTANCE.getSaveLocalLastSeen().Bool()) {
+        if (AuthorGramSpyPolicy.isSpyDisabled(userId)
+                || !NaConfig.INSTANCE.getSaveLocalLastSeen().Bool()) {
             return 0;
         }
         synchronized (cache) {
