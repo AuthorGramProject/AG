@@ -21,6 +21,8 @@ import org.telegram.messenger.PushListenerController;
 
 import java.util.Map;
 
+import xyz.nextalone.nagram.NaConfig;
+
 public class GcmPushListenerService extends FirebaseMessagingService {
 
     @Override
@@ -43,7 +45,11 @@ public class GcmPushListenerService extends FirebaseMessagingService {
                 FileLog.d("Refreshed FCM token: " + token);
             }
             ApplicationLoader.postInitApplication();
-            PushListenerController.sendRegistrationToServer(PushListenerController.PUSH_TYPE_FIREBASE, token);
+            int selectedType = NaConfig.INSTANCE.getPushServiceType().Int();
+            if (selectedType == 1 || selectedType == 3) {
+                ApplicationLoader.stopPushService();
+                PushListenerController.sendRegistrationToServer(PushListenerController.PUSH_TYPE_FIREBASE, token);
+            }
         });
     }
 }
