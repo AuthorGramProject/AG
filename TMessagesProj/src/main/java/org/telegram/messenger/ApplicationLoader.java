@@ -391,60 +391,134 @@ public class ApplicationLoader extends Application {
         ProxyPingController.init();
     }
 
-    // Local Push Service, TFoss implementation
+    // Local push fallback for devices without a working external push provider.
     public static void startPushService() {
-        Utilities.stageQueue.postRunnable(ApplicationLoader::startPushServiceInternal);
+        Utilities.stageQueue.postRunnable(() -> startPushServiceInternal(false));
     }
 
-    private static void startPushServiceInternal() {
-        if (PushListenerController.getProvider().hasServices()) {
-            return;
-        }
-        SharedPreferences preferences = MessagesController.getNotificationsSettings(UserConfig.selectedAccount);
-        boolean enabled;
-        if (preferences.contains("pushService")) {
-            enabled = preferences.getBoolean("pushService", true);
-        } else {
-            enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("pushService", enabled);
-            editor.putBoolean("pushConnection", enabled);
-            editor.apply();
-            ConnectionsManager.getInstance(UserConfig.selectedAccount).setPushConnectionEnabled(enabled);
-        }
-        if (enabled) {
+    /**
+     * Starts the local connection even when Google Play services exist but FCM token
+     * acquisition failed. The resident notification is required by modern Android.
+     */
+    public static void startPushServiceFallback() {
+        Utilities.stageQueue.postRunnable(() -> startPushServiceInternal(true));
+    }
+
+    public static void stopPushService() {
+        Utilities.stageQueue.postRunnable(() -> {
+            SharedPreferences globalPreferences = MessagesController.getGlobalNotificationsSettings();
+            globalPreferences.edit()
+                    .putBoolean("pushService", false)
+                    .putBoolean("pushConnection", false)
+                    .apply();
+            for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+                MessagesController.getNotificationsSettings(account).edit()
+                        .putBoolean("pushConnection", false)
+                        .apply();
+                ConnectionsManager.getInstance(account).setPushConnectionEnabled(false);
+            }
             AndroidUtilities.runOnUIThread(() -> {
+                Context context = applicationContext;
+                if (context == null) {
+                    return;
+                }
+                cancelPushServiceAlarm(context);
                 try {
-                    Log.d("TFOSS", "Starting push service...");
-                    if (NaConfig.INSTANCE.getPushServiceTypeInAppDialog().Bool()) {
-                        applicationContext.startForegroundService(new Intent(applicationContext, NotificationsService.class));
-                    } else {
-                        applicationContext.startService(new Intent(applicationContext, NotificationsService.class));
-                    }
-
-                    Log.d("TFOSS", "Trying to start push service every 10 minutes");
-                    // Telegram-FOSS: unconditionally enable push service
-                    AlarmManager am = (AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
-                    Intent i = new Intent(applicationContext, NotificationsService.class);
-                    pendingIntent = PendingIntent.getBroadcast(applicationContext, 0, i, PendingIntent.FLAG_IMMUTABLE);
-
-                    am.cancel(pendingIntent);
-                    am.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 10 * 60 * 1000, pendingIntent);
+                    context.stopService(new Intent(context, NotificationsService.class));
                 } catch (Throwable e) {
-                    Log.e("TFOSS", "Failed to start push service");
+                    FileLog.e(e);
                 }
             });
+        });
+    }
 
-        } else AndroidUtilities.runOnUIThread(() -> {
-            applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
+    public static void reinitializePushServices() {
+        pushProvider = null;
+        PushListenerController.resetProvider();
+        stopPushService();
+        initPushServices();
+    }
 
-            PendingIntent pintent = PendingIntent.getService(applicationContext, 0, new Intent(applicationContext, NotificationsService.class), PendingIntent.FLAG_MUTABLE);
-            AlarmManager alarm = (AlarmManager)applicationContext.getSystemService(Context.ALARM_SERVICE);
-            alarm.cancel(pintent);
-            if (pendingIntent != null) {
-                alarm.cancel(pendingIntent);
+    private static void startPushServiceInternal(boolean forceFallback) {
+        if (!forceFallback && getPushProvider().hasServices()) {
+            return;
+        }
+
+        SharedPreferences globalPreferences = MessagesController.getGlobalNotificationsSettings();
+        globalPreferences.edit()
+                .putBoolean("pushService", true)
+                .putBoolean("pushConnection", true)
+                .apply();
+        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+            MessagesController.getNotificationsSettings(account).edit()
+                    .putBoolean("pushConnection", true)
+                    .apply();
+            ConnectionsManager.getInstance(account).setPushConnectionEnabled(true);
+        }
+
+        AndroidUtilities.runOnUIThread(() -> {
+            Context context = applicationContext;
+            if (context == null) {
+                return;
+            }
+            try {
+                Intent serviceIntent = new Intent(context, NotificationsService.class);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent);
+                } else {
+                    context.startService(serviceIntent);
+                }
+
+                AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+                if (alarmManager != null) {
+                    cancelPushServiceAlarm(context);
+                    Intent restartIntent = new Intent(context, NotificationsService.class);
+                    int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        pendingIntent = PendingIntent.getForegroundService(context, 0, restartIntent, flags);
+                    } else {
+                        pendingIntent = PendingIntent.getService(context, 0, restartIntent, flags);
+                    }
+                    long interval = 10 * 60 * 1000L;
+                    alarmManager.setInexactRepeating(
+                            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                            SystemClock.elapsedRealtime() + interval,
+                            interval,
+                            pendingIntent
+                    );
+                }
+            } catch (Throwable e) {
+                Log.e("TFOSS", "Failed to start local push fallback", e);
+                FileLog.e(e);
             }
         });
+    }
+
+    private static void cancelPushServiceAlarm(Context context) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager == null) {
+            pendingIntent = null;
+            return;
+        }
+        int flags = PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE;
+        Intent serviceIntent = new Intent(context, NotificationsService.class);
+        PendingIntent servicePendingIntent = PendingIntent.getService(context, 0, serviceIntent, flags);
+        if (servicePendingIntent != null) {
+            alarmManager.cancel(servicePendingIntent);
+            servicePendingIntent.cancel();
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PendingIntent foregroundPendingIntent = PendingIntent.getForegroundService(context, 0, serviceIntent, flags);
+            if (foregroundPendingIntent != null) {
+                alarmManager.cancel(foregroundPendingIntent);
+                foregroundPendingIntent.cancel();
+            }
+        }
+        if (pendingIntent != null) {
+            alarmManager.cancel(pendingIntent);
+            pendingIntent.cancel();
+            pendingIntent = null;
+        }
     }
 
     @Override
