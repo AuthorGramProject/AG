@@ -5344,6 +5344,10 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			);
 		}
 		int type = 0;
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+				&& context.checkSelfPermission(Manifest.permission.MANAGE_OWN_CALLS) == PackageManager.PERMISSION_GRANTED) {
+			type |= ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL;
+		}
 		if (context.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
 			type |= ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA;
 		}
