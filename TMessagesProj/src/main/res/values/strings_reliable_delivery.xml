@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="AlwaysOnDelivery">Always-on delivery</string>
+    <string name="AlwaysOnDeliveryInfo">Uses FCM together with a persistent connection for more reliable messages and calls. This increases battery use and shows an ongoing service notification.</string>
+</resources>

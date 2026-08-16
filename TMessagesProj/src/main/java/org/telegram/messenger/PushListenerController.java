@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import xyz.nextalone.nagram.NaConfig;
 
@@ -48,26 +49,31 @@ public class PushListenerController {
     public @interface PushType {}
 
     public static final int NOTIFICATION_ID = 1;
-    private static CountDownLatch countDownLatch = new CountDownLatch(1);
-
     public static void sendRegistrationToServer(@PushType int pushType, String token) {
         Utilities.stageQueue.postRunnable(() -> {
             ConnectionsManager.setRegId(token, pushType, SharedConfig.pushStringStatus);
             if (token == null) {
                 return;
             }
+
+            boolean tokenChanged = SharedConfig.pushType != pushType || !TextUtils.equals(SharedConfig.pushString, token);
             boolean sendStat = false;
-            if (SharedConfig.pushStringGetTimeStart != 0 && SharedConfig.pushStringGetTimeEnd != 0 && (!SharedConfig.pushStatSent || !TextUtils.equals(SharedConfig.pushString, token))) {
+            if (SharedConfig.pushStringGetTimeStart != 0 && SharedConfig.pushStringGetTimeEnd != 0 && (!SharedConfig.pushStatSent || tokenChanged)) {
                 sendStat = true;
                 SharedConfig.pushStatSent = false;
             }
             SharedConfig.pushString = token;
             SharedConfig.pushType = pushType;
+            SharedConfig.saveConfig();
+
             for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
                 UserConfig userConfig = UserConfig.getInstance(a);
-                userConfig.registeredForPush = false;
-                userConfig.saveConfig(false);
-                if (userConfig.getClientUserId() != 0) {
+                boolean needsRegistration = tokenChanged || !userConfig.registeredForPush;
+                if (tokenChanged) {
+                    userConfig.registeredForPush = false;
+                    userConfig.saveConfig(false);
+                }
+                if (userConfig.getClientUserId() != 0 && needsRegistration) {
                     final int currentAccount = a;
                     if (sendStat) {
                         String tag = pushType == PUSH_TYPE_FIREBASE ? "fcm" : (pushType == PUSH_TYPE_HUAWEI ? "hcm" : "up");
@@ -94,10 +100,12 @@ public class PushListenerController {
                     AndroidUtilities.runOnUIThread(() -> MessagesController.getInstance(currentAccount).registerForPush(pushType, token));
                 }
             }
+            ApplicationLoader.onPushRegistrationStarted(pushType, token);
         });
     }
 
     public static void processRemoteMessage(@PushType int pushType, String data, long time) {
+        final CountDownLatch countDownLatch = new CountDownLatch(1);
         String tag = pushType == PUSH_TYPE_FIREBASE ? "FCM" : (pushType == PUSH_TYPE_HUAWEI ? "HCM" : "UP");
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d(tag + " PRE START PROCESSING");
@@ -132,7 +140,7 @@ public class PushListenerController {
                     byte[] inAuthKeyId = new byte[8];
                     buffer.readBytes(inAuthKeyId, true);
                     if (!Arrays.equals(SharedConfig.pushAuthKeyId, inAuthKeyId)) {
-                        onDecryptError();
+                        onDecryptError(countDownLatch);
                         if (BuildVars.LOGS_ENABLED) {
                             FileLog.d(String.format(Locale.US, tag + " DECRYPT ERROR 2 k1=%s k2=%s, key=%s", Utilities.bytesToHex(SharedConfig.pushAuthKeyId), Utilities.bytesToHex(inAuthKeyId), Utilities.bytesToHex(SharedConfig.pushAuthKey)));
                         }
@@ -147,7 +155,7 @@ public class PushListenerController {
 
                     byte[] messageKeyFull = Utilities.computeSHA256(SharedConfig.pushAuthKey, 88 + 8, 32, buffer.buffer, 24, buffer.buffer.limit());
                     if (!Utilities.arraysEquals(messageKey, 0, messageKeyFull, 8)) {
-                        onDecryptError();
+                        onDecryptError(countDownLatch);
                         if (BuildVars.LOGS_ENABLED) {
                             FileLog.d(String.format(tag + " DECRYPT ERROR 3, key = %s", Utilities.bytesToHex(SharedConfig.pushAuthKey)));
                         }
@@ -1504,7 +1512,7 @@ public class PushListenerController {
                         ConnectionsManager.getInstance(currentAccount).resumeNetworkMaybe();
                         countDownLatch.countDown();
                     } else {
-                        onDecryptError();
+                        onDecryptError(countDownLatch);
                     }
                     if (BuildVars.LOGS_ENABLED) {
                         FileLog.e("error in loc_key = " + loc_key + " json " + jsonString);
@@ -1514,9 +1522,12 @@ public class PushListenerController {
             });
         });
         try {
-            countDownLatch.await();
-        } catch (Throwable ignore) {
-
+            if (!countDownLatch.await(20, TimeUnit.SECONDS) && BuildVars.LOGS_ENABLED) {
+                FileLog.w(tag + " processing timed out; releasing Firebase service");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            FileLog.e(e);
         }
         if (BuildVars.DEBUG_VERSION) {
             FileLog.d("finished " + tag + " service, time = " + (SystemClock.elapsedRealtime() - receiveTime));
@@ -1647,7 +1658,7 @@ public class PushListenerController {
         return null;
     }
 
-    private static void onDecryptError() {
+    private static void onDecryptError(CountDownLatch countDownLatch) {
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
             if (UserConfig.getInstance(a).isClientActivated()) {
                 ConnectionsManager.onInternalPushReceived(a);

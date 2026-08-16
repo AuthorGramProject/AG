@@ -31,6 +31,11 @@ public class NotificationsService extends Service {
     public void onCreate() {
         super.onCreate();
 
+        if (!ApplicationLoader.shouldKeepPushServiceRunning()) {
+            stopSelf();
+            return;
+        }
+
         NotificationManager notificationManager =
                 (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         NotificationChannel channel = new NotificationChannel(
@@ -72,6 +77,10 @@ public class NotificationsService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (!ApplicationLoader.shouldKeepPushServiceRunning()) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         return START_STICKY;
     }
 
@@ -97,8 +106,7 @@ public class NotificationsService extends Service {
     }
 
     private void sendRestartBroadcastIfNeeded() {
-        SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
-        if (!preferences.getBoolean("pushService", false)) {
+        if (!ApplicationLoader.shouldKeepPushServiceRunning()) {
             return;
         }
         Intent intent = new Intent("org.telegram.start");

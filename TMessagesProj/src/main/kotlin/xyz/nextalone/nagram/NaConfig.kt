@@ -427,6 +427,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val alwaysOnDelivery =
+        addConfig(
+            "AlwaysOnDelivery",
+            ConfigItem.configTypeBool,
+            false
+        )
     val pushServiceType =
         addConfig(
             "PushServiceType",

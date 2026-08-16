@@ -70,7 +70,6 @@ public class GooglePushListenerServiceProvider implements PushListenerController
 
                     retryAttempt.set(0);
                     String token = task.getResult();
-                    ApplicationLoader.stopPushService();
                     PushListenerController.sendRegistrationToServer(getPushType(), token);
                     if (BuildVars.LOGS_ENABLED) {
                         FileLog.d("FCM registration token acquired and queued for Telegram registration");

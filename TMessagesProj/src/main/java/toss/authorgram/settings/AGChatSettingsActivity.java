@@ -182,6 +182,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
     private final AbstractConfigCell unreadBadgeOnBackButton = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.unreadBadgeOnBackButton));
     private final AbstractConfigCell sendCommentAfterForwardRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.sendCommentAfterForward));
     private final AbstractConfigCell useChatAttachMediaMenuRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.useChatAttachMediaMenu, getString(R.string.UseChatAttachEnterMenuNotice)));
+    private final AbstractConfigCell alwaysOnDeliveryRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getAlwaysOnDelivery(), getString(R.string.AlwaysOnDeliveryInfo)));
     private final AbstractConfigCell iOSMessageInputFieldRow = appendIOSMessageInputFieldRow();
     private final AbstractConfigCell fixLinkPreviewRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getFixLinkPreview(), "x.com -> fixupx.com"));
     private final AbstractConfigCell disableLinkPreviewByDefaultRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableLinkPreviewByDefault));
@@ -702,6 +703,8 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
                 MediaController.getInstance().recreateProximityWakeLock();
             } else if (key.equals(NekoConfig.showSeconds.getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NaConfig.INSTANCE.getAlwaysOnDelivery().getKey())) {
+                ApplicationLoader.setAlwaysOnDeliveryEnabled((boolean) newValue);
             } else if (key.equals(NaConfig.INSTANCE.getConfirmAllLinks().getKey())) {
                 checkSkipOpenLinkConfirmRows();
             } else if (key.equals(NekoConfig.useChatAttachMediaMenu.getKey())) {
