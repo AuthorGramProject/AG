@@ -7,7 +7,7 @@ Artifact: APK only
 ABI: arm64-v8a
 Signing identity: existing AuthorGram release key restored only inside the GitHub Actions runner from historical Main commit eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369.
 No AAB artifacts.
-Triggered: 2026-08-16 Firebase, background delivery and VoIP reliability fix (Europe/Berlin)
+Triggered: 2026-08-17 Android system AccountManager, Authenticator and Contacts SyncAdapter repair (Europe/Berlin)
+Version code: 6993
 Status context: authorgram/dev-release
-Preflight: package-specific Firebase configuration; active Google FCM provider; token retry with resident remote-messaging fallback; valid service restart PendingIntent; boot/restart receiver; Android 15/16 foreground-service compliance; Xiaomi lock-screen call fallback; phoneCall foreground type; existing AuthorGram camera and protected Dev features retained.
-Reliable delivery build trigger: 2026-08-16
+Preflight: generated account type from APP_PACKAGE; merged Authenticator and SyncAdapter services; stable multi-account identity migration; verified AccountManager creation; contacts sync state; package-specific Firebase configuration; active Google FCM provider; token retry with resident remote-messaging fallback; valid service restart PendingIntent; boot/restart receiver; Android 15/16 foreground-service compliance; existing AuthorGram camera and protected Dev features retained.

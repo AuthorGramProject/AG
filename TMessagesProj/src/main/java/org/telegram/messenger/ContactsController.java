@@ -299,8 +299,10 @@ public class ContactsController extends BaseController {
                     if (hasContactsPermission()) {
                         ApplicationLoader.applicationContext.getContentResolver().registerContentObserver(ContactsContract.Contacts.CONTENT_URI, true, new MyContentObserver());
                     }
-                } catch (Throwable ignore) {
-
+                } catch (Throwable e) {
+                    FileLog.e("AuthorGram contacts: failed to register"
+                            + " Android contacts observer");
+                    FileLog.e(e);
                 }
             });
         }
@@ -392,86 +394,52 @@ public class ContactsController extends BaseController {
     public void checkAppAccount() {
         systemAccount = null;
         Utilities.globalQueue.postRunnable(() -> {
-            AccountManager am = AccountManager.get(ApplicationLoader.applicationContext);
             try {
-                Account[] accounts = am.getAccountsByType(BuildConfig.APPLICATION_ID);
-                for (int a = 0; a < accounts.length; a++) {
-                    Account acc = accounts[a];
-                    boolean found = false;
-                    for (int b = 0; b < UserConfig.MAX_ACCOUNT_COUNT; b++) {
-                        TLRPC.User user = UserConfig.getInstance(b).getCurrentUser();
-                        if (user != null) {
-                            if (acc.name.equals(formatName(user.first_name, user.last_name))) {
-                                if (b == currentAccount) {
-                                    systemAccount = acc;
-                                }
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!found) {
-                        try {
-                            am.removeAccount(accounts[a], null, null);
-                        } catch (Exception ignore) {
-
-                        }
-                    }
-
+                java.util.Map<Long, Account> accounts =
+                        AuthorGramSystemAccountManager.reconcile(
+                                ApplicationLoader.applicationContext
+                        );
+                applySystemAccounts(accounts);
+                if (getUserConfig().isClientActivated()) {
+                    readContacts();
                 }
-            } catch (Throwable ignore) {
-
-            }
-            if (getUserConfig().isClientActivated()) {
-                readContacts();
-                if (systemAccount == null && !NekoConfig.disableSystemAccount.Bool()) {
-                    try {
-                        TLRPC.User user = getUserConfig().getCurrentUser();
-                        systemAccount = new Account(formatName(user.first_name, user.last_name), BuildConfig.APPLICATION_ID);
-                        am.addAccountExplicitly(systemAccount, "", null);
-                    } catch (Exception ignore) {
-
-                    }
-                }
+            } catch (Throwable e) {
+                FileLog.e("AuthorGram AccountManager: checkAppAccount failed"
+                        + " for slot " + currentAccount);
+                FileLog.e(e);
             }
         });
     }
 
     public void deleteUnknownAppAccounts() {
-        try {
-            systemAccount = null;
-            AccountManager am = AccountManager.get(ApplicationLoader.applicationContext);
-            Account[] accounts = am.getAccountsByType(BuildConfig.APPLICATION_ID);
-            for (int a = 0; a < accounts.length; a++) {
-                Account acc = accounts[a];
-                if (NekoConfig.disableSystemAccount.Bool()) {
-                    try {
-                        am.removeAccount(accounts[a], null, null);
-                    } catch (Exception ignore) {
-
-                    }
-                } else {
-                    boolean found = false;
-                    for (int b = 0; b < UserConfig.MAX_ACCOUNT_COUNT; b++) {
-                        TLRPC.User user = UserConfig.getInstance(b).getCurrentUser();
-                        if (user != null) {
-                            if (acc.name.equals(formatName(user.first_name, user.last_name))) {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!found) {
-                        try {
-                            am.removeAccount(accounts[a], null, null);
-                        } catch (Exception ignore) {
-
-                        }
-                    }
-                }
+        Utilities.globalQueue.postRunnable(() -> {
+            try {
+                java.util.Map<Long, Account> accounts =
+                        AuthorGramSystemAccountManager.reconcile(
+                                ApplicationLoader.applicationContext
+                        );
+                applySystemAccounts(accounts);
+            } catch (Throwable e) {
+                FileLog.e("AuthorGram AccountManager:"
+                        + " deleteUnknownAppAccounts failed");
+                FileLog.e(e);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        });
+    }
+
+    private static void applySystemAccounts(
+            java.util.Map<Long, Account> accounts
+    ) {
+        for (int accountSlot = 0;
+                accountSlot < UserConfig.MAX_ACCOUNT_COUNT;
+                accountSlot++) {
+            ContactsController controller = getInstance(accountSlot);
+            UserConfig userConfig = UserConfig.getInstance(accountSlot);
+            long userId = userConfig.getClientUserId();
+            controller.systemAccount =
+                    userConfig.isClientActivated() && userId != 0
+                            ? accounts.get(userId)
+                            : null;
         }
     }
 
@@ -523,31 +491,9 @@ public class ContactsController extends BaseController {
                 contactsBookLoaded = false;
                 lastContactsVersions = "";
                 AndroidUtilities.runOnUIThread(() -> {
-                    AccountManager am = AccountManager.get(ApplicationLoader.applicationContext);
-                    try {
-                        Account[] accounts = am.getAccountsByType(BuildConfig.APPLICATION_ID);
-                        systemAccount = null;
-                        for (int a = 0; a < accounts.length; a++) {
-                            Account acc = accounts[a];
-                            for (int b = 0; b < UserConfig.MAX_ACCOUNT_COUNT; b++) {
-                                TLRPC.User user = UserConfig.getInstance(b).getCurrentUser();
-                                if (user != null) {
-                                    if (acc.name.equals("" + user.id)) {
-                                        am.removeAccount(acc, null, null);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    } catch (Throwable ignore) {
-
-                    }
-                    try {
-                        systemAccount = new Account("" + getUserConfig().getClientUserId(), BuildConfig.APPLICATION_ID);
-                        am.addAccountExplicitly(systemAccount, "", null);
-                    } catch (Exception ignore) {
-
-                    }
+                    // Keep the stable Android account identity. Reconcile instead
+                    // of deleting/recreating it under a different display name.
+                    checkAppAccount();
                     getMessagesStorage().putCachedPhoneBook(new HashMap<>(), false, true);
                     getMessagesStorage().putContacts(new ArrayList<>(), true);
                     phoneBookContacts.clear();
@@ -768,8 +714,10 @@ public class ContactsController extends BaseController {
                 }
                 try {
                     pCur.close();
-                } catch (Exception ignore) {
-
+                } catch (Exception e) {
+                    FileLog.e("AuthorGram contacts: failed to close"
+                            + " contacts cursor");
+                    FileLog.e(e);
                 }
                 pCur = null;
             }
@@ -829,8 +777,10 @@ public class ContactsController extends BaseController {
                 }
                 try {
                     pCur.close();
-                } catch (Exception ignore) {
-
+                } catch (Exception e) {
+                    FileLog.e("AuthorGram contacts: failed to close"
+                            + " contacts cursor");
+                    FileLog.e(e);
                 }
                 pCur = null;
             }
@@ -2265,8 +2215,10 @@ public class ContactsController extends BaseController {
             try {
                 Uri rawContactUri = ContactsContract.RawContacts.CONTENT_URI.buildUpon().appendQueryParameter(ContactsContract.CALLER_IS_SYNCADAPTER, "true").appendQueryParameter(ContactsContract.RawContacts.ACCOUNT_NAME, systemAccount.name).appendQueryParameter(ContactsContract.RawContacts.ACCOUNT_TYPE, systemAccount.type).build();
                 int value = contentResolver.delete(rawContactUri, ContactsContract.RawContacts.SYNC2 + " = " + user.id, null);
-            } catch (Exception ignore) {
-
+            } catch (Exception e) {
+                FileLog.e("AuthorGram contacts: failed to remove stale"
+                        + " raw contact");
+                FileLog.e(e);
             }
         }
 

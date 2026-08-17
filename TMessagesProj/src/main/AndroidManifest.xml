@@ -204,7 +204,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <data android:mimeType="vnd.android.cursor.item/vnd.toss.authorgram.apk.android.profile"/>
+                <data android:mimeType="${authorGramProfileMimeType}"/>
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
@@ -251,8 +251,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <data android:mimeType="vnd.android.cursor.item/vnd.toss.authorgram.apk.android.call"/>
-                <data android:mimeType="vnd.android.cursor.item/vnd.toss.authorgram.apk.android.call.video"/>
+                <data android:mimeType="${authorGramCallMimeType}"/>
+                <data android:mimeType="${authorGramVideoCallMimeType}"/>
             </intent-filter>
         </activity-alias>
         <activity

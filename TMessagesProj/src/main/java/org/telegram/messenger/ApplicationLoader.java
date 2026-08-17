@@ -336,8 +336,9 @@ public class ApplicationLoader extends Application {
 
             // AUTHORGRAM_APPLY_DEFAULT_SETTINGS
             org.telegram.messenger.authorgram.AuthorGramDefaults.apply(applicationContext);
-        } catch (Throwable ignore) {
-
+        } catch (Throwable e) {
+            FileLog.e("AuthorGram AccountManager: defaults migration failed");
+            FileLog.e(e);
         }
 
         super.onCreate();

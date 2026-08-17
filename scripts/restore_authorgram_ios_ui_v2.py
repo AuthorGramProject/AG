@@ -124,7 +124,7 @@ def patch_defaults() -> bool:
         )
         changed = True
 
-    reset_call = "        resetUiConfigPreservingCredentials(context);\n\n"
+    reset_call = "        resetUiConfigPreservingCredentials(context);\n"
     if reset_call not in text:
         anchor = (
             "        if (AuthorGramPlayPolicy.isPlayBuild()) {\n"
@@ -132,7 +132,23 @@ def patch_defaults() -> bool:
             "            return;\n"
             "        }\n\n"
         )
-        text = replace_once(text, anchor, anchor + reset_call, "AuthorGramDefaults migration call")
+        text = replace_once(
+            text,
+            anchor,
+            anchor + reset_call + "\n",
+            "AuthorGramDefaults migration call",
+        )
+        changed = True
+
+    system_account_default_false = '                {"DisableSystemAccount", false},\n'
+    system_account_default_true = '                {"DisableSystemAccount", true},\n'
+    if system_account_default_false not in text:
+        text = replace_once(
+            text,
+            system_account_default_true,
+            system_account_default_false,
+            "AuthorGramDefaults system account default",
+        )
         changed = True
 
     ios_input_default = '                {"iOSMessageInputField", true},\n'
@@ -328,6 +344,9 @@ def validate() -> None:
     for marker in (
         "AUTHORGRAM_UI_CONFIG_EPOCH_20260810",
         "resetUiConfigPreservingCredentials(context);",
+        "AUTHORGRAM_SYSTEM_ACCOUNT_DEFAULT_EPOCH_20260817",
+        "migrateSystemAccountDefault(context);",
+        '{"DisableSystemAccount", false}',
         '{"iOSMessageInputField", true}',
         '{"iOSMessageMenu", true}',
     ):

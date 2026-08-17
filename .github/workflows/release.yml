@@ -21,13 +21,13 @@ jobs:
     name: Build verified AuthorGram+ Dev APK
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'Run AuthorGram+ dev release'
+      github.event.head_commit.message == 'Release Android system account fix for AuthorGram+'
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
       DEV_PACKAGE: fork.risin42.nagramx
       VERSION_NAME: 12.9.2
-      VERSION_CODE: '6992'
+      VERSION_CODE: '6993'
       NATIVE_TARGET: arm64-v8a
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
@@ -133,6 +133,18 @@ jobs:
           grep -Fq 'getEnableSaveEditsHistory' TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java
           grep -Fq 'public static final String PLAY_PACKAGE = "toss.authorgram.apk";' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramPlayPolicy.java
           grep -Fq 'defaultConfig.applicationId = APP_PACKAGE' TMessagesProj/build.gradle
+          grep -Fq 'resValues = true' TMessagesProj/build.gradle
+          grep -Fq "resValue 'string', 'authorgram_account_type', APP_PACKAGE" TMessagesProj/build.gradle
+          grep -Fq 'android:accountType="@string/authorgram_account_type"' TMessagesProj/src/main/res/xml/auth.xml
+          grep -Fq 'android:accountType="@string/authorgram_account_type"' TMessagesProj/src/main/res/xml/sync_contacts.xml
+          grep -Fq 'android:targetPackage="@string/authorgram_account_type"' TMessagesProj/src/main/res/xml/auth_menu.xml
+          ! grep -Fq 'android:accountType="toss.authorgram.apk"' TMessagesProj/src/main/res/xml/auth.xml
+          ! grep -Fq 'android:accountType="toss.authorgram.apk"' TMessagesProj/src/main/res/xml/sync_contacts.xml
+          grep -Fq '{"DisableSystemAccount", false}' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramDefaults.java
+          grep -Fq 'Account creation result = ' TMessagesProj/src/main/java/org/telegram/messenger/AuthorGramSystemAccountManager.java
+          grep -Fq 'Account verified after creation = ' TMessagesProj/src/main/java/org/telegram/messenger/AuthorGramSystemAccountManager.java
+          grep -Fq 'setIsSyncable(account, CONTACTS_AUTHORITY, 1)' TMessagesProj/src/main/java/org/telegram/messenger/AuthorGramSystemAccountManager.java
+          grep -Fq 'setSyncAutomatically(' TMessagesProj/src/main/java/org/telegram/messenger/AuthorGramSystemAccountManager.java
           grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
           grep -Fq 'private final int DO_UPDATE_CAMERAX_SCALE = 5;' TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java
           grep -Fq 'cameraThread.updateCameraXScale();' TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java
@@ -220,6 +232,20 @@ jobs:
           grep -Fq "application-label:'AuthorGram+'" <<<"${BADGING}"
           ! grep -q '^application-debuggable' <<<"${BADGING}"
 
+          MANIFEST_TREE="$("${AAPT}" dump xmltree "${APK}" AndroidManifest.xml)"
+          grep -Fq 'org.telegram.messenger.AuthenticatorService' <<<"${MANIFEST_TREE}"
+          grep -Fq 'org.telegram.messenger.ContactsSyncAdapterService' <<<"${MANIFEST_TREE}"
+          grep -Fq 'android.accounts.AccountAuthenticator' <<<"${MANIFEST_TREE}"
+          grep -Fq 'android.content.SyncAdapter' <<<"${MANIFEST_TREE}"
+          grep -Fq 'org.telegram.messenger.GcmPushListenerService' <<<"${MANIFEST_TREE}"
+          grep -Fq 'com.google.firebase.MESSAGING_EVENT' <<<"${MANIFEST_TREE}"
+          grep -Fq "vnd.android.cursor.item/vnd.${DEV_PACKAGE}.android.profile" <<<"${MANIFEST_TREE}"
+          grep -Fq "vnd.android.cursor.item/vnd.${DEV_PACKAGE}.android.call" <<<"${MANIFEST_TREE}"
+          ! grep -Fq 'vnd.android.cursor.item/vnd.toss.authorgram.apk.android.profile' <<<"${MANIFEST_TREE}"
+
+          ACCOUNT_RESOURCE="$("${AAPT}" dump resources "${APK}" | grep -A 20 -F 'string/authorgram_account_type')"
+          grep -Fq "${DEV_PACKAGE}" <<<"${ACCOUNT_RESOURCE}"
+
           PERMISSIONS="$(${AAPT} dump permissions "${APK}")"
           grep -Fq 'android.permission.REQUEST_INSTALL_PACKAGES' <<<"${PERMISSIONS}"
 
@@ -236,11 +262,11 @@ jobs:
             exit 1
           fi
 
-          DEST="${RUNNER_TEMP}/authorgram-plus-dev/AuthorGram+-Dev-v${VERSION_NAME}-release-arm64-v8a.apk"
+          DEST="${RUNNER_TEMP}/authorgram-plus-dev/AuthorGram+-Dev-v${VERSION_NAME}-${VERSION_CODE}-release-arm64-v8a.apk"
           cp "${APK}" "${DEST}"
           (
             cd "${RUNNER_TEMP}/authorgram-plus-dev"
-            sha256sum "AuthorGram+-Dev-v${VERSION_NAME}-release-arm64-v8a.apk" > SHA256SUMS.txt
+            sha256sum "AuthorGram+-Dev-v${VERSION_NAME}-${VERSION_CODE}-release-arm64-v8a.apk" > SHA256SUMS.txt
           )
           SOURCE_COMMIT="$(git rev-parse HEAD)"
           cat > "${RUNNER_TEMP}/authorgram-plus-dev/BUILD.txt" <<EOF
@@ -260,7 +286,7 @@ jobs:
       - name: Upload AuthorGram+ Dev release APK
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram+-12.9.2-Dev-Release-ARM64
+          name: AuthorGram+-12.9.2-6993-Dev-Release-ARM64
           path: ${{ runner.temp }}/authorgram-plus-dev/
           if-no-files-found: error
           retention-days: 30

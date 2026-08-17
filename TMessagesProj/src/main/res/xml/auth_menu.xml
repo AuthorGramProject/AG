@@ -2,11 +2,13 @@
 
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <PreferenceCategory android:title="@string/SettingsNax"/>
-    <PreferenceScreen android:key="account_settings"
+    <PreferenceScreen
+        android:key="account_settings"
         android:title="@string/AccountSettingsNax"
         android:summary="">
-        <intent android:action="org.telegram.messenger.OPEN_ACCOUNT"
-            android:targetPackage="toss.authorgram.apk"
+        <intent
+            android:action="org.telegram.messenger.OPEN_ACCOUNT"
+            android:targetPackage="@string/authorgram_account_type"
             android:targetClass="org.telegram.ui.LaunchActivity"/>
     </PreferenceScreen>
 </PreferenceScreen>

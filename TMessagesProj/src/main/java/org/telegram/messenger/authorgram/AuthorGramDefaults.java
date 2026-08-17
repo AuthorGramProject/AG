@@ -6,12 +6,16 @@ import android.content.SharedPreferences;
 /**
  * First-run AuthorGram defaults.
  *
- * Existing user choices are never overwritten.
+ * Existing user choices are preserved after explicit one-time migrations.
  */
 public final class AuthorGramDefaults {
 
     private static final String UI_CONFIG_RESET_MARKER =
             "AUTHORGRAM_UI_CONFIG_EPOCH_20260810";
+
+    private static final String SYSTEM_ACCOUNT_DEFAULT_MIGRATION_MARKER =
+            "AUTHORGRAM_SYSTEM_ACCOUNT_DEFAULT_EPOCH_20260817";
+    private static final String NEKO_PREFERENCES = "nkmrcfg";
 
     private AuthorGramDefaults() {
     }
@@ -25,10 +29,12 @@ public final class AuthorGramDefaults {
 
         if (AuthorGramPlayPolicy.isPlayBuild()) {
             AuthorGramPlayPolicy.applyStartupPolicy(context);
+            migrateSystemAccountDefault(context);
             return;
         }
 
         resetUiConfigPreservingCredentials(context);
+        migrateSystemAccountDefault(context);
 
         applyDefaults(
                 context,
@@ -74,7 +80,7 @@ public final class AuthorGramDefaults {
                 {"staticZoom", true},
                 {"DoubleTapAction", 1},
                 {"RegexFiltersEnableInChats", true},
-                {"DisableSystemAccount", true},
+                {"DisableSystemAccount", false},
                 {"ShowTimeHint", true},
                 {"showChangePermissions", false},
                 {"DrawerItemNewGroup", false},
@@ -225,6 +231,29 @@ public final class AuthorGramDefaults {
                 {"activePills", ""}
                 }
         );
+    }
+
+    /**
+     * One-time repair for installations that inherited the historical broken
+     * true default. Later user changes are preserved by the migration marker.
+     */
+    private static void migrateSystemAccountDefault(Context context) {
+        SharedPreferences preferences =
+                context.getSharedPreferences(NEKO_PREFERENCES, Context.MODE_PRIVATE);
+        if (preferences.getBoolean(
+                SYSTEM_ACCOUNT_DEFAULT_MIGRATION_MARKER,
+                false
+        )) {
+            return;
+        }
+        SharedPreferences.Editor editor = preferences.edit()
+                .putBoolean("DisableSystemAccount", false)
+                .putBoolean(SYSTEM_ACCOUNT_DEFAULT_MIGRATION_MARKER, true);
+        if (!editor.commit()) {
+            throw new IllegalStateException(
+                    "Unable to persist AuthorGram system account migration"
+            );
+        }
     }
 
     /**
