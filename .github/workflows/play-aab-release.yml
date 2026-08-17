@@ -23,7 +23,7 @@ jobs:
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.9.2
-      VERSION_CODE: '6996'
+      VERSION_CODE: '6997'
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
@@ -186,6 +186,18 @@ jobs:
           grep -Fq "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
           grep -Fq "def authorGramSystemKeyHex = ''" TMessagesProj/build.gradle
           grep -Fq "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'" TMessagesProj/build.gradle
+          grep -Fq 'resValues = true' TMessagesProj/build.gradle
+          grep -Fq "resValue 'string', 'authorgram_account_type', APP_PACKAGE" TMessagesProj/build.gradle
+          grep -Fq 'android:accountType="@string/authorgram_account_type"' TMessagesProj/src/main/res/xml/auth.xml
+          grep -Fq 'android:accountType="@string/authorgram_account_type"' TMessagesProj/src/main/res/xml/sync_contacts.xml
+          grep -Fq 'android:targetPackage="@string/authorgram_account_type"' TMessagesProj/src/main/res/xml/auth_menu.xml
+          ! grep -Fq 'android:accountType="toss.authorgram.apk"' TMessagesProj/src/main/res/xml/auth.xml
+          ! grep -Fq 'android:accountType="toss.authorgram.apk"' TMessagesProj/src/main/res/xml/sync_contacts.xml
+          grep -Fq '{"DisableSystemAccount", false}' TMessagesProj/src/main/java/org/telegram/messenger/authorgram/AuthorGramDefaults.java
+          grep -Fq 'Account creation result = ' TMessagesProj/src/main/java/org/telegram/messenger/AuthorGramSystemAccountManager.java
+          grep -Fq 'Account verified after creation = ' TMessagesProj/src/main/java/org/telegram/messenger/AuthorGramSystemAccountManager.java
+          grep -Fq 'setIsSyncable(account, CONTACTS_AUTHORITY, 1)' TMessagesProj/src/main/java/org/telegram/messenger/AuthorGramSystemAccountManager.java
+          grep -Fq 'setSyncAutomatically(' TMessagesProj/src/main/java/org/telegram/messenger/AuthorGramSystemAccountManager.java
           grep -Fq "def camerax_version = '1.5.3'" TMessagesProj/build.gradle
           test -f TMessagesProj/src/main/java/toss/authorgram/camera/AuthorGramCameraConfig.java
           test -f TMessagesProj/src/main/java/toss/authorgram/camera/AuthorGramCameraXController.java
@@ -318,6 +330,18 @@ jobs:
           grep -Fq 'android:targetSdkVersion="36"' "${MANIFEST}"
           grep -Fq 'com.android.vending.BILLING' "${MANIFEST}"
           ! grep -Fq 'android.permission.REQUEST_INSTALL_PACKAGES' "${MANIFEST}"
+          grep -Fq 'org.telegram.messenger.AuthenticatorService' "${MANIFEST}"
+          grep -Fq 'org.telegram.messenger.ContactsSyncAdapterService' "${MANIFEST}"
+          grep -Fq 'android.accounts.AccountAuthenticator' "${MANIFEST}"
+          grep -Fq 'android.content.SyncAdapter' "${MANIFEST}"
+          grep -Fq 'org.telegram.messenger.GcmPushListenerService' "${MANIFEST}"
+          grep -Fq 'com.google.firebase.MESSAGING_EVENT' "${MANIFEST}"
+          grep -Fq "vnd.android.cursor.item/vnd.${PLAY_PACKAGE}.android.profile" "${MANIFEST}"
+          grep -Fq "vnd.android.cursor.item/vnd.${PLAY_PACKAGE}.android.call" "${MANIFEST}"
+
+          ACCOUNT_RESOURCE="${RUNNER_TEMP}/AuthorGram-Play-account-type.txt"
+          java -jar "${BUNDLETOOL}" dump resources             --bundle="${AAB}"             --resource=string/authorgram_account_type             --values > "${ACCOUNT_RESOURCE}"
+          grep -Fq "${PLAY_PACKAGE}" "${ACCOUNT_RESOURCE}"
 
           CONTENTS="${RUNNER_TEMP}/AuthorGram-Play-AAB-contents.txt"
           unzip -Z1 "${AAB}" > "${CONTENTS}"
@@ -340,8 +364,8 @@ jobs:
         if: env.SOURCE_ONLY != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.9.2-6996-Google-Play-AAB
-          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.9.2-6996-release.aab
+          name: AuthorGram-Play-12.9.2-6997-Google-Play-AAB
+          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.9.2-6997-release.aab
           if-no-files-found: error
           retention-days: 30
 
@@ -349,4 +373,4 @@ jobs:
         if: ${{ always() && env.SOURCE_ONLY != 'true' }}
         shell: bash
         run: rm -f TMessagesProj/release.keystore local.properties
-# Reliable delivery build trigger: 2026-08-16
+# Android system account release trigger: 2026-08-17 versionCode 6997

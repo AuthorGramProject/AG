@@ -21,36 +21,61 @@ import android.os.IBinder;
 
 public class AuthenticatorService extends Service {
 
+    private Authenticator authenticator;
+
     private static class Authenticator extends AbstractAccountAuthenticator {
 
-        public Authenticator(Context context) {
+        Authenticator(Context context) {
             super(context);
         }
 
         @Override
-        public Bundle addAccount(AccountAuthenticatorResponse response, String accountType, String authTokenType, String[] requiredFeatures, Bundle options)
-                throws NetworkErrorException {
+        public Bundle addAccount(
+                AccountAuthenticatorResponse response,
+                String accountType,
+                String authTokenType,
+                String[] requiredFeatures,
+                Bundle options
+        ) throws NetworkErrorException {
+            FileLog.d("AuthorGram AccountManager: external addAccount request for type = "
+                    + accountType);
             return null;
         }
 
         @Override
-        public Bundle getAccountRemovalAllowed(AccountAuthenticatorResponse response, Account account) throws NetworkErrorException {
+        public Bundle getAccountRemovalAllowed(
+                AccountAuthenticatorResponse response,
+                Account account
+        ) throws NetworkErrorException {
+            FileLog.d("AuthorGram AccountManager: account removal requested for type = "
+                    + (account == null ? "null" : account.type));
             return super.getAccountRemovalAllowed(response, account);
         }
 
         @Override
-        public Bundle confirmCredentials(AccountAuthenticatorResponse response, Account account, Bundle options) throws NetworkErrorException {
+        public Bundle confirmCredentials(
+                AccountAuthenticatorResponse response,
+                Account account,
+                Bundle options
+        ) throws NetworkErrorException {
             return null;
         }
 
         @Override
-        public Bundle editProperties(AccountAuthenticatorResponse response, String accountType) {
+        public Bundle editProperties(
+                AccountAuthenticatorResponse response,
+                String accountType
+        ) {
             return null;
         }
 
         @Override
-        public Bundle getAuthToken(AccountAuthenticatorResponse response, Account account, String authTokenType, Bundle options)
-                throws NetworkErrorException {
+        public Bundle getAuthToken(
+                AccountAuthenticatorResponse response,
+                Account account,
+                String authTokenType,
+                Bundle options
+        ) throws NetworkErrorException {
             return null;
         }
 
@@ -60,36 +85,46 @@ public class AuthenticatorService extends Service {
         }
 
         @Override
-        public Bundle hasFeatures(AccountAuthenticatorResponse response,
-                                  Account account, String[] features)
-                throws NetworkErrorException {
+        public Bundle hasFeatures(
+                AccountAuthenticatorResponse response,
+                Account account,
+                String[] features
+        ) throws NetworkErrorException {
             return null;
         }
 
         @Override
-        public Bundle updateCredentials(AccountAuthenticatorResponse response, Account account, String authTokenType, Bundle options)
-                throws NetworkErrorException {
+        public Bundle updateCredentials(
+                AccountAuthenticatorResponse response,
+                Account account,
+                String authTokenType,
+                Bundle options
+        ) throws NetworkErrorException {
             return null;
         }
-
     }
 
-    private static Authenticator authenticator = null;
-
-    protected Authenticator getAuthenticator() {
-        if (authenticator == null) {
-            authenticator = new Authenticator(this);
-        }
-        return authenticator;
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        authenticator = new Authenticator(getApplicationContext());
+        FileLog.d("AuthorGram AccountManager: AuthenticatorService created; applicationId = "
+                + BuildConfig.APPLICATION_ID + ", accountType = "
+                + AuthorGramSystemAccountManager.getAccountType(this));
     }
-
 
     @Override
     public IBinder onBind(Intent intent) {
-        if (intent.getAction().equals(AccountManager.ACTION_AUTHENTICATOR_INTENT)) {
-            return getAuthenticator().getIBinder();
-        } else {
+        String action = intent == null ? null : intent.getAction();
+        boolean validAction = AccountManager.ACTION_AUTHENTICATOR_INTENT.equals(action);
+        FileLog.d("AuthorGram AccountManager: AuthenticatorService bind = "
+                + validAction);
+        if (!validAction) {
             return null;
         }
+        if (authenticator == null) {
+            authenticator = new Authenticator(getApplicationContext());
+        }
+        return authenticator.getIBinder();
     }
 }

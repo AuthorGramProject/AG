@@ -121,6 +121,10 @@ if (nativeTarget == 'SKIP') {
 }
 
 android {
+    buildFeatures {
+        resValues = true
+    }
+
     defaultConfig.applicationId = APP_PACKAGE
 
     packaging {
@@ -148,8 +152,21 @@ android {
         versionName verName
         versionCode verCode
         manifestPlaceholders = [
-                authorGramInstallPackagesPermission: authorGramInstallPackagesPermission
+                authorGramInstallPackagesPermission: authorGramInstallPackagesPermission,
+                authorGramProfileMimeType: "vnd.android.cursor.item/vnd.${APP_PACKAGE}.android.profile",
+                authorGramCallMimeType: "vnd.android.cursor.item/vnd.${APP_PACKAGE}.android.call",
+                authorGramVideoCallMimeType: "vnd.android.cursor.item/vnd.${APP_PACKAGE}.android.call.video"
         ]
+
+        // APP_PACKAGE is the single source of truth for applicationId,
+        // Authenticator, SyncAdapter, account settings and contact MIME types.
+        resValue 'string', 'authorgram_account_type', APP_PACKAGE
+        resValue 'string', 'authorgram_contact_profile_mime_type',
+                "vnd.android.cursor.item/vnd.${APP_PACKAGE}.android.profile"
+        resValue 'string', 'authorgram_contact_call_mime_type',
+                "vnd.android.cursor.item/vnd.${APP_PACKAGE}.android.call"
+        resValue 'string', 'authorgram_contact_video_call_mime_type',
+                "vnd.android.cursor.item/vnd.${APP_PACKAGE}.android.call.video"
 
         if (bundleBuildRequested) {
             ndk {
