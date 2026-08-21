@@ -21,6 +21,8 @@ jobs:
       ANDROID_HOME: /home/ubuntu/.android/sdk
 
     steps:
+      - name: Install ARM64 CMake and Ninja
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
       - name: Checkout AGP (Dev) branch
         uses: actions/checkout@v4
         with:
@@ -44,6 +46,7 @@ jobs:
           chmod 600 TMessagesProj/release.keystore
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+          printf 'cmake.dir=/usr\n' >> local.properties
 
       - name: Build AGP Release APK
         shell: bash
@@ -77,6 +80,7 @@ jobs:
           chmod 600 TMessagesProj/release.keystore
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+          printf 'cmake.dir=/usr\n' >> local.properties
 
       - name: Build PM Release APK
         shell: bash
