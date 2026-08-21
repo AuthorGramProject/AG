@@ -18,6 +18,7 @@ jobs:
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
       GH_TOKEN: ${{ github.token }}
+      ANDROID_HOME: /home/ubuntu/.android/sdk
 
     steps:
       - name: Checkout AGP (Dev) branch
