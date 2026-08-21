@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="NekoSettings">Настройки N</string>
+    <string name="NekoSettings">Настройки AuthorGram+</string>
     <string name="IPv6">Предпочитать IPv6</string>
     <string name="MessageMenu">Меню сообщений</string>
     <string name="HidePhone">Скрыть номер телефона</string>
@@ -109,7 +109,7 @@
     <string name="DatacenterStatus">Состояние дата-центров</string>
     <string name="enhancedFileLoader">Увеличить скорость загрузки</string>
     <string name="MapProviderOpenFreeMap">Использовать OpenFreeMap вместо Google Карт</string>
-    <string name="UnknownNekoSettingsOption">В «Настройках N» нет такой опции.</string>
+    <string name="UnknownNekoSettingsOption">В «Настройках AuthorGram+» нет такой опции.</string>
     <string name="PasscodeNeeded">Сначала необходимо включить блокировку паролем</string>
     <string name="PasscodeNeko">Пароль</string>
     <string name="PasscodeShowInSettings">Показывать в «Настройках N»</string>

@@ -6,6 +6,7 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.NotificationCenter;
 
 import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 
@@ -40,7 +41,7 @@ public abstract class PillStackConfig {
     public static String btcTargetCurrency;
     public static String usdTargetCurrency;
 
-    public static ArrayList<Integer> activePills = new ArrayList<>();
+    public static CopyOnWriteArrayList<Integer> activePills = new CopyOnWriteArrayList<>();
     public static ArrayList<Integer> hiddenPills = new ArrayList<>();
 
     private static final boolean[] lastSeenPeriodicOnline = new boolean[16];

@@ -18,9 +18,11 @@ import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
 
 import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -31,11 +33,11 @@ import xyz.nextalone.nagram.NaConfig;
 
 public class AGFilter {
     private static final Object cacheLock = new Object();
-    private static volatile ArrayList<FilterModel> filterModels;
+    private static volatile CopyOnWriteArrayList<FilterModel> filterModels;
     private static volatile ArrayList<ChatFilterEntry> chatFilterEntries;
     private static volatile HashSet<Long> excludedDialogs;
     private static volatile ArrayList<ExcludedFilterEntry> excludedFilterEntries;
-    private static volatile HashMap<Long, HashSet<String>> excludedSharedFilterIdsByDialog;
+    private static volatile ConcurrentHashMap<Long, HashSet<String>> excludedSharedFilterIdsByDialog;
     private static volatile HashSet<Long> blockedChannels;
     private static volatile HashSet<Long> customFilteredUsers;
     private static volatile HashMap<Long, CustomFilteredUser> customFilteredUsersData;
@@ -62,7 +64,7 @@ public class AGFilter {
                             NaConfig.INSTANCE.getRegexFiltersData().setConfigString(new Gson().toJson(filterModels));
                         }
                     } else {
-                        filterModels = new ArrayList<>();
+                        filterModels = new CopyOnWriteArrayList<>();
                     }
                 }
             }
