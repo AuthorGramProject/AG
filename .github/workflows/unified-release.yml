@@ -22,7 +22,19 @@ jobs:
 
     steps:
       - name: Install ARM64 CMake and Ninja
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+        run: |
+          sudo sed -i 's/^deb http:\/\/ports.ubuntu.com/deb [arch=arm64] http:\/\/ports.ubuntu.com/g' /etc/apt/sources.list
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/amd64.list
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/amd64.list
+          echo "deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/amd64.list
+          sudo dpkg --add-architecture amd64 && (sudo apt-get update || true) && sudo apt-get install -y libc6:amd64 libncurses5:amd64 libstdc++6:amd64 zlib1g:amd64
+          sudo mkdir -p /lib64 && sudo ln -s /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2 || true
+          (sudo apt-get update || true) && sudo apt-get install -y cmake ninja-build qemu-user-static binfmt-support
+          NDK_PATH="${ANDROID_HOME}/ndk/27.2.12479018/toolchains/llvm/prebuilt"
+          if [ -d "$NDK_PATH/linux-aarch64" ] && [ ! -d "$NDK_PATH/linux-x86_64" ]; then
+            ln -s linux-aarch64 "$NDK_PATH/linux-x86_64"
+            echo "Symlinked linux-aarch64 to linux-x86_64 for NDK"
+          fi
       - name: Checkout AGP (Dev) branch
         uses: actions/checkout@v4
         with:
