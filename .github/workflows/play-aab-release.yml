@@ -18,7 +18,7 @@ concurrency:
 jobs:
   release:
     name: Build one verified Google Play AAB
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted
     timeout-minutes: 240
     env:
       PLAY_PACKAGE: toss.authorgram.apk
@@ -297,7 +297,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:bundleRelease
+          NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:assembleRelease
 
       - name: Verify and stage the single Play AAB
         if: env.SOURCE_ONLY != 'true'
