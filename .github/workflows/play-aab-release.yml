@@ -284,9 +284,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -f TMessagesProj/release.keystore
-          meta="$(gh api -H 'Accept: application/vnd.github+json' "/repos/${GITHUB_REPOSITORY}/contents/TMessagesProj/release.keystore?ref=${HISTORICAL_SIGNING_COMMIT}")"
-          [[ "$(jq -r '.sha' <<<"${meta}")" == "${HISTORICAL_KEYSTORE_BLOB}" ]]
-          jq -r '.content' <<<"${meta}" | tr -d '\n' | base64 --decode > TMessagesProj/release.keystore
+          curl -sSL -H "Authorization: token ${GH_TOKEN}" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${HISTORICAL_SIGNING_COMMIT}/TMessagesProj/release.keystore" > TMessagesProj/release.keystore
           test -s TMessagesProj/release.keystore
           chmod 600 TMessagesProj/release.keystore
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
