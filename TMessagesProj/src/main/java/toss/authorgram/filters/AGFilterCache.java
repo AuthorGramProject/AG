@@ -85,18 +85,6 @@ final class AGFilterCache {
         }
     }
 
-    static void invalidateGroup(long dialogId, long groupId) {
-        if (groupId == 0) {
-            return;
-        }
-        LruCache<Long, Boolean> grpCache = groupCaches.get(dialogId);
-        if (grpCache != null) {
-            synchronized (grpCache) {
-                grpCache.remove(groupId);
-            }
-        }
-    }
-
     static void clearDialog(long dialogId) {
         messageCaches.remove(dialogId);
         groupCaches.remove(dialogId);
