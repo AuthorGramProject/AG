@@ -15,7 +15,6 @@ public abstract class PillStackConfig {
 
     public static final int PILL_STACK_HEIGHT = 34;
 
-    public enum PillType {
         WEATHER(1),
         TON(2),
         BTC(3),
