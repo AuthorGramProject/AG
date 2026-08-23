@@ -6,11 +6,14 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.NotificationCenter;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 
 public abstract class PillStackConfig {
+
+    public static final int PILL_STACK_HEIGHT = 34;
 
     public enum PillType {
         WEATHER(1),
@@ -76,7 +79,7 @@ public abstract class PillStackConfig {
         return list;
     }
 
-    private static String serializePillsList(ArrayList<Integer> list) {
+    private static String serializePillsList(List<Integer> list) {
         if (list == null || list.isEmpty()) {
             return "";
         }
@@ -114,10 +117,10 @@ public abstract class PillStackConfig {
             String activeStr = sp.getString("activePills", null);
             String hiddenStr = sp.getString("hiddenPills", null);
             if (activeStr != null) {
-                activePills = parsePillsList(activeStr);
+                activePills = new CopyOnWriteArrayList<>(parsePillsList(activeStr));
                 hiddenPills = hiddenStr != null ? parsePillsList(hiddenStr) : new ArrayList<>();
             } else {
-                activePills = new ArrayList<>();
+                activePills = new CopyOnWriteArrayList<>();
                 hiddenPills = new ArrayList<>();
                 activePills.addAll(getDefaultActivePills());
                 for (PillRegistry.PillInfo info : PillRegistry.getRegisteredPills()) {

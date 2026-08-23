@@ -69,7 +69,7 @@ public class AGFilter {
                 }
             }
         }
-        return filterModels;
+        return filterModels == null ? new ArrayList<>() : new ArrayList<>(filterModels);
     }
 
     public static void addFilter(String text, boolean caseInsensitive) {
@@ -534,8 +534,8 @@ public class AGFilter {
         return excludedFilterEntries;
     }
 
-    private static HashMap<Long, HashSet<String>> buildExcludedSharedFilterIdsMap(ArrayList<ExcludedFilterEntry> entries) {
-        HashMap<Long, HashSet<String>> result = new HashMap<>();
+    private static ConcurrentHashMap<Long, HashSet<String>> buildExcludedSharedFilterIdsMap(ArrayList<ExcludedFilterEntry> entries) {
+        ConcurrentHashMap<Long, HashSet<String>> result = new ConcurrentHashMap<>();
         if (entries == null) {
             return result;
         }
@@ -548,7 +548,7 @@ public class AGFilter {
         return result;
     }
 
-    private static HashMap<Long, HashSet<String>> getExcludedSharedFilterIdsByDialog() {
+    private static ConcurrentHashMap<Long, HashSet<String>> getExcludedSharedFilterIdsByDialog() {
         if (excludedSharedFilterIdsByDialog == null) {
             synchronized (cacheLock) {
                 if (excludedSharedFilterIdsByDialog == null) {

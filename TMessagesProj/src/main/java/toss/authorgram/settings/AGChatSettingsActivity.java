@@ -583,7 +583,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         return context != null ? context : ApplicationLoader.applicationContext;
     }
 
-    private void syncAyuCameraRows() { return; 
+    private void syncAyuCameraRows() { /* 
         boolean useCamera2 = isUsingCamera2Setting();
         Context context = getCameraCapabilityContext();
         if (useCamera2 && !DualCameraView.dualAvailableStatic(context)) {
@@ -602,7 +602,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
             removeIfPresent(rememberLastUsedCameraRow);
         }
         rebuildVisibleCameraExtensionRows();
-    }
+    */}
 
     private void rebuildVisibleCameraExtensionRows() {
         if (!(cameraExtensionsRow instanceof ConfigCellTextCheck2 row) || row.isCollapsed() || !cellGroup.rows.contains(cameraExtensionsRow)) {
@@ -642,7 +642,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         return count;
     }
 
-    private void syncAyuCameraRowsAnimated() { return; 
+    private void syncAyuCameraRowsAnimated() { /* 
         boolean useCamera2 = isUsingCamera2Setting();
         Context context = getCameraCapabilityContext();
         if (useCamera2 && !DualCameraView.dualAvailableStatic(context)) {
@@ -675,7 +675,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
             addRowsToMap(cellGroup);
             listAdapter.notifyItemChanged(cameraTypeIndex);
         }
-    }
+    }*/
 
     private void addAfterIfMissing(AbstractConfigCell row, AbstractConfigCell anchor) {
         if (cellGroup.rows.contains(row)) {
