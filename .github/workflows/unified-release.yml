@@ -11,7 +11,7 @@ jobs:
   build:
     name: Build Both AuthorGram+ and Play Market APKs
     runs-on: self-hosted
-    timeout-minutes: 240
+    timeout-minutes: 720
     env:
       VERSION_NAME: 12.9.2
       NATIVE_TARGET: arm64-v8a
