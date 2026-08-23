@@ -62,7 +62,7 @@ jobs:
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
                     printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
           printf 'cmake.dir=/usr\n' >> local.properties
-          printf 'org.gradle.caching=true\norg.gradle.daemon=true\norg.gradle.parallel=true\norg.gradle.configuration-cache=true\n' > gradle.properties
+          printf 'org.gradle.caching=true\norg.gradle.daemon=true\norg.gradle.parallel=true\norg.gradle.configuration-cache=true\n' >> gradle.properties
 
       - name: Build AGP Release APK
         shell: bash
@@ -98,7 +98,7 @@ jobs:
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
                     printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
           printf 'cmake.dir=/usr\n' >> local.properties
-          printf 'org.gradle.caching=true\norg.gradle.daemon=true\norg.gradle.parallel=true\norg.gradle.configuration-cache=true\n' > gradle.properties
+          printf 'org.gradle.caching=true\norg.gradle.daemon=true\norg.gradle.parallel=true\norg.gradle.configuration-cache=true\n' >> gradle.properties
 
       - name: Build PM Release APK
         shell: bash
