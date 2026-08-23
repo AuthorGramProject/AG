@@ -19,6 +19,7 @@ jobs:
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
       GH_TOKEN: ${{ github.token }}
       ANDROID_HOME: /home/ubuntu/.android/sdk
+      CCACHE_DIR: /home/ubuntu/.ccache
 
     steps:
       - name: Install ARM64 CMake and Ninja
@@ -29,17 +30,19 @@ jobs:
           echo "deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/amd64.list
           sudo dpkg --add-architecture amd64 && (sudo apt-get update || true) && sudo apt-get install -y libc6:amd64 libncurses5:amd64 libstdc++6:amd64 zlib1g:amd64
           sudo mkdir -p /lib64 && sudo ln -s /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2 || true
-          (sudo apt-get update || true) && sudo apt-get install -y cmake ninja-build qemu-user-static binfmt-support
+          (sudo apt-get update || true) && sudo apt-get install -y cmake ninja-build qemu-user-static binfmt-support ccache
           NDK_PATH="${ANDROID_HOME}/ndk/27.2.12479018/toolchains/llvm/prebuilt"
           if [ -d "$NDK_PATH/linux-aarch64" ] && [ ! -d "$NDK_PATH/linux-x86_64" ]; then
             ln -s linux-aarch64 "$NDK_PATH/linux-x86_64"
             echo "Symlinked linux-aarch64 to linux-x86_64 for NDK"
           fi
+          ccache -M 10G
       - name: Checkout AGP (Dev) branch
         uses: actions/checkout@v4
         with:
           ref: agp
           path: build-agp
+          clean: false
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -57,8 +60,9 @@ jobs:
           test -s TMessagesProj/release.keystore
           chmod 600 TMessagesProj/release.keystore
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
-          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+                    printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
           printf 'cmake.dir=/usr\n' >> local.properties
+          printf 'org.gradle.caching=true\norg.gradle.daemon=true\norg.gradle.parallel=true\norg.gradle.configuration-cache=true\n' > gradle.properties
 
       - name: Build AGP Release APK
         shell: bash
@@ -67,7 +71,7 @@ jobs:
           APP_PACKAGE: fork.risin42.nagramx
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --stacktrace clean TMessagesProj:assembleRelease
+          ./gradlew --stacktrace TMessagesProj:assembleRelease
 
       - name: Save AGP APK
         shell: bash
@@ -80,6 +84,7 @@ jobs:
         with:
           ref: pm
           path: build-pm
+          clean: false
 
       - name: Restore Keystore for PM
         shell: bash
@@ -91,8 +96,9 @@ jobs:
           test -s TMessagesProj/release.keystore
           chmod 600 TMessagesProj/release.keystore
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
-          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+                    printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
           printf 'cmake.dir=/usr\n' >> local.properties
+          printf 'org.gradle.caching=true\norg.gradle.daemon=true\norg.gradle.parallel=true\norg.gradle.configuration-cache=true\n' > gradle.properties
 
       - name: Build PM Release APK
         shell: bash
@@ -101,7 +107,7 @@ jobs:
           APP_PACKAGE: toss.authorgram.apk
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --stacktrace clean TMessagesProj:assembleRelease
+          ./gradlew --stacktrace TMessagesProj:assembleRelease
 
       - name: Save PM APK
         shell: bash
