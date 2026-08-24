@@ -675,7 +675,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
             addRowsToMap(cellGroup);
             listAdapter.notifyItemChanged(cameraTypeIndex);
         }
-    }*/
+    */}
 
     private void addAfterIfMissing(AbstractConfigCell row, AbstractConfigCell anchor) {
         if (cellGroup.rows.contains(row)) {
