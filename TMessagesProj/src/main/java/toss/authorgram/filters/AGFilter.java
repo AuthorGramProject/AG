@@ -104,7 +104,7 @@ public class AGFilter {
         saveFilter(list);
     }
 
-    public static void saveFilter(ArrayList<FilterModel> filterModels1) {
+    public static void saveFilter(java.util.List<FilterModel> filterModels1) {
         var str = new Gson().toJson(filterModels1);
         NaConfig.INSTANCE.getRegexFiltersData().setConfigString(str);
         AGFilter.rebuildCache();
