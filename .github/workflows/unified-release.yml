@@ -104,40 +104,40 @@ jobs:
           # Free up space by deleting the agp build directory before PM starts
           rm -rf build-agp
 
-      - name: Checkout PM (Play Market) branch
-        uses: actions/checkout@v4
-        with:
-          ref: pm
-          path: build-pm
+#       - name: Checkout PM (Play Market) branch
+#         uses: actions/checkout@v4
+#         with:
+#           ref: pm
+#           path: build-pm
 
-      - name: Restore Keystore for PM
-        shell: bash
-        working-directory: build-pm
-        run: |
-          set -euo pipefail
-          rm -f TMessagesProj/release.keystore
-          curl -sSL -H "Authorization: token ${GH_TOKEN}" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369/TMessagesProj/release.keystore" > TMessagesProj/release.keystore
-          test -s TMessagesProj/release.keystore
-          chmod 600 TMessagesProj/release.keystore
-          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
-          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
-          printf 'cmake.dir=/usr\n' >> local.properties
-          printf 'org.gradle.caching=true\norg.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.workers.max=4\norg.gradle.jvmargs=-Xmx3G -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
+#       - name: Restore Keystore for PM
+#         shell: bash
+#         working-directory: build-pm
+#         run: |
+#           set -euo pipefail
+#           rm -f TMessagesProj/release.keystore
+#           curl -sSL -H "Authorization: token ${GH_TOKEN}" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369/TMessagesProj/release.keystore" > TMessagesProj/release.keystore
+#           test -s TMessagesProj/release.keystore
+#           chmod 600 TMessagesProj/release.keystore
+#           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
+#           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+#           printf 'cmake.dir=/usr\n' >> local.properties
+#           printf 'org.gradle.caching=true\norg.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.workers.max=4\norg.gradle.jvmargs=-Xmx3G -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
 
-      - name: Build PM Release APK
-        shell: bash
-        working-directory: build-pm
-        env:
-          APP_PACKAGE: toss.authorgram.apk
-        run: |
-          set -euo pipefail
-          ./gradlew --stacktrace TMessagesProj:assembleRelease
+#       - name: Build PM Release APK
+#         shell: bash
+#         working-directory: build-pm
+#         env:
+#           APP_PACKAGE: toss.authorgram.apk
+#         run: |
+#           set -euo pipefail
+#           ./gradlew --stacktrace TMessagesProj:assembleRelease
 
-      - name: Save PM APK
-        shell: bash
-        run: |
-          cp build-pm/TMessagesProj/build/outputs/apk/release/*.apk unified-outputs/AuthorGram-PlayMarket-Release.apk || true
-          rm -rf build-pm
+#       - name: Save PM APK
+#         shell: bash
+#         run: |
+#           cp build-pm/TMessagesProj/build/outputs/apk/release/*.apk unified-outputs/AuthorGram-PlayMarket-Release.apk || true
+#           rm -rf build-pm
 
       - name: Upload APKs to Artifacts
         uses: actions/upload-artifact@v4
