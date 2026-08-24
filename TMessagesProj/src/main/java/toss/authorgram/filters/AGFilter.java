@@ -49,7 +49,7 @@ public class AGFilter {
                     var str = NaConfig.INSTANCE.getRegexFiltersData().String();
                     FilterModel[] arr = new Gson().fromJson(str, FilterModel[].class);
                     if (arr != null) {
-                        filterModels = new ArrayList<>(Arrays.asList(arr));
+                        filterModels = new CopyOnWriteArrayList<>(Arrays.asList(arr));
                         boolean migrated = false;
                         for (var filter : filterModels) {
                             if (filter.ensureId()) {

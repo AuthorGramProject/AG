@@ -1159,7 +1159,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
                 if (position == cellGroup.rows.indexOf(maxRecentStickerCountRow)) {
                     textCell.setTextAndValue(getString(R.string.maxRecentStickerCount), String.valueOf(NekoConfig.maxRecentStickerCount.Int()), true);
                 } else if (position == cellGroup.rows.indexOf(regexFiltersRow)) {
-                    textCell.setTextAndIcon(getString(R.string.AGRegexFilters), R.drawable.msg_filter, false);
+                    textCell.setTextAndIcon(getString(R.string.AGRegexFilters), R.drawable.msg_bots, false);
                 } else if (position == cellGroup.rows.indexOf(cameraTypeRow)) {
                     textCell.setTextAndValue(
                             getString(R.string.CameraType),
