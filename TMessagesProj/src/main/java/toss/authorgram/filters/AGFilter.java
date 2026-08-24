@@ -50,7 +50,7 @@ public class AGFilter {
                     var str = NaConfig.INSTANCE.getRegexFiltersData().String();
                     FilterModel[] arr = new Gson().fromJson(str, FilterModel[].class);
                     if (arr != null) {
-                        filterModels = new ArrayList<>(Arrays.asList(arr));
+                        filterModels = new java.util.concurrent.CopyOnWriteArrayList<>(Arrays.asList(arr));
                         boolean migrated = false;
                         for (var filter : filterModels) {
                             if (filter.ensureId()) {
@@ -537,8 +537,8 @@ public class AGFilter {
         return excludedFilterEntries;
     }
 
-    private static HashMap<Long, HashSet<String>> buildExcludedSharedFilterIdsMap(ArrayList<ExcludedFilterEntry> entries) {
-        HashMap<Long, HashSet<String>> result = new HashMap<>();
+    private static ConcurrentHashMap<Long, HashSet<String>> buildExcludedSharedFilterIdsMap(ArrayList<ExcludedFilterEntry> entries) {
+        ConcurrentHashMap<Long, HashSet<String>> result = new ConcurrentHashMap<>();
         if (entries == null) {
             return result;
         }
@@ -555,7 +555,7 @@ public class AGFilter {
         if (excludedSharedFilterIdsByDialog == null) {
             synchronized (cacheLock) {
                 if (excludedSharedFilterIdsByDialog == null) {
-                    excludedSharedFilterIdsByDialog = buildExcludedSharedFilterIdsMap(getExcludedFilterEntries());
+                    excludedSharedFilterIdsByDialog = buildExcludedSharedFilterIdsMap((ArrayList<ExcludedFilterEntry>)getExcludedFilterEntries());
                 }
             }
         }

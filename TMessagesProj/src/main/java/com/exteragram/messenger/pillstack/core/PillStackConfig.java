@@ -42,7 +42,7 @@ public abstract class PillStackConfig {
     public static String usdTargetCurrency;
 
     public static CopyOnWriteArrayList<Integer> activePills = new CopyOnWriteArrayList<>();
-    public static ArrayList<Integer> hiddenPills = new ArrayList<>();
+    public static CopyOnWriteArrayList<Integer> hiddenPills = new CopyOnWriteArrayList<>();
 
     private static final boolean[] lastSeenPeriodicOnline = new boolean[16];
 
@@ -59,8 +59,8 @@ public abstract class PillStackConfig {
         return new ArrayList<>();
     }
 
-    private static ArrayList<Integer> parsePillsList(String str) {
-        ArrayList<Integer> list = new ArrayList<>();
+    private static CopyOnWriteArrayList<Integer> parsePillsList(String str) {
+        CopyOnWriteArrayList<Integer> list = new CopyOnWriteArrayList<>();
         if (str == null || str.isEmpty()) {
             return list;
         }
@@ -76,7 +76,7 @@ public abstract class PillStackConfig {
         return list;
     }
 
-    private static String serializePillsList(ArrayList<Integer> list) {
+    private static String serializePillsList(CopyOnWriteArrayList<Integer> list) {
         if (list == null || list.isEmpty()) {
             return "";
         }
@@ -115,10 +115,10 @@ public abstract class PillStackConfig {
             String hiddenStr = sp.getString("hiddenPills", null);
             if (activeStr != null) {
                 activePills = parsePillsList(activeStr);
-                hiddenPills = hiddenStr != null ? parsePillsList(hiddenStr) : new ArrayList<>();
+                hiddenPills = hiddenStr != null ? parsePillsList(hiddenStr) : new CopyOnWriteArrayList<>();
             } else {
-                activePills = new ArrayList<>();
-                hiddenPills = new ArrayList<>();
+                activePills = new CopyOnWriteArrayList<>();
+                hiddenPills = new CopyOnWriteArrayList<>();
                 activePills.addAll(getDefaultActivePills());
                 for (PillRegistry.PillInfo info : PillRegistry.getRegisteredPills()) {
                     if (!activePills.contains(info.id)) {
