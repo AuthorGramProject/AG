@@ -593,7 +593,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         return context != null ? context : ApplicationLoader.applicationContext;
     }
 
-    private void syncAyuCameraRows() { return; 
+    private void syncAyuCameraRows() { 
         boolean useCamera2 = isUsingCamera2Setting();
         Context context = getCameraCapabilityContext();
         if (useCamera2 && !DualCameraView.dualAvailableStatic(context)) {
@@ -652,7 +652,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         return count;
     }
 
-    private void syncAyuCameraRowsAnimated() { return; 
+    private void syncAyuCameraRowsAnimated() { 
         boolean useCamera2 = isUsingCamera2Setting();
         Context context = getCameraCapabilityContext();
         if (useCamera2 && !DualCameraView.dualAvailableStatic(context)) {
