@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 
 public abstract class PillStackConfig {
+    public static final int PILL_STACK_HEIGHT = 44;
 
     public enum PillType {
         WEATHER(1),

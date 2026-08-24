@@ -43,7 +43,7 @@ public class AGFilter {
     private static volatile HashSet<Long> customFilteredUsers;
     private static volatile HashMap<Long, CustomFilteredUser> customFilteredUsersData;
 
-    public static ArrayList<FilterModel> getRegexFilters() {
+    public static java.util.concurrent.CopyOnWriteArrayList<FilterModel> getRegexFilters() {
         if (filterModels == null) {
             synchronized (cacheLock) {
                 if (filterModels == null) {
@@ -551,7 +551,7 @@ public class AGFilter {
         return result;
     }
 
-    private static HashMap<Long, HashSet<String>> getExcludedSharedFilterIdsByDialog() {
+    private static java.util.concurrent.ConcurrentHashMap<Long, java.util.HashSet<String>> getExcludedSharedFilterIdsByDialog() {
         if (excludedSharedFilterIdsByDialog == null) {
             synchronized (cacheLock) {
                 if (excludedSharedFilterIdsByDialog == null) {
