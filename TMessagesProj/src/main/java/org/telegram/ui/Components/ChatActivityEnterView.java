@@ -7842,6 +7842,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     }
 
     public void setReplyingMessageObject(MessageObject messageObject, ChatActivity.ReplyQuote quote, MessageObject replyingTopMessage) {
+        toss.authorgram.features.VoiceTimingHelper.onReplyChanged(this, messageObject);
         boolean animated = parentFragment != null && parentFragment.isForumInViewAsMessagesMode() && this.replyingTopMessage != replyingTopMessage;
         if (messageObject != null) {
             if (botMessageObject == null && botButtonsMessageObject != replyingMessageObject) {
@@ -9152,6 +9153,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
     }
 
     public void checkSendButton(boolean animated) {
+        toss.authorgram.features.VoiceTimingHelper.onFieldTextChanged(this);
         if (editingMessageObject != null || recordingAudioVideo) {
             return;
         }
