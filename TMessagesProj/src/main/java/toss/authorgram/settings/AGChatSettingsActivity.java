@@ -91,23 +91,8 @@ import xyz.nextalone.nagram.helper.DoubleTap;
 public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements NotificationCenter.NotificationCenterDelegate, EmojiHelper.EmojiPacksLoadedListener {
 
     private AbstractConfigCell appendIOSMessageInputFieldRow() {
-        if (AuthorGramPlayPolicy.isPlayBuild()) {
-            return null;
-        }
-        return cellGroup.appendCell(new ConfigCellTextCheck(
-                NekoConfig.iOSMessageInputField,
-                getString(R.string.iOSMessageInputFieldNotice)
-        ));
-    }
-
-    private AbstractConfigCell appendIOSMessageMenuRow() {
-        if (!AuthorGramPlayPolicy.canUseIosUi()) {
-            return null;
-        }
-        return cellGroup.appendCell(new ConfigCellTextCheck(
-                NekoConfig.iOSMessageMenu,
-                getString(R.string.iOSMessageMenuNotice)
-        ));
+        // Google Play always uses Telegram's native composer; do not create a toggle.
+        return null;
     }
 
     @Override
@@ -199,7 +184,6 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
     private final AbstractConfigCell useChatAttachMediaMenuRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.useChatAttachMediaMenu, getString(R.string.UseChatAttachEnterMenuNotice)));
     private final AbstractConfigCell alwaysOnDeliveryRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getAlwaysOnDelivery(), getString(R.string.AlwaysOnDeliveryInfo)));
     private final AbstractConfigCell iOSMessageInputFieldRow = appendIOSMessageInputFieldRow();
-    private final AbstractConfigCell iOSMessageMenuRow = appendIOSMessageMenuRow();
     private final AbstractConfigCell fixLinkPreviewRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getFixLinkPreview(), "x.com -> fixupx.com"));
     private final AbstractConfigCell disableLinkPreviewByDefaultRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableLinkPreviewByDefault));
     private final AbstractConfigCell deleteChatForBothSidesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDeleteChatForBothSides()));
@@ -539,6 +523,12 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
     private final AbstractConfigCell confirmAVRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.confirmAVMessage));
     private final AbstractConfigCell confirmAllLinksRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getConfirmAllLinks(), getString(R.string.ConfirmAllLinksDescription)));
     private final AbstractConfigCell dividerConfirmation = cellGroup.appendCell(new ConfigCellDivider());
+
+    // Regex Filters
+    private final AbstractConfigCell headerFilters = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.AGRegexFilters)));
+    private final AbstractConfigCell regexFiltersRow = cellGroup.appendCell(new ConfigCellCustom("regexFilters", CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL, true));
+    private final AbstractConfigCell regexFiltersInfoRow = cellGroup.appendCell(new ConfigCellTextCheck(null, getString(R.string.AGRegexFiltersInfo), null));
+    private final AbstractConfigCell dividerFilters = cellGroup.appendCell(new ConfigCellDivider());
 
     // Search tag
     private final AbstractConfigCell headerSearchTag = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.SavedTagSearchHint)));
@@ -917,6 +907,8 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
             });
             builder.setNegativeButton(getString(R.string.Cancel), null);
             showDialog(builder.create());
+        } else if (position == cellGroup.rows.indexOf(regexFiltersRow)) {
+            presentFragment(new toss.authorgram.filters.AGFiltersSettingsActivity());
         } else if (position == cellGroup.rows.indexOf(cameraTypeRow)) {
             showSingleChoiceDialog(getParentActivity(), R.string.CameraType, new String[]{"Camera 1", "Camera 2"}, SharedConfig.isUsingCamera2(currentAccount) ? 1 : 0, getResourceProvider(), i -> {
                 boolean useCamera2 = i == 1;
@@ -1166,6 +1158,8 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
             if (holder.itemView instanceof TextSettingsCell textCell) {
                 if (position == cellGroup.rows.indexOf(maxRecentStickerCountRow)) {
                     textCell.setTextAndValue(getString(R.string.maxRecentStickerCount), String.valueOf(NekoConfig.maxRecentStickerCount.Int()), true);
+                } else if (position == cellGroup.rows.indexOf(regexFiltersRow)) {
+                    textCell.setTextAndIcon(getString(R.string.AGRegexFilters), R.drawable.msg_filter, false);
                 } else if (position == cellGroup.rows.indexOf(cameraTypeRow)) {
                     textCell.setTextAndValue(
                             getString(R.string.CameraType),
