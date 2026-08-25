@@ -14,6 +14,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.authorgram.AuthorGramSpyPolicy;
 import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
 
@@ -42,14 +43,14 @@ public class AGFilter {
     private static volatile HashSet<Long> customFilteredUsers;
     private static volatile HashMap<Long, CustomFilteredUser> customFilteredUsersData;
 
-    public static ArrayList<FilterModel> getRegexFilters() {
+    public static java.util.concurrent.CopyOnWriteArrayList<FilterModel> getRegexFilters() {
         if (filterModels == null) {
             synchronized (cacheLock) {
                 if (filterModels == null) {
                     var str = NaConfig.INSTANCE.getRegexFiltersData().String();
                     FilterModel[] arr = new Gson().fromJson(str, FilterModel[].class);
                     if (arr != null) {
-                        filterModels = new CopyOnWriteArrayList<>(Arrays.asList(arr));
+                        filterModels = new java.util.concurrent.CopyOnWriteArrayList<>(Arrays.asList(arr));
                         boolean migrated = false;
                         for (var filter : filterModels) {
                             if (filter.ensureId()) {
@@ -69,7 +70,7 @@ public class AGFilter {
                 }
             }
         }
-        return filterModels == null ? new ArrayList<>() : new ArrayList<>(filterModels);
+        return filterModels;
     }
 
     public static void addFilter(String text, boolean caseInsensitive) {
@@ -103,7 +104,7 @@ public class AGFilter {
         saveFilter(list);
     }
 
-    public static void saveFilter(ArrayList<FilterModel> filterModels1) {
+    public static void saveFilter(java.util.List<FilterModel> filterModels1) {
         var str = new Gson().toJson(filterModels1);
         NaConfig.INSTANCE.getRegexFiltersData().setConfigString(str);
         AGFilter.rebuildCache();
@@ -349,7 +350,8 @@ public class AGFilter {
     }
 
     public static boolean isIgnoredBlockedMessage(MessageObject msg) {
-        if (msg == null || msg.isOutOwner() || msg.isOut() || !NekoConfig.ignoreBlocked.Bool()) {
+        if (msg == null || AuthorGramSpyPolicy.isSpyDisabled(msg.getDialogId())
+                || msg.isOutOwner() || msg.isOut() || !NekoConfig.ignoreBlocked.Bool()) {
             return false;
         }
         if (isBlockedPeer(msg.currentAccount, msg.getFromChatId())) {
@@ -514,7 +516,8 @@ public class AGFilter {
     }
 
     public static boolean isDialogExcluded(long dialogId) {
-        return getExcludedDialogs().contains(dialogId);
+        return AuthorGramSpyPolicy.isSpyDisabled(dialogId)
+                || getExcludedDialogs().contains(dialogId);
     }
 
     public static ArrayList<ExcludedFilterEntry> getExcludedFilterEntries() {
@@ -548,11 +551,11 @@ public class AGFilter {
         return result;
     }
 
-    private static ConcurrentHashMap<Long, HashSet<String>> getExcludedSharedFilterIdsByDialog() {
+    private static java.util.concurrent.ConcurrentHashMap<Long, java.util.HashSet<String>> getExcludedSharedFilterIdsByDialog() {
         if (excludedSharedFilterIdsByDialog == null) {
             synchronized (cacheLock) {
                 if (excludedSharedFilterIdsByDialog == null) {
-                    excludedSharedFilterIdsByDialog = buildExcludedSharedFilterIdsMap(getExcludedFilterEntries());
+                    excludedSharedFilterIdsByDialog = buildExcludedSharedFilterIdsMap((ArrayList<ExcludedFilterEntry>)getExcludedFilterEntries());
                 }
             }
         }
@@ -707,11 +710,16 @@ public class AGFilter {
     }
 
     public static boolean isBlockedChannel(long dialogId) {
-        return NekoConfig.ignoreBlocked.Bool() && getBlockedChannels().contains(dialogId);
+        return !AuthorGramSpyPolicy.isSpyDisabled(dialogId)
+                && NekoConfig.ignoreBlocked.Bool()
+                && getBlockedChannels().contains(dialogId);
     }
 
     public static boolean isCustomFilteredPeer(long peerId) {
-        return NekoConfig.ignoreBlocked.Bool() && peerId > 0L && getCustomFilteredUsers().contains(peerId);
+        return !AuthorGramSpyPolicy.isSpyDisabled(peerId)
+                && NekoConfig.ignoreBlocked.Bool()
+                && peerId > 0L
+                && getCustomFilteredUsers().contains(peerId);
     }
 
     public static void blockPeer(long dialogId) {
