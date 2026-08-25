@@ -8,6 +8,8 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.EditTextCaption;
 
+import xyz.nextalone.nagram.NaConfig;
+
 public class VoiceTimingHelper {
 
     private static boolean isInserting = false;
@@ -34,6 +36,9 @@ public class VoiceTimingHelper {
     public static void onFieldTextChanged(ChatActivityEnterView enterView) {
         if (isInserting || enterView == null) return;
         
+        boolean insertOnType = NaConfig.INSTANCE.getVoiceTimingInsertOnType().Bool();
+        if (!insertOnType) return;
+
         EditTextCaption editField = enterView.getEditField();
         if (editField == null) return;
 
@@ -71,14 +76,20 @@ public class VoiceTimingHelper {
         if (TextUtils.isEmpty(timing) || text.contains(timing)) return;
 
         isInserting = true;
+        boolean suffixMode = NaConfig.INSTANCE.getVoiceTimingSuffixMode().Bool();
         
         try {
             Editable editable = editField.getText();
             if (editable != null) {
-                editable.insert(0, timing + " ");
-                editField.setSelection(editable.length());
+                if (suffixMode) {
+                    editable.insert(editable.length(), " " + timing);
+                    editField.setSelection(editable.length());
+                } else {
+                    editable.insert(0, timing + " ");
+                    editField.setSelection(editable.length());
+                }
             } else {
-                enterView.setFieldText(timing + " " + text);
+                enterView.setFieldText(suffixMode ? (text + " " + timing) : (timing + " " + text));
             }
         } catch (Exception ignore) {
         } finally {
@@ -86,10 +97,32 @@ public class VoiceTimingHelper {
         }
     }
 
+    public static CharSequence onSendMessage(MessageObject replyMsg, CharSequence messageText) {
+        if (replyMsg == null || messageText == null || messageText.toString().trim().isEmpty()) {
+            return messageText;
+        }
+        
+        if (NaConfig.INSTANCE.getVoiceTimingInsertOnType().Bool()) {
+            return messageText; // Handled by typing
+        }
+
+        if (!isValidMediaType(replyMsg)) {
+            return messageText;
+        }
+
+        String timing = buildTiming(replyMsg);
+        if (TextUtils.isEmpty(timing) || messageText.toString().contains(timing)) {
+            return messageText;
+        }
+
+        boolean suffixMode = NaConfig.INSTANCE.getVoiceTimingSuffixMode().Bool();
+        return suffixMode ? (messageText + " " + timing) : (timing + " " + messageText);
+    }
+
     private static boolean isValidMediaType(MessageObject replyMsg) {
-        if (replyMsg.isVoice()) return true;
-        if (replyMsg.isRoundVideo()) return true;
-        if (replyMsg.isMusic()) return true;
+        if (replyMsg.isVoice()) return NaConfig.INSTANCE.getVoiceTimingVoice().Bool();
+        if (replyMsg.isRoundVideo()) return NaConfig.INSTANCE.getVoiceTimingRound().Bool();
+        if (replyMsg.isMusic()) return NaConfig.INSTANCE.getVoiceTimingMusic().Bool();
         return false;
     }
 
@@ -107,7 +140,8 @@ public class VoiceTimingHelper {
             return null; // Only format time if it's actually playing
         }
 
-        if (seconds <= 0) return null; // Ignore 00:00
+        if (seconds < 0) seconds = 0;
+        if (seconds == 0 && NaConfig.INSTANCE.getVoiceTimingIgnoreZeros().Bool()) return null;
 
         long hours = seconds / 3600;
         long minutes = (seconds % 3600) / 60;
@@ -120,6 +154,10 @@ public class VoiceTimingHelper {
             timeStr = String.format("%02d:%02d", minutes, secs);
         }
 
-        return "[" + timeStr + "]";
+        String format = NaConfig.INSTANCE.getVoiceTimingFormat().String();
+        if (format == null || !format.contains("{time}")) {
+            format = "[{time}]";
+        }
+        return format.replace("{time}", timeStr).trim();
     }
 }
