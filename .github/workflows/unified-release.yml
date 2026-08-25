@@ -136,7 +136,7 @@ jobs:
       - name: Save PM APK
         shell: bash
         run: |
-          cp build-pm/TMessagesProj/build/outputs/apk/release/*.apk unified-outputs/AuthorGram-PlayMarket-Release.apk || true
+          mkdir -p unified-outputs && cp build-pm/TMessagesProj/build/outputs/apk/release/*.apk unified-outputs/AuthorGram-PlayMarket-Release.apk || true
           rm -rf build-pm
 
       - name: Upload APKs to Artifacts
