@@ -527,7 +527,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
     // Regex Filters
     private final AbstractConfigCell headerFilters = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.AGRegexFilters)));
     private final AbstractConfigCell regexFiltersRow = cellGroup.appendCell(new ConfigCellCustom("regexFilters", CellGroup.ITEM_TYPE_TEXT_SETTINGS_CELL, true));
-    private final AbstractConfigCell regexFiltersInfoRow = cellGroup.appendCell(new ConfigCellTextCheck(null, getString(R.string.AGRegexFiltersInfo), null));
+    private final AbstractConfigCell regexFiltersInfoRow = cellGroup.appendCell(new ConfigCellCustom("regexFiltersInfo", CellGroup.ITEM_TYPE_TEXT, false));
     private final AbstractConfigCell dividerFilters = cellGroup.appendCell(new ConfigCellDivider());
 
     // Search tag
@@ -1178,6 +1178,9 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
                     textCell.setTextAndValue(getString(R.string.TranscribeProviderOpenAI), "", true);
                 }
             } else if (holder.itemView instanceof TextInfoPrivacyCell textInfoPrivacyCell) {
+                if (position == cellGroup.rows.indexOf(regexFiltersInfoRow)) {
+                    textInfoPrivacyCell.setText(getString(R.string.AGRegexFiltersInfo));
+                }
                 if (position == cellGroup.rows.indexOf(staticZoomInfoRow)) {
                     textInfoPrivacyCell.setText(getString(R.string.StaticZoomInfo));
                 }
