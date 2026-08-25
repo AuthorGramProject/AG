@@ -543,7 +543,7 @@ public class AGFiltersSettingsActivity extends BaseAGXSettingsActivity {
         FiltersImportBottomSheet.Summary s = new FiltersImportBottomSheet.Summary();
         if (parsed == null) return s;
         if (parsed.sharedIncoming != null && !parsed.sharedIncoming.isEmpty()) {
-            java.util.concurrent.CopyOnWriteArrayList<AGFilter.FilterModel> currentShared = AGFilter.getRegexFilters();
+            ArrayList<AGFilter.FilterModel> currentShared = AGFilter.getRegexFilters();
             for (AGFilter.FilterModel in : parsed.sharedIncoming) {
                 boolean exactDuplicate = false;
                 boolean needsUpdate = false;
@@ -655,7 +655,7 @@ public class AGFiltersSettingsActivity extends BaseAGXSettingsActivity {
         if (parsed == null) return;
         long selfUserId = getUserConfig().getClientUserId();
         if (parsed.sharedIncoming != null && !parsed.sharedIncoming.isEmpty()) {
-            java.util.concurrent.CopyOnWriteArrayList<AGFilter.FilterModel> currentShared = AGFilter.getRegexFilters();
+            ArrayList<AGFilter.FilterModel> currentShared = AGFilter.getRegexFilters();
             for (AGFilter.FilterModel in : parsed.sharedIncoming) {
                 boolean found = false;
                 for (int i = 0; i < currentShared.size(); i++) {

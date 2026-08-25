@@ -42,7 +42,7 @@ public class RegexFilterPopup {
     private static ActionBarPopupWindow.ActionBarPopupWindowLayout createPopupLayout(ActionBarPopupWindow.ActionBarPopupWindowLayout layout, ActionBarPopupWindow popupWindow, BaseFragment fragment, Theme.ResourcesProvider resourcesProvider, int filterIdx) {
         layout.setFitItems(true);
 
-        java.util.concurrent.CopyOnWriteArrayList<AGFilter.FilterModel> filters = AGFilter.getRegexFilters();
+        ArrayList<AGFilter.FilterModel> filters = AGFilter.getRegexFilters();
         boolean enabled = filterIdx >= 0 && filterIdx < filters.size() && filters.get(filterIdx).enabled;
 
         var editBtn = ActionBarMenuItem.addItem(layout, R.drawable.msg_edit, getString(R.string.Edit), false, resourcesProvider);
@@ -56,7 +56,7 @@ public class RegexFilterPopup {
                 getString(enabled ? R.string.Disable : R.string.Enable),
                 false, resourcesProvider);
         toggleBtn.setOnClickListener(view -> {
-            java.util.concurrent.CopyOnWriteArrayList<AGFilter.FilterModel> list = AGFilter.getRegexFilters();
+            ArrayList<AGFilter.FilterModel> list = AGFilter.getRegexFilters();
             if (filterIdx >= 0 && filterIdx < list.size()) {
                 AGFilter.FilterModel model = list.get(filterIdx);
                 model.enabled = !model.enabled;
