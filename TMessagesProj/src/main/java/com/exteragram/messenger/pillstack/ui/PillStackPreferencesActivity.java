@@ -196,7 +196,7 @@ public class PillStackPreferencesActivity extends BaseReorderManagerActivity {
         }
     }
 
-    private boolean deduplicate(ArrayList<Integer> list, HashSet<Integer> seen) {
+    private boolean deduplicate(java.util.concurrent.CopyOnWriteArrayList<Integer> list, HashSet<Integer> seen) {
         ArrayList<Integer> filtered = new ArrayList<>(list.size());
         boolean removed = false;
         for (Integer id : list) {

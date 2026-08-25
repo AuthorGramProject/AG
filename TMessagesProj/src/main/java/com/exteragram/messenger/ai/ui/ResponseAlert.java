@@ -1025,7 +1025,6 @@ public abstract class ResponseAlert extends BottomSheet implements NotificationC
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             drawable.draw(canvas);
-            if (drawable.isStarted()) invalidate();
         }
 
         @Override

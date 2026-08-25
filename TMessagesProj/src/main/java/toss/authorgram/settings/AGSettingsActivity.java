@@ -186,6 +186,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                 try {
                     presentFragment(fragment);
                 } catch (Exception ignore) {
+                            org.telegram.messenger.FileLog.e(ignore);
                 }
             }));
 
@@ -245,6 +246,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                     searchField.requestFocus();
                     AndroidUtilities.showKeyboard(searchField);
                 } catch (Exception ignore) {
+                            org.telegram.messenger.FileLog.e(ignore);
                 }
             });
 
@@ -287,6 +289,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                                 try {
                                     ss.setSpan(new ForegroundColorSpan(highlightColor), found, found + p.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                                 } catch (Exception ignore) {
+                            org.telegram.messenger.FileLog.e(ignore);
                                 }
                                 idx = found + p.length();
                             }
@@ -309,6 +312,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                 try {
                     if (r.openRunnable != null) r.openRunnable.run();
                 } catch (Exception ignore) {
+                            org.telegram.messenger.FileLog.e(ignore);
                 }
                 dialog.dismiss();
             });
@@ -361,6 +365,7 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
 
             showDialog(dialog);
         } catch (Exception ignore) {
+                            org.telegram.messenger.FileLog.e(ignore);
         }
     }
 
@@ -390,11 +395,11 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                 getString(R.string.Reset),
                 true,
                 () -> {
-                    ApplicationLoader.applicationContext.getSharedPreferences("nekocloud", Activity.MODE_PRIVATE).edit().clear().commit();
-                    ApplicationLoader.applicationContext.getSharedPreferences("nekox_config", Activity.MODE_PRIVATE).edit().clear().commit();
-                    ApplicationLoader.applicationContext.getSharedPreferences("aichatconfig", Activity.MODE_PRIVATE).edit().clear().commit();
-                    ApplicationLoader.applicationContext.getSharedPreferences("pillstackconfig", Activity.MODE_PRIVATE).edit().clear().commit();
-                    NekoConfig.getPreferences().edit().clear().commit();
+                    ApplicationLoader.applicationContext.getSharedPreferences("nekocloud", Activity.MODE_PRIVATE).edit().clear().apply();
+                    ApplicationLoader.applicationContext.getSharedPreferences("nekox_config", Activity.MODE_PRIVATE).edit().clear().apply();
+                    ApplicationLoader.applicationContext.getSharedPreferences("aichatconfig", Activity.MODE_PRIVATE).edit().clear().apply();
+                    ApplicationLoader.applicationContext.getSharedPreferences("pillstackconfig", Activity.MODE_PRIVATE).edit().clear().apply();
+                    NekoConfig.getPreferences().edit().clear().apply();
                     AppRestartHelper.triggerRebirth(getParentActivity(), new Intent(getParentActivity(), LaunchActivity.class));
                 });
     }
@@ -563,20 +568,21 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                 String tempFile = UUID.randomUUID().toString().replace("-", "") + ".authorgram-settings.json";
                 File file = new File(cacheDir.getPath(), tempFile);
                 try {
-                    final InputStream inputStream = ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri);
-                    if (inputStream != null) {
-                        OutputStream outputStream = new FileOutputStream(file);
-                        final byte[] buffer = new byte[4 * 1024];
-                        int read;
-                        while ((read = inputStream.read(buffer)) != -1) {
-                            outputStream.write(buffer, 0, read);
+                    try (InputStream inputStream = ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri)) {
+                        if (inputStream != null) {
+                            try (OutputStream outputStream = new FileOutputStream(file)) {
+                                byte[] bytes = new byte[1024];
+                                int read;
+                                while ((read = inputStream.read(bytes)) != -1) {
+                                    outputStream.write(bytes, 0, read);
+                                }
+                                outputStream.flush();
+                            }
+                            SettingsBackupHelper.importSettings(getParentActivity(), file);
                         }
-                        inputStream.close();
-                        outputStream.flush();
-                        outputStream.close();
-                        SettingsBackupHelper.importSettings(getParentActivity(), file);
                     }
                 } catch (Exception ignore) {
+                            org.telegram.messenger.FileLog.e(ignore);
                 }
             }
             super.onActivityResultFragment(requestCode, resultCode, data);

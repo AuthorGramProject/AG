@@ -306,7 +306,7 @@ public class AGEmojiSettingsActivity extends BaseAGSettingsActivity implements E
     }
 
     private File copyFileToCache(Uri uri) {
-        try (InputStream is = getParentActivity().getContentResolver().openInputStream(uri)) {
+        try (InputStream is = ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri)) {
             String fileName = MediaController.getFileName(uri);
             File sharingDirectory = AndroidUtilities.getSharingDirectory();
             if (!sharingDirectory.exists() && !sharingDirectory.mkdirs()) {

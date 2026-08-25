@@ -19,9 +19,11 @@ import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
 
 import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -32,23 +34,23 @@ import xyz.nextalone.nagram.NaConfig;
 
 public class AGFilter {
     private static final Object cacheLock = new Object();
-    private static volatile ArrayList<FilterModel> filterModels;
+    private static volatile CopyOnWriteArrayList<FilterModel> filterModels;
     private static volatile ArrayList<ChatFilterEntry> chatFilterEntries;
     private static volatile HashSet<Long> excludedDialogs;
     private static volatile ArrayList<ExcludedFilterEntry> excludedFilterEntries;
-    private static volatile HashMap<Long, HashSet<String>> excludedSharedFilterIdsByDialog;
+    private static volatile ConcurrentHashMap<Long, HashSet<String>> excludedSharedFilterIdsByDialog;
     private static volatile HashSet<Long> blockedChannels;
     private static volatile HashSet<Long> customFilteredUsers;
     private static volatile HashMap<Long, CustomFilteredUser> customFilteredUsersData;
 
-    public static ArrayList<FilterModel> getRegexFilters() {
+    public static java.util.concurrent.CopyOnWriteArrayList<FilterModel> getRegexFilters() {
         if (filterModels == null) {
             synchronized (cacheLock) {
                 if (filterModels == null) {
                     var str = NaConfig.INSTANCE.getRegexFiltersData().String();
                     FilterModel[] arr = new Gson().fromJson(str, FilterModel[].class);
                     if (arr != null) {
-                        filterModels = new ArrayList<>(Arrays.asList(arr));
+                        filterModels = new java.util.concurrent.CopyOnWriteArrayList<>(Arrays.asList(arr));
                         boolean migrated = false;
                         for (var filter : filterModels) {
                             if (filter.ensureId()) {
@@ -63,7 +65,7 @@ public class AGFilter {
                             NaConfig.INSTANCE.getRegexFiltersData().setConfigString(new Gson().toJson(filterModels));
                         }
                     } else {
-                        filterModels = new ArrayList<>();
+                        filterModels = new CopyOnWriteArrayList<>();
                     }
                 }
             }
@@ -102,7 +104,7 @@ public class AGFilter {
         saveFilter(list);
     }
 
-    public static void saveFilter(ArrayList<FilterModel> filterModels1) {
+    public static void saveFilter(java.util.List<FilterModel> filterModels1) {
         var str = new Gson().toJson(filterModels1);
         NaConfig.INSTANCE.getRegexFiltersData().setConfigString(str);
         AGFilter.rebuildCache();
@@ -535,8 +537,8 @@ public class AGFilter {
         return excludedFilterEntries;
     }
 
-    private static HashMap<Long, HashSet<String>> buildExcludedSharedFilterIdsMap(ArrayList<ExcludedFilterEntry> entries) {
-        HashMap<Long, HashSet<String>> result = new HashMap<>();
+    private static ConcurrentHashMap<Long, HashSet<String>> buildExcludedSharedFilterIdsMap(ArrayList<ExcludedFilterEntry> entries) {
+        ConcurrentHashMap<Long, HashSet<String>> result = new ConcurrentHashMap<>();
         if (entries == null) {
             return result;
         }
@@ -549,11 +551,11 @@ public class AGFilter {
         return result;
     }
 
-    private static HashMap<Long, HashSet<String>> getExcludedSharedFilterIdsByDialog() {
+    private static java.util.concurrent.ConcurrentHashMap<Long, java.util.HashSet<String>> getExcludedSharedFilterIdsByDialog() {
         if (excludedSharedFilterIdsByDialog == null) {
             synchronized (cacheLock) {
                 if (excludedSharedFilterIdsByDialog == null) {
-                    excludedSharedFilterIdsByDialog = buildExcludedSharedFilterIdsMap(getExcludedFilterEntries());
+                    excludedSharedFilterIdsByDialog = buildExcludedSharedFilterIdsMap((ArrayList<ExcludedFilterEntry>)getExcludedFilterEntries());
                 }
             }
         }

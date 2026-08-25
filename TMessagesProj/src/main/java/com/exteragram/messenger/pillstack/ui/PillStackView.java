@@ -248,6 +248,21 @@ public class PillStackView extends FrameLayout {
         applyProgress(currentSwipeProgress, isSwipingUp);
     }
 
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec),
+                AndroidUtilities.dp(PillStackConfig.PILL_STACK_HEIGHT));
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        if (currentAnimator != null && currentAnimator.isRunning()) {
+            currentAnimator.cancel();
+        }
+    }
+
     private void applyProgress(float progress, boolean up) {
         BasePill current = pills.get(currentIndex);
         int targetIndex = up ? currentIndex + 1 : currentIndex - 1;

@@ -566,6 +566,18 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         if (!BuildVars.LOGS_ENABLED) {
             cellGroup.rows.remove(markdownParserRow);
         }
+
+        // REMOVE CAMERA BLOCK FROM CHAT SETTINGS (Moved to dedicated Camera Settings tab)
+        cellGroup.rows.remove(headerCamera);
+        cellGroup.rows.remove(cameraTypeRow);
+        cellGroup.rows.remove(cameraExtensionsRow);
+        cellGroup.rows.remove(cameraInVideoMessages);
+        cellGroup.rows.remove(moveAttachCameraToBottomRow);
+        cellGroup.rows.remove(rememberLastUsedCameraRow);
+        cellGroup.rows.remove(staticZoomRow);
+        cellGroup.rows.remove(staticZoomInfoRow);
+        cellGroup.rows.remove(dividerCamera);
+
         checkSkipOpenLinkConfirmRows();
         checkConfirmAVRows();
         syncAyuCameraRows();
@@ -581,7 +593,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         return context != null ? context : ApplicationLoader.applicationContext;
     }
 
-    private void syncAyuCameraRows() {
+    private void syncAyuCameraRows() { 
         boolean useCamera2 = isUsingCamera2Setting();
         Context context = getCameraCapabilityContext();
         if (useCamera2 && !DualCameraView.dualAvailableStatic(context)) {
@@ -640,7 +652,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         return count;
     }
 
-    private void syncAyuCameraRowsAnimated() {
+    private void syncAyuCameraRowsAnimated() { 
         boolean useCamera2 = isUsingCamera2Setting();
         Context context = getCameraCapabilityContext();
         if (useCamera2 && !DualCameraView.dualAvailableStatic(context)) {
