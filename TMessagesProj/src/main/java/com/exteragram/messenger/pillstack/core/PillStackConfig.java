@@ -136,20 +136,24 @@ public abstract class PillStackConfig {
     public static void sanitizePills() {
         boolean changed = false;
 
-        Iterator<Integer> it = activePills.iterator();
-        while (it.hasNext()) {
-            if (!PillRegistry.isRegistered(it.next())) {
-                it.remove();
+        ArrayList<Integer> toRemoveActive = new ArrayList<>();
+        for (Integer id : activePills) {
+            if (!PillRegistry.isRegistered(id)) {
+                toRemoveActive.add(id);
                 changed = true;
             }
         }
-        it = hiddenPills.iterator();
-        while (it.hasNext()) {
-            if (!PillRegistry.isRegistered(it.next())) {
-                it.remove();
+        activePills.removeAll(toRemoveActive);
+
+        ArrayList<Integer> toRemoveHidden = new ArrayList<>();
+        for (Integer id : hiddenPills) {
+            if (!PillRegistry.isRegistered(id)) {
+                toRemoveHidden.add(id);
                 changed = true;
             }
         }
+        hiddenPills.removeAll(toRemoveHidden);
+
         for (PillRegistry.PillInfo info : PillRegistry.getRegisteredPills()) {
             if (!activePills.contains(info.id) && !hiddenPills.contains(info.id)) {
                 hiddenPills.add(info.id);
