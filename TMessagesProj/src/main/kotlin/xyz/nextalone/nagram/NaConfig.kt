@@ -195,6 +195,13 @@ object NaConfig {
             ConfigItem.configTypeString,
             "AuthorGram"
         )
+    val voiceTimingVoice = addConfig("VoiceTimingVoice", ConfigItem.configTypeBool, true)
+    val voiceTimingRound = addConfig("VoiceTimingRound", ConfigItem.configTypeBool, true)
+    val voiceTimingMusic = addConfig("VoiceTimingMusic", ConfigItem.configTypeBool, true)
+    val voiceTimingSuffixMode = addConfig("VoiceTimingSuffixMode", ConfigItem.configTypeBool, false)
+    val voiceTimingInsertOnType = addConfig("VoiceTimingInsertOnType", ConfigItem.configTypeBool, true)
+    val voiceTimingIgnoreZeros = addConfig("VoiceTimingIgnoreZeros", ConfigItem.configTypeBool, false)
+    val voiceTimingFormat = addConfig("VoiceTimingFormat", ConfigItem.configTypeString, "[{time}]")
     val dateOfForwardedMsg =
         addConfig(
             "DateOfForwardedMsg",
