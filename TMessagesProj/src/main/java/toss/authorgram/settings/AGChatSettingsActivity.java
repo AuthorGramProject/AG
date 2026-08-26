@@ -177,6 +177,7 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
         add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingIgnoreZeros(), "IgnoreZeros", "Ignore 00:00", 0, false));
     }}, null));
     private final AbstractConfigCell voiceTimingFormatRow = cellGroup.appendCell(new ConfigCellTextInput("Timing Format", NaConfig.INSTANCE.getVoiceTimingFormat(), "[{time}]", null));
+    private final AbstractConfigCell voiceTimingSeparatorRow = cellGroup.appendCell(new ConfigCellSelectBox("Separator", NaConfig.INSTANCE.getVoiceTimingSeparator(), new String[]{"Space", "Newline", "None"}, null));
     private final AbstractConfigCell voiceTimingDivider = cellGroup.appendCell(new ConfigCellDivider());
     private final AbstractConfigCell emojiSetsRow = cellGroup.appendCell(new ConfigCellCustom("EmojiSets", ConfigCellCustom.CUSTOM_ITEM_EmojiSet, true));
     private final AbstractConfigCell premiumElementsToggleRow = cellGroup.appendCell(new ConfigCellTextCheck2("PremiumElements", getString(R.string.PremiumElements), new ArrayList<>() {{

@@ -36,6 +36,9 @@ public class VoiceTimingHelper {
     public static void onFieldTextChanged(ChatActivityEnterView enterView) {
         if (isInserting || enterView == null) return;
         
+        // Suffix Mode should always happen on Send, to prevent typing interruption bugs
+        if (NaConfig.INSTANCE.getVoiceTimingSuffixMode().Bool()) return;
+
         boolean insertOnType = NaConfig.INSTANCE.getVoiceTimingInsertOnType().Bool();
         if (!insertOnType) return;
 
@@ -76,20 +79,15 @@ public class VoiceTimingHelper {
         if (TextUtils.isEmpty(timing) || text.contains(timing)) return;
 
         isInserting = true;
-        boolean suffixMode = NaConfig.INSTANCE.getVoiceTimingSuffixMode().Bool();
         
         try {
             Editable editable = editField.getText();
+            String separator = getSeparator();
             if (editable != null) {
-                if (suffixMode) {
-                    editable.insert(editable.length(), " " + timing);
-                    editField.setSelection(editable.length());
-                } else {
-                    editable.insert(0, timing + " ");
-                    editField.setSelection(editable.length());
-                }
+                editable.insert(0, timing + separator);
+                editField.setSelection(editable.length());
             } else {
-                enterView.setFieldText(suffixMode ? (text + " " + timing) : (timing + " " + text));
+                enterView.setFieldText(timing + separator + text);
             }
         } catch (Exception ignore) {
         } finally {
@@ -102,7 +100,10 @@ public class VoiceTimingHelper {
             return messageText;
         }
         
-        if (NaConfig.INSTANCE.getVoiceTimingInsertOnType().Bool()) {
+        boolean insertOnType = NaConfig.INSTANCE.getVoiceTimingInsertOnType().Bool();
+        boolean suffixMode = NaConfig.INSTANCE.getVoiceTimingSuffixMode().Bool();
+        
+        if (insertOnType && !suffixMode) {
             return messageText; // Handled by typing
         }
 
@@ -115,8 +116,15 @@ public class VoiceTimingHelper {
             return messageText;
         }
 
-        boolean suffixMode = NaConfig.INSTANCE.getVoiceTimingSuffixMode().Bool();
-        return suffixMode ? (messageText + " " + timing) : (timing + " " + messageText);
+        String separator = getSeparator();
+        return suffixMode ? (messageText + separator + timing) : (timing + separator + messageText);
+    }
+
+    private static String getSeparator() {
+        int val = NaConfig.INSTANCE.getVoiceTimingSeparator().Int();
+        if (val == 1) return "\n";
+        if (val == 2) return "";
+        return " ";
     }
 
     private static boolean isValidMediaType(MessageObject replyMsg) {
@@ -158,6 +166,10 @@ public class VoiceTimingHelper {
         if (format == null || !format.contains("{time}")) {
             format = "[{time}]";
         }
+        
+        // Remove line breaks just in case they typed them before
+        format = format.replace("\n", "").replace("\r", "");
+        
         return format.replace("{time}", timeStr).trim();
     }
 }
