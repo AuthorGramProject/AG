@@ -94,7 +94,7 @@ jobs:
           APP_PACKAGE: fork.risin42.nagramx
         run: |
           set -euo pipefail
-          ./gradlew --stacktrace TMessagesProj:assembleRelease
+          ./gradlew --stacktrace TMessagesProj:assembleRelease TMessagesProj:bundleRelease
 
       - name: Save AGP APK
         shell: bash
@@ -131,25 +131,26 @@ jobs:
           APP_PACKAGE: toss.authorgram.apk
         run: |
           set -euo pipefail
-          ./gradlew --stacktrace TMessagesProj:assembleRelease
+          ./gradlew --stacktrace TMessagesProj:assembleRelease TMessagesProj:bundleRelease
 
       - name: Save PM APK
         shell: bash
         run: |
           mkdir -p unified-outputs && cp build-pm/TMessagesProj/build/outputs/apk/release/*.apk unified-outputs/AuthorGram-PlayMarket-Release.apk || true
+          cp build-pm/TMessagesProj/build/outputs/bundle/release/*.aab unified-outputs/AuthorGram-PlayMarket-Release.aab || true
           rm -rf build-pm
 
       - name: Upload APKs to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: authorgram-unified-apks
-          path: unified-outputs/*.apk
+          path: unified-outputs/*
 
       - name: Upload to Latest Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v12.9.2-features
-          files: unified-outputs/*.apk
+          files: unified-outputs/*
           fail_on_unmatched_files: false
 
       - name: Save ccache
