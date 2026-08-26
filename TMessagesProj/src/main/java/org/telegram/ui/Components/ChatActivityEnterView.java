@@ -8463,6 +8463,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 return;
             }
             CharSequence message = messageEditText == null ? "" : messageEditText.getTextToUse();
+            message = toss.authorgram.features.VoiceTimingHelper.onSendMessage(replyingMessageObject, message);
             if (parentFragment != null) {
                 TLRPC.Chat chat = parentFragment.getCurrentChat();
                 if (chat != null && chat.slowmode_enabled && !ChatObject.hasAdminRights(chat)) {
