@@ -8462,8 +8462,7 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 sendRichDraft(notify, scheduleDate, scheduleRepeatPeriod, payStars);
                 return;
             }
-            CharSequence message = messageEditText == null ? "" : messageEditText.getTextToUse();
-            message = toss.authorgram.features.VoiceTimingHelper.onSendMessage(replyingMessageObject, message);
+            final CharSequence message = toss.authorgram.features.VoiceTimingHelper.onSendMessage(replyingMessageObject, messageEditText == null ? "" : messageEditText.getTextToUse());
             if (parentFragment != null) {
                 TLRPC.Chat chat = parentFragment.getCurrentChat();
                 if (chat != null && chat.slowmode_enabled && !ChatObject.hasAdminRights(chat)) {
