@@ -21531,7 +21531,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             }
             if (isAuthorBadgeUser) {
                 if (authorBadgeDrawable == null) {
-                    authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
+                    authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable();
                 }
                 authorBadgeDrawable.setBounds(
                     (int) (Math.abs(nx) + (viaNameWidth > 0 ? viaNameWidth - dp(4 + 28) : nameLayoutWidth) + dp(2)),
