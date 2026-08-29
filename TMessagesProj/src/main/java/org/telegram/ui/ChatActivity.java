@@ -490,6 +490,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int agbtn_bookmark = 2039;
     private final static int agbtn_bookmarks_manager = 2040;
     private final static int agbtn_report = 2041;
+    private final static int agbtn_savetogallery = 2043;
     private final static int agbtn_ai_chat = 2042;
     private final static int agbtn_clearDeleted = 2100;
     private final static int agbtn_viewDeleted = 2101;
@@ -11351,6 +11352,7 @@ public class ChatActivity extends BaseFragment implements
         actionModeOtherItem.addSubItem(agbtn_hide, R.drawable.msg_disable, LocaleController.getString(R.string.Hide));
         actionModeOtherItem.addSubItem(agbtn_report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
         actionModeOtherItem.addSubItem(agbtn_detail,R.drawable.msg_info,LocaleController.getString(R.string.MessageDetails));
+        actionModeOtherItem.addSubItem(agbtn_savetogallery, R.drawable.msg_gallery, LocaleController.getString(R.string.SaveToGallery));
 
         actionMode.setItemVisibility(nkactionbarbtn_reply, ChatObject.canSendMessages(currentChat) && (selectedMessagesIds[0].size() + selectedMessagesIds[1].size() == 1) && NaConfig.INSTANCE.getActionBarButtonReply().Bool() ? View.VISIBLE : View.GONE);
         actionMode.setItemVisibility(edit, canEditMessagesCount == 1 && (selectedMessagesIds[0].size() + selectedMessagesIds[1].size() == 1) && NaConfig.INSTANCE.getActionBarButtonEdit().Bool() ? View.VISIBLE : View.GONE);
@@ -47450,6 +47452,23 @@ public class ChatActivity extends BaseFragment implements
             presentFragment(new ChannelAdminLogActivity(currentChat));
         } else if (id == shortcuts_statistics) {
             presentFragment(StatisticActivity.create(currentChat, false));
+        } else if (id == agbtn_savetogallery) {
+            ArrayList<MessageObject> messages = getSelectedMessages();
+            ArrayList<MessageObject> mediaMessages = new ArrayList<>();
+            for (MessageObject msg : messages) {
+                if (msg.isPhoto() || msg.isVideo() || msg.isGif() || msg.isDocument()) {
+                    mediaMessages.add(msg);
+                }
+            }
+            clearSelectionMode();
+            if (!mediaMessages.isEmpty()) {
+                MediaController.saveFilesFromMessages(getParentActivity(), getAccountInstance(), mediaMessages, (count) -> {
+                    if (getParentActivity() == null || fragmentView == null) return;
+                    if (count > 0) {
+                        BulletinFactory.of(ChatActivity.this).createDownloadBulletin(BulletinFactory.FileType.PHOTOS, count, themeDelegate).show();
+                    }
+                });
+            }
         } else if (id == agbtn_report) {
             getSelectedMessages1().stream().findFirst().ifPresent(obj -> {
                 selectedObject = obj;
