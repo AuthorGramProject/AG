@@ -177,11 +177,12 @@ public final class AuthorGramAccessGuard {
         footerText.setAlpha(0.8f);
         rootView.addView(footerText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 8));
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity, org.telegram.ui.ActionBar.Theme.createDialogsResourcesProvider());
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
         builder.setView(rootView);
-        builder.setCancelable(false);
 
         accessDialog = builder.create();
+        accessDialog.setCancelable(false);
+        accessDialog.setCanceledOnTouchOutside(false);
         accessDialog.show();
         
         // Remove standard dialog background completely to show our custom Charcoal UI perfectly
