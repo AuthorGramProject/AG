@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="VoiceTimingSettings">Voice Timing</string>
+    <string name="VoiceTimingMediaTypes">Media Types</string>
+    <string name="VoiceTimingVoice">Voice messages</string>
+    <string name="VoiceTimingVideo">Video messages</string>
+    <string name="VoiceTimingMusic">Music</string>
+    <string name="VoiceTimingInsertOnType">Insert when typing</string>
+    <string name="VoiceTimingSuffixMode">Add to the end</string>
+    <string name="VoiceTimingIgnoreZeros">Ignore 00:00</string>
+    <string name="VoiceTimingFormat">Timing Format</string>
+    <string name="VoiceTimingSeparator">Separator</string>
+    <string name="VoiceTimingSepSpace">Space</string>
+    <string name="VoiceTimingSepNewline">Newline</string>
+    <string name="VoiceTimingSepNone">None</string>
+</resources>

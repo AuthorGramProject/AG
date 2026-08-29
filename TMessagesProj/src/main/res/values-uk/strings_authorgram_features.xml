@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="VoiceTimingSettings">Таймкоди для медіа</string>
+    <string name="VoiceTimingMediaTypes">Типи медіа</string>
+    <string name="VoiceTimingVoice">Голосові повідомлення</string>
+    <string name="VoiceTimingVideo">Відеоповідомлення</string>
+    <string name="VoiceTimingMusic">Музика</string>
+    <string name="VoiceTimingInsertOnType">Вставляти під час набору</string>
+    <string name="VoiceTimingSuffixMode">Додавати в кінець повідомлення</string>
+    <string name="VoiceTimingIgnoreZeros">Ігнорувати 00:00</string>
+    <string name="VoiceTimingFormat">Формат таймкоду</string>
+    <string name="VoiceTimingSeparator">Розділювач</string>
+    <string name="VoiceTimingSepSpace">Пробіл</string>
+    <string name="VoiceTimingSepNewline">З нового рядка</string>
+    <string name="VoiceTimingSepNone">Без відступу</string>
+</resources>
