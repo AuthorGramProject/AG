@@ -78,14 +78,14 @@ public final class AuthorGramAccessGuard {
             return;
         }
 
-        StringBuilder msg = new StringBuilder("Ця версія AuthorGram+ містить захист від несанкціонованого використання.\n\nНаступні ID не мають доступу:\n");
+        StringBuilder msg = new StringBuilder("AuthorGram - приватний доступ\n\nНаступні аккаунти не мають дозволу на використання AuthorGram:\n");
         for (Long id : unauthorizedIds) {
             msg.append("- ").append(id).append("\n");
         }
-        msg.append("\nЦі акаунти будуть автоматично деавторизовані через 10 секунд.");
+        msg.append("\nДодаток буде закрито через 10 секунд");
 
         AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-        builder.setTitle("Відмовлено в доступі");
+        builder.setTitle("Доступ не придбано");
         builder.setMessage(msg.toString());
         builder.setCancelable(false);
         builder.setPositiveButton("ОК", null);
