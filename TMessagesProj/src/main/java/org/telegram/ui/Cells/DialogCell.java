@@ -4644,7 +4644,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     y -= dp(9);
                 }
                 if (authorBadgeDrawable == null) {
-                    authorBadgeDrawable = org.telegram.messenger.ApplicationLoader.applicationContext.getResources().getDrawable(org.telegram.messenger.R.drawable.ic_author_badge).mutate();
+                    authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable();
                 }
                 int size = dp(18);
                 int left = nameMuteLeft - dp(1);
