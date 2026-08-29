@@ -61,6 +61,38 @@ public final class AuthorGramBuildIntegrity {
         }
     }
 
+        public static boolean isTampered() {
+        if (!BuildConfig.OFFICIAL_BUILD || BuildConfig.DEBUG) {
+            return false;
+        }
+        return !isTrustedBuild();
+    }
+
+        public static void enforceIntegrity(android.app.Activity activity) {
+        if (isTampered()) {
+            org.telegram.messenger.FileLog.e("AuthorGram: TAMPERING DETECTED! Enforcing protection.");
+            
+            // Logout all accounts
+            for (int i = 0; i < org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT; i++) {
+                if (org.telegram.messenger.UserConfig.getInstance(i).isClientActivated()) {
+                    org.telegram.messenger.MessagesController.getInstance(i).performLogout(1);
+                }
+            }
+            
+            // Overlay black screen permanently
+            android.view.ViewGroup rootView = (android.view.ViewGroup) activity.getWindow().getDecorView().getRootView();
+            android.widget.FrameLayout blackFrame = new android.widget.FrameLayout(activity);
+            blackFrame.setBackgroundColor(0xFF000000);
+            blackFrame.setClickable(true); // block touches
+            blackFrame.setFocusable(true);
+            rootView.addView(blackFrame, new android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT, 
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+    }
+        }
+    }
+
     public static boolean canUseSystemKey() {
         if (!AuthorGramPlayPolicy.hasEmbeddedSystemKey()) {
             return false;

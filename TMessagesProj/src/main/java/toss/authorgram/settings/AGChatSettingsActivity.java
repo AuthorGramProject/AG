@@ -182,17 +182,17 @@ public class AGChatSettingsActivity extends BaseAGXSettingsActivity implements N
 
     // Chats
     private final AbstractConfigCell headerChats = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.Chat)));
-    private final AbstractConfigCell voiceTimingHeader = cellGroup.appendCell(new ConfigCellHeader("Voice Timing"));
-    private final AbstractConfigCell voiceTimingFeaturesRow = cellGroup.appendCell(new ConfigCellTextCheck2("VoiceTimingOptions", "Media Types", new ArrayList<>() {{
-        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingVoice(), "VoiceMessages", "Voice messages", 0, true));
-        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingRound(), "VideoMessages", "Video messages", 0, false));
-        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingMusic(), "Music", "Music", 0, false));
-        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingInsertOnType(), "InsertOnType", "Insert when typing", 0, true));
-        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingSuffixMode(), "SuffixMode", "Add to the end", 0, false));
-        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingIgnoreZeros(), "IgnoreZeros", "Ignore 00:00", 0, false));
+    private final AbstractConfigCell voiceTimingHeader = cellGroup.appendCell(new ConfigCellHeader(getString("VoiceTimingSettings", org.telegram.messenger.R.string.VoiceTimingSettings)));
+    private final AbstractConfigCell voiceTimingFeaturesRow = cellGroup.appendCell(new ConfigCellTextCheck2("VoiceTimingOptions", getString("VoiceTimingMediaTypes", org.telegram.messenger.R.string.VoiceTimingMediaTypes), new ArrayList<>() {{
+        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingVoice(), "VoiceMessages", getString("VoiceTimingVoice", org.telegram.messenger.R.string.VoiceTimingVoice), 0, true));
+        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingRound(), "VideoMessages", getString("VoiceTimingVideo", org.telegram.messenger.R.string.VoiceTimingVideo), 0, false));
+        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingMusic(), "Music", getString("VoiceTimingMusic", org.telegram.messenger.R.string.VoiceTimingMusic), 0, false));
+        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingInsertOnType(), "InsertOnType", getString("VoiceTimingInsertOnType", org.telegram.messenger.R.string.VoiceTimingInsertOnType), 0, true));
+        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingSuffixMode(), "SuffixMode", getString("VoiceTimingSuffixMode", org.telegram.messenger.R.string.VoiceTimingSuffixMode), 0, false));
+        add(new ConfigCellCheckBox(NaConfig.INSTANCE.getVoiceTimingIgnoreZeros(), "IgnoreZeros", getString("VoiceTimingIgnoreZeros", org.telegram.messenger.R.string.VoiceTimingIgnoreZeros), 0, false));
     }}, null));
-    private final AbstractConfigCell voiceTimingFormatRow = cellGroup.appendCell(new ConfigCellTextInput("Timing Format", NaConfig.INSTANCE.getVoiceTimingFormat(), "[{time}]", null));
-    private final AbstractConfigCell voiceTimingSeparatorRow = cellGroup.appendCell(new ConfigCellSelectBox("Separator", NaConfig.INSTANCE.getVoiceTimingSeparator(), new String[]{"Space", "Newline", "None"}, null));
+    private final AbstractConfigCell voiceTimingFormatRow = cellGroup.appendCell(new ConfigCellTextInput(getString("VoiceTimingFormat", org.telegram.messenger.R.string.VoiceTimingFormat), NaConfig.INSTANCE.getVoiceTimingFormat(), "[{time}]", null));
+    private final AbstractConfigCell voiceTimingSeparatorRow = cellGroup.appendCell(new ConfigCellSelectBox(getString("VoiceTimingSeparator", org.telegram.messenger.R.string.VoiceTimingSeparator), NaConfig.INSTANCE.getVoiceTimingSeparator(), new String[]{"Space", "Newline", "None"}, null));
     private final AbstractConfigCell voiceTimingDivider = cellGroup.appendCell(new ConfigCellDivider());
     private final AbstractConfigCell emojiSetsRow = cellGroup.appendCell(new ConfigCellCustom("EmojiSets", ConfigCellCustom.CUSTOM_ITEM_EmojiSet, true));
     private final AbstractConfigCell premiumElementsToggleRow = cellGroup.appendCell(new ConfigCellTextCheck2("PremiumElements", getString(R.string.PremiumElements), new ArrayList<>() {{
