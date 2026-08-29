@@ -1,13 +1,27 @@
 package org.telegram.messenger.authorgram;
 
+import android.animation.ValueAnimator;
 import android.app.Activity;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.animation.LinearInterpolator;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
-import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.Components.LayoutHelper;
 
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -17,6 +31,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 public final class AuthorGramAccessGuard {
+
     private static final byte[] KEY_PART_A = {
             (byte) 0x51, (byte) 0x39, (byte) 0x19, (byte) 0xd3,
             (byte) 0xb9, (byte) 0x26, (byte) 0xd4, (byte) 0xc3,
@@ -78,20 +93,123 @@ public final class AuthorGramAccessGuard {
             return;
         }
 
-        StringBuilder msg = new StringBuilder("AuthorGram - приватний доступ\n\nНаступні аккаунти не мають дозволу на використання AuthorGram:\n");
-        for (Long id : unauthorizedIds) {
-            msg.append("- ").append(id).append("\n");
-        }
-        msg.append("\nДодаток буде закрито через 10 секунд");
+        // Custom Midnight Gold UI
+        int colorCharcoal = Color.parseColor("#121212");
+        int colorCard = Color.parseColor("#1E1E1E");
+        int colorGold = Color.parseColor("#D4AF37");
+        int colorChampagne = Color.parseColor("#F5E6C8");
+        int colorSubText = Color.parseColor("#A0A0A0");
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-        builder.setTitle("Доступ не придбано");
-        builder.setMessage(msg.toString());
+        LinearLayout rootView = new LinearLayout(activity);
+        rootView.setOrientation(LinearLayout.VERTICAL);
+        rootView.setBackgroundColor(colorCharcoal);
+        rootView.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(24), AndroidUtilities.dp(24), AndroidUtilities.dp(16));
+
+        TextView titleView = new TextView(activity);
+        titleView.setText("Доступ не придбано");
+        titleView.setTextColor(colorGold);
+        titleView.setTextSize(22);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        titleView.setGravity(Gravity.CENTER);
+        rootView.addView(titleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 16));
+
+        TextView subtitleView = new TextView(activity);
+        subtitleView.setText("AuthorGram - приватний доступ");
+        subtitleView.setTextColor(colorChampagne);
+        subtitleView.setTextSize(16);
+        subtitleView.setGravity(Gravity.CENTER);
+        rootView.addView(subtitleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 24));
+
+        LinearLayout cardView = new LinearLayout(activity);
+        cardView.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setColor(colorCard);
+        cardBg.setCornerRadius(AndroidUtilities.dp(12));
+        cardBg.setStroke(AndroidUtilities.dp(1), Color.parseColor("#333333"));
+        cardView.setBackground(cardBg);
+        cardView.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(16), AndroidUtilities.dp(16), AndroidUtilities.dp(16));
+
+        TextView warningText = new TextView(activity);
+        warningText.setText("Наступні аккаунти не мають дозволу на використання AuthorGram:");
+        warningText.setTextColor(colorSubText);
+        warningText.setTextSize(14);
+        cardView.addView(warningText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 12));
+
+        for (Long id : unauthorizedIds) {
+            TextView idText = new TextView(activity);
+            idText.setText("• " + id);
+            idText.setTextColor(Color.WHITE);
+            idText.setTextSize(16);
+            idText.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            cardView.addView(idText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 4, 2, 0, 2));
+        }
+
+        rootView.addView(cardView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 24));
+
+        TextView countdownText = new TextView(activity);
+        countdownText.setText("Додаток буде закрито через");
+        countdownText.setTextColor(colorSubText);
+        countdownText.setTextSize(14);
+        countdownText.setGravity(Gravity.CENTER);
+        rootView.addView(countdownText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 12));
+
+        // Progress bar container
+        FrameLayout progressContainer = new FrameLayout(activity);
+        GradientDrawable pbBg = new GradientDrawable();
+        pbBg.setColor(Color.parseColor("#333333"));
+        pbBg.setCornerRadius(AndroidUtilities.dp(4));
+        progressContainer.setBackground(pbBg);
+
+        View progressBar = new View(activity);
+        GradientDrawable pbFill = new GradientDrawable();
+        pbFill.setColor(colorGold);
+        pbFill.setCornerRadius(AndroidUtilities.dp(4));
+        progressBar.setBackground(pbFill);
+        
+        progressContainer.addView(progressBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 8));
+        rootView.addView(progressContainer, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8, 0, 0, 0, 24));
+
+        TextView footerText = new TextView(activity);
+        footerText.setText("для отримання доступу: authorche.top/cu");
+        footerText.setTextColor(colorGold);
+        footerText.setTextSize(14);
+        footerText.setGravity(Gravity.CENTER);
+        footerText.setAlpha(0.8f);
+        rootView.addView(footerText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 8));
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity, org.telegram.ui.ActionBar.Theme.createDialogsResourcesProvider());
+        builder.setView(rootView);
         builder.setCancelable(false);
-        builder.setPositiveButton("ОК", null);
 
         accessDialog = builder.create();
         accessDialog.show();
+        
+        // Remove standard dialog background completely to show our custom Charcoal UI perfectly
+        if (accessDialog.getWindow() != null) {
+            accessDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        // Animate progress bar from 100% to 0%
+        progressContainer.post(() -> {
+            int totalWidth = progressContainer.getMeasuredWidth();
+            ValueAnimator animator = ValueAnimator.ofInt(totalWidth, 0);
+            animator.setDuration(10000);
+            animator.setInterpolator(new LinearInterpolator());
+            animator.addUpdateListener(animation -> {
+                int width = (int) animation.getAnimatedValue();
+                ViewGroup.LayoutParams lp = progressBar.getLayoutParams();
+                lp.width = width;
+                progressBar.setLayoutParams(lp);
+                
+                // Color fading effect: fading golden to dim red
+                float fraction = animation.getAnimatedFraction(); // 0.0 to 1.0
+                int red = (int) (212 + (fraction * (255 - 212))); // 212 (D4) to 255
+                int green = (int) (175 - (fraction * 175)); // 175 (AF) to 0
+                int blue = (int) (55 - (fraction * 55)); // 55 (37) to 0
+                pbFill.setColor(Color.rgb(red, green, blue));
+            });
+            animator.start();
+        });
 
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             if (accessDialog != null && accessDialog.isShowing()) {
