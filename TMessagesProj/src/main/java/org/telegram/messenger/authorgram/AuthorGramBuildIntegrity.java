@@ -90,8 +90,6 @@ public final class AuthorGramBuildIntegrity {
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT));
         }
     }
-        }
-    }
 
     public static boolean canUseSystemKey() {
         if (!AuthorGramPlayPolicy.hasEmbeddedSystemKey()) {
