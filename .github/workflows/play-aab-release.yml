@@ -23,7 +23,7 @@ jobs:
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.10.1
-      VERSION_CODE: '6997'
+      VERSION_CODE: '7038'
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
@@ -162,7 +162,7 @@ jobs:
 
           config = json.loads(Path("TMessagesProj/google-services.json").read_text(encoding="utf-8"))
           assert config["project_info"]["project_id"] == "authorgram-81696"
-          assert config["project_info"]["project_number"] == "992278926997"
+          assert config["project_info"]["project_number"] == "992278927038"
           packages = {
               client["client_info"]["android_client_info"]["package_name"]
               for client in config["client"]
@@ -363,8 +363,8 @@ jobs:
         if: env.SOURCE_ONLY != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.9.2-6997-Google-Play-AAB
-          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.9.2-6997-release.aab
+          name: AuthorGram-Play-12.10.1-7038-Google-Play-AAB
+          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.10.1-7038-release.aab
           if-no-files-found: error
           retention-days: 30
 
@@ -372,4 +372,4 @@ jobs:
         if: ${{ always() && env.SOURCE_ONLY != 'true' }}
         shell: bash
         run: rm -f TMessagesProj/release.keystore local.properties
-# Android system account release trigger: 2026-08-17 versionCode 6997
+# Android system account release trigger: 2026-08-17 versionCode 7038
