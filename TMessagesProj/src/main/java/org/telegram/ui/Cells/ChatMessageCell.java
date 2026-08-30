@@ -21539,7 +21539,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     (int) (Math.abs(nx) + (viaNameWidth > 0 ? viaNameWidth - dp(4 + 28) : nameLayoutWidth) + dp(22)),
                     (int) (ny + nameLayout.getHeight() / 2 + dp(10))
                 );
-                authorBadgeDrawable.draw(canvas);
+                if (authorBadgeDrawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
+                ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).setParentView(this);
+            }
+            authorBadgeDrawable.draw(canvas);
             } else if (currentNameStatusDrawable != null) {
                 currentNameStatusDrawable.setBounds(
                     (int) (Math.abs(nx) + (viaNameWidth > 0 ? viaNameWidth - dp(4 + 28) : nameLayoutWidth) + dp(2)),

@@ -25798,11 +25798,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 if (headerItem != null) {
-                    // showAudioCallAsIcon =
-                    //         userInfo.phone_calls_available
-                    //                 && !inPreviewMode;
-
-                    showAudioCallAsIcon = false;
+                    showAudioCallAsIcon = userInfo.phone_calls_available && !inPreviewMode;
 
                     if (avatarContainer != null) {
                         avatarContainer.setTitleExpand(
@@ -33131,7 +33127,7 @@ public class ChatActivity extends BaseFragment implements
             }
 
             if (!isAyuDeleted) {
-                if (message.messageOwner.ttl > 0 || message.isVoiceOnce() || message.isRoundOnce()) {
+                if (!org.telegram.messenger.authorgram.AuthorGramSpyPolicy.isSpyDisabled(dialog_id) && (message.messageOwner.ttl > 0 || message.isVoiceOnce() || message.isRoundOnce())) {
                     boolean isExpiredVideo = AyuMessageUtils.isExpiredDocument(message);
                     boolean isExpiredPhoto = AyuMessageUtils.isExpiredPhoto(message);
                     if (!isExpiredPhoto && message.isPhoto()) {

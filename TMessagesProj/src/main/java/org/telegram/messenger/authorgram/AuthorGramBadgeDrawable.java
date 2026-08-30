@@ -1,18 +1,17 @@
 package org.telegram.messenger.authorgram;
 
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
-import android.graphics.LinearGradient;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
-
+import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -20,93 +19,103 @@ import androidx.core.content.ContextCompat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.R;
+import org.telegram.ui.ActionBar.Theme;
 
 public class AuthorGramBadgeDrawable extends Drawable {
-    
     private final Drawable baseDrawable;
-    private Bitmap cachedBitmap;
-    private final Paint gradientPaint;
-    private final Matrix matrix;
-    private float shift = 0f;
-    private long lastUpdateTime;
-    private boolean isGlowing = true;
-
-    // Midnight Gold Colors for the Author badge
-    private final int[] colors = new int[]{
-            0xFFFFD700, // Gold
-            0xFFFFA500, // Orange Gold
-            0xFFFFF8DC, // Light Gold/White glow
-            0xFFFFD700, // Gold
-            0xFFFF8C00  // Dark Orange Gold
-    };
+    private final int sizePx;
+    private View parentView;
     
-    private final float[] positions = new float[]{0.0f, 0.3f, 0.5f, 0.7f, 1.0f};
+    // Animation properties
+    private final Paint shimmerPaint;
+    private final Matrix shimmerMatrix;
+    private long lastUpdateTime;
+    private float progress = 0f;
+    private boolean animating = true;
 
     public AuthorGramBadgeDrawable() {
-        this.baseDrawable = ContextCompat.getDrawable(ApplicationLoader.applicationContext, R.drawable.ic_author_badge_vector).mutate();
-        gradientPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        matrix = new Matrix();
+        sizePx = AndroidUtilities.dp(16);
+        baseDrawable = ContextCompat.getDrawable(ApplicationLoader.applicationContext, R.drawable.ic_author_badge_a).mutate();
+        
+        shimmerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        shimmerMatrix = new Matrix();
         lastUpdateTime = System.currentTimeMillis();
     }
+    
+    public void setParentView(View view) {
+        this.parentView = view;
+    }
 
-    private void updateBitmap(int w, int h) {
-        if (cachedBitmap != null && cachedBitmap.getWidth() == w && cachedBitmap.getHeight() == h) {
-            return;
-        }
-        if (cachedBitmap != null) {
-            cachedBitmap.recycle();
-        }
-        cachedBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(cachedBitmap);
-        baseDrawable.setBounds(0, 0, w, h);
-        baseDrawable.draw(canvas);
+    @Override
+    public int getIntrinsicWidth() {
+        return sizePx;
+    }
 
-        LinearGradient shader = new LinearGradient(
-                0, 0, w * 2f, h * 2f, 
-                colors, positions, Shader.TileMode.CLAMP);
-        gradientPaint.setShader(shader);
-        gradientPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+    @Override
+    public int getIntrinsicHeight() {
+        return sizePx;
+    }
+
+    @Override
+    protected void onBoundsChange(Rect bounds) {
+        super.onBoundsChange(bounds);
+        baseDrawable.setBounds(bounds);
+        
+        // Setup shimmer gradient (transparent -> white -> transparent)
+        int color = 0x66FFFFFF; // 40% white
+        LinearGradient gradient = new LinearGradient(
+                0, 0, bounds.width() * 1.5f, 0,
+                new int[]{0x00FFFFFF, color, 0x00FFFFFF},
+                new float[]{0.3f, 0.5f, 0.7f},
+                Shader.TileMode.CLAMP
+        );
+        shimmerPaint.setShader(gradient);
+        
+        // Use SRC_ATOP so shimmer only draws where the badge is drawn
+        shimmerPaint.setXfermode(new android.graphics.PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
     }
 
     @Override
     public void draw(@NonNull Canvas canvas) {
+        // Apply theme color
+        int themeColor = Theme.getColor(Theme.key_chats_verifiedBackground);
+        baseDrawable.setColorFilter(new PorterDuffColorFilter(themeColor, PorterDuff.Mode.SRC_IN));
+        
+        // Draw the badge inside a layer to allow SRC_ATOP blending
         Rect bounds = getBounds();
-        int width = bounds.width();
-        int height = bounds.height();
+        int saveCount = canvas.saveLayer(bounds.left, bounds.top, bounds.right, bounds.bottom, null, 31);
         
-        if (width <= 0 || height <= 0) return;
+        baseDrawable.draw(canvas);
         
-        updateBitmap(width, height);
-
+        // Handle animation
         long newTime = System.currentTimeMillis();
         long dt = newTime - lastUpdateTime;
-        if (dt > 100) dt = 16;
         lastUpdateTime = newTime;
-
-        if (isGlowing) {
-            shift += (dt / 1000f) * width * 1.5f; // speed
-            if (shift > width * 3) {
-                shift = -width * 2;
+        
+        if (animating) {
+            progress += dt / 1500f; // 1.5 seconds per sweep
+            if (progress > 1.5f) { // Pause for a bit
+                progress = -0.5f;
             }
         }
         
-        matrix.reset();
-        matrix.postTranslate(shift, 0);
-        gradientPaint.getShader().setLocalMatrix(matrix);
+        // Draw shimmer
+        if (progress > -0.2f && progress < 1.2f) {
+            float translate = bounds.width() * 2f * progress - bounds.width();
+            shimmerMatrix.reset();
+            shimmerMatrix.postRotate(45, 0, 0);
+            shimmerMatrix.postTranslate(bounds.left + translate, bounds.top);
+            shimmerPaint.getShader().setLocalMatrix(shimmerMatrix);
+            
+            canvas.drawRect(bounds, shimmerPaint);
+        }
         
-        canvas.save();
-        canvas.translate(bounds.left, bounds.top);
+        canvas.restoreToCount(saveCount);
         
-        // Draw the golden shape
-        canvas.drawBitmap(cachedBitmap, 0, 0, null);
-        
-        // Draw the glowing gradient masked into the shape
-        canvas.drawRect(0, 0, width, height, gradientPaint);
-        
-        canvas.restore();
-
-        if (isGlowing) {
-            AndroidUtilities.runOnUIThread(this::invalidateSelf, 16);
+        if (parentView != null) {
+            parentView.invalidate();
+        } else {
+            invalidateSelf();
         }
     }
 
@@ -117,7 +126,6 @@ public class AuthorGramBadgeDrawable extends Drawable {
 
     @Override
     public void setColorFilter(@Nullable ColorFilter colorFilter) {
-        baseDrawable.setColorFilter(colorFilter);
     }
 
     @Override

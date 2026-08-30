@@ -4646,9 +4646,14 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 if (authorBadgeDrawable == null) {
                     authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable();
                 }
-                int size = dp(18);
+                int size = dp(16);
                 int left = nameMuteLeft - dp(1);
-                authorBadgeDrawable.setBounds(left, (int) y, left + size, (int) y + size);
+                int textCenter = nameTop + dp(10);
+                int badgeTop = textCenter - size / 2;
+                authorBadgeDrawable.setBounds(left, badgeTop, left + size, badgeTop + size);
+                if (authorBadgeDrawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
+                    ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).setParentView(this);
+                }
                 authorBadgeDrawable.draw(canvas);
             } else if (drawVerified) {
                 float y = dp(useForceThreeLines || SharedConfig.useThreeLinesLayout ? 13.5f : 16.5f);
