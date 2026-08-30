@@ -295,7 +295,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:assembleRelease
+          NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:bundleRelease
 
       - name: Verify and stage the single Play AAB
         if: env.SOURCE_ONLY != 'true'
