@@ -29,16 +29,34 @@
                           C 5.5,4 8,4.5 9,4 
                           C 10,3.5 11,2 12,2 Z" />
 
-    <!-- Stylized 'A' with swoosh -->
+    <!-- Solid A with thick right leg and extended crossbar -->
+    <!-- Main A Body -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M 12,6 L 7.5,17 L 9.5,17 L 10.5,14 L 14,14 
-                          C 14,14 16,14.5 17,13.5 
-                          C 18,12.5 17,11.5 15.5,12 
-                          C 14,12.5 13.5,14 10.5,14 
-                          L 11.5,11 L 12.5,11 Z" />
+        android:pathData="M 12.3,4.5 
+                          L 7.2,17.5 
+                          L 9.4,17.5 
+                          L 10.7,14.0 
+                          L 14.3,14.0 
+                          L 15.6,17.5 
+                          L 18.2,17.5 
+                          L 14.0,4.5 
+                          Z 
+                          M 12.5,9.5 
+                          L 13.6,12.5 
+                          L 11.2,12.5 
+                          Z" />
+                          
+    <!-- Extended Crossbar overlapping both sides -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M 12,6 L 11,9 L 13,9 Z" />
+        android:pathData="M 8.5,12.5 
+                          L 18.5,12.5 
+                          C 19.2,12.5 19.5,12.8 19.5,13.2 
+                          C 19.5,13.7 19.2,14.0 18.5,14.0 
+                          L 8.5,14.0 
+                          C 7.8,14.0 7.5,13.7 7.5,13.2 
+                          C 7.5,12.8 7.8,12.5 8.5,12.5 
+                          Z" />
 
 </vector>
