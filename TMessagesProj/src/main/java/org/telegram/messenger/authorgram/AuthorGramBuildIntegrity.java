@@ -102,6 +102,13 @@ public final class AuthorGramBuildIntegrity {
     }
 
     private static boolean verifyInstalledRelease(Context context) {
+        try {
+            String installer = context.getPackageManager().getInstallerPackageName(context.getPackageName());
+            if ("com.android.vending".equals(installer)) {
+                return true;
+            }
+        } catch (Exception ignore) {
+        } 
         String configured = BuildConfig.TRUSTED_SIGNING_CERT_SHA256;
         if (configured == null || configured.trim().isEmpty()) {
             return false;
