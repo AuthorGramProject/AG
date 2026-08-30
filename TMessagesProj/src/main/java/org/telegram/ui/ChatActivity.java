@@ -25798,11 +25798,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 if (headerItem != null) {
-                    // showAudioCallAsIcon =
-                    //         userInfo.phone_calls_available
-                    //                 && !inPreviewMode;
-
-                    showAudioCallAsIcon = false;
+                    showAudioCallAsIcon = userInfo.phone_calls_available && !inPreviewMode;
 
                     if (avatarContainer != null) {
                         avatarContainer.setTitleExpand(
