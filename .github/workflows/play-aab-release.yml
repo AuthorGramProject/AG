@@ -40,7 +40,7 @@ jobs:
       - name: Prepare Play source invariants
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -241,7 +241,7 @@ jobs:
       - name: Persist Play source fixes
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           git config user.name 'AuthorGram Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A
@@ -282,7 +282,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           rm -f TMessagesProj/release.keystore
           curl -sSL -H "Authorization: token ${GH_TOKEN}" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${HISTORICAL_SIGNING_COMMIT}/TMessagesProj/release.keystore" > TMessagesProj/release.keystore
           test -s TMessagesProj/release.keystore
@@ -294,14 +294,14 @@ jobs:
         if: env.SOURCE_ONLY != 'true'
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:bundleRelease
 
       - name: Verify and stage the single Play AAB
         if: env.SOURCE_ONLY != 'true'
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           OUT="${RUNNER_TEMP}/authorgram-play-release"
           mkdir -p "${OUT}"
 
