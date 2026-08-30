@@ -25798,12 +25798,7 @@ public class ChatActivity extends BaseFragment implements
                     } else {
                         headerItem.hideSubItem(call);
                         headerItem.hideSubItem(video_call);
-                        if (audioCallIconItem != null) {
-                            audioCallIconItem.setVisibility(View.GONE);
-                        }
-                    }
-                }
-                checkActionBarMenu(fragmentOpened);
+                    showAudioCallAsIcon = userInfo.phone_calls_available && !inPreviewMode;
                 if (!inMenuMode && !loadingPinnedMessagesList && !pinnedMessageIds.isEmpty() && userInfo.pinned_msg_id > pinnedMessageIds.get(0)) {
                     getMediaDataController().loadPinnedMessages(dialog_id, 0, userInfo.pinned_msg_id);
                     loadingPinnedMessagesList = true;
