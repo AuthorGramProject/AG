@@ -203,6 +203,7 @@ jobs:
           test -f TMessagesProj/src/main/java/toss/authorgram/camera/AuthorGramCameraXController.java
           test -f TMessagesProj/src/main/java/toss/authorgram/settings/AGCameraSettingsActivity.java
           grep -F 'cameraThread.updateCameraXScale();' TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java
+          cat TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java | grep DO_UPDATE_CAMERAX_SCALE || true
           grep -F 'private final int DO_UPDATE_CAMERAX_SCALE = 5;' TMessagesProj/src/main/java/org/telegram/ui/Components/InstantCameraView.java
           grep -F 'presentFragment(new AGCameraSettingsActivity());' TMessagesProj/src/main/java/toss/authorgram/settings/AGSettingsActivity.java
           grep -F 'mainconfig.add("AG_CameraType");' TMessagesProj/src/main/java/tw/nekomimi/nekogram/helpers/SettingsBackupHelper.java
