@@ -7822,7 +7822,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         isResumed = true;
         
         org.telegram.messenger.authorgram.AuthorGramAccessGuard.checkAccess(this);
-        org.telegram.messenger.authorgram.AuthorGramChangelog.checkAndShow();
+        // AuthorGram: changelog disabled
         org.telegram.messenger.authorgram.AuthorGramBuildIntegrity.enforceIntegrity(this);
         pipActivityHandler.onResume();
         if (onResumeStaticCallback != null) {
