@@ -18,7 +18,7 @@ concurrency:
 jobs:
   release:
     name: Build one verified Google Play AAB
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 240
     env:
       PLAY_PACKAGE: toss.authorgram.apk
