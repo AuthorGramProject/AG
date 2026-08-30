@@ -162,7 +162,7 @@ jobs:
 
           config = json.loads(Path("TMessagesProj/google-services.json").read_text(encoding="utf-8"))
           assert config["project_info"]["project_id"] == "authorgram-81696"
-          assert config["project_info"]["project_number"] == "992278927038"
+          assert config["project_info"]["project_number"] == "992278926997"
           packages = {
               client["client_info"]["android_client_info"]["package_name"]
               for client in config["client"]
