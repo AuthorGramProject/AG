@@ -2,8 +2,14 @@ package org.telegram.messenger.authorgram;
 
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.LinearGradient;
+import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.graphics.PixelFormat;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
+import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 import androidx.annotation.NonNull;
@@ -13,35 +19,27 @@ import androidx.core.content.ContextCompat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.R;
-import org.telegram.ui.Components.Premium.StarParticlesView;
+import org.telegram.ui.ActionBar.Theme;
 
 public class AuthorGramBadgeDrawable extends Drawable {
     private final Drawable baseDrawable;
-    private final StarParticlesView.Drawable particles;
     private final int sizePx;
     private View parentView;
+    
+    // Animation properties
+    private final Paint shimmerPaint;
+    private final Matrix shimmerMatrix;
+    private long lastUpdateTime;
+    private float progress = 0f;
+    private boolean animating = true;
 
     public AuthorGramBadgeDrawable() {
-        sizePx = AndroidUtilities.dp(18);
+        sizePx = AndroidUtilities.dp(16);
         baseDrawable = ContextCompat.getDrawable(ApplicationLoader.applicationContext, R.drawable.ic_author_badge_a).mutate();
         
-        particles = new StarParticlesView.Drawable(15);
-        particles.type = StarParticlesView.TYPE_APP_ICON_STAR_PREMIUM;
-        particles.roundEffect = false;
-        particles.isCircle = true;
-        particles.useGradient = true;
-        particles.useBlur = true;
-        particles.checkBounds = true;
-        particles.size1 = 9;
-        particles.size2 = 7;
-        particles.size3 = 5;
-        particles.k1 = 0.8f;
-        particles.k2 = 0.8f;
-        particles.k3 = 0.9f;
-        particles.speedScale = 0.4f;
-        particles.minLifeTime = 1000;
-        particles.randLifeTime = 1000;
-        particles.init();
+        shimmerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        shimmerMatrix = new Matrix();
+        lastUpdateTime = System.currentTimeMillis();
     }
     
     public void setParentView(View view) {
@@ -63,18 +61,56 @@ public class AuthorGramBadgeDrawable extends Drawable {
         super.onBoundsChange(bounds);
         baseDrawable.setBounds(bounds);
         
-        // Expand the bounds slightly so sparks can fly outside
-        particles.rect.set(bounds);
-        particles.rect.inset(-AndroidUtilities.dp(4), -AndroidUtilities.dp(4));
-        particles.rect2.set(bounds);
-        particles.excludeRect.set(bounds);
-        particles.excludeRadius = AndroidUtilities.dp(6);
+        // Setup shimmer gradient (transparent -> white -> transparent)
+        int color = 0x66FFFFFF; // 40% white
+        LinearGradient gradient = new LinearGradient(
+                0, 0, bounds.width() * 1.5f, 0,
+                new int[]{0x00FFFFFF, color, 0x00FFFFFF},
+                new float[]{0.3f, 0.5f, 0.7f},
+                Shader.TileMode.CLAMP
+        );
+        shimmerPaint.setShader(gradient);
+        
+        // Use SRC_ATOP so shimmer only draws where the badge is drawn
+        shimmerPaint.setXfermode(new android.graphics.PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
     }
 
     @Override
     public void draw(@NonNull Canvas canvas) {
-        particles.onDraw(canvas);
+        // Apply theme color
+        int themeColor = Theme.getColor(Theme.key_chats_verifiedBackground);
+        baseDrawable.setColorFilter(new PorterDuffColorFilter(themeColor, PorterDuff.Mode.SRC_IN));
+        
+        // Draw the badge inside a layer to allow SRC_ATOP blending
+        Rect bounds = getBounds();
+        int saveCount = canvas.saveLayer(bounds.left, bounds.top, bounds.right, bounds.bottom, null, 31);
+        
         baseDrawable.draw(canvas);
+        
+        // Handle animation
+        long newTime = System.currentTimeMillis();
+        long dt = newTime - lastUpdateTime;
+        lastUpdateTime = newTime;
+        
+        if (animating) {
+            progress += dt / 1500f; // 1.5 seconds per sweep
+            if (progress > 1.5f) { // Pause for a bit
+                progress = -0.5f;
+            }
+        }
+        
+        // Draw shimmer
+        if (progress > -0.2f && progress < 1.2f) {
+            float translate = bounds.width() * 2f * progress - bounds.width();
+            shimmerMatrix.reset();
+            shimmerMatrix.postRotate(45, 0, 0);
+            shimmerMatrix.postTranslate(bounds.left + translate, bounds.top);
+            shimmerPaint.getShader().setLocalMatrix(shimmerMatrix);
+            
+            canvas.drawRect(bounds, shimmerPaint);
+        }
+        
+        canvas.restoreToCount(saveCount);
         
         if (parentView != null) {
             parentView.invalidate();

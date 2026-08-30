@@ -1,42 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="1000"
-    android:viewportHeight="1000">
+    android:viewportWidth="24"
+    android:viewportHeight="24">
 
+    <!-- Hollow 8-point wavy star (Rosette outline) -->
     <path
-        android:pathData="M350 805 C335 805 327 790 335 775 L560 320 C570 300 582 285 600 285 C618 285 630 300 640 320 L865 775 C873 790 865 805 850 805 L765 805 C752 805 743 799 738 787 L675 640 L625 540 L565 540 L505 670 L455 787 C450 799 441 805 428 805 Z M520 640 L575 520 L625 520 L680 640 L520 640 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="350"
-                android:startY="300"
-                android:endX="850"
-                android:endY="800"
-                android:type="linear">
-                <item android:color="#FFFFD700" android:offset="0.0"/>
-                <item android:color="#FFFF8C00" android:offset="1.0"/>
-            </gradient>
-        </aapt:attr>
-    </path>
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.2"
+        android:strokeLineJoin="round"
+        android:pathData="M 12,2 
+                          C 13,2 14,3.5 15,4 
+                          C 16,4.5 18.5,4 19.5,5 
+                          C 20.5,6 20,8.5 20,9.5 
+                          C 20,10.5 21.5,11.5 21.5,12.5 
+                          C 21.5,13.5 20,14.5 20,15.5 
+                          C 20,16.5 20.5,19 19.5,20 
+                          C 18.5,21 16,20.5 15,21 
+                          C 14,21.5 13,23 12,23 
+                          C 11,23 10,21.5 9,21 
+                          C 8,20.5 5.5,21 4.5,20 
+                          C 3.5,19 4,16.5 4,15.5 
+                          C 4,14.5 2.5,13.5 2.5,12.5 
+                          C 2.5,11.5 4,10.5 4,9.5 
+                          C 4,8.5 3.5,6 4.5,5 
+                          C 5.5,4 8,4.5 9,4 
+                          C 10,3.5 11,2 12,2 Z" />
 
+    <!-- Stylized 'A' with swoosh -->
     <path
-        android:pathData="M430 670 C485 670 525 655 565 630 C605 605 645 570 700 555 C750 541 800 545 830 565 C845 575 855 588 860 605 C840 593 820 590 798 592 C750 596 710 620 670 646 C625 675 585 700 530 715 C495 725 460 730 430 730 C405 730 390 715 390 700 C390 684 405 670 430 670 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="350"
-                android:startY="300"
-                android:endX="850"
-                android:endY="800"
-                android:type="linear">
-                <item android:color="#FFFFD700" android:offset="0.0"/>
-                <item android:color="#FFFF8C00" android:offset="1.0"/>
-            </gradient>
-        </aapt:attr>
-    </path>
+        android:fillColor="#FFFFFF"
+        android:pathData="M 12,6 L 7.5,17 L 9.5,17 L 10.5,14 L 14,14 
+                          C 14,14 16,14.5 17,13.5 
+                          C 18,12.5 17,11.5 15.5,12 
+                          C 14,12.5 13.5,14 10.5,14 
+                          L 11.5,11 L 12.5,11 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 12,6 L 11,9 L 13,9 Z" />
 
-    <path
-        android:fillColor="#73FF5FB0"
-        android:pathData="M600 285 C608 285 616 295 625 315 L650 365 L600 350 L550 365 L575 315 C584 295 592 285 600 285 Z"/>
 </vector>
