@@ -1,32 +1,26 @@
-# AuthorGram by AuthorChe
+# AG
 
-AuthorGram is a privacy-focused Telegram client designed for secure communication, flexible controls, and convenient everyday use.
+AG is a privacy-focused Telegram client designed for secure communication, flexible controls, and convenient everyday use.
 
-The public Google Play distribution keeps a separate technical Android application ID so it can be installed and maintained independently from private AuthorGram builds:
-
-```text
-toss.authorgram.apk
-```
-
-The package identifier is internal and does not change the visible product name: **AuthorGram**.
+The public Google Play distribution keeps a separate technical Android application ID so it can be installed and maintained independently from private AG build.
 
 ## Core goals
 
 - privacy-first communication controls;
-- optional AuthorGram message encryption, including per-chat keys;
+- optional AG message encryption, including per-chat keys;
 - practical chat, translation, media, interface, and accessibility tools;
-- clear local controls without requiring a separate AuthorGram server;
+- clear local controls without requiring a separate server;
 - a public distribution without the private startup allow-list used by internal builds.
 
-## AuthorGram encryption
+## AG encryption
 
-Encryption can be enabled separately for supported chats. A chat may use the AuthorGram system key or a separately configured 256-bit key. Custom chat keys are wrapped locally through Android Keystore and are not stored as plaintext preferences.
+Encryption can be enabled separately for supported chats. A chat may use the AG system key or a separately configured 256-bit key. Custom chat keys are wrapped locally through Android Keystore and are not stored as plaintext preferences.
 
 The protected system-key contact always uses the built-in system key provider and cannot be assigned a custom chat key.
 
 ## Terms of Service
 
-In this project, **ToS** means **Terms of Service**. It is a legal publication document for the Google Play version and is not an alternative application name or brand. The public application remains AuthorGram.
+In this project, **ToS** means **Terms of Service**. It is a legal publication document for the Google Play version and is not an alternative application name or brand. The public application remains AG.
 
 ## Build
 
@@ -42,17 +36,16 @@ In this project, **ToS** means **Terms of Service**. It is a legal publication d
 
 ## Open-source credits
 
-AuthorGram is based on Telegram for Android and includes code or ideas adapted from several open-source Telegram clients and projects.
+AG is based on Telegram for Android and includes code or ideas adapted from several open-source Telegram clients and projects.
 
 Special thanks to the contributors of:
 
 - Cherrygram;
-- Nagram;
 - exteraGram;
 - AyuGram;
 - OctoGram.
 
-Their names remain in this credits section, applicable licenses, and preserved source history. They are not presented as the product identity of AuthorGram.
+Their names remain in this credits section, applicable licenses, and preserved source history. They are not presented as the product identity of AG.
 
 ## License
 
