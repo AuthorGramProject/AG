@@ -363,7 +363,7 @@ jobs:
         if: env.SOURCE_ONLY != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.10.1-7040-Google-Play-AAB
+          name: AuthorGram-Play-12.10.1-7041-Google-Play-AAB
           path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.10.1-7041-release.aab
           if-no-files-found: error
           retention-days: 30
