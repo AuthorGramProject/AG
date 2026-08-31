@@ -23,7 +23,7 @@ jobs:
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.10.1
-      VERSION_CODE: '7038'
+      VERSION_CODE: '7039'
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
@@ -363,8 +363,8 @@ jobs:
         if: env.SOURCE_ONLY != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.10.1-7038-Google-Play-AAB
-          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.10.1-7038-release.aab
+          name: AuthorGram-Play-12.10.1-7039-Google-Play-AAB
+          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.10.1-7039-release.aab
           if-no-files-found: error
           retention-days: 30
 
@@ -372,4 +372,4 @@ jobs:
         if: ${{ always() && env.SOURCE_ONLY != 'true' }}
         shell: bash
         run: rm -f TMessagesProj/release.keystore local.properties
-# Android system account release trigger: 2026-08-17 versionCode 7038
+# Android system account release trigger: 2026-08-17 versionCode 7039
