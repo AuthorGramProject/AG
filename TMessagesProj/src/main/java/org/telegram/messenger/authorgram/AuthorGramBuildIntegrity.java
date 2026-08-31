@@ -103,12 +103,7 @@ public final class AuthorGramBuildIntegrity {
 
     private static boolean verifyInstalledRelease(Context context) {
         try {
-            String installer;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                installer = context.getPackageManager().getInstallSourceInfo(context.getPackageName()).getInstallingPackageName();
-            } else {
-                installer = context.getPackageManager().getInstallerPackageName(context.getPackageName());
-            }
+            String installer = context.getPackageManager().getInstallerPackageName(context.getPackageName());
             if ("com.android.vending".equals(installer)) {
                 return true;
             }
