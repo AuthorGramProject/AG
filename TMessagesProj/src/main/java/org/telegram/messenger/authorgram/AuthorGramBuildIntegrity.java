@@ -101,8 +101,29 @@ public final class AuthorGramBuildIntegrity {
         return isTrustedBuild();
     }
 
+    private static boolean isEnvironmentCompromised(Context context) {
+        String[] knownHooks = {
+            "de.robv.android.xposed.installer",
+            "org.meowcat.edxposed.manager",
+            "io.github.lsposed.manager",
+            "top.canyie.dreamland.manager"
+        };
+        PackageManager pm = context.getPackageManager();
+        for (String pkg : knownHooks) {
+            try {
+                pm.getPackageInfo(pkg, 0);
+                return true; // Hooking framework detected
+            } catch (Exception ignore) {
+            }
+        }
+        return false;
+    }
+
     private static boolean verifyInstalledRelease(Context context) {
         try {
+            if (isEnvironmentCompromised(context)) {
+                return false; // Compromised environment automatically fails trust
+            }
             String installer = context.getPackageManager().getInstallerPackageName(context.getPackageName());
             if ("com.android.vending".equals(installer)) {
                 return true;
