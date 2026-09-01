@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version=\'1.0\' encoding=\'utf-8\'?>
 <resources>
     <string name="VoiceTimingSettings">Таймкоди для медіа</string>
     <string name="VoiceTimingMediaTypes">Типи медіа</string>
@@ -56,14 +56,14 @@
     <string name="GroupedMessageMenuNotice">Групувати меню повідомлень</string>
     <string name="HideAiEditor">Сховати ШІ-редактор</string>
     <string name="HideAiSummary">Сховати ШІ-підсумки</string>
-    <string name="HideAllTabAbout">Сховати вкладку 'Всі чати'</string>
+    <string name="HideAllTabAbout">Сховати вкладку \'Всі чати\'</string>
     <string name="HidePhotoCounter">Сховати лічильник фото</string>
     <string name="HideTitle">Сховати заголовок</string>
     <string name="HomeDrawer">Бокове меню</string>
     <string name="InstantViewTranslation">Переклад миттєвого перегляду</string>
     <string name="InteractionSettings">Взаємодія</string>
     <string name="KeepTranslatorPreferencesNotice">Зберігати налаштування перекладача</string>
-    <string name="LinkedGroupChat">Прив'язаний чат групи</string>
+    <string name="LinkedGroupChat">Прив\'язаний чат групи</string>
     <string name="LlmApiUrlDefault">За замовчуванням</string>
     <string name="LlmApiUrlHint">URL API</string>
     <string name="LlmApiUrlNotice">Введіть кастомний URL для ШІ API</string>
@@ -87,7 +87,7 @@
     <string name="MainTabsDisplayModeShow">Показувати</string>
     <string name="MainTabsShowTitles">Показувати назви вкладок</string>
     <string name="MapPreviewProviderGoogle">Google</string>
-    <string name="MapPreviewProviderNobody">Без прев'ю</string>
+    <string name="MapPreviewProviderNobody">Без прев\'ю</string>
     <string name="MapPreviewProviderTelegram">Telegram</string>
     <string name="MapPreviewProviderYandexNax">Yandex</string>
     <string name="MapProviderOpenFreeMap">Використовувати OpenFreeMap</string>
@@ -119,7 +119,7 @@
     <string name="PerformanceClassAverage">Середня</string>
     <string name="PerformanceClassHigh">Висока</string>
     <string name="PerformanceClassLow">Низька</string>
-    <string name="PreferCommonGroupsTabNotice">Автовибір вкладки 'Групи'</string>
+    <string name="PreferCommonGroupsTabNotice">Автовибір вкладки \'Групи\'</string>
     <string name="PrivacyTitle">Конфіденційність</string>
     <string name="ProviderDeepLTranslate">DeepL Translate</string>
     <string name="ProviderGoogleTranslate">Google Translate</string>
@@ -138,7 +138,7 @@
     <string name="Quality720">Середня</string>
     <string name="QualityAuto">Авто</string>
     <string name="QualityOriginal">Оригінал</string>
-    <string name="RememberLastUsedCamera">Запам'ятати останню камерю</string>
+    <string name="RememberLastUsedCamera">Запам\'ятати останню камерю</string>
     <string name="RepeatAsCopy">Репост як копія</string>
     <string name="ReplaceBlockedMyInfoDescription">Показувати сірий аватар для заблокованих.</string>
     <string name="ResetStickerSize">Скинути розмір стікерів</string>
@@ -160,7 +160,7 @@
     <string name="StickerSize">Розмір стікерів</string>
     <string name="StickerSizeLeft">Малий</string>
     <string name="StickerSizeRight">Великий</string>
-    <string name="StorageSettings">Пам'ять</string>
+    <string name="StorageSettings">Пам\'ять</string>
     <string name="StyleMaterialDesign3">Material Design 3</string>
     <string name="StyleModern">Modern</string>
     <string name="StyleOneUI">OneUI</string>
