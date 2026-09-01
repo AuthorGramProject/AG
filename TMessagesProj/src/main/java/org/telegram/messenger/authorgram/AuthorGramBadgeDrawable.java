@@ -22,9 +22,11 @@ import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
 
 public class AuthorGramBadgeDrawable extends Drawable {
+    private int lastThemeColor = 0;
+    private PorterDuffColorFilter cachedColorFilter;
     private final Drawable baseDrawable;
     private final int sizePx;
-    private View parentView;
+    private java.lang.ref.WeakReference<android.view.View> parentViewRef;
     
     // Animation properties
     private final Paint shimmerPaint;
@@ -42,8 +44,8 @@ public class AuthorGramBadgeDrawable extends Drawable {
         lastUpdateTime = System.currentTimeMillis();
     }
     
-    public void setParentView(View view) {
-        this.parentView = view;
+    public void setParentView(android.view.View view) {
+        this.parentViewRef = new java.lang.ref.WeakReference<>(view);
     }
 
     @Override
@@ -79,7 +81,11 @@ public class AuthorGramBadgeDrawable extends Drawable {
     public void draw(@NonNull Canvas canvas) {
         // Apply theme color
         int themeColor = Theme.getColor(Theme.key_chats_verifiedBackground);
-        baseDrawable.setColorFilter(new PorterDuffColorFilter(themeColor, PorterDuff.Mode.SRC_IN));
+        if (cachedColorFilter == null || lastThemeColor != themeColor) {
+            lastThemeColor = themeColor;
+            cachedColorFilter = new PorterDuffColorFilter(themeColor, PorterDuff.Mode.SRC_IN);
+            baseDrawable.setColorFilter(cachedColorFilter);
+        }
         
         // Draw the badge inside a layer to allow SRC_ATOP blending
         Rect bounds = getBounds();
@@ -112,8 +118,8 @@ public class AuthorGramBadgeDrawable extends Drawable {
         
         canvas.restoreToCount(saveCount);
         
-        if (parentView != null) {
-            parentView.invalidate();
+        if (parentViewRef != null && parentViewRef.get() != null) {
+            parentViewRef.get().invalidate();
         } else {
             invalidateSelf();
         }
