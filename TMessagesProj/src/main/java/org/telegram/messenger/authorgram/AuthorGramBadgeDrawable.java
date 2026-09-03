@@ -28,7 +28,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private final Drawable baseDrawable;
     private final int sizePx;
     private java.lang.ref.WeakReference<android.view.View> parentViewRef;
-    private int badgeType = AuthorGramBadgeManager.TYPE_AUTHOR;
+    public int type = AuthorGramBadgeManager.TYPE_AUTHOR;
     
     // Animation properties
     private final Paint shimmerPaint;
@@ -39,7 +39,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private StarParticlesView.Drawable starParticles;
 
     public AuthorGramBadgeDrawable(int type) {
-        this.badgeType = type;
+        this.type = type;
         sizePx = AndroidUtilities.dp(16);
         
         int resId = R.drawable.ic_author_badge_a;
