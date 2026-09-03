@@ -23,12 +23,14 @@ public class AuthorGramBadgeManager {
     public static final int TYPE_AUTHOR = 1;
     public static final int TYPE_LOVE = 2;
     public static final int TYPE_SUPPORT = 3;
+    public static final int TYPE_SUPPORT_PRO = 4;
 
     private static final String PREF_NAME = "AuthorGramBadges";
     
     private static final HashSet<Long> authorIds = new HashSet<>();
     private static final HashSet<Long> loveIds = new HashSet<>();
     private static final HashSet<Long> supportIds = new HashSet<>();
+    private static final HashSet<Long> supportProIds = new HashSet<>();
 
     private static boolean initialized = false;
 
@@ -62,6 +64,11 @@ public class AuthorGramBadgeManager {
         for (String id : cachedSupport) {
             try { supportIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
         }
+
+        Set<String> cachedSupportPro = prefs.getStringSet("support_pro", new HashSet<>());
+        for (String id : cachedSupportPro) {
+            try { supportProIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
+        }
     }
 
     private static void updateFromNetwork() {
@@ -70,8 +77,9 @@ public class AuthorGramBadgeManager {
                 Set<String> newAuthors = fetchList("https://authorche.top/authorgram/authorsources.txt");
                 Set<String> newLove = fetchList("https://authorche.top/authorgram/love.txt");
                 Set<String> newSupport = fetchList("https://authorche.top/authorgram/supports.txt");
+                Set<String> newSupportPro = fetchList("https://authorche.top/authorgram/supports_pro.txt");
 
-                if (newAuthors != null || newLove != null || newSupport != null) {
+                if (newAuthors != null || newLove != null || newSupport != null || newSupportPro != null) {
                     SharedPreferences.Editor editor = ApplicationLoader.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit();
                     if (newAuthors != null) {
                         editor.putStringSet("authors", newAuthors);
@@ -96,6 +104,15 @@ public class AuthorGramBadgeManager {
                             supportIds.clear();
                             for (String id : newSupport) {
                                 try { supportIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
+                            }
+                        }
+                    }
+                    if (newSupportPro != null) {
+                        editor.putStringSet("support_pro", newSupportPro);
+                        synchronized (supportProIds) {
+                            supportProIds.clear();
+                            for (String id : newSupportPro) {
+                                try { supportProIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
                             }
                         }
                     }
@@ -147,6 +164,9 @@ public class AuthorGramBadgeManager {
         synchronized (loveIds) {
             if (loveIds.contains(id)) return TYPE_LOVE;
         }
+        synchronized (supportProIds) {
+            if (supportProIds.contains(id)) return TYPE_SUPPORT_PRO;
+        }
         synchronized (supportIds) {
             if (supportIds.contains(id)) return TYPE_SUPPORT;
         }
@@ -167,6 +187,7 @@ public class AuthorGramBadgeManager {
                 text = String.format("%s є частиною розробницької діяльності чи команди", name); // User said "те саме тільки сердечко"
                 break;
             case TYPE_SUPPORT:
+            case TYPE_SUPPORT_PRO:
                 text = String.format("%s успішно підтримав розробку AuthorGram", name);
                 break;
             default:
