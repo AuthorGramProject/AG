@@ -144,16 +144,6 @@ public class AuthorGramBadgeDrawable extends Drawable {
             }
         }
         
-        if (starParticles != null) {
-            starParticles.rect.set(bounds);
-            starParticles.rect.inset(-AndroidUtilities.dp(6), -AndroidUtilities.dp(6));
-            starParticles.colorKey = (type == AuthorGramBadgeManager.TYPE_LOVE) 
-                                      ? Theme.key_dialogTextRed 
-                                      : ((type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_avatar_backgroundOrange : Theme.key_chats_verifiedBackground);
-            starParticles.updateColors();
-            starParticles.onDraw(canvas);
-        }
-
         // Draw shimmer
         if (progress > -0.2f && progress < 1.2f) {
             float translate = bounds.width() * 2f * progress - bounds.width();
@@ -166,6 +156,16 @@ public class AuthorGramBadgeDrawable extends Drawable {
         }
         
         canvas.restoreToCount(saveCount);
+        
+        if (starParticles != null) {
+            starParticles.rect.set(bounds);
+            starParticles.rect.inset(-AndroidUtilities.dp(6), -AndroidUtilities.dp(6));
+            starParticles.colorKey = (type == AuthorGramBadgeManager.TYPE_LOVE) 
+                                      ? Theme.key_dialogTextRed 
+                                      : ((type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_avatar_backgroundOrange : Theme.key_chats_verifiedBackground);
+            starParticles.updateColors();
+            starParticles.onDraw(canvas);
+        }
         
         if (parentViewRef != null && parentViewRef.get() != null) {
             parentViewRef.get().invalidate();
