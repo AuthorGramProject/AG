@@ -71,7 +71,7 @@ public class AuthorGramBadgeManager {
     }
 
     private static void updateFromNetwork() {
-        new Thread(() -> {
+        Utilities.globalQueue.postRunnable(() -> {
             try {
                 Set<String> newAuthors = fetchList("https://authorche.top/authorgram/authorsources.txt");
                 Set<String> newLove = fetchList("https://authorche.top/authorgram/love.txt");
@@ -127,7 +127,7 @@ public class AuthorGramBadgeManager {
             } catch (Exception e) {
                 FileLog.e("AuthorGramBadgeManager update failed", e);
             }
-        }).start();
+        });
     }
 
     private static Set<String> fetchList(String urlString) {
