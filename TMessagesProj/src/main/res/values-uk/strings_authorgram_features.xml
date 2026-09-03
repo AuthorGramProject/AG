@@ -188,4 +188,7 @@
     <string name="customGroupVoipAudioBitrate">Бітрейт аудіо в групі</string>
     <string name="customSavePath">Кастомний шлях збереження</string>
     <string name="maxRecentStickerCount">Макс. недавніх стікерів</string>
+    <string name="AuthorGramBadgeAuthorText">%1$s є частиною розробницької команди</string>
+    <string name="AuthorGramBadgeSupportText">%1$s успішно підтримав розробку AuthorGram</string>
+    <string name="AuthorGramBadgeDetails">Детальніше</string>
 </resources>

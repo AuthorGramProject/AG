@@ -13,4 +13,7 @@
     <string name="VoiceTimingSepSpace">Space</string>
     <string name="VoiceTimingSepNewline">Newline</string>
     <string name="VoiceTimingSepNone">None</string>
+    <string name="AuthorGramBadgeAuthorText">%1$s is part of the development team</string>
+    <string name="AuthorGramBadgeSupportText">%1$s has successfully supported AuthorGram development</string>
+    <string name="AuthorGramBadgeDetails">Details</string>
 </resources>
