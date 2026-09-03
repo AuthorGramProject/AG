@@ -1,4 +1,6 @@
-<?xml version='1.0' encoding='utf-8'?>\n<resources>\n    <string name="AuthorGramBadgeAuthorText">%1$s ist Teil des Entwicklungsteams</string>
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="AuthorGramBadgeAuthorText">%1$s ist Teil des Entwicklungsteams</string>
     <string name="AuthorGramBadgeSupportText">%1$s hat die Entwicklung von AuthorGram erfolgreich unterstützt</string>
     <string name="AuthorGramBadgeDetails">Details</string>
 </resources>

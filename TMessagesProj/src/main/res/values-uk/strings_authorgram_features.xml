@@ -343,7 +343,9 @@
     <string name="TranslatorWithOriginalTextManualOnly">Лише вручну</string>
     <string name="Underline">Підкреслений</string>
     <string name="UnifiedPushCurrentEndpoint">Поточна точка UnifiedPush: %1$s</string>
-    <string name="UnifiedPushLastReceivedNotification">Останнє сповіщення через UnifiedPush було %1$d с. тому.\n\nВи отримали %2$d сповіщень після запуску AuthorGram.</string>
+    <string name="UnifiedPushLastReceivedNotification">Останнє сповіщення через UnifiedPush було %1$d с. тому.
+
+Ви отримали %2$d сповіщень після запуску AuthorGram.</string>
     <string name="UnifiedPushNeverReceivedNotifications">Ви ще не отримували сповіщень через UnifiedPush.</string>
     <string name="UnlimitedFavoredStickersAbout">Додавайте нескінченну кількість стікерів у вибране. Вони можуть не синхронізуватися.</string>
     <string name="UnlimitedPinnedDialogsAbout">Закріплюйте нескінченну кількість чатів (без синхронізації).</string>
