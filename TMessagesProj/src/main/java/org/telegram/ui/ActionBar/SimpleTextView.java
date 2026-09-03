@@ -1337,6 +1337,29 @@ public class SimpleTextView extends View implements Drawable.Callback {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (rightDrawable2OnClickListener != null && rightDrawable2 != null) {
+            android.graphics.Rect b = rightDrawable2.getBounds();
+            AndroidUtilities.rectTmp.set(b.left - dp(16), b.top - dp(16), b.right + dp(16), b.bottom + dp(16));
+            if (event.getAction() == MotionEvent.ACTION_DOWN && AndroidUtilities.rectTmp.contains((int) event.getX(), (int) event.getY())) {
+                maybeClick = true;
+                touchDownX = event.getX();
+                touchDownY = event.getY();
+                getParent().requestDisallowInterceptTouchEvent(true);
+            } else if (event.getAction() == MotionEvent.ACTION_MOVE && maybeClick) {
+                if (Math.abs(event.getX() - touchDownX) >= AndroidUtilities.touchSlop || Math.abs(event.getY() - touchDownY) >= AndroidUtilities.touchSlop) {
+                    maybeClick = false;
+                    getParent().requestDisallowInterceptTouchEvent(false);
+                }
+            } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                if (maybeClick && event.getAction() == MotionEvent.ACTION_UP) {
+                    rightDrawable2OnClickListener.onClick(this);
+                }
+                maybeClick = false;
+                getParent().requestDisallowInterceptTouchEvent(false);
+            }
+            if (maybeClick) return true;
+        }
+
         if (rightDrawableOnClickListener != null && rightDrawable != null) {
             AndroidUtilities.rectTmp.set(rightDrawableX - dp(16), rightDrawableY - dp(16), rightDrawableX + dp(16), rightDrawableY + dp(16));
             if (event.getAction() == MotionEvent.ACTION_DOWN && AndroidUtilities.rectTmp.contains((int) event.getX(), (int) event.getY())) {

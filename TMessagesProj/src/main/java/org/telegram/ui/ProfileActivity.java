@@ -12272,7 +12272,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         nameTextView[a].setRightDrawable2(getScamDrawable(chat.scam ? 0 : 1));
                         nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.ScamMessage);
                     } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id) != 0) {
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id)));
+                        int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id);
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType));
+                        nameTextView[a].setRightDrawable2OnClick(v -> {
+                            org.telegram.messenger.authorgram.AuthorGramBadgeManager.showBadgeToast(bType, chat.title);
+                        });
                         nameTextViewRightDrawableContentDescription = "Author";
                     } else if (chat.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
@@ -12304,7 +12308,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (chat.scam || chat.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(chat.scam ? 0 : 1));
                     } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id) != 0) {
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id)));
+                        int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id);
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType));
+                        nameTextView[a].setRightDrawable2OnClick(v -> {
+                            org.telegram.messenger.authorgram.AuthorGramBadgeManager.showBadgeToast(bType, chat.title);
+                        });
                     } else if (chat.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
                     } else if (getMessagesController().isDialogMuted(-chatId, topicId)) {
