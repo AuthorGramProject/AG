@@ -4644,7 +4644,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     y -= dp(9);
                 }
                 if (authorBadgeDrawable == null) {
-                    authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable();
+                    authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(authorGramBadgeType);
                 }
                 int size = dp(16);
                 int left = nameMuteLeft - dp(1);
@@ -6331,6 +6331,18 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN && authorBadgeDrawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
+            if (((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).checkClick(event.getX(), event.getY())) {
+                String name = "Користувач";
+                if (user != null) {
+                    name = org.telegram.messenger.UserObject.getFirstName(user);
+                } else if (chat != null) {
+                    name = chat.title;
+                }
+                org.telegram.messenger.authorgram.AuthorGramBadgeManager.showBadgeToast(authorGramBadgeType, name);
+                return true;
+            }
+        }
         if (rightFragmentOpenedProgress == 0 && !isTopic && !isShareToStoryCell && storyParams.checkOnTouchEvent(event, this)) {
             return true;
         }

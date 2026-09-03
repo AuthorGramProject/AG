@@ -11530,7 +11530,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     // AuthorGram: метод для отримання бейджа розробника
     private Drawable getAuthorBadgeDrawable() {
         if (authorBadgeDrawable == null) {
-            authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable();
+            authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.TYPE_AUTHOR);
         }
         return authorBadgeDrawable;
     }
