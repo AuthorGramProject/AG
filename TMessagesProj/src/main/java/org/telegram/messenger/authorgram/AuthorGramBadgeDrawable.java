@@ -150,6 +150,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
             starParticles.colorKey = (badgeType == AuthorGramBadgeManager.TYPE_LOVE) 
                                       ? Theme.key_dialogTextRed 
                                       : ((badgeType == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_avatar_backgroundOrange : Theme.key_chats_verifiedBackground);
+            starParticles.updateColors();
             starParticles.onDraw(canvas);
         }
 

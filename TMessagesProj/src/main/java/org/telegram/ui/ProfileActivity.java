@@ -11528,9 +11528,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     // AuthorGram: метод для отримання бейджа розробника
-    private Drawable getAuthorBadgeDrawable() {
+    private Drawable getAuthorBadgeDrawable(int type) {
+        // Create new or update existing if type differs
         if (authorBadgeDrawable == null) {
-            authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.TYPE_AUTHOR);
+            authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(type);
+        } else if (authorBadgeDrawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
+            // Re-create to ensure correct type
+            authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(type);
         }
         return authorBadgeDrawable;
     }
@@ -11921,8 +11925,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (user.scam || user.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(user.scam ? 0 : 1));
                         nameTextViewRightDrawable2ContentDescription = LocaleController.getString(R.string.ScamMessage);
-                    } else if (AuthorGramAuthorBadge.matches(user.id)) {
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable());
+                    } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id) != 0) {
+                        int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id);
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType));
+                        nameTextView[a].setRightDrawable2OnClick(v -> {
+                            org.telegram.messenger.authorgram.AuthorGramBadgeManager.showBadgeToast(bType, org.telegram.messenger.UserObject.getFirstName(user));
+                        });
                         nameTextViewRightDrawable2ContentDescription = "Author";
                     } else if (user.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
@@ -11958,8 +11966,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } else if (a == 1) {
                     if (user.scam || user.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(user.scam ? 0 : 1));
-                    } else if (AuthorGramAuthorBadge.matches(user.id)) {
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable());
+                    } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id) != 0) {
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id)));
                     } else if (user.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
                     } else {
@@ -12262,8 +12270,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (chat.scam || chat.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(chat.scam ? 0 : 1));
                         nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.ScamMessage);
-                    } else if (AuthorGramAuthorBadge.matches(chat.id)) {
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable());
+                    } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id) != 0) {
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id)));
                         nameTextViewRightDrawableContentDescription = "Author";
                     } else if (chat.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
@@ -12294,8 +12302,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } else if (!copyFromChatActivity) {
                     if (chat.scam || chat.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(chat.scam ? 0 : 1));
-                    } else if (AuthorGramAuthorBadge.matches(chat.id)) {
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable());
+                    } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id) != 0) {
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id)));
                     } else if (chat.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
                     } else if (getMessagesController().isDialogMuted(-chatId, topicId)) {
