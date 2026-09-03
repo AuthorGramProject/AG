@@ -24,12 +24,14 @@ public class AuthorGramBadgeManager {
     public static final int TYPE_LOVE = 2;
     public static final int TYPE_SUPPORT = 3;
     public static final int TYPE_SUPPORT_PRO = 4;
+    public static final int TYPE_SUPPORT_PRO = 4;
 
     private static final String PREF_NAME = "AuthorGramBadges";
     
     private static final HashSet<Long> authorIds = new HashSet<>();
     private static final HashSet<Long> loveIds = new HashSet<>();
     private static final HashSet<Long> supportIds = new HashSet<>();
+    private static final HashSet<Long> supportProIds = new HashSet<>();
     private static final HashSet<Long> supportProIds = new HashSet<>();
 
     private static boolean initialized = false;
@@ -63,6 +65,10 @@ public class AuthorGramBadgeManager {
         Set<String> cachedSupport = prefs.getStringSet("support", new HashSet<>());
         for (String id : cachedSupport) {
             try { supportIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
+        }
+        Set<String> cachedSupportPro = prefs.getStringSet("support_pro", new HashSet<>());
+        for (String id : cachedSupportPro) {
+            try { supportProIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
         }
 
         Set<String> cachedSupportPro = prefs.getStringSet("support_pro", new HashSet<>());
@@ -163,6 +169,9 @@ public class AuthorGramBadgeManager {
         }
         synchronized (loveIds) {
             if (loveIds.contains(id)) return TYPE_LOVE;
+        }
+        synchronized (supportProIds) {
+            if (supportProIds.contains(id)) return TYPE_SUPPORT_PRO;
         }
         synchronized (supportProIds) {
             if (supportProIds.contains(id)) return TYPE_SUPPORT_PRO;
