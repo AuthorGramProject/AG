@@ -111,10 +111,10 @@
     <string name="DatacenterStatus">Datacenter Status</string>
     <string name="enhancedFileLoader">Download Speed Boost</string>
     <string name="MapProviderOpenFreeMap">Use OpenFreeMap instead of Google Maps</string>
-    <string name="UnknownNekoSettingsOption">There is no such N-Settings option.</string>
+    <string name="UnknownNekoSettingsOption">There is no such AuthorGram Settings option.</string>
     <string name="PasscodeNeeded">You have to enable passcode lock first</string>
     <string name="PasscodeNeko">Passcode</string>
-    <string name="PasscodeShowInSettings">Show in N-Settings</string>
+    <string name="PasscodeShowInSettings">Show in AuthorGram Settings</string>
     <string name="PasscodeShowInSettingsAbout">After hiding, you can **ONLY** open this page by link:</string>
     <string name="PasscodeSet">Set passcode</string>
     <string name="PasscodeEdit">Change passcode</string>
@@ -153,7 +153,7 @@
     <string name="ClearRecentChats">Clear recent chats</string>
     <string name="ClearRecentChatAlert">Do you want to clear your recent chats?</string>
     <string name="CloudConfig">Cloud Settings</string>
-    <string name="CloudConfigDesc">Save your N-Settings to Telegram cloud.</string>
+    <string name="CloudConfigDesc">Save your AuthorGram Settings to Telegram cloud.</string>
     <string name="CloudConfigSyncDate">Last synced: %s, cloud: %s</string>
     <string name="CloudConfigSyncDateNever">never</string>
     <string name="CloudConfigSync">Sync to cloud</string>
@@ -162,7 +162,7 @@
     <string name="CloudConfigRestoreShort">Restore</string>
     <string name="CloudConfigSyncing">Syncing...</string>
     <string name="CloudConfigAutoSync">Auto sync</string>
-    <string name="CloudConfigAutoSyncDesc">Sync to cloud automatically after making changes to N-Settings.</string>
+    <string name="CloudConfigAutoSyncDesc">Sync to cloud automatically after making changes to AuthorGram Settings.</string>
     <string name="CloudConfigSyncFailed">Failed to sync settings to cloud</string>
     <string name="CloudConfigRestoreFailed">Failed to restore settings from cloud</string>
     <string name="CopyCallback">Copy Callback Data</string>

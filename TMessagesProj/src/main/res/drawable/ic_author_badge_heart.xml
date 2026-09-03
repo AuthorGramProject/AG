@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Hollow 8-point wavy star (Rosette outline) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.2"
+        android:strokeLineJoin="round"
+        android:pathData="M 12,2 
+                          C 13,2 14,3.5 15,4 
+                          C 16,4.5 18.5,4 19.5,5 
+                          C 20.5,6 20,8.5 20,9.5 
+                          C 20,10.5 21.5,11.5 21.5,12.5 
+                          C 21.5,13.5 20,14.5 20,15.5 
+                          C 20,16.5 20.5,19 19.5,20 
+                          C 18.5,21 16,20.5 15,21 
+                          C 14,21.5 13,23 12,23 
+                          C 11,23 10,21.5 9,21 
+                          C 8,20.5 5.5,21 4.5,20 
+                          C 3.5,19 4,16.5 4,15.5 
+                          C 4,14.5 2.5,13.5 2.5,12.5 
+                          C 2.5,11.5 4,10.5 4,9.5 
+                          C 4,8.5 3.5,6 4.5,5 
+                          C 5.5,4 8,4.5 9,4 
+                          C 10,3.5 11,2 12,2 Z" />
+
+    <!-- Solid Heart -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 12,17.5
+                          C 12,17.5 7,12.5 7,9
+                          C 7,7.2 8.5,6 10,6
+                          C 11,6 11.5,6.5 12,7.2
+                          C 12.5,6.5 13,6 14,6
+                          C 15.5,6 17,7.2 17,9
+                          C 17,12.5 12,17.5 12,17.5 Z" />
+</vector>

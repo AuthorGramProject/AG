@@ -20872,6 +20872,15 @@ public class ChatActivity extends BaseFragment implements
                 }
                 if (actionModeOtherItem != null) {
                     actionModeOtherItem.setSubItemVisibility(agbtn_unpin, allowPin);
+                    
+                    boolean allowSaveToGallery = false;
+                    for (MessageObject msg : getSelectedMessages1()) {
+                        if (msg != null && (msg.isPhoto() || msg.isVideo())) {
+                            allowSaveToGallery = true;
+                            break;
+                        }
+                    }
+                    actionModeOtherItem.setSubItemVisibility(agbtn_savetogallery, allowSaveToGallery);
                 }
 
                 if (shareItem != null) {

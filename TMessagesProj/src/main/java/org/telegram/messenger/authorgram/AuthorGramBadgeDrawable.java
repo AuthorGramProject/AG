@@ -15,6 +15,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import org.telegram.ui.Components.Premium.StarParticlesView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -27,6 +28,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private final Drawable baseDrawable;
     private final int sizePx;
     private java.lang.ref.WeakReference<android.view.View> parentViewRef;
+    private int badgeType = AuthorGramBadgeManager.TYPE_AUTHOR;
     
     // Animation properties
     private final Paint shimmerPaint;
@@ -34,18 +36,49 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private long lastUpdateTime;
     private float progress = 0f;
     private boolean animating = true;
+    private StarParticlesView.Drawable starParticles;
 
-    public AuthorGramBadgeDrawable() {
+    public AuthorGramBadgeDrawable(int type) {
+        this.badgeType = type;
         sizePx = AndroidUtilities.dp(16);
-        baseDrawable = ContextCompat.getDrawable(ApplicationLoader.applicationContext, R.drawable.ic_author_badge_a).mutate();
+        
+        int resId = R.drawable.ic_author_badge_a;
+        if (type == AuthorGramBadgeManager.TYPE_LOVE) {
+            resId = R.drawable.ic_author_badge_heart;
+        } else if (type == AuthorGramBadgeManager.TYPE_SUPPORT) {
+            resId = R.drawable.ic_author_badge_support;
+        }
+        
+        baseDrawable = ContextCompat.getDrawable(ApplicationLoader.applicationContext, resId).mutate();
         
         shimmerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         shimmerMatrix = new Matrix();
         lastUpdateTime = System.currentTimeMillis();
+        
+        if (type == AuthorGramBadgeManager.TYPE_SUPPORT) {
+            starParticles = new StarParticlesView.Drawable(10);
+            starParticles.type = 100;
+            starParticles.isFocusable = true;
+            starParticles.roundEffect = false;
+            starParticles.useRotate = true;
+            starParticles.useBlur = false;
+            starParticles.checkBounds = true;
+            starParticles.size1 = 12;
+            starParticles.size2 = 8;
+            starParticles.size3 = 6;
+            starParticles.colorKey = Theme.key_chats_verifiedBackground;
+            starParticles.init();
+        }
     }
     
     public void setParentView(android.view.View view) {
         this.parentViewRef = new java.lang.ref.WeakReference<>(view);
+    }
+
+    public boolean checkClick(float x, float y) {
+        Rect b = getBounds();
+        return x >= b.left - AndroidUtilities.dp(4) && x <= b.right + AndroidUtilities.dp(4) &&
+               y >= b.top - AndroidUtilities.dp(4) && y <= b.bottom + AndroidUtilities.dp(4);
     }
 
     @Override
@@ -81,6 +114,13 @@ public class AuthorGramBadgeDrawable extends Drawable {
     public void draw(@NonNull Canvas canvas) {
         // Apply theme color
         int themeColor = Theme.getColor(Theme.key_chats_verifiedBackground);
+        
+        if (badgeType == AuthorGramBadgeManager.TYPE_LOVE) {
+            themeColor = 0xFFE91E63; // Pinkish Red for Love badge
+        } else if (badgeType == AuthorGramBadgeManager.TYPE_SUPPORT) {
+            themeColor = 0xFFFF9800; // Orange/Gold for Support badge
+        }
+
         if (cachedColorFilter == null || lastThemeColor != themeColor) {
             lastThemeColor = themeColor;
             cachedColorFilter = new PorterDuffColorFilter(themeColor, PorterDuff.Mode.SRC_IN);
@@ -105,6 +145,13 @@ public class AuthorGramBadgeDrawable extends Drawable {
             }
         }
         
+        if (starParticles != null) {
+            starParticles.rect.set(bounds);
+            starParticles.rect.inset(-AndroidUtilities.dp(6), -AndroidUtilities.dp(6));
+            starParticles.colorKey = Theme.key_chats_verifiedBackground;
+            starParticles.onDraw(canvas);
+        }
+
         // Draw shimmer
         if (progress > -0.2f && progress < 1.2f) {
             float translate = bounds.width() * 2f * progress - bounds.width();
