@@ -11533,8 +11533,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (authorBadgeDrawable == null) {
             authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(type);
         } else if (authorBadgeDrawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
-            // Re-create to ensure correct type
-            authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(type);
+            if (((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).type != type) {
+                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(type);
+            }
         }
         return authorBadgeDrawable;
     }

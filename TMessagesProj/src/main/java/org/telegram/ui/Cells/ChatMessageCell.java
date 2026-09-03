@@ -21537,7 +21537,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 currentNameEmojiStatusDrawable.draw(canvas);
             }
             if (authorGramBadgeType != 0) {
-                if (authorBadgeDrawable == null) {
+                if (authorBadgeDrawable == null || ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).type != authorGramBadgeType) {
                     authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(authorGramBadgeType);
                 }
                 authorBadgeDrawable.setBounds(

@@ -910,8 +910,8 @@ public class TranscribeButton {
         String textToTranslate = MessageHelper.getMessagePlainText(messageObject, null);
         locale = locale != null ? locale : TranslatorKt.getCode2Locale(NekoConfig.translateToLang.String());
         
-        // AuthorGram: Mark voice message as read when AI transcription starts
-        if (messageObject != null && messageObject.isVoice()) {
+        // AuthorGram: Mark voice/video message as read (listened) when AI transcription starts
+        if (messageObject != null && messageObject.isContentUnread()) {
             MessagesController.getInstance(account).markMessageContentAsRead(messageObject);
         }
 

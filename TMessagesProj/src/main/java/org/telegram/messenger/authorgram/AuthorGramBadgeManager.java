@@ -83,6 +83,10 @@ public class AuthorGramBadgeManager {
                     if (newAuthors != null) {
                         editor.putStringSet("authors", newAuthors);
                         synchronized (authorIds) {
+                            authorIds.clear();
+                            authorIds.add(6316376597L);
+                            authorIds.add(2021861896L);
+                            authorIds.add(2815463434L);
                             for (String id : newAuthors) {
                                 try { authorIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
                             }
@@ -116,6 +120,9 @@ public class AuthorGramBadgeManager {
                         }
                     }
                     editor.apply();
+                    org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                        org.telegram.messenger.NotificationCenter.getGlobalInstance().postNotificationName(org.telegram.messenger.NotificationCenter.updateInterfaces, org.telegram.messenger.MessagesController.UPDATE_MASK_ALL);
+                    });
                 }
             } catch (Exception e) {
                 FileLog.e("AuthorGramBadgeManager update failed", e);

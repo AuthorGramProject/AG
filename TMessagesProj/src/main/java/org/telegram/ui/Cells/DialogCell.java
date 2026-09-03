@@ -4647,7 +4647,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 if ((!(useForceThreeLines || SharedConfig.useThreeLinesLayout) || isForumCell()) && hasTags()) {
                     y -= dp(9);
                 }
-                if (authorBadgeDrawable == null) {
+                if (authorBadgeDrawable == null || ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).type != authorGramBadgeType) {
                     authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(authorGramBadgeType);
                 }
                 int size = dp(16);
