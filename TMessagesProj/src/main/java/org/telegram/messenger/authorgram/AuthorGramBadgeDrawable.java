@@ -114,9 +114,9 @@ public class AuthorGramBadgeDrawable extends Drawable {
         // Apply theme color
         int themeColor = Theme.getColor(Theme.key_chats_verifiedBackground);
         
-        if (badgeType == AuthorGramBadgeManager.TYPE_LOVE) {
+        if (type == AuthorGramBadgeManager.TYPE_LOVE) {
             themeColor = 0xFFE91E63; // Pinkish Red for Love badge
-        } else if (badgeType == AuthorGramBadgeManager.TYPE_SUPPORT || badgeType == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
+        } else if (type == AuthorGramBadgeManager.TYPE_SUPPORT || type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
             themeColor = 0xFFFF9800; // Orange/Gold for Support badge
         }
 
@@ -147,9 +147,9 @@ public class AuthorGramBadgeDrawable extends Drawable {
         if (starParticles != null) {
             starParticles.rect.set(bounds);
             starParticles.rect.inset(-AndroidUtilities.dp(6), -AndroidUtilities.dp(6));
-            starParticles.colorKey = (badgeType == AuthorGramBadgeManager.TYPE_LOVE) 
+            starParticles.colorKey = (type == AuthorGramBadgeManager.TYPE_LOVE) 
                                       ? Theme.key_dialogTextRed 
-                                      : ((badgeType == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_avatar_backgroundOrange : Theme.key_chats_verifiedBackground);
+                                      : ((type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_avatar_backgroundOrange : Theme.key_chats_verifiedBackground);
             starParticles.updateColors();
             starParticles.onDraw(canvas);
         }
