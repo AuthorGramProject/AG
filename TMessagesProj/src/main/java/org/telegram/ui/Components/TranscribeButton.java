@@ -690,6 +690,10 @@ public class TranscribeButton {
         long dialogId = DialogObject.getPeerDialogId(peer);
         int messageId = messageObject.messageOwner.id;
         if (open) {
+            // AuthorGram: Mark voice/video message as read (listened) when transcription starts
+            if (messageObject.isContentUnread()) {
+                org.telegram.messenger.MessagesController.getInstance(account).markMessageContentAsRead(messageObject);
+            }
             if (messageObject.messageOwner.voiceTranscription != null && messageObject.messageOwner.voiceTranscriptionFinal) {
                 TranscribeButton.openVideoTranscription(messageObject);
                 messageObject.messageOwner.voiceTranscriptionOpen = true;
@@ -910,11 +914,6 @@ public class TranscribeButton {
         String textToTranslate = MessageHelper.getMessagePlainText(messageObject, null);
         locale = locale != null ? locale : TranslatorKt.getCode2Locale(NekoConfig.translateToLang.String());
         
-        // AuthorGram: Mark voice/video message as read (listened) when AI transcription starts
-        if (messageObject != null && messageObject.isContentUnread()) {
-            MessagesController.getInstance(account).markMessageContentAsRead(messageObject);
-        }
-
         Translator.translate(locale, textToTranslate, LlmConfig.isLLMTranslatorAvailable() ? Translator.providerLLMTranslator : 0, new Translator.Companion.TranslateCallBack() {
             @Override
             public void onSuccess(@NonNull String translatedText) {
