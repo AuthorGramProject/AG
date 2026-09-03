@@ -1,6 +1,8 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="AuthorGramBadgeAuthorText">%1$s ist Teil des Entwicklungsteams</string>
+    <string name="AuthorGramBadgeLoveText">User %1$s is part of our AuthorGram family and the developer personally thanks them for their help!</string>
+    <string name="AuthorGramBadgeSupportProText">User %1$s is a Pro Supporter of the AuthorGram project.</string>
     <string name="AuthorGramBadgeSupportText">%1$s hat die Entwicklung von AuthorGram erfolgreich unterstützt</string>
     <string name="AuthorGramBadgeDetails">Details</string>
 </resources>

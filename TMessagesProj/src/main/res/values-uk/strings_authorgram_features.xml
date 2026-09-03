@@ -189,6 +189,8 @@
     <string name="customSavePath">Кастомний шлях збереження</string>
     <string name="maxRecentStickerCount">Макс. недавніх стікерів</string>
     <string name="AuthorGramBadgeAuthorText">%1$s є частиною розробницької команди</string>
+    <string name="AuthorGramBadgeLoveText">Користувач %1$s є частинкою нашої AuthorGram родини і розробник особисто дякує за допомогу!</string>
+    <string name="AuthorGramBadgeSupportProText">Користувач %1$s є Pro-підтримником проекту AuthorGram.</string>
     <string name="AuthorGramBadgeSupportText">%1$s успішно підтримав розробку AuthorGram</string>
     <string name="AuthorGramBadgeDetails">Детальніше</string>
     <string name="AIChatInfo">Спілкуйтеся зі штучним інтелектом прямо тут.</string>

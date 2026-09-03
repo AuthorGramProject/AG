@@ -5,23 +5,26 @@ import android.view.View;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DialogObject;
-import org.telegram.messenger.authorgram.AuthorGramAuthorBadge;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.Premium.PremiumGradient;
+import org.telegram.messenger.authorgram.AuthorGramBadgeManager;
+import org.telegram.messenger.authorgram.AuthorGramBadgeDrawable;
 
 public class StatusBadgeComponent {
 
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable statusDrawable;
     private Drawable verifiedDrawable;
     private Drawable authorBadgeDrawable;
+    private View parentView;
 
     public StatusBadgeComponent(View parentView) {
         this(parentView, 18);
     }
 
     public StatusBadgeComponent(View parentView, int sizeDp) {
+        this.parentView = parentView;
         statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(parentView, AndroidUtilities.dp(sizeDp));
     }
 
@@ -39,14 +42,16 @@ public class StatusBadgeComponent {
         if (user != null) {
             objectId = user.id;
         } else if (chat != null) {
-            // Telegram stores the underlying channel/group identifier here,
-            // without the Bot API -100 prefix.
             objectId = chat.id;
         }
-        int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(objectId);
-        if (bType != 0) {
-            if (authorBadgeDrawable == null) {
-                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(bType);
+        int bType = AuthorGramBadgeManager.getBadgeType(objectId);
+        if (bType != AuthorGramBadgeManager.TYPE_NONE) {
+            if (authorBadgeDrawable == null || !(authorBadgeDrawable instanceof AuthorGramBadgeDrawable) || ((AuthorGramBadgeDrawable) authorBadgeDrawable).type != bType) {
+                authorBadgeDrawable = new AuthorGramBadgeDrawable(bType);
+                ((AuthorGramBadgeDrawable) authorBadgeDrawable).setParentView(parentView);
+                if (statusDrawable.attached) {
+                    ((AuthorGramBadgeDrawable) authorBadgeDrawable).startAnimation();
+                }
             }
             statusDrawable.set(authorBadgeDrawable, animated);
             statusDrawable.setColor(null);
@@ -80,9 +85,15 @@ public class StatusBadgeComponent {
 
     public void onAttachedToWindow() {
         statusDrawable.attach();
+        if (authorBadgeDrawable instanceof AuthorGramBadgeDrawable) {
+            ((AuthorGramBadgeDrawable) authorBadgeDrawable).startAnimation();
+        }
     }
 
     public void onDetachedFromWindow() {
         statusDrawable.detach();
+        if (authorBadgeDrawable instanceof AuthorGramBadgeDrawable) {
+            ((AuthorGramBadgeDrawable) authorBadgeDrawable).stopAnimation();
+        }
     }
 }

@@ -7,18 +7,18 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.ui.Components.BulletinFactory;
+import org.telegram.messenger.R;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.telegram.messenger.R;
-
 public class AuthorGramBadgeManager {
-
     public static final int TYPE_NONE = 0;
     public static final int TYPE_AUTHOR = 1;
     public static final int TYPE_LOVE = 2;
@@ -26,48 +26,60 @@ public class AuthorGramBadgeManager {
     public static final int TYPE_SUPPORT_PRO = 4;
 
     private static final String PREF_NAME = "AuthorGramBadges";
-    
-    private static final HashSet<Long> authorIds = new HashSet<>();
-    private static final HashSet<Long> loveIds = new HashSet<>();
-    private static final HashSet<Long> supportIds = new HashSet<>();
-    private static final HashSet<Long> supportProIds = new HashSet<>();
+    private static final Object INIT_LOCK = new Object();
+    private static volatile boolean initialized = false;
 
-    private static boolean initialized = false;
+    // Immutable state class
+    private static class BadgeState {
+        final HashSet<Long> authors;
+        final HashSet<Long> love;
+        final HashSet<Long> support;
+        final HashSet<Long> supportPro;
 
-    public static void init() {
+        BadgeState(HashSet<Long> authors, HashSet<Long> love, HashSet<Long> support, HashSet<Long> supportPro) {
+            this.authors = authors != null ? authors : new HashSet<>();
+            this.love = love != null ? love : new HashSet<>();
+            this.support = support != null ? support : new HashSet<>();
+            this.supportPro = supportPro != null ? supportPro : new HashSet<>();
+        }
+    }
+
+    private static volatile BadgeState currentState = new BadgeState(null, null, null, null);
+
+    private static void ensureInitialized() {
         if (initialized) return;
-        initialized = true;
-
-        // Hardcoded Authors
-        authorIds.add(6316376597L);
-        authorIds.add(2021861896L);
-        authorIds.add(2815463434L);
-
-        loadFromCache();
+        synchronized (INIT_LOCK) {
+            if (initialized) return;
+            loadFromCache();
+            initialized = true;
+        }
         updateFromNetwork();
     }
 
     private static void loadFromCache() {
         SharedPreferences prefs = ApplicationLoader.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         
-        Set<String> cachedAuthors = prefs.getStringSet("authors", new HashSet<>());
-        for (String id : cachedAuthors) {
-            try { authorIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
-        }
+        HashSet<Long> parsedAuthors = parseIds(prefs.getStringSet("authors", new HashSet<>()));
+        HashSet<Long> parsedLove = parseIds(prefs.getStringSet("love", new HashSet<>()));
+        HashSet<Long> parsedSupport = parseIds(prefs.getStringSet("support", new HashSet<>()));
+        HashSet<Long> parsedSupportPro = parseIds(prefs.getStringSet("support_pro", new HashSet<>()));
+        
+        // Hardcoded authors
+        parsedAuthors.add(6316376597L);
+        parsedAuthors.add(2021861896L);
+        parsedAuthors.add(2815463434L);
 
-        Set<String> cachedLove = prefs.getStringSet("love", new HashSet<>());
-        for (String id : cachedLove) {
-            try { loveIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
-        }
+        currentState = new BadgeState(parsedAuthors, parsedLove, parsedSupport, parsedSupportPro);
+    }
 
-        Set<String> cachedSupport = prefs.getStringSet("support", new HashSet<>());
-        for (String id : cachedSupport) {
-            try { supportIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
+    private static HashSet<Long> parseIds(Set<String> stringSet) {
+        HashSet<Long> result = new HashSet<>();
+        if (stringSet != null) {
+            for (String s : stringSet) {
+                try { result.add(Long.parseLong(s)); } catch (Exception ignore) {}
+            }
         }
-        Set<String> cachedSupportPro = prefs.getStringSet("support_pro", new HashSet<>());
-        for (String id : cachedSupportPro) {
-            try { supportProIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
-        }
+        return result;
     }
 
     private static void updateFromNetwork() {
@@ -80,48 +92,51 @@ public class AuthorGramBadgeManager {
 
                 if (newAuthors != null || newLove != null || newSupport != null || newSupportPro != null) {
                     SharedPreferences.Editor editor = ApplicationLoader.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit();
+                    
+                    HashSet<Long> parsedAuthors = new HashSet<>();
                     if (newAuthors != null) {
                         editor.putStringSet("authors", newAuthors);
-                        synchronized (authorIds) {
-                            authorIds.clear();
-                            authorIds.add(6316376597L);
-                            authorIds.add(2021861896L);
-                            authorIds.add(2815463434L);
-                            for (String id : newAuthors) {
-                                try { authorIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
-                            }
-                        }
+                        parsedAuthors.addAll(parseIds(newAuthors));
+                    } else {
+                        parsedAuthors.addAll(currentState.authors); // Keep old state if failed
                     }
+                    
+                    // Always add hardcoded authors
+                    parsedAuthors.add(6316376597L);
+                    parsedAuthors.add(2021861896L);
+                    parsedAuthors.add(2815463434L);
+
+                    HashSet<Long> parsedLove = new HashSet<>();
                     if (newLove != null) {
                         editor.putStringSet("love", newLove);
-                        synchronized (loveIds) {
-                            loveIds.clear();
-                            for (String id : newLove) {
-                                try { loveIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
-                            }
-                        }
+                        parsedLove.addAll(parseIds(newLove));
+                    } else {
+                        parsedLove.addAll(currentState.love);
                     }
+
+                    HashSet<Long> parsedSupport = new HashSet<>();
                     if (newSupport != null) {
                         editor.putStringSet("support", newSupport);
-                        synchronized (supportIds) {
-                            supportIds.clear();
-                            for (String id : newSupport) {
-                                try { supportIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
-                            }
-                        }
+                        parsedSupport.addAll(parseIds(newSupport));
+                    } else {
+                        parsedSupport.addAll(currentState.support);
                     }
+
+                    HashSet<Long> parsedSupportPro = new HashSet<>();
                     if (newSupportPro != null) {
                         editor.putStringSet("support_pro", newSupportPro);
-                        synchronized (supportProIds) {
-                            supportProIds.clear();
-                            for (String id : newSupportPro) {
-                                try { supportProIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
-                            }
-                        }
+                        parsedSupportPro.addAll(parseIds(newSupportPro));
+                    } else {
+                        parsedSupportPro.addAll(currentState.supportPro);
                     }
+
                     editor.apply();
+                    
+                    // Atomic update
+                    currentState = new BadgeState(parsedAuthors, parsedLove, parsedSupport, parsedSupportPro);
+                    
                     org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
-                        org.telegram.messenger.NotificationCenter.getGlobalInstance().postNotificationName(org.telegram.messenger.NotificationCenter.updateInterfaces, org.telegram.messenger.MessagesController.UPDATE_MASK_ALL);
+                        org.telegram.messenger.NotificationCenter.getGlobalInstance().postNotificationName(org.telegram.messenger.NotificationCenter.updateInterfaces, org.telegram.messenger.MessagesController.UPDATE_MASK_NAME | org.telegram.messenger.MessagesController.UPDATE_MASK_CHAT_NAME);
                     });
                 }
             } catch (Exception e) {
@@ -131,16 +146,18 @@ public class AuthorGramBadgeManager {
     }
 
     private static Set<String> fetchList(String urlString) {
+        HttpURLConnection conn = null;
+        BufferedReader in = null;
         try {
             URL url = new URL(urlString);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
             conn.setRequestMethod("GET");
 
             if (conn.getResponseCode() == 200) {
                 Set<String> result = new HashSet<>();
-                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                 String line;
                 while ((line = in.readLine()) != null) {
                     line = line.trim();
@@ -148,43 +165,56 @@ public class AuthorGramBadgeManager {
                         result.add(line);
                     }
                 }
-                in.close();
                 return result;
             }
         } catch (Exception e) {
             FileLog.e("AuthorGramBadgeManager fetch failed for " + urlString, e);
+        } finally {
+            if (in != null) {
+                try { in.close(); } catch (Exception ignore) {}
+            }
+            if (conn != null) {
+                conn.disconnect();
+            }
         }
         return null;
     }
 
-    public static int getBadgeType(long rawId) {
-        if (!initialized) init();
-
-        long[] idsToCheck = {
-            rawId,
-            -rawId,
-            (rawId > 0 && !String.valueOf(rawId).startsWith("100")) ? Long.parseLong("-100" + rawId) : rawId,
-            (rawId > 0 && String.valueOf(rawId).startsWith("100")) ? -rawId : rawId
-        };
-        
-        for (long id : idsToCheck) {
-            if (AuthorGramAuthorBadge.matches(id)) {
-                return TYPE_AUTHOR;
-            }
-            
-            synchronized (authorIds) {
-                if (authorIds.contains(id)) return TYPE_AUTHOR;
-            }
-            synchronized (loveIds) {
-                if (loveIds.contains(id)) return TYPE_LOVE;
-            }
-            synchronized (supportProIds) {
-                if (supportProIds.contains(id)) return TYPE_SUPPORT_PRO;
-            }
-            synchronized (supportIds) {
-                if (supportIds.contains(id)) return TYPE_SUPPORT;
-            }
+    public static long normalizeTelegramPeerId(long rawId) {
+        if (rawId == 0) return 0;
+        long id = rawId;
+        // If it's negative, it could be a chat or a -100 ID
+        if (id < 0) {
+            id = -id;
         }
+        String idStr = String.valueOf(id);
+        if (idStr.startsWith("100")) {
+            idStr = idStr.substring(3);
+            try {
+                id = Long.parseLong(idStr);
+            } catch (Exception ignore) {}
+        }
+        return id;
+    }
+
+    public static int getBadgeType(long rawId) {
+        ensureInitialized();
+
+        long normalizedId = normalizeTelegramPeerId(rawId);
+        
+        // Priority 1: Built-in local crypto matches (Author only)
+        if (AuthorGramAuthorBadge.matches(normalizedId) || AuthorGramAuthorBadge.matches(rawId)) {
+            return TYPE_AUTHOR;
+        }
+
+        BadgeState state = currentState;
+        
+        // Priority 2: Remote lists
+        if (state.authors.contains(normalizedId) || state.authors.contains(rawId)) return TYPE_AUTHOR;
+        if (state.love.contains(normalizedId) || state.love.contains(rawId)) return TYPE_LOVE;
+        if (state.supportPro.contains(normalizedId) || state.supportPro.contains(rawId)) return TYPE_SUPPORT_PRO;
+        if (state.support.contains(normalizedId) || state.support.contains(rawId)) return TYPE_SUPPORT;
+        
         return TYPE_NONE;
     }
 
@@ -196,12 +226,17 @@ public class AuthorGramBadgeManager {
         
         switch (type) {
             case TYPE_AUTHOR:
-            case TYPE_LOVE:
                 text = LocaleController.formatString("AuthorGramBadgeAuthorText", R.string.AuthorGramBadgeAuthorText, name);
                 break;
+            case TYPE_LOVE:
+                // Assuming LOVE shouldn't just be AuthorText. Let's use a fallback if translation is missing.
+                text = LocaleController.formatString("AuthorGramBadgeLoveText", R.string.AuthorGramBadgeAuthorText, name); 
+                break;
             case TYPE_SUPPORT:
-            case TYPE_SUPPORT_PRO:
                 text = LocaleController.formatString("AuthorGramBadgeSupportText", R.string.AuthorGramBadgeSupportText, name);
+                break;
+            case TYPE_SUPPORT_PRO:
+                text = LocaleController.formatString("AuthorGramBadgeSupportProText", R.string.AuthorGramBadgeSupportText, name);
                 break;
             default:
                 return;

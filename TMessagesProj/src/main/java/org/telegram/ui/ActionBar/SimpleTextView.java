@@ -174,6 +174,9 @@ public class SimpleTextView extends View implements Drawable.Callback {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        if (rightDrawable2 instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
+            ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) rightDrawable2).startAnimation();
+        }
         attachedToWindow = true;
         emojiStack = AnimatedEmojiSpan.update(emojiCacheType, this, emojiStack, layout);
     }
@@ -191,6 +194,9 @@ public class SimpleTextView extends View implements Drawable.Callback {
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        if (rightDrawable2 instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
+            ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) rightDrawable2).stopAnimation();
+        }
         attachedToWindow = false;
         AnimatedEmojiSpan.release(this, emojiStack);
         wasLayout = false;
@@ -607,6 +613,9 @@ public class SimpleTextView extends View implements Drawable.Callback {
         leftDrawable = drawable;
         if (drawable != null) {
             drawable.setCallback(this);
+            if (drawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable && attachedToWindow) {
+                ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) drawable).startAnimation();
+            }
         }
         if (!recreateLayoutMaybe()) {
             invalidate();
@@ -628,6 +637,9 @@ public class SimpleTextView extends View implements Drawable.Callback {
         replacedDrawable = drawable;
         if (drawable != null) {
             drawable.setCallback(this);
+            if (drawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable && attachedToWindow) {
+                ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) drawable).startAnimation();
+            }
         }
         if (!recreateLayoutMaybe()) {
             invalidate();
@@ -659,6 +671,9 @@ public class SimpleTextView extends View implements Drawable.Callback {
         rightDrawable = drawable;
         if (drawable != null) {
             drawable.setCallback(this);
+            if (drawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable && attachedToWindow) {
+                ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) drawable).startAnimation();
+            }
         }
         if (!recreateLayoutMaybe()) {
             invalidate();
@@ -676,6 +691,9 @@ public class SimpleTextView extends View implements Drawable.Callback {
         rightDrawable2 = drawable;
         if (drawable != null) {
             drawable.setCallback(this);
+            if (drawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable && attachedToWindow) {
+                ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) drawable).startAnimation();
+            }
         }
         if (!recreateLayoutMaybe()) {
             invalidate();

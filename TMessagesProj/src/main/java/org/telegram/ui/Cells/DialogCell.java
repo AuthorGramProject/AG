@@ -941,6 +941,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        if (authorBadgeDrawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
+            ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).stopAnimation();
+        }
         isSliding = false;
         drawRevealBackground = false;
         currentRevealProgress = 0.0f;
@@ -978,6 +981,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        if (authorBadgeDrawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
+            ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).startAnimation();
+        }
         avatarImage.onAttachedToWindow();
         avatarGroupSenderImage.onAttachedToWindow();
         for (int i = 0; i < thumbImage.length; ++i) {
