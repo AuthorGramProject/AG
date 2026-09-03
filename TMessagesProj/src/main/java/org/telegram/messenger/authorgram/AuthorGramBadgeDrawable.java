@@ -58,7 +58,6 @@ public class AuthorGramBadgeDrawable extends Drawable {
         if (type == AuthorGramBadgeManager.TYPE_AUTHOR || type == AuthorGramBadgeManager.TYPE_LOVE || type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
             starParticles = new StarParticlesView.Drawable(10);
             starParticles.type = 100;
-            starParticles.isFocusable = true;
             starParticles.roundEffect = false;
             starParticles.useRotate = true;
             starParticles.useBlur = false;

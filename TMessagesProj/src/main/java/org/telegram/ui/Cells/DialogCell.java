@@ -648,6 +648,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
 
     // AUTHORGRAM_PROTECTED_DIALOG_BADGE: IDs are resolved by the signed-build policy.
     private Drawable authorBadgeDrawable;
+    private int authorGramBadgeType = 0;
     private boolean drawAuthorBadge;
 
     private boolean drawVerified;
@@ -1397,7 +1398,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     }
                 }
             } else {
-                drawAuthorBadge = !forbidVerified && AuthorGramAuthorBadge.matches(currentDialogId);
+                authorGramBadgeType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(currentDialogId);
+                drawAuthorBadge = !forbidVerified && authorGramBadgeType != 0;
                 drawVerified = !drawAuthorBadge && !forbidVerified && customDialog.verified;
                 if (useForceThreeLines || SharedConfig.useThreeLinesLayout) {
                     if (!LocaleController.isRTL) {
@@ -1526,7 +1528,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             emojiStatus.set(DialogObject.getEmojiStatusDocumentId(chat.emoji_status), false);
                             emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(chat.emoji_status), false);
                         } else {
-                            drawAuthorBadge = !forbidVerified && AuthorGramAuthorBadge.matches(chat.id);
+                            authorGramBadgeType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id);
+                            drawAuthorBadge = !forbidVerified && authorGramBadgeType != 0;
                             drawVerified = !drawAuthorBadge && !forbidVerified && chat.verified;
                             drawBotVerified = !forbidVerified && chat.bot_verification_icon != 0;
                         }
@@ -1539,7 +1542,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             drawScam = 2;
                             Theme.dialogs_fakeDrawable.checkText();
                         } else {
-                            drawAuthorBadge = !forbidVerified && AuthorGramAuthorBadge.matches(user.id);
+                            authorGramBadgeType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id);
+                            drawAuthorBadge = !forbidVerified && authorGramBadgeType != 0;
                             drawVerified = !drawAuthorBadge && !forbidVerified && user.verified;
                             drawBotVerified = !forbidVerified && !UserObject.isUserSelf(user) && user.bot_verification_icon != 0;
                         }
