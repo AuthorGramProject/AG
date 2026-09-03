@@ -45,7 +45,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
         int resId = R.drawable.ic_author_badge_a;
         if (type == AuthorGramBadgeManager.TYPE_LOVE) {
             resId = R.drawable.ic_author_badge_heart;
-        } else if (type == AuthorGramBadgeManager.TYPE_AUTHOR || type == AuthorGramBadgeManager.TYPE_LOVE) {
+        } else if (type == AuthorGramBadgeManager.TYPE_SUPPORT || type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
             resId = R.drawable.ic_author_badge_support;
         }
         
@@ -150,7 +150,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
             starParticles.rect.inset(-AndroidUtilities.dp(6), -AndroidUtilities.dp(6));
             starParticles.colorKey = (badgeType == AuthorGramBadgeManager.TYPE_LOVE) 
                                       ? Theme.key_dialogTextRed 
-                                      : ((badgeType == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_dialogTextYellow : Theme.key_chats_verifiedBackground);
+                                      : ((badgeType == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_avatar_backgroundOrange : Theme.key_chats_verifiedBackground);
             starParticles.onDraw(canvas);
         }
 
