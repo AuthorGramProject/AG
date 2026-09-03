@@ -112,7 +112,7 @@
     <string name="UnknownNekoSettingsOption">В «Настройках AuthorGram+» нет такой опции.</string>
     <string name="PasscodeNeeded">Сначала необходимо включить блокировку паролем</string>
     <string name="PasscodeNeko">Пароль</string>
-    <string name="PasscodeShowInSettings">Показывать в «Настройках N»</string>
+    <string name="PasscodeShowInSettings">Показывать в «Настройках AuthorGram»</string>
     <string name="PasscodeShowInSettingsAbout">После скрытия вы сможете **ТОЛЬКО** открыть эту страницу по ссылке:</string>
     <string name="PasscodeSet">Установить пароль</string>
     <string name="PasscodeEdit">Изменить пароль</string>
@@ -150,7 +150,7 @@
     <string name="ClearRecentChats">Очистить недавние чаты</string>
     <string name="ClearRecentChatAlert">Вы хотите очистить недавние чаты?</string>
     <string name="CloudConfig">Облачные настройки</string>
-    <string name="CloudConfigDesc">Сохраните ваши «Настройки N» в облаке Telegram.</string>
+    <string name="CloudConfigDesc">Сохраните ваши «Настройки AuthorGram» в облаке Telegram.</string>
     <string name="CloudConfigSyncDate">Последняя синхронизация: %s, облако: %s</string>
     <string name="CloudConfigSyncDateNever">никогда</string>
     <string name="CloudConfigSync">Синхронизировать с облаком</string>
@@ -159,7 +159,7 @@
     <string name="CloudConfigRestoreShort">Восстановить</string>
     <string name="CloudConfigSyncing">Синхронизация...</string>
     <string name="CloudConfigAutoSync">Автосинхронизация</string>
-    <string name="CloudConfigAutoSyncDesc">Автоматическая синхронизация с облаком после изменений в «Настройках N».</string>
+    <string name="CloudConfigAutoSyncDesc">Автоматическая синхронизация с облаком после изменений в «Настройках AuthorGram».</string>
     <string name="CloudConfigSyncFailed">Не удалось синхронизировать настройки с облаком</string>
     <string name="CloudConfigRestoreFailed">Не удалось восстановить настройки из облака</string>
     <string name="CopyCallback">Копировать данные обратного вызова</string>

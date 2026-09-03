@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="N_Config">Настройки N</string>
+    <string name="N_Config">Настройки AuthorGram</string>
     <string name="CombineMessage">Объединить сообщения</string>
     <string name="TextStyle">Стиль текста</string>
     <string name="NoiseSuppressAndVoiceEnhance">Улучшение голоса</string>
@@ -49,7 +49,7 @@
     <string name="CheckAllForum">Добавить форум</string>
     <string name="DecorationNone">Не выбрано</string>
     <string name="ChatDecoration">Оформление чатов</string>
-    <string name="NeedChangeNekoSettings">Вам нужно изменить «Настройки N»</string>
+    <string name="NeedChangeNekoSettings">Вам нужно изменить «Настройки AuthorGram»</string>
     <string name="DoNotUnarchiveBySwipe">Отключить разархивирование смахиванием</string>
     <string name="DefaultDeleteMenu">Меню удаления по умолчанию</string>
     <string name="DisableStories">Отключить истории</string>

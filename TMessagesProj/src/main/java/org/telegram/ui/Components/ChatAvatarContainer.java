@@ -1282,7 +1282,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             }
         } else if (authorBadge) {
             if (authorBadgeDrawable == null) {
-                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable();
+                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.TYPE_AUTHOR);
             }
             titleTextView.setRightDrawable2(authorBadgeDrawable);
             rightDrawableIsScamOrVerified = true;

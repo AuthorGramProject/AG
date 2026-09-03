@@ -45,7 +45,7 @@ public class StatusBadgeComponent {
         }
         if (AuthorGramAuthorBadge.matches(objectId)) {
             if (authorBadgeDrawable == null) {
-                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable();
+                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.TYPE_AUTHOR);
             }
             statusDrawable.set(authorBadgeDrawable, animated);
             statusDrawable.setColor(null);

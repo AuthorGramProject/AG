@@ -909,6 +909,12 @@ public class TranscribeButton {
 
         String textToTranslate = MessageHelper.getMessagePlainText(messageObject, null);
         locale = locale != null ? locale : TranslatorKt.getCode2Locale(NekoConfig.translateToLang.String());
+        
+        // AuthorGram: Mark voice message as read when AI transcription starts
+        if (messageObject != null && messageObject.isVoice()) {
+            MessagesController.getInstance(account).markMessageContentAsRead(messageObject);
+        }
+
         Translator.translate(locale, textToTranslate, LlmConfig.isLLMTranslatorAvailable() ? Translator.providerLLMTranslator : 0, new Translator.Companion.TranslateCallBack() {
             @Override
             public void onSuccess(@NonNull String translatedText) {
