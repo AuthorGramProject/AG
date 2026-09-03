@@ -71,7 +71,7 @@ public class AuthorGramBadgeManager {
     }
 
     private static void updateFromNetwork() {
-        Utilities.globalQueue.postRunnable(() -> {
+        org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
             try {
                 Set<String> newAuthors = fetchList("https://authorche.top/authorgram/authorsources.txt");
                 Set<String> newLove = fetchList("https://authorche.top/authorgram/love.txt");
