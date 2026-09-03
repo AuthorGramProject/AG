@@ -342,7 +342,7 @@ public class ApplicationLoader extends Application {
         }
 
         super.onCreate();
-        org.telegram.messenger.authorgram.AuthorGramBadgeManager.init();
+        // org.telegram.messenger.authorgram.AuthorGramBadgeManager.init();
 
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("app start time = " + (startTime = SystemClock.elapsedRealtime()));
