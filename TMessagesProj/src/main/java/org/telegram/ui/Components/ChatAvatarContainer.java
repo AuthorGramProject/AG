@@ -1262,7 +1262,8 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
                 authorBadgeObjectId = badgeChat.id;
             }
         }
-        boolean authorBadge = AuthorGramAuthorBadge.matches(authorBadgeObjectId);
+        int badgeType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(authorBadgeObjectId);
+        boolean authorBadge = badgeType != 0;
         if (!authorBadge
                 && authorBadgeDrawable != null
                 && titleTextView.getRightDrawable2() == authorBadgeDrawable) {
@@ -1282,7 +1283,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             }
         } else if (authorBadge) {
             if (authorBadgeDrawable == null) {
-                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.TYPE_AUTHOR);
+                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(badgeType);
             }
             titleTextView.setRightDrawable2(authorBadgeDrawable);
             rightDrawableIsScamOrVerified = true;

@@ -128,6 +128,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
     private boolean canHideRightDrawable;
     private boolean rightDrawableHidden;
     private OnClickListener rightDrawableOnClickListener;
+    private OnClickListener rightDrawable2OnClickListener;
     private boolean maybeClick;
     private float touchDownX, touchDownY;
 
@@ -1328,6 +1329,10 @@ public class SimpleTextView extends View implements Drawable.Callback {
 
     public void setRightDrawableOnClick(OnClickListener onClickListener) {
         rightDrawableOnClickListener = onClickListener;
+    }
+
+    public void setRightDrawable2OnClick(OnClickListener onClickListener) {
+        rightDrawable2OnClickListener = onClickListener;
     }
 
     @Override

@@ -43,9 +43,10 @@ public class StatusBadgeComponent {
             // without the Bot API -100 prefix.
             objectId = chat.id;
         }
-        if (AuthorGramAuthorBadge.matches(objectId)) {
+        int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(objectId);
+        if (bType != 0) {
             if (authorBadgeDrawable == null) {
-                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.TYPE_AUTHOR);
+                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(bType);
             }
             statusDrawable.set(authorBadgeDrawable, animated);
             statusDrawable.setColor(null);

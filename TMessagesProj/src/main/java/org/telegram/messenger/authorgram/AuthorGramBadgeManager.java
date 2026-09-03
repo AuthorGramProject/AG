@@ -150,24 +150,33 @@ public class AuthorGramBadgeManager {
         return null;
     }
 
-    public static int getBadgeType(long id) {
+    public static int getBadgeType(long rawId) {
         if (!initialized) init();
 
-        if (AuthorGramAuthorBadge.matches(id)) {
-            return TYPE_AUTHOR;
-        }
-
-        synchronized (authorIds) {
-            if (authorIds.contains(id)) return TYPE_AUTHOR;
-        }
-        synchronized (loveIds) {
-            if (loveIds.contains(id)) return TYPE_LOVE;
-        }
-        synchronized (supportProIds) {
-            if (supportProIds.contains(id)) return TYPE_SUPPORT_PRO;
-        }
-        synchronized (supportIds) {
-            if (supportIds.contains(id)) return TYPE_SUPPORT;
+        long[] idsToCheck = {
+            rawId,
+            -rawId,
+            (rawId > 0 && !String.valueOf(rawId).startsWith("100")) ? Long.parseLong("-100" + rawId) : rawId,
+            (rawId > 0 && String.valueOf(rawId).startsWith("100")) ? -rawId : rawId
+        };
+        
+        for (long id : idsToCheck) {
+            if (AuthorGramAuthorBadge.matches(id)) {
+                return TYPE_AUTHOR;
+            }
+            
+            synchronized (authorIds) {
+                if (authorIds.contains(id)) return TYPE_AUTHOR;
+            }
+            synchronized (loveIds) {
+                if (loveIds.contains(id)) return TYPE_LOVE;
+            }
+            synchronized (supportProIds) {
+                if (supportProIds.contains(id)) return TYPE_SUPPORT_PRO;
+            }
+            synchronized (supportIds) {
+                if (supportIds.contains(id)) return TYPE_SUPPORT;
+            }
         }
         return TYPE_NONE;
     }
@@ -193,6 +202,11 @@ public class AuthorGramBadgeManager {
                 return;
         }
 
-        BulletinFactory.global().createSimpleBulletin(icon, text).show();
+        android.graphics.drawable.Drawable iconDrawable = androidx.core.content.ContextCompat.getDrawable(ApplicationLoader.applicationContext, R.drawable.msg_info);
+        BulletinFactory.global().createSimpleBulletin(iconDrawable, text, "Детальніше", () -> {
+            if (org.telegram.ui.LaunchActivity.instance != null) {
+                org.telegram.ui.LaunchActivity.instance.presentFragment(new toss.authorgram.settings.AGAboutActivity());
+            }
+        }).show();
     }
 }
