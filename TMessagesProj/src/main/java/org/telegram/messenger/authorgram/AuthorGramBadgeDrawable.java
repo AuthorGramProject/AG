@@ -55,7 +55,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
         shimmerMatrix = new Matrix();
         lastUpdateTime = System.currentTimeMillis();
         
-        if (type == AuthorGramBadgeManager.TYPE_AUTHOR || type == AuthorGramBadgeManager.TYPE_LOVE) {
+        if (type == AuthorGramBadgeManager.TYPE_AUTHOR || type == AuthorGramBadgeManager.TYPE_LOVE || type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
             starParticles = new StarParticlesView.Drawable(10);
             starParticles.type = 100;
             starParticles.isFocusable = true;
@@ -117,7 +117,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
         
         if (badgeType == AuthorGramBadgeManager.TYPE_LOVE) {
             themeColor = 0xFFE91E63; // Pinkish Red for Love badge
-        } else if (badgeType == AuthorGramBadgeManager.TYPE_SUPPORT) {
+        } else if (badgeType == AuthorGramBadgeManager.TYPE_SUPPORT || badgeType == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
             themeColor = 0xFFFF9800; // Orange/Gold for Support badge
         }
 
@@ -150,7 +150,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
             starParticles.rect.inset(-AndroidUtilities.dp(6), -AndroidUtilities.dp(6));
             starParticles.colorKey = (badgeType == AuthorGramBadgeManager.TYPE_LOVE) 
                                       ? Theme.key_dialogTextRed 
-                                      : Theme.key_chats_verifiedBackground;
+                                      : ((badgeType == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_dialogTextYellow : Theme.key_chats_verifiedBackground);
             starParticles.onDraw(canvas);
         }
 
