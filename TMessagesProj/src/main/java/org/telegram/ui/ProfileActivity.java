@@ -11968,7 +11968,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (user.scam || user.fake) {
                         nameTextView[a].setRightDrawable2(getScamDrawable(user.scam ? 0 : 1));
                     } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id) != 0) {
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id)));
+                        int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id);
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType));
+                        nameTextView[a].setRightDrawable2OnClick(v -> {
+                            org.telegram.messenger.authorgram.AuthorGramBadgeManager.showBadgeToast(bType, org.telegram.messenger.UserObject.getFirstName(user));
+                        });
                     } else if (user.verified) {
                         nameTextView[a].setRightDrawable2(getVerifiedCrossfadeDrawable(a));
                     } else {
