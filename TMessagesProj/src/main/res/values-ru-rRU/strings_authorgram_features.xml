@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="AuthorGramBadgeAuthorText">%1$s является частью команды разработки</string>
+    <string name="AuthorGramBadgeSupportText">%1$s успешно поддержал(а) разработку AuthorGram</string>
+    <string name="AuthorGramBadgeDetails">Подробнее</string>
+</resources>

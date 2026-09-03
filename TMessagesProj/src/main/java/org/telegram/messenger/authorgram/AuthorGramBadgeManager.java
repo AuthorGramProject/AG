@@ -196,21 +196,20 @@ public class AuthorGramBadgeManager {
         
         switch (type) {
             case TYPE_AUTHOR:
-                text = String.format("%s є частиною розробницької діяльності чи команди", name);
-                break;
             case TYPE_LOVE:
-                text = String.format("%s є частиною розробницької діяльності чи команди", name); // User said "те саме тільки сердечко"
+                text = LocaleController.formatString("AuthorGramBadgeAuthorText", R.string.AuthorGramBadgeAuthorText, name);
                 break;
             case TYPE_SUPPORT:
             case TYPE_SUPPORT_PRO:
-                text = String.format("%s успішно підтримав розробку AuthorGram", name);
+                text = LocaleController.formatString("AuthorGramBadgeSupportText", R.string.AuthorGramBadgeSupportText, name);
                 break;
             default:
                 return;
         }
 
+        String detailsText = LocaleController.getString("AuthorGramBadgeDetails", R.string.AuthorGramBadgeDetails);
         android.graphics.drawable.Drawable iconDrawable = androidx.core.content.ContextCompat.getDrawable(ApplicationLoader.applicationContext, R.drawable.msg_info);
-        BulletinFactory.global().createSimpleBulletin(iconDrawable, text, "Детальніше", () -> {
+        BulletinFactory.global().createSimpleBulletin(iconDrawable, text, detailsText, () -> {
             if (org.telegram.ui.LaunchActivity.instance != null) {
                 org.telegram.ui.LaunchActivity.instance.presentFragment(new toss.authorgram.settings.AGAboutActivity());
             }
