@@ -180,7 +180,7 @@ jobs:
 
           grep -F 'compileSdk = 36' build.gradle
           grep -F 'targetSdk = 36' build.gradle
-          grep -F "implementation 'com.android.billingclient:billing:9.1'" TMessagesProj/build.gradle
+          grep -F "implementation 'com.android.billingclient:billing:9.1.0'" TMessagesProj/build.gradle
           grep -F "def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'" TMessagesProj/build.gradle
           grep -F "def authorGramSystemKeyHex = ''" TMessagesProj/build.gradle
           grep -F "def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'" TMessagesProj/build.gradle
