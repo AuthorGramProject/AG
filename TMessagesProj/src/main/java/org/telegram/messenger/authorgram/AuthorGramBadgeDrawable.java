@@ -16,7 +16,6 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
-import org.telegram.ui.Components.Premium.StarParticlesView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -28,8 +27,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private PorterDuffColorFilter cachedColorFilter;
     private final Drawable baseDrawable;
     private final int sizePx;
-    private final int renderSizePx;
-    private java.lang.ref.WeakReference<android.view.View> parentViewRef;
+        private java.lang.ref.WeakReference<android.view.View> parentViewRef;
     public int type = AuthorGramBadgeManager.TYPE_AUTHOR;
     
     // Animation properties
@@ -38,14 +36,11 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private long lastUpdateTime;
     private float progress = 0f;
     private boolean animating = false;
-    private StarParticlesView.Drawable starParticles;
-    private int lastParticleColorKey = Integer.MIN_VALUE;
-
+        
     public AuthorGramBadgeDrawable(int type) {
         this.type = type;
         sizePx = AndroidUtilities.dp(16);
-        renderSizePx = AndroidUtilities.dp(28); // Expanded render area for particles
-        
+                
         int resId = R.drawable.ic_author_badge_a;
         if (type == AuthorGramBadgeManager.TYPE_LOVE) {
             resId = R.drawable.ic_author_badge_heart;
@@ -61,19 +56,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
         shimmerMatrix = new Matrix();
         lastUpdateTime = SystemClock.elapsedRealtime();
         
-        if (type == AuthorGramBadgeManager.TYPE_AUTHOR || type == AuthorGramBadgeManager.TYPE_LOVE || type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
-            starParticles = new StarParticlesView.Drawable(10);
-            starParticles.type = 100;
-            starParticles.roundEffect = false;
-            starParticles.useRotate = true;
-            starParticles.useBlur = false;
-            starParticles.checkBounds = true;
-            starParticles.size1 = 12;
-            starParticles.size2 = 8;
-            starParticles.size3 = 6;
-            starParticles.colorKey = Theme.key_chats_verifiedBackground;
-            starParticles.init();
-        }
+        
     }
     
     public void setParentView(android.view.View view) {
@@ -110,25 +93,20 @@ public class AuthorGramBadgeDrawable extends Drawable {
     @Override
     public int getIntrinsicWidth() {
         // Return larger width so parent view allocates enough space for particles
-        return renderSizePx;
+        return sizePx;
     }
 
     @Override
     public int getIntrinsicHeight() {
-        return renderSizePx;
+        return sizePx;
     }
 
-    private Rect getInnerBadgeBounds(Rect outerBounds) {
-        // Center the 16dp badge inside the 28dp render area
-        int left = outerBounds.left + (outerBounds.width() - sizePx) / 2;
-        int top = outerBounds.top + (outerBounds.height() - sizePx) / 2;
-        return new Rect(left, top, left + sizePx, top + sizePx);
-    }
+    
 
     @Override
     protected void onBoundsChange(Rect bounds) {
         super.onBoundsChange(bounds);
-        Rect innerBounds = getInnerBadgeBounds(bounds);
+        Rect innerBounds = bounds;
         baseDrawable.setBounds(innerBounds);
         
         // Setup shimmer gradient
@@ -165,7 +143,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
         }
         
         Rect outerBounds = getBounds();
-        Rect innerBounds = getInnerBadgeBounds(outerBounds);
+        Rect innerBounds = outerBounds;
         
         int saveCount = canvas.saveLayer(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom, null, 31);
         
@@ -202,29 +180,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
         
         canvas.restoreToCount(saveCount);
         
-        if (starParticles != null) {
-            starParticles.rect.set(innerBounds);
-            // Inset negative allows particles to fly out into outerBounds
-            starParticles.rect.inset(-AndroidUtilities.dp(6), -AndroidUtilities.dp(6));
-            
-            int colorKey = (type == AuthorGramBadgeManager.TYPE_LOVE) 
-                                      ? Theme.key_dialogTextRed 
-                                      : ((type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_avatar_backgroundOrange : Theme.key_chats_verifiedBackground);
-            
-            if (lastParticleColorKey != colorKey) {
-                starParticles.colorKey = colorKey;
-                starParticles.updateColors();
-                lastParticleColorKey = colorKey;
-            }
-            
-            if (animating) {
-                starParticles.onDraw(canvas);
-                needsInvalidate = true; // Particles always move
-            } else {
-                // If paused, just draw static particles without updating logic
-                starParticles.onDraw(canvas, 1.0f);
-            }
-        }
+        
         
         if (needsInvalidate) {
             invalidateDrawable();
