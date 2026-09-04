@@ -18,6 +18,7 @@ def verCode = Integer.parseInt(APP_VERSION_CODE.toString())
 
 def officialVer = APP_VERSION_NAME
 def officialCode = APP_VERSION_CODE
+def APP_PACKAGE = System.getenv('APP_PACKAGE') ?: (project.findProperty('APP_PACKAGE')?.toString() ?: 'toss.authorgram.apk')
 def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'
 def authorGramSystemKeyHex = APP_PACKAGE == 'toss.authorgram.apk' ? '' : '6b8ce70d889daed80852c204106d51bf91f114ad32936b6b17068e7b399ef3fa'
 def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'
