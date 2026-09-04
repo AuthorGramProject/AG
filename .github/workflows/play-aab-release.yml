@@ -4,8 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [play-market]
-    paths:
-      - .github/workflows/play-aab-release.yml
 
 permissions:
   contents: write
@@ -23,7 +21,7 @@ jobs:
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.10.1
-      VERSION_CODE: '7045'
+      VERSION_CODE: 7053
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
@@ -271,6 +269,24 @@ jobs:
         if: env.SOURCE_ONLY != 'true'
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Install dependencies
+        if: env.SOURCE_ONLY != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+          mkdir -p ${{ github.workspace }}/.ccache
+          ccache -M 5G
+
+      - name: Cache ccache
+        if: env.SOURCE_ONLY != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-play-${{ github.sha }}
+          restore-keys: |
+            ccache-play-
+            ccache-
+
       - name: Set up Android SDK
         if: env.SOURCE_ONLY != 'true'
         uses: android-actions/setup-android@v3
@@ -290,13 +306,14 @@ jobs:
           chmod 600 TMessagesProj/release.keystore
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+          printf 'org.gradle.caching=true\norg.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.workers.max=4\norg.gradle.jvmargs=-Xmx4G -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
 
       - name: Build signed Google Play release AAB
         if: env.SOURCE_ONLY != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain TMessagesProj:bundleRelease
+          NATIVE_TARGET='' ./gradlew --no-daemon --stacktrace --console=plain --build-cache TMessagesProj:bundleRelease
 
       - name: Verify and stage the single Play AAB
         if: env.SOURCE_ONLY != 'true'
@@ -363,8 +380,8 @@ jobs:
         if: env.SOURCE_ONLY != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AuthorGram-Play-12.10.1-7045-Google-Play-AAB
-          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.10.1-7045-release.aab
+          name: AuthorGram-Play-12.10.1-7053-Google-Play-AAB
+          path: ${{ runner.temp }}/authorgram-play-release/AuthorGram-Play-v12.10.1-7053-release.aab
           if-no-files-found: error
           retention-days: 30
 
@@ -372,4 +389,4 @@ jobs:
         if: ${{ always() && env.SOURCE_ONLY != 'true' }}
         shell: bash
         run: rm -f TMessagesProj/release.keystore local.properties
-# Android system account release trigger: 2026-08-17 versionCode 7045
+# Android system account release trigger: 2026-08-17 versionCode 7053
