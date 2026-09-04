@@ -92,7 +92,6 @@ public class AuthorGramBadgeDrawable extends Drawable {
 
     @Override
     public int getIntrinsicWidth() {
-        // Return larger width so parent view allocates enough space for particles
         return sizePx;
     }
 
@@ -142,43 +141,44 @@ public class AuthorGramBadgeDrawable extends Drawable {
             baseDrawable.clearColorFilter();
         }
         
-        Rect outerBounds = getBounds();
-        Rect innerBounds = outerBounds;
+        Rect innerBounds = getBounds();
         
-        int saveCount = canvas.saveLayer(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom, null, 31);
-        
-        baseDrawable.draw(canvas);
-        
-        // Handle animation
+        // Handle animation logic first
         long newTime = SystemClock.elapsedRealtime();
         long dt = newTime - lastUpdateTime;
         lastUpdateTime = newTime;
         
         boolean needsInvalidate = false;
+        boolean drawShimmer = false;
         
         if (animating) {
             progress += dt / 1500f;
             if (progress > 1.5f) {
                 progress = -0.5f;
             }
-            // Only invalidate if shimmer is visibly moving across the bounds, or particles need update
             if (progress > -0.2f && progress < 1.2f) {
                 needsInvalidate = true;
-            }
-            
-            // Draw shimmer
-            if (progress > -0.2f && progress < 1.2f) {
-                float translate = innerBounds.width() * 2f * progress - innerBounds.width();
-                shimmerMatrix.reset();
-                shimmerMatrix.postRotate(45, 0, 0);
-                shimmerMatrix.postTranslate(innerBounds.left + translate, innerBounds.top);
-                shimmerPaint.getShader().setLocalMatrix(shimmerMatrix);
-                
-                canvas.drawRect(innerBounds, shimmerPaint);
+                drawShimmer = true;
             }
         }
-        
-        canvas.restoreToCount(saveCount);
+
+        if (drawShimmer) {
+            // Use saveLayer only when shimmer is active to optimize performance
+            int saveCount = canvas.saveLayer(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom, null);
+            baseDrawable.draw(canvas);
+            
+            float translate = innerBounds.width() * 2f * progress - innerBounds.width();
+            shimmerMatrix.reset();
+            shimmerMatrix.postRotate(45, 0, 0);
+            shimmerMatrix.postTranslate(innerBounds.left + translate, innerBounds.top);
+            shimmerPaint.getShader().setLocalMatrix(shimmerMatrix);
+            
+            canvas.drawRect(innerBounds, shimmerPaint);
+            canvas.restoreToCount(saveCount);
+        } else {
+            // Fast path: just draw the badge directly without offscreen buffer
+            baseDrawable.draw(canvas);
+        }
         
         
         

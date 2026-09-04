@@ -4,18 +4,30 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Outer Premium Glowing Shield / Crest -->
-    <path
-        android:fillColor="#FFB300"
-        android:pathData="M12,2L3,6v6c0,5.5 3.8,10.7 9,12c5.2,-1.3 9,-6.5 9,-12V6L12,2z" />
     
-    <!-- Inner Dark Layer to give depth -->
+    <!-- Left shadow half for depth -->
     <path
         android:fillColor="#FFA000"
-        android:pathData="M12,4.3l-7,3.1v4.6c0,4.3 2.9,8.4 7,9.7c4.1,-1.3 7,-5.4 7,-9.7V7.4L12,4.3z" />
-
-    <!-- Unmistakable Crown in the center -->
+        android:pathData="M 12 3 L 8 11 L 2 6 L 5 15 L 12 15 Z" />
+        
+    <!-- Right brighter half for depth -->
     <path
-        android:fillColor="#FFF8E1"
-        android:pathData="M7,14h10v1H7v-1z M7,13l1.5,-4.5L12,11l3.5,-2.5L17,13H7z" />
+        android:fillColor="#FFC107"
+        android:pathData="M 12 3 L 16 11 L 22 6 L 19 15 L 12 15 Z" />
+        
+    <!-- Base -->
+    <path
+        android:fillColor="#FFCA28"
+        android:pathData="M 3 16 L 3 19 C 3 20.1 3.9 21 5 21 L 19 21 C 20.1 21 21 20.1 21 19 L 21 16 Z" />
+        
+    <!-- Jewels -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,9.5 c-0.83,0 -1.5,0.67 -1.5,1.5 s0.67,1.5 1.5,1.5 s1.5,-0.67 1.5,-1.5 S12.83,9.5 12,9.5 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M7,10.5 c-0.83,0 -1.5,0.67 -1.5,1.5 s0.67,1.5 1.5,1.5 s1.5,-0.67 1.5,-1.5 S7.83,10.5 7,10.5 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M17,10.5 c-0.83,0 -1.5,0.67 -1.5,1.5 s0.67,1.5 1.5,1.5 s1.5,-0.67 1.5,-1.5 S17.83,10.5 17,10.5 z" />
 </vector>
