@@ -134,15 +134,23 @@ android {
 
     def isBundleTask = (System.getenv('IS_BUNDLE') == 'true') || gradle.startParameter.taskNames.any { it.toLowerCase().contains('bundle') }
 
-    splits {
-        abi {
-            enable = !isBundleTask
-            reset()
-            universalApk = nativeTarget.isBlank()
-            if (!nativeTarget.isBlank()) {
-                include nativeTarget
-            } else {
-                include 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+    if (isBundleTask) {
+        splits {
+            abi {
+                enable = false
+            }
+        }
+    } else {
+        splits {
+            abi {
+                enable = true
+                reset()
+                universalApk = nativeTarget.isBlank()
+                if (!nativeTarget.isBlank()) {
+                    include nativeTarget
+                } else {
+                    include 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+                }
             }
         }
     }
@@ -157,13 +165,13 @@ android {
                 authorGramVideoCallMimeType: "vnd.android.cursor.item/vnd.${APP_PACKAGE}.android.call.video"
         ]
 
-        if (!nativeTarget.isBlank()) {
+        if (isBundleTask) {
             ndk {
-                abiFilters nativeTarget
-            }
-        } else {
-            ndk {
-                abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+                if (!nativeTarget.isBlank()) {
+                    abiFilters nativeTarget
+                } else {
+                    abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+                }
             }
         }
 
