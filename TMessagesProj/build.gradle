@@ -132,9 +132,11 @@ android {
         }
     }
 
+    def isBundleTask = (System.getenv('IS_BUNDLE') == 'true') || gradle.startParameter.taskNames.any { it.toLowerCase().contains('bundle') }
+
     splits {
         abi {
-            enable = true
+            enable = !isBundleTask
             reset()
             universalApk = nativeTarget.isBlank()
             if (!nativeTarget.isBlank()) {
@@ -154,6 +156,16 @@ android {
                 authorGramCallMimeType: "vnd.android.cursor.item/vnd.${APP_PACKAGE}.android.call",
                 authorGramVideoCallMimeType: "vnd.android.cursor.item/vnd.${APP_PACKAGE}.android.call.video"
         ]
+
+        if (!nativeTarget.isBlank()) {
+            ndk {
+                abiFilters nativeTarget
+            }
+        } else {
+            ndk {
+                abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+            }
+        }
 
         // APP_PACKAGE is the single source of truth for applicationId,
         // Authenticator, SyncAdapter, account settings and contact MIME types.
