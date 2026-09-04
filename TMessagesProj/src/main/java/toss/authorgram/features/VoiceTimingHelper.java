@@ -13,13 +13,13 @@ import xyz.nextalone.nagram.NaConfig;
 public class VoiceTimingHelper {
 
     private static boolean isInserting = false;
-    private static int lastReplyDialogId = 0;
+    private static long lastReplyDialogId = 0L;
     private static int lastReplyMessageId = 0;
     private static boolean fieldWasEmpty = true;
 
     public static void onReplyChanged(ChatActivityEnterView enterView, MessageObject replyMsg) {
         if (replyMsg != null) {
-            lastReplyDialogId = (int) replyMsg.getDialogId();
+            lastReplyDialogId = replyMsg.getDialogId();
             lastReplyMessageId = replyMsg.getId();
         } else {
             lastReplyDialogId = 0;
@@ -63,7 +63,7 @@ public class VoiceTimingHelper {
             return;
         }
 
-        int currentDialogId = (int) replyMsg.getDialogId();
+        long currentDialogId = replyMsg.getDialogId();
         int currentMessageId = replyMsg.getId();
 
         if (currentDialogId != lastReplyDialogId || currentMessageId != lastReplyMessageId) {

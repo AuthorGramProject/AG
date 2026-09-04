@@ -182,19 +182,21 @@ public class AuthorGramBadgeManager {
 
     public static long normalizeTelegramPeerId(long rawId) {
         if (rawId == 0) return 0;
-        long id = rawId;
-        // If it's negative, it could be a chat or a -100 ID
-        if (id < 0) {
-            id = -id;
+        // Only strip the Bot API 100 prefix if the original rawId was negative and in the -100... channel range.
+        // Valid positive user IDs (e.g. 1005551234) must NEVER have digits stripped!
+        if (rawId < -1000000000000L) {
+            long absId = -rawId;
+            String idStr = String.valueOf(absId);
+            if (idStr.startsWith("100")) {
+                try {
+                    return Long.parseLong(idStr.substring(3));
+                } catch (Exception ignore) {}
+            }
+            return absId;
+        } else if (rawId < 0) {
+            return -rawId;
         }
-        String idStr = String.valueOf(id);
-        if (idStr.startsWith("100")) {
-            idStr = idStr.substring(3);
-            try {
-                id = Long.parseLong(idStr);
-            } catch (Exception ignore) {}
-        }
-        return id;
+        return rawId;
     }
 
     public static int getBadgeType(long rawId) {

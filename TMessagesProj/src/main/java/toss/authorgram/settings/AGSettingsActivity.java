@@ -395,11 +395,12 @@ public class AGSettingsActivity extends BaseAGSettingsActivity {
                 getString(R.string.Reset),
                 true,
                 () -> {
-                    ApplicationLoader.applicationContext.getSharedPreferences("nekocloud", Activity.MODE_PRIVATE).edit().clear().apply();
-                    ApplicationLoader.applicationContext.getSharedPreferences("nekox_config", Activity.MODE_PRIVATE).edit().clear().apply();
-                    ApplicationLoader.applicationContext.getSharedPreferences("aichatconfig", Activity.MODE_PRIVATE).edit().clear().apply();
-                    ApplicationLoader.applicationContext.getSharedPreferences("pillstackconfig", Activity.MODE_PRIVATE).edit().clear().apply();
-                    NekoConfig.getPreferences().edit().clear().apply();
+                    ApplicationLoader.applicationContext.getSharedPreferences("nekocloud", Activity.MODE_PRIVATE).edit().clear().commit();
+                    ApplicationLoader.applicationContext.getSharedPreferences("nekox_config", Activity.MODE_PRIVATE).edit().clear().commit();
+                    ApplicationLoader.applicationContext.getSharedPreferences("aichatconfig", Activity.MODE_PRIVATE).edit().clear().commit();
+                    ApplicationLoader.applicationContext.getSharedPreferences("pillstackconfig", Activity.MODE_PRIVATE).edit().clear().commit();
+                    NekoConfig.getPreferences().edit().clear().commit();
+                    org.telegram.messenger.authorgram.AuthorGramDefaults.apply(ApplicationLoader.applicationContext, true);
                     AppRestartHelper.triggerRebirth(getParentActivity(), new Intent(getParentActivity(), LaunchActivity.class));
                 });
     }

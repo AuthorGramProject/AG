@@ -409,7 +409,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[] botVerificationDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable[2];
     private final Drawable[] verifiedCheckDrawable = new Drawable[2];
     // AUTHORGRAM_PROTECTED_PROFILE_BADGE: IDs are resolved by signed-build policy.
-    private Drawable authorBadgeDrawable;
+    private Drawable[] authorBadgeDrawable = new Drawable[2];
 
     private final CrossfadeDrawable[] verifiedCrossfadeDrawable = new CrossfadeDrawable[2];
     private final CrossfadeDrawable[] premiumCrossfadeDrawable = new CrossfadeDrawable[2];
@@ -11528,16 +11528,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     // AuthorGram: метод для отримання бейджа розробника
-    private Drawable getAuthorBadgeDrawable(int type) {
-        // Create new or update existing if type differs
-        if (authorBadgeDrawable == null) {
-            authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(type);
-        } else if (authorBadgeDrawable instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) {
-            if (((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).type != type) {
-                authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(type);
-            }
+    private Drawable getAuthorBadgeDrawable(int type, int a) {
+        if (a < 0 || a >= 2) a = 0;
+        if (authorBadgeDrawable[a] == null || !(authorBadgeDrawable[a] instanceof org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) || ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable[a]).type != type) {
+            authorBadgeDrawable[a] = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(type);
         }
-        return authorBadgeDrawable;
+        return authorBadgeDrawable[a];
     }
 
     private Drawable getVerifiedCrossfadeDrawable(int a) {
@@ -11928,7 +11924,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         nameTextViewRightDrawable2ContentDescription = LocaleController.getString(R.string.ScamMessage);
                     } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id) != 0) {
                         int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id);
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType));
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType, a));
                         nameTextView[a].setRightDrawable2OnClick(v -> {
                             org.telegram.messenger.authorgram.AuthorGramBadgeManager.showBadgeToast(bType, org.telegram.messenger.UserObject.getFirstName(user));
                         });
@@ -11969,7 +11965,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         nameTextView[a].setRightDrawable2(getScamDrawable(user.scam ? 0 : 1));
                     } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id) != 0) {
                         int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id);
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType));
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType, a));
                         nameTextView[a].setRightDrawable2OnClick(v -> {
                             org.telegram.messenger.authorgram.AuthorGramBadgeManager.showBadgeToast(bType, org.telegram.messenger.UserObject.getFirstName(user));
                         });
@@ -12278,7 +12274,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id) != 0) {
                         int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id);
                         final String chatTitle = chat.title;
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType));
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType, a));
                         nameTextView[a].setRightDrawable2OnClick(v -> {
                             org.telegram.messenger.authorgram.AuthorGramBadgeManager.showBadgeToast(bType, chatTitle);
                         });
@@ -12315,7 +12311,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else if (org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id) != 0) {
                         int bType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id);
                         final String chatTitle = chat.title;
-                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType));
+                        nameTextView[a].setRightDrawable2(getAuthorBadgeDrawable(bType, a));
                         nameTextView[a].setRightDrawable2OnClick(v -> {
                             org.telegram.messenger.authorgram.AuthorGramBadgeManager.showBadgeToast(bType, chatTitle);
                         });

@@ -131,7 +131,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
             themeColor = 0xFFFF9800;
         }
 
-        if (type != AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
+        if (type != AuthorGramBadgeManager.TYPE_SUPPORT_PRO && type != AuthorGramBadgeManager.TYPE_LOVE) {
             if (cachedColorFilter == null || lastThemeColor != themeColor) {
                 lastThemeColor = themeColor;
                 cachedColorFilter = new PorterDuffColorFilter(themeColor, PorterDuff.Mode.SRC_IN);
@@ -194,7 +194,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
 
     @Override
     public void setColorFilter(@Nullable ColorFilter colorFilter) {
-        if (baseDrawable != null && type != AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
+        if (baseDrawable != null && type != AuthorGramBadgeManager.TYPE_SUPPORT_PRO && type != AuthorGramBadgeManager.TYPE_LOVE) {
             baseDrawable.setColorFilter(colorFilter);
         }
     }
