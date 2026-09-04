@@ -14,7 +14,6 @@ jobs:
     timeout-minutes: 360
     env:
       VERSION_NAME: 12.10.1
-      NATIVE_TARGET: arm64-v8a
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
       GH_TOKEN: ${{ github.token }}
@@ -92,6 +91,7 @@ jobs:
         working-directory: build-agp
         env:
           APP_PACKAGE: fork.risin42.nagramx
+          NATIVE_TARGET: arm64-v8a
         run: |
           set -euo pipefail
           ./gradlew clean --no-build-cache --stacktrace TMessagesProj:assembleRelease
@@ -129,6 +129,7 @@ jobs:
         working-directory: build-pm
         env:
           APP_PACKAGE: toss.authorgram.apk
+          NATIVE_TARGET: ""
         run: |
           set -euo pipefail
           ./gradlew clean --no-build-cache --stacktrace TMessagesProj:bundleRelease
