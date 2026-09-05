@@ -1809,6 +1809,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
 
     private Drawable authorBadgeDrawable;
     private int authorGramBadgeType = 0;
+    private long authorGramBadgeId = 0;
 
     public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable currentNameStatusDrawable;
     public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable currentNameEmojiStatusDrawable;
@@ -19311,6 +19312,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             if (currentUser != null) objectId = currentUser.id;
             else if (currentChat != null) objectId = currentChat.id;
             authorGramBadgeType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(objectId);
+            authorGramBadgeId = objectId;
 
             if (currentNameStatusDrawable == null && currentNameStatus != null) {
                 currentNameStatusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(this, true, dp(20));
@@ -21538,7 +21540,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             }
             if (authorGramBadgeType != 0) {
                 if (authorBadgeDrawable == null || ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).type != authorGramBadgeType) {
-                    authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(authorGramBadgeType);
+                    authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(authorGramBadgeType, authorGramBadgeId);
                 }
                 authorBadgeDrawable.setBounds(
                     (int) (Math.abs(nx) + (viaNameWidth > 0 ? viaNameWidth - dp(4 + 28) : nameLayoutWidth) + dp(2)),

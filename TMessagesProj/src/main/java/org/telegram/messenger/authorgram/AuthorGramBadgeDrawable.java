@@ -26,6 +26,9 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private int lastThemeColor = 0;
     private PorterDuffColorFilter cachedColorFilter;
     private final Drawable baseDrawable;
+    private android.graphics.Path customPath;
+    private android.graphics.Paint customPaint;
+    private int customColor;
     private final int sizePx;
         private java.lang.ref.WeakReference<android.view.View> parentViewRef;
     public int type = AuthorGramBadgeManager.TYPE_AUTHOR;
@@ -37,9 +40,24 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private float progress = 0f;
     private boolean animating = false;
         
-    public AuthorGramBadgeDrawable(int type) {
+    public AuthorGramBadgeDrawable(int type, long userId) {
         this.type = type;
         sizePx = AndroidUtilities.dp(16);
+        
+        if (type == AuthorGramBadgeManager.TYPE_AUTHOR || type == AuthorGramBadgeManager.TYPE_LOVE || type == AuthorGramBadgeManager.TYPE_CUSTOM) {
+            animating = true;
+        }
+        
+        AuthorGramBadgeManager.CustomBadgeInfo customInfo = AuthorGramBadgeManager.getCustomBadgeInfo(userId);
+        if (customInfo != null) {
+            customColor = customInfo.color;
+            customPath = customInfo.path;
+            if (customPath != null) {
+                customPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                customPaint.setStyle(Paint.Style.FILL);
+                customPaint.setColor(customColor);
+            }
+        }
                 
         int resId = R.drawable.ic_author_badge_a;
         if (type == AuthorGramBadgeManager.TYPE_LOVE) {
@@ -72,7 +90,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
     }
 
     public void stopAnimation() {
-        if (animating) {
+        if (animating && type != AuthorGramBadgeManager.TYPE_AUTHOR && type != AuthorGramBadgeManager.TYPE_LOVE && type != AuthorGramBadgeManager.TYPE_CUSTOM) {
             animating = false;
         }
     }
@@ -130,8 +148,11 @@ public class AuthorGramBadgeDrawable extends Drawable {
         } else if (type == AuthorGramBadgeManager.TYPE_SUPPORT || type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
             themeColor = 0xFFFF9800;
         }
+        if (customColor != 0 && type != AuthorGramBadgeManager.TYPE_CUSTOM) {
+            themeColor = customColor;
+        }
 
-        if (type != AuthorGramBadgeManager.TYPE_SUPPORT_PRO && type != AuthorGramBadgeManager.TYPE_LOVE) {
+        if (type != AuthorGramBadgeManager.TYPE_SUPPORT_PRO && type != AuthorGramBadgeManager.TYPE_LOVE || (customColor != 0)) {
             if (cachedColorFilter == null || lastThemeColor != themeColor) {
                 lastThemeColor = themeColor;
                 cachedColorFilter = new PorterDuffColorFilter(themeColor, PorterDuff.Mode.SRC_IN);
@@ -165,7 +186,17 @@ public class AuthorGramBadgeDrawable extends Drawable {
         if (drawShimmer) {
             // Use saveLayer only when shimmer is active to optimize performance
             int saveCount = canvas.saveLayer(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom, null);
-            baseDrawable.draw(canvas);
+            if (type == AuthorGramBadgeManager.TYPE_CUSTOM && customPath != null) {
+                canvas.save();
+                canvas.translate(innerBounds.left, innerBounds.top);
+                float scaleX = innerBounds.width() / 24.0f;
+                float scaleY = innerBounds.height() / 24.0f;
+                canvas.scale(scaleX, scaleY);
+                canvas.drawPath(customPath, customPaint);
+                canvas.restore();
+            } else {
+                baseDrawable.draw(canvas);
+            }
             
             float translate = innerBounds.width() * 2f * progress - innerBounds.width();
             shimmerMatrix.reset();
@@ -177,7 +208,17 @@ public class AuthorGramBadgeDrawable extends Drawable {
             canvas.restoreToCount(saveCount);
         } else {
             // Fast path: just draw the badge directly without offscreen buffer
-            baseDrawable.draw(canvas);
+            if (type == AuthorGramBadgeManager.TYPE_CUSTOM && customPath != null) {
+                canvas.save();
+                canvas.translate(innerBounds.left, innerBounds.top);
+                float scaleX = innerBounds.width() / 24.0f;
+                float scaleY = innerBounds.height() / 24.0f;
+                canvas.scale(scaleX, scaleY);
+                canvas.drawPath(customPath, customPaint);
+                canvas.restore();
+            } else {
+                baseDrawable.draw(canvas);
+            }
         }
         
         

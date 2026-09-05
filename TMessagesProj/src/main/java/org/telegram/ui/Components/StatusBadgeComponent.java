@@ -47,7 +47,7 @@ public class StatusBadgeComponent {
         int bType = AuthorGramBadgeManager.getBadgeType(objectId);
         if (bType != AuthorGramBadgeManager.TYPE_NONE) {
             if (authorBadgeDrawable == null || !(authorBadgeDrawable instanceof AuthorGramBadgeDrawable) || ((AuthorGramBadgeDrawable) authorBadgeDrawable).type != bType) {
-                authorBadgeDrawable = new AuthorGramBadgeDrawable(bType);
+                authorBadgeDrawable = new AuthorGramBadgeDrawable(bType, objectId);
                 ((AuthorGramBadgeDrawable) authorBadgeDrawable).setParentView(parentView);
                 if (statusDrawable.attached) {
                     ((AuthorGramBadgeDrawable) authorBadgeDrawable).startAnimation();

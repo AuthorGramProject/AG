@@ -649,6 +649,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
     // AUTHORGRAM_PROTECTED_DIALOG_BADGE: IDs are resolved by the signed-build policy.
     private Drawable authorBadgeDrawable;
     private int authorGramBadgeType = 0;
+    private long authorGramBadgeId = 0;
     private boolean drawAuthorBadge;
 
     private boolean drawVerified;
@@ -1405,6 +1406,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 }
             } else {
                 authorGramBadgeType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(currentDialogId);
+                authorGramBadgeId = currentDialogId;
                 drawAuthorBadge = !forbidVerified && authorGramBadgeType != 0;
                 drawVerified = !drawAuthorBadge && !forbidVerified && customDialog.verified;
                 if (useForceThreeLines || SharedConfig.useThreeLinesLayout) {
@@ -1535,6 +1537,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(chat.emoji_status), false);
                         } else {
                             authorGramBadgeType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(chat.id);
+                            authorGramBadgeId = chat.id;
                             drawAuthorBadge = !forbidVerified && authorGramBadgeType != 0;
                             drawVerified = !drawAuthorBadge && !forbidVerified && chat.verified;
                             drawBotVerified = !forbidVerified && chat.bot_verification_icon != 0;
@@ -1549,6 +1552,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             Theme.dialogs_fakeDrawable.checkText();
                         } else {
                             authorGramBadgeType = org.telegram.messenger.authorgram.AuthorGramBadgeManager.getBadgeType(user.id);
+                            authorGramBadgeId = user.id;
                             drawAuthorBadge = !forbidVerified && authorGramBadgeType != 0;
                             drawVerified = !drawAuthorBadge && !forbidVerified && user.verified;
                             drawBotVerified = !forbidVerified && !UserObject.isUserSelf(user) && user.bot_verification_icon != 0;
@@ -2406,6 +2410,11 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             }
         } else if (drawAuthorBadge) {
             int w = dp(6) + dp(18);
+            nameWidth -= w;
+            nameAdditionalsForChannelSubscriber += w;
+            if (LocaleController.isRTL) {
+                nameLeft += w;
+            }
         } else if (drawVerified) {
             int w = dp(6) + Theme.dialogs_verifiedDrawable.getIntrinsicWidth();
             nameWidth -= w;
@@ -4654,7 +4663,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     y -= dp(9);
                 }
                 if (authorBadgeDrawable == null || ((org.telegram.messenger.authorgram.AuthorGramBadgeDrawable) authorBadgeDrawable).type != authorGramBadgeType) {
-                    authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(authorGramBadgeType);
+                    authorBadgeDrawable = new org.telegram.messenger.authorgram.AuthorGramBadgeDrawable(authorGramBadgeType, authorGramBadgeId);
                 }
                 int size = dp(16);
                 int left = nameMuteLeft - dp(1);

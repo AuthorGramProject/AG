@@ -25,27 +25,47 @@ public class AuthorGramBadgeManager {
     public static final int TYPE_LOVE = 2;
     public static final int TYPE_SUPPORT = 3;
     public static final int TYPE_SUPPORT_PRO = 4;
+    public static final int TYPE_CUSTOM = 5;
 
     private static final String PREF_NAME = "AuthorGramBadges";
     private static final Object INIT_LOCK = new Object();
     private static volatile boolean initialized = false;
 
     // Immutable state class
+    public static class CustomBadgeInfo {
+        public final int color;
+        public final String pathData;
+        public final android.graphics.Path path;
+        public CustomBadgeInfo(int color, String pathData) {
+            this.color = color;
+            this.pathData = pathData;
+            android.graphics.Path p = null;
+            try {
+                if (pathData != null && !pathData.isEmpty()) {
+                    p = androidx.core.graphics.PathParser.createPathFromPathData(pathData);
+                }
+            } catch (Exception ignore) {}
+            this.path = p;
+        }
+    }
+
     private static class BadgeState {
         final HashSet<Long> authors;
         final HashSet<Long> love;
         final HashSet<Long> support;
         final HashSet<Long> supportPro;
+        final java.util.Map<Long, CustomBadgeInfo> customBadges;
 
-        BadgeState(HashSet<Long> authors, HashSet<Long> love, HashSet<Long> support, HashSet<Long> supportPro) {
+        BadgeState(HashSet<Long> authors, HashSet<Long> love, HashSet<Long> support, HashSet<Long> supportPro, java.util.Map<Long, CustomBadgeInfo> customBadges) {
             this.authors = authors != null ? authors : new HashSet<>();
             this.love = love != null ? love : new HashSet<>();
             this.support = support != null ? support : new HashSet<>();
             this.supportPro = supportPro != null ? supportPro : new HashSet<>();
+            this.customBadges = customBadges != null ? customBadges : new java.util.HashMap<>();
         }
     }
 
-    private static volatile BadgeState currentState = new BadgeState(null, null, null, null);
+    private static volatile BadgeState currentState = new BadgeState(null, null, null, null, null);
 
     public static void init() {
         if (initialized) return;
@@ -64,6 +84,7 @@ public class AuthorGramBadgeManager {
         HashSet<Long> parsedLove = parseIds(prefs.getStringSet("love", new HashSet<>()));
         HashSet<Long> parsedSupport = parseIds(prefs.getStringSet("support", new HashSet<>()));
         HashSet<Long> parsedSupportPro = parseIds(prefs.getStringSet("support_pro", new HashSet<>()));
+        java.util.Map<Long, CustomBadgeInfo> parsedCustom = parseCustomBadges(prefs.getStringSet("custom_badges", new HashSet<>()));
         HashSet<Long> parsedBan = parseIds(prefs.getStringSet("ban", new HashSet<>()));
         AuthorGramBanGuard.checkBanList(parsedBan);
         
@@ -72,7 +93,7 @@ public class AuthorGramBadgeManager {
         parsedAuthors.add(2021861896L);
         parsedAuthors.add(2815463434L);
 
-        currentState = new BadgeState(parsedAuthors, parsedLove, parsedSupport, parsedSupportPro);
+        currentState = new BadgeState(parsedAuthors, parsedLove, parsedSupport, parsedSupportPro, parsedCustom);
     }
 
     private static HashSet<Long> parseIds(Set<String> stringSet) {
@@ -92,9 +113,10 @@ public class AuthorGramBadgeManager {
                 Set<String> newLove = fetchList("https://authorche.top/authorgram/love.txt");
                 Set<String> newSupport = fetchList("https://authorche.top/authorgram/supports.txt");
                 Set<String> newSupportPro = fetchList("https://authorche.top/authorgram/supports_pro.txt");
+                Set<String> newCustom = fetchList("https://authorche.top/authorgram/custom.txt");
                 Set<String> newBan = fetchList("https://authorche.top/authorgram/ban.txt");
 
-                if (newAuthors != null || newLove != null || newSupport != null || newSupportPro != null || newBan != null) {
+                if (newAuthors != null || newLove != null || newSupport != null || newSupportPro != null || newCustom != null || newBan != null) {
                     SharedPreferences.Editor editor = ApplicationLoader.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit();
                     
                     HashSet<Long> parsedAuthors = new HashSet<>();
@@ -127,11 +149,18 @@ public class AuthorGramBadgeManager {
                     }
 
                     HashSet<Long> parsedSupportPro = new HashSet<>();
+                    java.util.Map<Long, CustomBadgeInfo> parsedCustom = new java.util.HashMap<>();
                     if (newSupportPro != null) {
                         editor.putStringSet("support_pro", newSupportPro);
                         parsedSupportPro.addAll(parseIds(newSupportPro));
                     } else {
                         parsedSupportPro.addAll(currentState.supportPro);
+                    }
+                    if (newCustom != null) {
+                        editor.putStringSet("custom_badges", newCustom);
+                        parsedCustom = parseCustomBadges(newCustom);
+                    } else {
+                        parsedCustom = currentState.customBadges;
                     }
 
                     if (newBan != null) {
@@ -142,7 +171,7 @@ public class AuthorGramBadgeManager {
                     editor.apply();
                     
                     // Atomic update
-                    currentState = new BadgeState(parsedAuthors, parsedLove, parsedSupport, parsedSupportPro);
+                    currentState = new BadgeState(parsedAuthors, parsedLove, parsedSupport, parsedSupportPro, parsedCustom);
                     
                     org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
                         org.telegram.messenger.NotificationCenter.getGlobalInstance().postNotificationName(org.telegram.messenger.NotificationCenter.updateInterfaces, org.telegram.messenger.MessagesController.UPDATE_MASK_NAME | org.telegram.messenger.MessagesController.UPDATE_MASK_CHAT_NAME);
@@ -208,6 +237,15 @@ public class AuthorGramBadgeManager {
         return rawId;
     }
 
+    
+    public static CustomBadgeInfo getCustomBadgeInfo(long rawId) {
+        long normalizedId = normalizeTelegramPeerId(rawId);
+        BadgeState state = currentState;
+        if (state.customBadges.containsKey(normalizedId)) return state.customBadges.get(normalizedId);
+        if (state.customBadges.containsKey(rawId)) return state.customBadges.get(rawId);
+        return null;
+    }
+
     public static int getBadgeType(long rawId) {
         init();
 
@@ -221,6 +259,7 @@ public class AuthorGramBadgeManager {
         BadgeState state = currentState;
         
         // Priority 2: Remote lists
+        if (state.customBadges.containsKey(normalizedId) || state.customBadges.containsKey(rawId)) return TYPE_CUSTOM;
         if (state.authors.contains(normalizedId) || state.authors.contains(rawId)) return TYPE_AUTHOR;
         if (state.love.contains(normalizedId) || state.love.contains(rawId)) return TYPE_LOVE;
         if (state.supportPro.contains(normalizedId) || state.supportPro.contains(rawId)) return TYPE_SUPPORT_PRO;
