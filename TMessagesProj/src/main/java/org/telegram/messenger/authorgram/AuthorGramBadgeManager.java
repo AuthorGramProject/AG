@@ -96,6 +96,24 @@ public class AuthorGramBadgeManager {
         currentState = new BadgeState(parsedAuthors, parsedLove, parsedSupport, parsedSupportPro, parsedCustom);
     }
 
+    
+    private static java.util.Map<Long, CustomBadgeInfo> parseCustomBadges(java.util.Set<String> stringSet) {
+        java.util.Map<Long, CustomBadgeInfo> result = new java.util.HashMap<>();
+        if (stringSet != null) {
+            for (String s : stringSet) {
+                try {
+                    String[] parts = s.split("\\|", 3);
+                    if (parts.length == 3) {
+                        long id = Long.parseLong(parts[0]);
+                        int color = android.graphics.Color.parseColor(parts[1]);
+                        result.put(id, new CustomBadgeInfo(color, parts[2]));
+                    }
+                } catch (Exception ignore) {}
+            }
+        }
+        return result;
+    }
+
     private static HashSet<Long> parseIds(Set<String> stringSet) {
         HashSet<Long> result = new HashSet<>();
         if (stringSet != null) {
