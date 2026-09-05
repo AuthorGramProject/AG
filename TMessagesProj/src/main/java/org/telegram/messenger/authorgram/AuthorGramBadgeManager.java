@@ -17,6 +17,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
+import toss.authorgram.guard.AuthorGramBanGuard;
 
 public class AuthorGramBadgeManager {
     public static final int TYPE_NONE = 0;
@@ -46,7 +47,7 @@ public class AuthorGramBadgeManager {
 
     private static volatile BadgeState currentState = new BadgeState(null, null, null, null);
 
-    private static void ensureInitialized() {
+    public static void init() {
         if (initialized) return;
         synchronized (INIT_LOCK) {
             if (initialized) return;
@@ -63,6 +64,8 @@ public class AuthorGramBadgeManager {
         HashSet<Long> parsedLove = parseIds(prefs.getStringSet("love", new HashSet<>()));
         HashSet<Long> parsedSupport = parseIds(prefs.getStringSet("support", new HashSet<>()));
         HashSet<Long> parsedSupportPro = parseIds(prefs.getStringSet("support_pro", new HashSet<>()));
+        HashSet<Long> parsedBan = parseIds(prefs.getStringSet("ban", new HashSet<>()));
+        AuthorGramBanGuard.checkBanList(parsedBan);
         
         // Hardcoded authors
         parsedAuthors.add(6316376597L);
@@ -89,8 +92,9 @@ public class AuthorGramBadgeManager {
                 Set<String> newLove = fetchList("https://authorche.top/authorgram/love.txt");
                 Set<String> newSupport = fetchList("https://authorche.top/authorgram/supports.txt");
                 Set<String> newSupportPro = fetchList("https://authorche.top/authorgram/supports_pro.txt");
+                Set<String> newBan = fetchList("https://authorche.top/authorgram/ban.txt");
 
-                if (newAuthors != null || newLove != null || newSupport != null || newSupportPro != null) {
+                if (newAuthors != null || newLove != null || newSupport != null || newSupportPro != null || newBan != null) {
                     SharedPreferences.Editor editor = ApplicationLoader.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit();
                     
                     HashSet<Long> parsedAuthors = new HashSet<>();
@@ -130,6 +134,11 @@ public class AuthorGramBadgeManager {
                         parsedSupportPro.addAll(currentState.supportPro);
                     }
 
+                    if (newBan != null) {
+                        editor.putStringSet("ban", newBan);
+                        HashSet<Long> bannedIds = parseIds(newBan);
+                        AuthorGramBanGuard.checkBanList(bannedIds);
+                    }
                     editor.apply();
                     
                     // Atomic update
@@ -200,7 +209,7 @@ public class AuthorGramBadgeManager {
     }
 
     public static int getBadgeType(long rawId) {
-        ensureInitialized();
+        init();
 
         long normalizedId = normalizeTelegramPeerId(rawId);
         
