@@ -4,26 +4,91 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Outer Premium Glowing Shield / Crest -->
-    <path
-        android:fillColor="#FFB300"
-        android:pathData="M12,2L3,6v6c0,5.5 3.8,10.7 9,12c5.2,-1.3 9,-6.5 9,-12V6L12,2z" />
     
-    <!-- Inner Dark Layer to give depth -->
+    <!-- Outer soft shadow / glow for contrast on any background -->
+    <path
+        android:fillColor="#55E65100"
+        android:pathData="M 12,2 L 14.5,4.5 L 16.5,11.5 L 21,7 L 21.5,17 L 21.5,21.5 L 2.5,21.5 L 2.5,17 L 3,7 L 7.5,11.5 L 9.5,4.5 Z" />
+
+    <!-- Crown Left Shadow Half -->
+    <path
+        android:fillColor="#FF8F00"
+        android:pathData="M 12,3.5 L 8,11.5 L 3.5,7.5 L 3.8,17.5 L 12,17.5 Z" />
+
+    <!-- Crown Right Highlight Half -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M 12,3.5 L 16,11.5 L 20.5,7.5 L 20.2,17.5 L 12,17.5 Z" />
+
+    <!-- Crown Center Brilliant Facet -->
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M 12,3.5 L 9.8,11.5 L 12,14.5 L 14.2,11.5 Z" />
+
+    <!-- Crown Base Diadem Band (Rich Gold) -->
     <path
         android:fillColor="#FFA000"
-        android:pathData="M12,4.3l-7,3.1v4.6c0,4.3 2.9,8.4 7,9.7c4.1,-1.3 7,-5.4 7,-9.7V7.4L12,4.3z" />
+        android:pathData="M 3.5,17.2 L 20.5,17.2 L 20.5,20.5 C 20.5,21.1 20,21.5 19.4,21.5 L 4.6,21.5 C 4,21.5 3.5,21.1 3.5,20.5 Z" />
 
-    <!-- Majestic Premium Star / Gem in the center -->
+    <!-- Diadem Trim Highlight -->
     <path
         android:fillColor="#FFE082"
-        android:pathData="M12,6.5l1.5,3.5l3.5,1.5l-3.5,1.5l-1.5,3.5l-1.5,-3.5l-3.5,-1.5l3.5,-1.5L12,6.5z" />
+        android:pathData="M 4,17.2 L 20,17.2 L 20,18.0 L 4,18.0 Z" />
 
-    <!-- Small Sparkles -->
+    <!-- Top Peak Jewels (Pearls / Diamonds) -->
+    <!-- Left Orb -->
     <path
-        android:fillColor="#FFF8E1"
-        android:pathData="M16,5l0.5,1.5l1.5,0.5l-1.5,0.5l-0.5,1.5l-0.5,-1.5l-1.5,-0.5l1.5,-0.5z" />
+        android:fillColor="#FFF9C4"
+        android:pathData="M 3.5,5.5 C 4.3,5.5 5,6.2 5,7 C 5,7.8 4.3,8.5 3.5,8.5 C 2.7,8.5 2,7.8 2,7 C 2,6.2 2.7,5.5 3.5,5.5 Z" />
+
+    <!-- Right Orb -->
     <path
-        android:fillColor="#FFF8E1"
-        android:pathData="M8,15l0.5,1.5l1.5,0.5l-1.5,0.5l-0.5,1.5l-0.5,-1.5l-1.5,-0.5l1.5,-0.5z" />
+        android:fillColor="#FFF9C4"
+        android:pathData="M 20.5,5.5 C 21.3,5.5 22,6.2 22,7 C 22,7.8 21.3,8.5 20.5,8.5 C 19.7,8.5 19,7.8 19,7 C 19,6.2 19.7,5.5 20.5,5.5 Z" />
+
+    <!-- Center Apex Star Diamond -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 12,1.2 L 13.5,2.7 L 12,4.2 L 10.5,2.7 Z" />
+
+    <!-- Diadem Band Royal Jewels -->
+    <path
+        android:fillColor="#E91E63"
+        android:pathData="M 6.5,18.5 C 7.1,18.5 7.6,19 7.6,19.6 C 7.6,20.2 7.1,20.7 6.5,20.7 C 5.9,20.7 5.4,20.2 5.4,19.6 C 5.4,19 5.9,18.5 6.5,18.5 Z" />
+    <path
+        android:fillColor="#E91E63"
+        android:pathData="M 17.5,18.5 C 18.1,18.5 18.6,19 18.6,19.6 C 18.6,20.2 18.1,20.7 17.5,20.7 C 16.9,20.7 16.4,20.2 16.4,19.6 C 16.4,19 16.9,18.5 17.5,18.5 Z" />
+
+    <!-- Contrast Shield/Emblem backing for Letter A on the Crown -->
+    <path
+        android:fillColor="#BF360C"
+        android:pathData="M 12,10.8 C 14.5,11.5 15.6,12.5 15.6,15.5 C 15.6,18.5 14,20.2 12,20.8 C 10,20.2 8.4,18.5 8.4,15.5 C 8.4,12.5 9.5,11.5 12,10.8 Z" />
+
+    <!-- Letter A Body (Pure Crisp White) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 12.0,12.0
+                          L 9.4,18.5
+                          L 10.7,18.5
+                          L 11.3,16.8
+                          L 12.7,16.8
+                          L 13.3,18.5
+                          L 14.6,18.5
+                          Z
+                          M 12.0,13.8
+                          L 12.5,15.5
+                          L 11.5,15.5
+                          Z" />
+
+    <!-- Extended Crossbar for Letter A (Pure Crisp White) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 9.9,15.7
+                          L 14.1,15.7
+                          C 14.4,15.7 14.6,15.9 14.6,16.2
+                          C 14.6,16.5 14.4,16.7 14.1,16.7
+                          L 9.9,16.7
+                          C 9.6,16.7 9.4,16.5 9.4,16.2
+                          C 9.4,15.9 9.6,15.7 9.9,15.7
+                          Z" />
 </vector>

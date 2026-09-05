@@ -21,7 +21,7 @@ jobs:
     env:
       PLAY_PACKAGE: toss.authorgram.apk
       VERSION_NAME: 12.10.1
-      VERSION_CODE: 7053
+      VERSION_CODE: 7054
       BUNDLETOOL_VERSION: 1.18.3
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369

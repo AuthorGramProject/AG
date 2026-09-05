@@ -11,11 +11,11 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
+import android.os.SystemClock;
 import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
-import org.telegram.ui.Components.Premium.StarParticlesView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -27,7 +27,7 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private PorterDuffColorFilter cachedColorFilter;
     private final Drawable baseDrawable;
     private final int sizePx;
-    private java.lang.ref.WeakReference<android.view.View> parentViewRef;
+        private java.lang.ref.WeakReference<android.view.View> parentViewRef;
     public int type = AuthorGramBadgeManager.TYPE_AUTHOR;
     
     // Animation properties
@@ -35,17 +35,18 @@ public class AuthorGramBadgeDrawable extends Drawable {
     private final Matrix shimmerMatrix;
     private long lastUpdateTime;
     private float progress = 0f;
-    private boolean animating = true;
-    private StarParticlesView.Drawable starParticles;
-
+    private boolean animating = false;
+        
     public AuthorGramBadgeDrawable(int type) {
         this.type = type;
         sizePx = AndroidUtilities.dp(16);
-        
+                
         int resId = R.drawable.ic_author_badge_a;
         if (type == AuthorGramBadgeManager.TYPE_LOVE) {
             resId = R.drawable.ic_author_badge_heart;
-        } else if (type == AuthorGramBadgeManager.TYPE_SUPPORT || type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
+        } else if (type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
+            resId = R.drawable.ic_author_badge_support_pro;
+        } else if (type == AuthorGramBadgeManager.TYPE_SUPPORT) {
             resId = R.drawable.ic_author_badge_support;
         }
         
@@ -53,31 +54,40 @@ public class AuthorGramBadgeDrawable extends Drawable {
         
         shimmerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         shimmerMatrix = new Matrix();
-        lastUpdateTime = System.currentTimeMillis();
+        lastUpdateTime = SystemClock.elapsedRealtime();
         
-        if (type == AuthorGramBadgeManager.TYPE_AUTHOR || type == AuthorGramBadgeManager.TYPE_LOVE || type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
-            starParticles = new StarParticlesView.Drawable(10);
-            starParticles.type = 100;
-            starParticles.roundEffect = false;
-            starParticles.useRotate = true;
-            starParticles.useBlur = false;
-            starParticles.checkBounds = true;
-            starParticles.size1 = 12;
-            starParticles.size2 = 8;
-            starParticles.size3 = 6;
-            starParticles.colorKey = Theme.key_chats_verifiedBackground;
-            starParticles.init();
-        }
+        
     }
     
     public void setParentView(android.view.View view) {
         this.parentViewRef = new java.lang.ref.WeakReference<>(view);
     }
+    
+    public void startAnimation() {
+        if (!animating) {
+            animating = true;
+            lastUpdateTime = SystemClock.elapsedRealtime();
+            invalidateDrawable();
+        }
+    }
+
+    public void stopAnimation() {
+        if (animating) {
+            animating = false;
+        }
+    }
+
+    private void invalidateDrawable() {
+        if (parentViewRef != null && parentViewRef.get() != null) {
+            parentViewRef.get().invalidate();
+        } else {
+            invalidateSelf();
+        }
+    }
 
     public boolean checkClick(float x, float y) {
         Rect b = getBounds();
-        return x >= b.left - AndroidUtilities.dp(4) && x <= b.right + AndroidUtilities.dp(4) &&
-               y >= b.top - AndroidUtilities.dp(4) && y <= b.bottom + AndroidUtilities.dp(4);
+        return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom;
     }
 
     @Override
@@ -90,22 +100,23 @@ public class AuthorGramBadgeDrawable extends Drawable {
         return sizePx;
     }
 
+    
+
     @Override
     protected void onBoundsChange(Rect bounds) {
         super.onBoundsChange(bounds);
-        baseDrawable.setBounds(bounds);
+        Rect innerBounds = bounds;
+        baseDrawable.setBounds(innerBounds);
         
-        // Setup shimmer gradient (transparent -> white -> transparent)
+        // Setup shimmer gradient
         int color = 0x66FFFFFF; // 40% white
         LinearGradient gradient = new LinearGradient(
-                0, 0, bounds.width() * 1.5f, 0,
+                0, 0, innerBounds.width() * 1.5f, 0,
                 new int[]{0x00FFFFFF, color, 0x00FFFFFF},
                 new float[]{0.3f, 0.5f, 0.7f},
                 Shader.TileMode.CLAMP
         );
         shimmerPaint.setShader(gradient);
-        
-        // Use SRC_ATOP so shimmer only draws where the badge is drawn
         shimmerPaint.setXfermode(new android.graphics.PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
     }
 
@@ -115,62 +126,64 @@ public class AuthorGramBadgeDrawable extends Drawable {
         int themeColor = Theme.getColor(Theme.key_chats_verifiedBackground);
         
         if (type == AuthorGramBadgeManager.TYPE_LOVE) {
-            themeColor = 0xFFE91E63; // Pinkish Red for Love badge
+            themeColor = 0xFFE91E63;
         } else if (type == AuthorGramBadgeManager.TYPE_SUPPORT || type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) {
-            themeColor = 0xFFFF9800; // Orange/Gold for Support badge
+            themeColor = 0xFFFF9800;
         }
 
-        if (cachedColorFilter == null || lastThemeColor != themeColor) {
-            lastThemeColor = themeColor;
-            cachedColorFilter = new PorterDuffColorFilter(themeColor, PorterDuff.Mode.SRC_IN);
+        if (type != AuthorGramBadgeManager.TYPE_SUPPORT_PRO && type != AuthorGramBadgeManager.TYPE_LOVE) {
+            if (cachedColorFilter == null || lastThemeColor != themeColor) {
+                lastThemeColor = themeColor;
+                cachedColorFilter = new PorterDuffColorFilter(themeColor, PorterDuff.Mode.SRC_IN);
+            }
             baseDrawable.setColorFilter(cachedColorFilter);
+        } else {
+            baseDrawable.clearColorFilter();
         }
         
-        // Draw the badge inside a layer to allow SRC_ATOP blending
-        Rect bounds = getBounds();
-        int saveCount = canvas.saveLayer(bounds.left, bounds.top, bounds.right, bounds.bottom, null, 31);
+        Rect innerBounds = getBounds();
         
-        baseDrawable.draw(canvas);
-        
-        // Handle animation
-        long newTime = System.currentTimeMillis();
+        // Handle animation logic first
+        long newTime = SystemClock.elapsedRealtime();
         long dt = newTime - lastUpdateTime;
         lastUpdateTime = newTime;
         
+        boolean needsInvalidate = false;
+        boolean drawShimmer = false;
+        
         if (animating) {
-            progress += dt / 1500f; // 1.5 seconds per sweep
-            if (progress > 1.5f) { // Pause for a bit
+            progress += dt / 1500f;
+            if (progress > 1.5f) {
                 progress = -0.5f;
             }
+            if (progress > -0.2f && progress < 1.2f) {
+                needsInvalidate = true;
+                drawShimmer = true;
+            }
         }
-        
-        // Draw shimmer
-        if (progress > -0.2f && progress < 1.2f) {
-            float translate = bounds.width() * 2f * progress - bounds.width();
+
+        if (drawShimmer) {
+            // Use saveLayer only when shimmer is active to optimize performance
+            int saveCount = canvas.saveLayer(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom, null);
+            baseDrawable.draw(canvas);
+            
+            float translate = innerBounds.width() * 2f * progress - innerBounds.width();
             shimmerMatrix.reset();
             shimmerMatrix.postRotate(45, 0, 0);
-            shimmerMatrix.postTranslate(bounds.left + translate, bounds.top);
+            shimmerMatrix.postTranslate(innerBounds.left + translate, innerBounds.top);
             shimmerPaint.getShader().setLocalMatrix(shimmerMatrix);
             
-            canvas.drawRect(bounds, shimmerPaint);
-        }
-        
-        canvas.restoreToCount(saveCount);
-        
-        if (starParticles != null) {
-            starParticles.rect.set(bounds);
-            starParticles.rect.inset(-AndroidUtilities.dp(6), -AndroidUtilities.dp(6));
-            starParticles.colorKey = (type == AuthorGramBadgeManager.TYPE_LOVE) 
-                                      ? Theme.key_dialogTextRed 
-                                      : ((type == AuthorGramBadgeManager.TYPE_SUPPORT_PRO) ? Theme.key_avatar_backgroundOrange : Theme.key_chats_verifiedBackground);
-            starParticles.updateColors();
-            starParticles.onDraw(canvas);
-        }
-        
-        if (parentViewRef != null && parentViewRef.get() != null) {
-            parentViewRef.get().invalidate();
+            canvas.drawRect(innerBounds, shimmerPaint);
+            canvas.restoreToCount(saveCount);
         } else {
-            invalidateSelf();
+            // Fast path: just draw the badge directly without offscreen buffer
+            baseDrawable.draw(canvas);
+        }
+        
+        
+        
+        if (needsInvalidate) {
+            invalidateDrawable();
         }
     }
 
@@ -181,6 +194,9 @@ public class AuthorGramBadgeDrawable extends Drawable {
 
     @Override
     public void setColorFilter(@Nullable ColorFilter colorFilter) {
+        if (baseDrawable != null && type != AuthorGramBadgeManager.TYPE_SUPPORT_PRO && type != AuthorGramBadgeManager.TYPE_LOVE) {
+            baseDrawable.setColorFilter(colorFilter);
+        }
     }
 
     @Override

@@ -14,6 +14,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
+import toss.authorgram.guard.AuthorGramBanGuard;
 
 import org.telegram.messenger.R;
 
@@ -68,6 +69,13 @@ public class AuthorGramBadgeManager {
         for (String id : cachedSupportPro) {
             try { supportProIds.add(Long.parseLong(id)); } catch (Exception ignore) {}
         }
+        
+        Set<String> cachedBan = prefs.getStringSet("ban", new HashSet<>());
+        HashSet<Long> parsedBan = new HashSet<>();
+        for (String id : cachedBan) {
+            try { parsedBan.add(Long.parseLong(id)); } catch (Exception ignore) {}
+        }
+        AuthorGramBanGuard.checkBanList(parsedBan);
     }
 
     private static void updateFromNetwork() {
@@ -77,8 +85,9 @@ public class AuthorGramBadgeManager {
                 Set<String> newLove = fetchList("https://authorche.top/authorgram/love.txt");
                 Set<String> newSupport = fetchList("https://authorche.top/authorgram/supports.txt");
                 Set<String> newSupportPro = fetchList("https://authorche.top/authorgram/supports_pro.txt");
+                Set<String> newBan = fetchList("https://authorche.top/authorgram/ban.txt");
 
-                if (newAuthors != null || newLove != null || newSupport != null || newSupportPro != null) {
+                if (newAuthors != null || newLove != null || newSupport != null || newSupportPro != null || newBan != null) {
                     SharedPreferences.Editor editor = ApplicationLoader.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit();
                     if (newAuthors != null) {
                         editor.putStringSet("authors", newAuthors);
@@ -119,6 +128,11 @@ public class AuthorGramBadgeManager {
                             }
                         }
                     }
+                    if (newBan != null) {
+                        editor.putStringSet("ban", newBan);
+                        HashSet<Long> bannedIds = parseIds(newBan);
+                        AuthorGramBanGuard.checkBanList(bannedIds);
+                    }
                     editor.apply();
                     org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
                         org.telegram.messenger.NotificationCenter.getGlobalInstance().postNotificationName(org.telegram.messenger.NotificationCenter.updateInterfaces, org.telegram.messenger.MessagesController.UPDATE_MASK_ALL);
@@ -128,6 +142,16 @@ public class AuthorGramBadgeManager {
                 FileLog.e("AuthorGramBadgeManager update failed", e);
             }
         });
+    }
+
+    private static HashSet<Long> parseIds(Set<String> stringSet) {
+        HashSet<Long> result = new HashSet<>();
+        if (stringSet != null) {
+            for (String s : stringSet) {
+                try { result.add(Long.parseLong(s)); } catch (Exception ignore) {}
+            }
+        }
+        return result;
     }
 
     private static Set<String> fetchList(String urlString) {
