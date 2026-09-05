@@ -1,4 +1,4 @@
-name: AuthorGram+ Release
+name: AuthorGram+ ARM64 Release APK
 
 on:
   workflow_dispatch:
@@ -8,8 +8,8 @@ permissions:
   actions: read
 
 jobs:
-  build-plus:
-    name: Build AuthorGram+ Release AAB
+  build-plus-arm64:
+    name: Build AuthorGram+ ARM64 Release APK
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -18,8 +18,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       APP_PACKAGE: fork.risin42.nagramx
-      NATIVE_TARGET: ""
-      IS_BUNDLE: "true"
+      NATIVE_TARGET: arm64-v8a
+      IS_BUNDLE: "false"
 
     steps:
       - name: Free Disk Space
@@ -48,8 +48,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ccache-plus-${{ github.sha }}
+          key: ccache-plus-arm64-${{ github.sha }}
           restore-keys: |
+            ccache-plus-arm64-
             ccache-plus-
             ccache-
 
@@ -59,8 +60,9 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-plus-${{ github.sha }}
+          key: gradle-plus-arm64-${{ github.sha }}
           restore-keys: |
+            gradle-plus-arm64-
             gradle-plus-
             gradle-
 
@@ -106,16 +108,16 @@ jobs:
           echo "version_name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
           echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
           echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
-          echo "Building AuthorGram+ v${VERSION_NAME} (${VERSION_CODE}) — ${PACKAGE_NAME}"
+          echo "Building AuthorGram+ v${VERSION_NAME} (${VERSION_CODE}) ARM64 — ${PACKAGE_NAME}"
 
-      - name: Build AuthorGram+ Release AAB
+      - name: Build AuthorGram+ ARM64 Release APK
         shell: bash
         working-directory: build-plus
         run: |
           set -euo pipefail
-          ./gradlew -PAPP_PACKAGE=fork.risin42.nagramx --build-cache --stacktrace TMessagesProj:bundleRelease
+          ./gradlew -PAPP_PACKAGE=fork.risin42.nagramx -PNATIVE_TARGET=arm64-v8a --build-cache --stacktrace TMessagesProj:assembleRelease
 
-      - name: Verify and Save AuthorGram+ AAB
+      - name: Verify and Save ARM64 APK
         shell: bash
         env:
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
@@ -123,10 +125,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p plus-output
-          AAB_FILE=$(find build-plus/TMessagesProj/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)
-          test -n "${AAB_FILE}"
-          OUTPUT="plus-output/AuthorGram-Plus-v${VERSION_NAME}-${VERSION_CODE}-release.aab"
-          cp "${AAB_FILE}" "${OUTPUT}"
+          APK_FILE=$(find build-plus/TMessagesProj/build/outputs/apk -type f -name '*.apk' | grep 'arm64-v8a' | head -n 1 || true)
+          test -n "${APK_FILE}"
+          OUTPUT="plus-output/AuthorGram-Plus-v${VERSION_NAME}-${VERSION_CODE}-arm64-v8a-release.apk"
+          cp "${APK_FILE}" "${OUTPUT}"
+
+          unzip -l "${OUTPUT}" | grep -q 'lib/arm64-v8a/' || {
+            echo 'FATAL: APK does not contain ARM64 native libraries.' >&2
+            exit 1
+          }
 
           python3 - "${OUTPUT}" <<'PY'
           import sys
@@ -135,19 +142,19 @@ jobs:
           path = sys.argv[1]
           expected = b"fork.risin42.nagramx"
           with zipfile.ZipFile(path) as z:
-              manifest = z.read("base/manifest/AndroidManifest.xml")
+              manifest = z.read("AndroidManifest.xml")
               if expected not in manifest:
-                  raise ValueError("FATAL: AuthorGram+ package fork.risin42.nagramx was NOT found in the AAB manifest!")
-              print("VERIFICATION SUCCESS: AuthorGram+ package fork.risin42.nagramx confirmed.")
+                  raise ValueError("FATAL: AuthorGram+ package fork.risin42.nagramx was NOT found in the APK manifest!")
+          print("VERIFICATION SUCCESS: AuthorGram+ ARM64 APK confirmed.")
           PY
 
           ls -lh "${OUTPUT}"
 
-      - name: Upload AuthorGram+ AAB Artifact
+      - name: Upload AuthorGram+ ARM64 APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: authorgram-plus-aab-${{ steps.version.outputs.version_code }}
-          path: plus-output/*.aab
+          name: authorgram-plus-arm64-apk-${{ steps.version.outputs.version_code }}
+          path: plus-output/*.apk
           if-no-files-found: error
 
       - name: Save ccache
@@ -155,7 +162,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ccache-plus-${{ github.sha }}
+          key: ccache-plus-arm64-${{ github.sha }}
 
       - name: Save Gradle Cache
         if: always()
@@ -164,4 +171,4 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-plus-${{ github.sha }}
+          key: gradle-plus-arm64-${{ github.sha }}
