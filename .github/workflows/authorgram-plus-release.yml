@@ -1,0 +1,167 @@
+name: AuthorGram+ Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-plus:
+    name: Build AuthorGram+ Release AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+      GH_TOKEN: ${{ github.token }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      APP_PACKAGE: fork.risin42.nagramx
+      NATIVE_TARGET: ""
+      IS_BUNDLE: "true"
+
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - name: Set up Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+          mkdir -p "${{ github.workspace }}/.ccache"
+          ccache -M 10G
+
+      - name: Cache ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-plus-${{ github.sha }}
+          restore-keys: |
+            ccache-plus-
+            ccache-
+
+      - name: Cache Gradle
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-plus-${{ github.sha }}
+          restore-keys: |
+            gradle-plus-
+            gradle-
+
+      - name: Checkout AuthorGram+ dev branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          path: build-plus
+          fetch-depth: 1
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Restore Release Keystore
+        shell: bash
+        working-directory: build-plus
+        run: |
+          set -euo pipefail
+          rm -f TMessagesProj/release.keystore
+          curl -sSL -H "Authorization: token ${GH_TOKEN}" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369/TMessagesProj/release.keystore" > TMessagesProj/release.keystore
+          test -s TMessagesProj/release.keystore
+          chmod 600 TMessagesProj/release.keystore
+          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
+          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+          printf 'cmake.dir=/usr\n' >> local.properties
+          printf 'org.gradle.caching=true\norg.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.workers.max=4\norg.gradle.jvmargs=-Xmx3G -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
+
+      - name: Read AuthorGram+ version
+        id: version
+        shell: bash
+        working-directory: build-plus
+        run: |
+          set -euo pipefail
+          VERSION_NAME=$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties | head -n 1)
+          VERSION_CODE=$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties | head -n 1)
+          PACKAGE_NAME=$(sed -n 's/^APP_PACKAGE=//p' gradle.properties | head -n 1)
+          test -n "${VERSION_NAME}"
+          test -n "${VERSION_CODE}"
+          test "${PACKAGE_NAME}" = "fork.risin42.nagramx"
+          echo "version_name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
+          echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Building AuthorGram+ v${VERSION_NAME} (${VERSION_CODE}) — ${PACKAGE_NAME}"
+
+      - name: Build AuthorGram+ Release AAB
+        shell: bash
+        working-directory: build-plus
+        run: |
+          set -euo pipefail
+          ./gradlew -PAPP_PACKAGE=fork.risin42.nagramx --build-cache --stacktrace TMessagesProj:bundleRelease
+
+      - name: Verify and Save AuthorGram+ AAB
+        shell: bash
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          mkdir -p plus-output
+          AAB_FILE=$(find build-plus/TMessagesProj/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)
+          test -n "${AAB_FILE}"
+          OUTPUT="plus-output/AuthorGram-Plus-v${VERSION_NAME}-${VERSION_CODE}-release.aab"
+          cp "${AAB_FILE}" "${OUTPUT}"
+
+          python3 - "${OUTPUT}" <<'PY'
+          import sys
+          import zipfile
+
+          path = sys.argv[1]
+          expected = b"fork.risin42.nagramx"
+          with zipfile.ZipFile(path) as z:
+              manifest = z.read("base/manifest/AndroidManifest.xml")
+              if expected not in manifest:
+                  raise ValueError("FATAL: AuthorGram+ package fork.risin42.nagramx was NOT found in the AAB manifest!")
+              print("VERIFICATION SUCCESS: AuthorGram+ package fork.risin42.nagramx confirmed.")
+          PY
+
+          ls -lh "${OUTPUT}"
+
+      - name: Upload AuthorGram+ AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: authorgram-plus-aab-${{ steps.version.outputs.version_code }}
+          path: plus-output/*.aab
+          if-no-files-found: error
+
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-plus-${{ github.sha }}
+
+      - name: Save Gradle Cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-plus-${{ github.sha }}
