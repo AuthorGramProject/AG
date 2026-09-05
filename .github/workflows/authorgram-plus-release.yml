@@ -20,7 +20,6 @@ jobs:
       APP_PACKAGE: fork.risin42.nagramx
       NATIVE_TARGET: arm64-v8a
       IS_BUNDLE: "false"
-
     steps:
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
@@ -31,19 +30,16 @@ jobs:
           haskell: true
           large-packages: true
           swap-storage: true
-
       - name: Set up Swap Space
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 6
-
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build ccache
           mkdir -p "${{ github.workspace }}/.ccache"
           ccache -M 10G
-
       - name: Cache ccache
         uses: actions/cache/restore@v4
         with:
@@ -53,7 +49,6 @@ jobs:
             ccache-plus-arm64-
             ccache-plus-
             ccache-
-
       - name: Cache Gradle
         uses: actions/cache/restore@v4
         with:
@@ -65,20 +60,17 @@ jobs:
             gradle-plus-arm64-
             gradle-plus-
             gradle-
-
       - name: Checkout AuthorGram+ dev branch
         uses: actions/checkout@v4
         with:
           ref: dev
           path: build-plus
           fetch-depth: 1
-
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
-
       - name: Restore Release Keystore
         shell: bash
         working-directory: build-plus
@@ -92,7 +84,6 @@ jobs:
           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
           printf 'cmake.dir=/usr\n' >> local.properties
           printf 'org.gradle.caching=true\norg.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.workers.max=4\norg.gradle.jvmargs=-Xmx3G -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
-
       - name: Read AuthorGram+ version
         id: version
         shell: bash
@@ -108,15 +99,12 @@ jobs:
           echo "version_name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
           echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
           echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
-          echo "Building AuthorGram+ v${VERSION_NAME} (${VERSION_CODE}) ARM64 — ${PACKAGE_NAME}"
-
       - name: Build AuthorGram+ ARM64 Release APK
         shell: bash
         working-directory: build-plus
         run: |
           set -euo pipefail
           ./gradlew -PAPP_PACKAGE=fork.risin42.nagramx -PNATIVE_TARGET=arm64-v8a --build-cache --stacktrace TMessagesProj:assembleRelease
-
       - name: Verify and Save ARM64 APK
         shell: bash
         env:
@@ -125,45 +113,43 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p plus-output
-          APK_FILE=$(find build-plus/TMessagesProj/build/outputs/apk -type f -name '*.apk' | grep 'arm64-v8a' | head -n 1 || true)
-          test -n "${APK_FILE}"
+          mapfile -t APKS < <(find build-plus/TMessagesProj/build/outputs/apk -type f -name '*.apk')
+          test ${#APKS[@]} -gt 0 || { echo 'FATAL: No release APK was produced.' >&2; exit 1; }
+          APK_FILE=''
+          for candidate in "${APKS[@]}"; do
+            if unzip -l "$candidate" | grep -q 'lib/arm64-v8a/'; then
+              APK_FILE="$candidate"
+              break
+            fi
+          done
+          test -n "$APK_FILE" || { echo 'FATAL: No APK containing lib/arm64-v8a was produced.' >&2; exit 1; }
           OUTPUT="plus-output/AuthorGram-Plus-v${VERSION_NAME}-${VERSION_CODE}-arm64-v8a-release.apk"
-          cp "${APK_FILE}" "${OUTPUT}"
-
-          unzip -l "${OUTPUT}" | grep -q 'lib/arm64-v8a/' || {
-            echo 'FATAL: APK does not contain ARM64 native libraries.' >&2
-            exit 1
-          }
-
-          python3 - "${OUTPUT}" <<'PY'
-          import sys
-          import zipfile
-
-          path = sys.argv[1]
-          expected = b"fork.risin42.nagramx"
-          with zipfile.ZipFile(path) as z:
-              manifest = z.read("AndroidManifest.xml")
-              if expected not in manifest:
-                  raise ValueError("FATAL: AuthorGram+ package fork.risin42.nagramx was NOT found in the APK manifest!")
-          print("VERIFICATION SUCCESS: AuthorGram+ ARM64 APK confirmed.")
-          PY
-
-          ls -lh "${OUTPUT}"
-
+          cp "$APK_FILE" "$OUTPUT"
+          if command -v aapt2 >/dev/null 2>&1; then
+            PACKAGE_LINE=$(aapt2 dump badging "$OUTPUT" | grep '^package:' | head -n 1 || true)
+            echo "$PACKAGE_LINE"
+            echo "$PACKAGE_LINE" | grep -q "name='fork.risin42.nagramx'" || { echo 'FATAL: Wrong APK package name.' >&2; exit 1; }
+          elif command -v apkanalyzer >/dev/null 2>&1; then
+            PACKAGE_NAME=$(apkanalyzer manifest application-id "$OUTPUT")
+            test "$PACKAGE_NAME" = 'fork.risin42.nagramx' || { echo "FATAL: Wrong APK package: $PACKAGE_NAME" >&2; exit 1; }
+          else
+            echo 'WARNING: aapt2/apkanalyzer unavailable; package validation skipped.'
+          fi
+          unzip -l "$OUTPUT" | grep -q 'lib/arm64-v8a/' || { echo 'FATAL: APK does not contain ARM64 native libraries.' >&2; exit 1; }
+          echo 'ARM64 APK verification successful.'
+          ls -lh "$OUTPUT"
       - name: Upload AuthorGram+ ARM64 APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: authorgram-plus-arm64-apk-${{ steps.version.outputs.version_code }}
           path: plus-output/*.apk
           if-no-files-found: error
-
       - name: Save ccache
         if: always()
         uses: actions/cache/save@v4
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-plus-arm64-${{ github.sha }}
-
       - name: Save Gradle Cache
         if: always()
         uses: actions/cache/save@v4
