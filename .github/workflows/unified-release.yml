@@ -117,7 +117,7 @@ jobs:
         working-directory: build-src
         run: |
           export NATIVE_TARGET="arm64-v8a"
-          ./gradlew -PAPP_PACKAGE=toss.authorgram.main --build-cache --stacktrace TMessagesProj:assembleRelease
+          ./gradlew -PAPP_PACKAGE=fork.risin42.nagramx --build-cache --stacktrace TMessagesProj:assembleRelease
 
       - name: Collect AuthorGram+ APK
         shell: bash
