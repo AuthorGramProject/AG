@@ -1,4 +1,4 @@
-name: AuthorGram Play Market Release AAB
+name: AuthorGram Releases (PM + AG+)
 
 on:
   workflow_dispatch:
@@ -8,19 +8,15 @@ permissions:
   actions: read
 
 jobs:
-  build-pm:
-    name: Build Play Market Release AAB
+  build-all:
+    name: Build All Releases
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      VERSION_NAME: 12.10.1
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
       GH_TOKEN: ${{ github.token }}
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      APP_PACKAGE: toss.authorgram.apk
-      NATIVE_TARGET: ""
-      IS_BUNDLE: "true"
 
     steps:
       - name: Free Disk Space
@@ -49,9 +45,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ccache-pm-${{ github.sha }}
+          key: ccache-${{ github.sha }}
           restore-keys: |
-            ccache-pm-
             ccache-
 
       - name: Cache Gradle
@@ -60,16 +55,14 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-pm-${{ github.sha }}
+          key: gradle-${{ github.sha }}
           restore-keys: |
-            gradle-pm-
             gradle-
 
-      - name: Checkout Play Market branch
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: play-market
-          path: build-pm
+          path: build-src
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -77,85 +70,64 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Restore Keystore for Play Market
+      - name: Setup Keystore & Local Properties
         shell: bash
-        working-directory: build-pm
+        working-directory: build-src
         run: |
           set -euo pipefail
           rm -f TMessagesProj/release.keystore
           curl -sSL -H "Authorization: token ${GH_TOKEN}" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369/TMessagesProj/release.keystore" > TMessagesProj/release.keystore
-          test -s TMessagesProj/release.keystore
           chmod 600 TMessagesProj/release.keystore
           [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
           printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
           printf 'cmake.dir=/usr\n' >> local.properties
           printf 'org.gradle.caching=true\norg.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.workers.max=4\norg.gradle.jvmargs=-Xmx3G -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
 
-      - name: Build Play Market Release AAB
+      - name: Build Play Market AAB
         shell: bash
-        working-directory: build-pm
+        working-directory: build-src
         run: |
-          set -euo pipefail
           ./gradlew -PAPP_PACKAGE=toss.authorgram.apk --build-cache --stacktrace TMessagesProj:bundleRelease
 
-      - name: Verify and Save Play Market AAB
+      - name: Collect Play Market AAB
         shell: bash
         run: |
-          set -euo pipefail
-          mkdir -p pm-output
-          AAB_FILE=$(find build-pm/TMessagesProj/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)
-          test -n "${AAB_FILE}"
-          cp "${AAB_FILE}" pm-output/AuthorGram-PlayMarket-v12.10.1-7051-release.aab
+          mkdir -p releases
+          AAB_FILE=$(find build-src/TMessagesProj/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)
+          cp "${AAB_FILE}" releases/AuthorGram-PlayMarket-release.aab
 
-          python3 - <<'PY'
-          import zipfile
-          path = "pm-output/AuthorGram-PlayMarket-v12.10.1-7051-release.aab"
-          with zipfile.ZipFile(path) as z:
-              manifest = z.read("base/manifest/AndroidManifest.xml")
-              if b"toss.authorgram.apk" not in manifest:
-                  raise ValueError("FATAL: toss.authorgram.apk was NOT found in Play Market AAB manifest!")
-              print("VERIFICATION SUCCESS: Play Market package toss.authorgram.apk confirmed.")
-          PY
+      - name: Build Play Market Universal APK
+        shell: bash
+        working-directory: build-src
+        run: |
+          export NATIVE_TARGET=""
+          ./gradlew -PAPP_PACKAGE=toss.authorgram.apk --build-cache --stacktrace TMessagesProj:assembleRelease
 
-          ls -lh pm-output/AuthorGram-PlayMarket-v12.10.1-7051-release.aab
+      - name: Collect Play Market Universal APK
+        shell: bash
+        run: |
+          APK_FILE=$(find build-src/TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*standalone*.apk' | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            APK_FILE=$(find build-src/TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | grep -v 'arm64' | grep -v 'x86' | grep -v 'armeabi' | head -n 1)
+          fi
+          cp "${APK_FILE}" releases/AuthorGram-PlayMarket-Universal-release.apk
 
-      - name: Upload Play Market AAB Artifact
+      - name: Build AuthorGram+ APK (arm64)
+        shell: bash
+        working-directory: build-src
+        run: |
+          export NATIVE_TARGET="arm64-v8a"
+          ./gradlew -PAPP_PACKAGE=toss.authorgram.main --build-cache --stacktrace TMessagesProj:assembleRelease
+
+      - name: Collect AuthorGram+ APK
+        shell: bash
+        run: |
+          APK_FILE=$(find build-src/TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*arm64-v8a*.apk' | head -n 1)
+          cp "${APK_FILE}" releases/AuthorGram-Plus-arm64-v8a-release.apk
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: authorgram-play-market-aab-7051
-          path: pm-output/AuthorGram-PlayMarket-v12.10.1-7051-release.aab
+          name: authorgram-releases
+          path: releases/*
           if-no-files-found: error
-
-      - name: Save ccache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ github.workspace }}/.ccache
-          key: ccache-pm-${{ github.sha }}
-
-      - name: Save Gradle Cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-pm-${{ github.sha }}
-
-  publish-release:
-    name: Publish Play Market AAB to GitHub Release
-    runs-on: ubuntu-latest
-    needs: build-pm
-    steps:
-      - name: Download Play Market AAB
-        uses: actions/download-artifact@v4
-        with:
-          name: authorgram-play-market-aab-7051
-          path: release-outputs
-
-      - name: Publish Play Market AAB
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v12.10.1-7051
-          files: release-outputs/*.aab
-          fail_on_unmatched_files: true

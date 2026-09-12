@@ -78,7 +78,7 @@ public final class AuthorGramPlayPolicy {
 
     public static boolean hasEmbeddedSystemKey() {
         String value = BuildConfig.AUTHORGRAM_SYSTEM_KEY_HEX;
-        return !isPlayBuild() && value != null && value.length() == 64;
+        return value != null && value.length() == 64;
     }
 
     public static boolean isOwnerDialog(long dialogId) {
