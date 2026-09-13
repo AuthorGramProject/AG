@@ -8,8 +8,8 @@ permissions:
   actions: read
 
 jobs:
-  build-all:
-    name: Build All Releases
+  build-ag-plus:
+    name: Build AuthorGram+ (arm64)
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -45,8 +45,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ccache-${{ github.sha }}
+          key: ccache-dev-${{ github.sha }}
           restore-keys: |
+            ccache-dev-
             ccache-
 
       - name: Cache Gradle
@@ -55,13 +56,114 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ github.sha }}
+          key: gradle-dev-${{ github.sha }}
           restore-keys: |
+            gradle-dev-
             gradle-
 
-      - name: Checkout
+      - name: Checkout dev branch
         uses: actions/checkout@v4
         with:
+          ref: dev
+          path: build-src
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Keystore & Local Properties
+        shell: bash
+        working-directory: build-src
+        run: |
+          set -euo pipefail
+          rm -f TMessagesProj/release.keystore
+          curl -sSL -H "Authorization: token ${GH_TOKEN}" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369/TMessagesProj/release.keystore" > TMessagesProj/release.keystore
+          chmod 600 TMessagesProj/release.keystore
+          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
+          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+          printf 'cmake.dir=/usr\n' >> local.properties
+          printf 'org.gradle.caching=true\norg.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.workers.max=4\norg.gradle.jvmargs=-Xmx3G -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
+
+      - name: Build AuthorGram+ APK (arm64)
+        shell: bash
+        working-directory: build-src
+        run: |
+          export NATIVE_TARGET="arm64-v8a"
+          ./gradlew -PAPP_PACKAGE=fork.risin42.nagramx --build-cache --stacktrace TMessagesProj:assembleRelease
+
+      - name: Collect AuthorGram+ APK
+        shell: bash
+        run: |
+          mkdir -p releases
+          APK_FILE=$(find build-src/TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*arm64-v8a*.apk' | head -n 1)
+          cp "${APK_FILE}" releases/AuthorGram-Plus-arm64-v8a-release.apk
+
+      - name: Upload AG+ Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: authorgram-plus-release
+          path: releases/*
+          if-no-files-found: error
+
+  build-play-market:
+    name: Build Play Market (AAB & Universal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+      GH_TOKEN: ${{ github.token }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - name: Set up Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+          mkdir -p "${{ github.workspace }}/.ccache"
+          ccache -M 10G
+
+      - name: Cache ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-pm-${{ github.sha }}
+          restore-keys: |
+            ccache-pm-
+            ccache-
+
+      - name: Cache Gradle
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-pm-${{ github.sha }}
+          restore-keys: |
+            gradle-pm-
+            gradle-
+
+      - name: Checkout play-market branch
+        uses: actions/checkout@v4
+        with:
+          ref: play-market
           path: build-src
 
       - name: Setup Java
@@ -89,13 +191,6 @@ jobs:
         run: |
           ./gradlew -PAPP_PACKAGE=toss.authorgram.apk --build-cache --stacktrace TMessagesProj:bundleRelease
 
-      - name: Collect Play Market AAB
-        shell: bash
-        run: |
-          mkdir -p releases
-          AAB_FILE=$(find build-src/TMessagesProj/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)
-          cp "${AAB_FILE}" releases/AuthorGram-PlayMarket-release.aab
-
       - name: Build Play Market Universal APK
         shell: bash
         working-directory: build-src
@@ -103,31 +198,21 @@ jobs:
           export NATIVE_TARGET=""
           ./gradlew -PAPP_PACKAGE=toss.authorgram.apk --build-cache --stacktrace TMessagesProj:assembleRelease
 
-      - name: Collect Play Market Universal APK
+      - name: Collect Play Market Artifacts
         shell: bash
         run: |
+          mkdir -p releases
+          AAB_FILE=$(find build-src/TMessagesProj/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)
+          cp "${AAB_FILE}" releases/AuthorGram-PlayMarket-release.aab
           APK_FILE=$(find build-src/TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*standalone*.apk' | head -n 1)
           if [ -z "$APK_FILE" ]; then
             APK_FILE=$(find build-src/TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | grep -v 'arm64' | grep -v 'x86' | grep -v 'armeabi' | head -n 1)
           fi
           cp "${APK_FILE}" releases/AuthorGram-PlayMarket-Universal-release.apk
 
-      - name: Build AuthorGram+ APK (arm64)
-        shell: bash
-        working-directory: build-src
-        run: |
-          export NATIVE_TARGET="arm64-v8a"
-          ./gradlew -PAPP_PACKAGE=fork.risin42.nagramx --build-cache --stacktrace TMessagesProj:assembleRelease
-
-      - name: Collect AuthorGram+ APK
-        shell: bash
-        run: |
-          APK_FILE=$(find build-src/TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*arm64-v8a*.apk' | head -n 1)
-          cp "${APK_FILE}" releases/AuthorGram-Plus-arm64-v8a-release.apk
-
-      - name: Upload Artifacts
+      - name: Upload Play Market Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: authorgram-releases
+          name: authorgram-playmarket-release
           path: releases/*
           if-no-files-found: error

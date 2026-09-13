@@ -195,11 +195,14 @@ public class AuthorGramBadgeManager {
         // Valid positive user IDs (e.g. 1005551234) must NEVER have digits stripped!
         if (rawId < -1000000000000L) {
             long absId = -rawId;
-            String idStr = String.valueOf(absId);
-            if (idStr.startsWith("100")) {
-                try {
-                    return Long.parseLong(idStr.substring(3));
-                } catch (Exception ignore) {}
+            long prefix = absId;
+            long power = 1;
+            while (prefix >= 1000) {
+                prefix /= 10;
+                power *= 10;
+            }
+            if (prefix == 100) {
+                return absId % power;
             }
             return absId;
         } else if (rawId < 0) {

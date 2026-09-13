@@ -49,9 +49,12 @@ public class AuthorGramBadgeDrawable extends Drawable {
         } else if (type == AuthorGramBadgeManager.TYPE_SUPPORT) {
             resId = R.drawable.ic_author_badge_support;
         }
-        
-        baseDrawable = ContextCompat.getDrawable(ApplicationLoader.applicationContext, resId).mutate();
-        
+        android.graphics.drawable.Drawable drawable = ContextCompat.getDrawable(ApplicationLoader.applicationContext, resId);
+        if (drawable != null) {
+            baseDrawable = drawable.mutate();
+        } else {
+            baseDrawable = new android.graphics.drawable.ColorDrawable(0);
+        }
         shimmerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         shimmerMatrix = new Matrix();
         lastUpdateTime = SystemClock.elapsedRealtime();

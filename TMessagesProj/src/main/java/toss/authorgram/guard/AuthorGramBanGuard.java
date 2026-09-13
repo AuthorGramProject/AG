@@ -54,7 +54,7 @@ public class AuthorGramBanGuard {
 
     private static void showWarningAndLogout(ArrayList<Integer> unauthorizedAccounts, ArrayList<Long> unauthorizedIds) {
         Activity activity = LaunchActivity.instance;
-        if (activity == null) return;
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
         
         isShowing = true;
 
