@@ -92,12 +92,7 @@ public class AGAppearanceSettingsActivity extends BaseAGXSettingsActivity {
             getString(R.string.StyleModern),
             getString(R.string.StyleMaterialDesign3)
     }, null));
-    private final AbstractConfigCell notificationIconRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getNotificationIcon(), new String[]{
-            getString(R.string.MapPreviewProviderTelegram),
-            getString(R.string.NagramX),
-            getString(R.string.Nagram),
-            getString(R.string.NekoX)
-    }, null));
+
     private final AbstractConfigCell tabletModeRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NekoConfig.tabletMode, new String[]{
             getString(R.string.TabletModeDefault),
             getString(R.string.Enable),
@@ -274,8 +269,7 @@ public class AGAppearanceSettingsActivity extends BaseAGXSettingsActivity {
                 // without a restart. The preview cell observes the same broadcast
                 // and rebuilds itself, so no explicit refresh() is needed.
                 getNotificationCenter().postNotificationName(NotificationCenter.dialogFiltersUpdated);
-            } else if (key.equals(NaConfig.INSTANCE.getNotificationIcon().getKey())
-                    || key.equals(NekoConfig.tabletMode.getKey())
+            } else if (key.equals(NekoConfig.tabletMode.getKey())
                     || key.equals(NaConfig.INSTANCE.getHideDividers().getKey())
                     || key.equals(NekoConfig.typeface.getKey())
                     || key.equals(NaConfig.INSTANCE.getHidePremiumSection().getKey())
