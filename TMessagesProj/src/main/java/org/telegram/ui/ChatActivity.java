@@ -9796,8 +9796,9 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
 
-        boolean showGhostMode = !ChatObject.isChannelAndNotMegaGroup(currentChat);
-        boolean showSaveDeleted = NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool();
+        boolean isPlay = org.telegram.messenger.authorgram.AuthorGramPlayPolicy.isPlayBuild();
+        boolean showGhostMode = !isPlay && !ChatObject.isChannelAndNotMegaGroup(currentChat);
+        boolean showSaveDeleted = !isPlay && NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool();
         boolean showRegexFilters = NaConfig.INSTANCE.getRegexFiltersEnabled().Bool();
         boolean showViewDeleted = showSaveDeleted && NaConfig.INSTANCE.getChatMenuItemViewDeleted().Bool();
         boolean showClearDeleted = showSaveDeleted && NaConfig.INSTANCE.getChatMenuItemClearDeleted().Bool();

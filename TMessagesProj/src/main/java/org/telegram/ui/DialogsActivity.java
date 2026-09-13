@@ -3095,7 +3095,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         if (statusDrawable == null || actionBar == null) {
             return;
         }
-        if (NekoConfig.isGhostModeActive() && NekoConfig.showGhostModeStatus.Bool()) {
+        if (!org.telegram.messenger.authorgram.AuthorGramPlayPolicy.isPlayBuild() && NekoConfig.isGhostModeActive() && NekoConfig.showGhostModeStatus.Bool()) {
             if (ghostDrawable == null) {
                 ghostDrawable = getContext().getResources().getDrawable(R.drawable.ayu_ghost).mutate();
                 ghostDrawable = new AnimatedEmojiDrawable.WrapSizeDrawable(ghostDrawable, dp(20), dp(20)) {
