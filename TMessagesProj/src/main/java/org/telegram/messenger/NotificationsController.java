@@ -6333,18 +6333,6 @@ public class NotificationsController extends BaseController implements Notificat
     }
 
     private int getNotificationIconResId() {
-        int notificationIconConfigValue = NaConfig.INSTANCE.getNotificationIcon().Int();
-        switch (notificationIconConfigValue) {
-            case 0:
-                return R.drawable.notification;
-            case 1:
-                return R.drawable.toss_notification;
-            case 2:
-                return R.drawable.toss_notification;
-            case 3:
-                return R.drawable.neko_notification;
-        }
-
         return R.drawable.notification;
     }
 
