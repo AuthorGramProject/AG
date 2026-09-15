@@ -15,41 +15,16 @@ subprocess.run([
 
 result = subprocess.run(["python3", "scripts/strip_authorgram_play_runtime.py"], cwd=ROOT)
 
-checks = {
-    "TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java": [
-        "NekoConfig.unlimitedPinnedDialogs",
-    ],
-    "TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java": [
-        "hideSponsoredMessage",
-        "ignoreContentRestrictions",
-        "NekoConfig.localPremium",
-        "NekoConfig.unlimitedPinnedDialogs",
-    ],
-    "TMessagesProj/src/main/java/org/telegram/messenger/MediaDataController.java": [
-        "NekoConfig.unlimitedFavedStickers",
-    ],
-    "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java": [
-        "AuthorGramSpyPolicy",
-        "isSpyDisabled",
-    ],
-}
-
-for relative, needles in checks.items():
-    path = ROOT / relative
-    lines = path.read_text(encoding="utf-8").splitlines()
-    print(f"\n===== {relative} =====")
-    for needle in needles:
-        found = False
-        for i, line in enumerate(lines):
-            if needle not in line:
-                continue
-            found = True
-            start = max(0, i - 10)
-            end = min(len(lines), i + 11)
-            print(f"\n--- {needle} @ line {i + 1} ---")
-            for j in range(start, end):
-                print(f"{j + 1:06d}: {lines[j]}")
-        if not found:
-            print(f"\n--- {needle}: NOT FOUND ---")
+chat = (ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java").read_text(encoding="utf-8").splitlines()
+for i, line in enumerate(chat):
+    if "AuthorGramSpyPolicy.isSpyDisabled" in line:
+        start = max(0, i - 12)
+        end = min(len(chat), i + 55)
+        print("\n===== ChatActivity TTL-save dev block =====")
+        for j in range(start, end):
+            print(f"{j + 1:06d}: {chat[j]}")
+        break
+else:
+    print("AuthorGramSpyPolicy consumer not found")
 
 raise SystemExit(result.returncode or 1)
