@@ -20,7 +20,7 @@ jobs:
           ref: play-market
           fetch-depth: 1
 
-      - name: Diagnose remaining Play runtime consumers
+      - name: Audit remaining dev-only option handlers
         run: python3 .github/play_cleanup_diag.py
 
-      # Temporary diagnostics pass 2; deleted by the final cleanup commit.
+      # Temporary diagnostics pass 3; deleted by the final cleanup commit.
