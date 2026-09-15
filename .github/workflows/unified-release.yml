@@ -2,6 +2,8 @@ name: AuthorGram Releases (AG+)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [dev]
 
 permissions:
   contents: write
