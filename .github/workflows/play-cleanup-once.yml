@@ -2,7 +2,8 @@ name: One-shot Play source cleanup
 
 on:
   push:
-    branches: [play-market]
+    branches:
+      - play-market
     paths:
       - .github/workflows/play-cleanup-once.yml
 
@@ -13,150 +14,22 @@ jobs:
   cleanup:
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout clean Play lineage
+      - name: Checkout Play source
         uses: actions/checkout@v4
         with:
           ref: play-market
           fetch-depth: 0
 
-      - name: Permanently remove dev-only runtime and apply badge spacing fix
+      - name: Apply and validate permanent Play cleanup
+        run: python3 .github/play_cleanup_once.py
+
+      - name: Commit clean Play source
         shell: bash
         run: |
           set -euo pipefail
-
-          test "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" = "toss.authorgram.apk"
-
-          # Reuse the already-audited Play stubs only as temporary source templates.
-          # They are applied permanently to play-market, then the sanitizer/templates
-          # are removed before the final commit. Nothing is stripped at build time.
-          git fetch origin backup/play-market-before-clean-rollback-20260915:refs/remotes/origin/play-cleanup-backup
-          git checkout origin/play-cleanup-backup -- scripts/play_stubs scripts/strip_authorgram_play_runtime.py
-          python3 scripts/strip_authorgram_play_runtime.py
-          rm -rf scripts/play_stubs scripts/strip_authorgram_play_runtime.py
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('TMessagesProj/src/main/java/org/telegram/ui/Cells/DialogCell.java')
-          text = path.read_text(encoding='utf-8')
-
-          replacements = [
-              (
-                  '''        } else if (reserveMuteSlot) {
-            int w = dp(6) + Theme.dialogs_muteDrawable.getIntrinsicWidth();
-            if (drawPremium) {
-                w += dp(6 + 24 + 6);
-            }
-            nameWidth -= w;
-            nameAdditionalsForChannelSubscriber += w;
-            if (LocaleController.isRTL) {
-                nameLeft += w;
-            }
-        } else if (drawAuthorBadge) {
-            int w = dp(6) + dp(18);
-        } else if (drawVerified) {''',
-                  '''        } else if (reserveMuteSlot) {
-            int w = dp(6) + Theme.dialogs_muteDrawable.getIntrinsicWidth();
-            if (drawAuthorBadge) {
-                w += dp(6 + 18);
-            } else if (drawPremium) {
-                w += dp(6 + 24 + 6);
-            }
-            nameWidth -= w;
-            nameAdditionalsForChannelSubscriber += w;
-            if (LocaleController.isRTL) {
-                nameLeft += w;
-            }
-        } else if (drawAuthorBadge) {
-            int w = dp(6) + dp(18);
-            nameWidth -= w;
-            nameAdditionalsForChannelSubscriber += w;
-            if (LocaleController.isRTL) {
-                nameLeft += w;
-            }
-        } else if (drawVerified) {'''
-              ),
-              (
-                  '''                if ((dialogMuted || drawUnmute || dialogMutedProgress > 0) && !drawVerified && drawScam == 0) {
-                    if (drawPremium) {
-                        nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx - left) - dp(24));
-                        nameMutedIconLeft = nameMuteLeft - dp(6) - Theme.dialogs_muteDrawable.getIntrinsicWidth();
-                    } else {
-                        nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx) - dp(6) - Theme.dialogs_muteDrawable.getIntrinsicWidth());
-                    }
-                } else if (drawVerified) {''',
-                  '''                if ((dialogMuted || drawUnmute || dialogMutedProgress > 0) && !drawVerified && drawScam == 0) {
-                    if (drawAuthorBadge) {
-                        nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx - left) - dp(18));
-                        nameMutedIconLeft = nameMuteLeft - dp(6) - Theme.dialogs_muteDrawable.getIntrinsicWidth();
-                    } else if (drawPremium) {
-                        nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx - left) - dp(24));
-                        nameMutedIconLeft = nameMuteLeft - dp(6) - Theme.dialogs_muteDrawable.getIntrinsicWidth();
-                    } else {
-                        nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx) - dp(6) - Theme.dialogs_muteDrawable.getIntrinsicWidth());
-                    }
-                } else if (drawAuthorBadge) {
-                    nameMuteLeft = (int) (nameLeft + (nameWidth - widthpx - left) - dp(18));
-                    nameMutedIconLeft = nameMuteLeft - dp(6) - Theme.dialogs_muteDrawable.getIntrinsicWidth();
-                } else if (drawVerified) {'''
-              ),
-              (
-                  '''                if ((dialogMuted || true) || drawUnmute || drawVerified || drawPremium || drawScam != 0) {
-                    nameMuteLeft = (int) (nameLeft + left + dp(6));
-                    if (drawPremium) {
-                        nameMutedIconLeft = nameMuteLeft + dp(24 + 6);
-                    }
-                }''',
-                  '''                if ((dialogMuted || true) || drawUnmute || drawVerified || drawPremium || drawAuthorBadge || drawScam != 0) {
-                    nameMuteLeft = (int) (nameLeft + left + dp(6));
-                    if (drawAuthorBadge) {
-                        nameMutedIconLeft = nameMuteLeft + dp(18 + 6);
-                    } else if (drawPremium) {
-                        nameMutedIconLeft = nameMuteLeft + dp(24 + 6);
-                    }
-                }'''
-              ),
-              (
-                  '                int muteAnchor = drawPremium ? nameMutedIconLeft : nameMuteLeft;',
-                  '                int muteAnchor = (drawPremium || drawAuthorBadge) ? nameMutedIconLeft : nameMuteLeft;'
-              ),
-          ]
-
-          for index, (old, new) in enumerate(replacements, 1):
-              if new in text:
-                  continue
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'Badge patch marker {index}: expected 1 occurrence, found {count}')
-              text = text.replace(old, new, 1)
-
-          path.write_text(text, encoding='utf-8', newline='')
-          PY
-
-          # Source-level policy audit: these are implementation checks, not UI hiding.
-          grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
-          grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/AGPrivacySettingsActivity.java
-          grep -Fq 'Play-Market compatibility stub' TMessagesProj/src/main/java/toss/authorgram/settings/GhostModeActivity.java
-          ! grep -Fq 'NekoConfig.localPremium' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
-          ! grep -Fq 'new GhostModeActivity' TMessagesProj/src/main/java/toss/authorgram/settings/AGSpySettingsActivity.java
-          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
-          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
-          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
-          ! grep -R -Fq '<string name="AppName">AuthorGram+</string>' TMessagesProj/src/main/res
-          ! grep -R -Fq '<string name="AppNameBeta">AuthorGram+</string>' TMessagesProj/src/main/res
-          ! grep -Fq 'NekoConfig.localPremium.Bool()' TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
-          grep -Fq 'return user != null && user.premium;' TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
-          grep -Fq 'drawPremium || drawAuthorBadge' TMessagesProj/src/main/java/org/telegram/ui/Cells/DialogCell.java
-          grep -Fq 'w += dp(6 + 18);' TMessagesProj/src/main/java/org/telegram/ui/Cells/DialogCell.java
-          git diff --check
-
-          # Remove this one-shot workflow itself. The final play-market tree contains
-          # only the permanent source changes, not a sanitizer/build-time stripper.
-          rm -f .github/workflows/play-cleanup-once.yml
-
-          git config user.name 'AuthorGram Play Repair'
-          git config user.email 'actions@users.noreply.github.com'
+          git config user.name "AuthorGram Play Repair"
+          git config user.email "actions@users.noreply.github.com"
           git add -A
           git diff --cached --check
-          git commit -m 'fix(play): restore clean Play source and preserve badge spacing'
+          git commit -m "fix(play): restore clean Play source and preserve badge spacing"
           git push origin HEAD:play-market
