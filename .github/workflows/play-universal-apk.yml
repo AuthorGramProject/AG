@@ -1,0 +1,169 @@
+name: AuthorGram Play Universal APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [play-market]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: authorgram-play-universal-apk
+  cancel-in-progress: true
+
+jobs:
+  build-play-universal:
+    name: Build AuthorGram Play Universal APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+      GH_TOKEN: ${{ github.token }}
+      PLAY_PACKAGE: toss.authorgram.apk
+      VERSION_NAME: 12.10.1
+      VERSION_CODE: 7056
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - name: Set up swap
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 6
+
+      - name: Checkout Play source
+        uses: actions/checkout@v4
+        with:
+          ref: play-market
+          fetch-depth: 1
+
+      - name: Verify release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" == "${PLAY_PACKAGE}" ]]
+          [[ "$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)" == "${VERSION_NAME}" ]]
+          [[ "$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)" == "${VERSION_CODE}" ]]
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+          mkdir -p "${CCACHE_DIR}"
+          ccache -M 10G
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-play-universal-${{ github.sha }}
+          restore-keys: |
+            ccache-play-universal-
+            ccache-play-
+            ccache-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-play-universal-${{ github.sha }}
+          restore-keys: |
+            gradle-play-universal-
+            gradle-play-
+            gradle-
+
+      - name: Restore release signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f TMessagesProj/release.keystore
+          curl -sSL -H "Authorization: token ${GH_TOKEN}" \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369/TMessagesProj/release.keystore" \
+            > TMessagesProj/release.keystore
+          test -s TMessagesProj/release.keystore
+          chmod 600 TMessagesProj/release.keystore
+          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
+          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
+          printf 'cmake.dir=/usr\n' >> local.properties
+          printf 'org.gradle.caching=true\norg.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.workers.max=4\norg.gradle.jvmargs=-Xmx4G -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
+
+      - name: Build signed Universal APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          export NATIVE_TARGET=""
+          ./gradlew --no-daemon --build-cache --stacktrace --console=plain TMessagesProj:assembleRelease
+
+      - name: Verify and stage Universal APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="${RUNNER_TEMP}/authorgram-play-universal"
+          mkdir -p "${OUT}"
+
+          mapfile -t universal_apks < <(find TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*universal*.apk' | sort)
+          if [[ ${#universal_apks[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one universal APK, found ${#universal_apks[@]}"
+            find TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print || true
+            exit 1
+          fi
+
+          APK="${universal_apks[0]}"
+          APKSIGNER="$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          AAPT="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "${APKSIGNER}"
+          test -x "${AAPT}"
+
+          "${APKSIGNER}" verify --verbose --print-certs "${APK}"
+          BADGING="$(${AAPT} dump badging "${APK}" | head -n 1)"
+          echo "${BADGING}"
+          grep -F "package: name='${PLAY_PACKAGE}'" <<< "${BADGING}"
+          grep -F "versionCode='${VERSION_CODE}'" <<< "${BADGING}"
+          grep -F "versionName='${VERSION_NAME}'" <<< "${BADGING}"
+
+          unzip -l "${APK}" | grep -F 'lib/arm64-v8a/' >/dev/null
+          unzip -l "${APK}" | grep -F 'lib/armeabi-v7a/' >/dev/null
+          unzip -l "${APK}" | grep -F 'lib/x86_64/' >/dev/null
+          if unzip -Z1 "${APK}" | grep -Eqi '(^|/)(release\.keystore|[^/]*\.jks|[^/]*\.p12|[^/]*\.pfx)$'; then
+            echo '::error::Signing material was packaged into the APK'
+            exit 1
+          fi
+
+          DEST="${OUT}/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-universal-release.apk"
+          cp "${APK}" "${DEST}"
+          test -s "${DEST}"
+          sha256sum "${DEST}"
+
+      - name: Upload Universal APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuthorGram-Play-12.10.1-7056-Universal-APK
+          path: ${{ runner.temp }}/authorgram-play-universal/AuthorGram-Play-v12.10.1-7056-universal-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove signing material
+        if: always()
+        shell: bash
+        run: rm -f TMessagesProj/release.keystore local.properties
