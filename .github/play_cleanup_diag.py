@@ -13,8 +13,6 @@ subprocess.run([
     "scripts/play_stubs", "scripts/strip_authorgram_play_runtime.py",
 ], cwd=ROOT, check=True)
 
-# The sanitizer deliberately fails on any still-live Play consumer. We want its
-# source transformations in this disposable runner so we can inspect those consumers.
 result = subprocess.run(["python3", "scripts/strip_authorgram_play_runtime.py"], cwd=ROOT)
 
 checks = {
@@ -30,6 +28,10 @@ checks = {
     "TMessagesProj/src/main/java/org/telegram/messenger/MediaDataController.java": [
         "NekoConfig.unlimitedFavedStickers",
     ],
+    "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java": [
+        "AuthorGramSpyPolicy",
+        "isSpyDisabled",
+    ],
 }
 
 for relative, needles in checks.items():
@@ -42,8 +44,8 @@ for relative, needles in checks.items():
             if needle not in line:
                 continue
             found = True
-            start = max(0, i - 8)
-            end = min(len(lines), i + 9)
+            start = max(0, i - 10)
+            end = min(len(lines), i + 11)
             print(f"\n--- {needle} @ line {i + 1} ---")
             for j in range(start, end):
                 print(f"{j + 1:06d}: {lines[j]}")
