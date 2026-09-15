@@ -22,3 +22,5 @@ jobs:
 
       - name: Diagnose remaining Play runtime consumers
         run: python3 .github/play_cleanup_diag.py
+
+      # This workflow is temporary and will be deleted by the final cleanup commit.
