@@ -19,10 +19,21 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
     private final Map<TransitState, RLottieDrawable> stateMap = new HashMap<>();
     private Boolean drawableIosMode;
 
-    private static boolean iosInput() {
-        return AuthorGramPlayPolicy.canUseIosUi()
-                && NekoConfig.iOSMessageInputField.Bool();
-    }
+    private final Map<TransitState, RLottieDrawable> stateMap = new HashMap<TransitState, RLottieDrawable>() {
+        @Nullable
+        @Override
+        public RLottieDrawable get(@Nullable Object key) {
+            RLottieDrawable obj = super.get(key);
+            if (obj == null) {
+                TransitState state = (TransitState) key;
+                int res = state.resource;
+                RLottieDrawable rLottieDrawable = new RLottieDrawable(res, AndroidUtilities.dp(sizeDp), AndroidUtilities.dp(sizeDp));
+                put(state, rLottieDrawable);
+                return rLottieDrawable;
+            }
+            return obj;
+        }
+    };
 
     public ChatActivityEnterViewAnimatedIconView(Context context) {
         this(context, 32);

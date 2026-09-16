@@ -466,7 +466,8 @@ target_compile_definitions(tgcalls_tp PUBLIC
 target_include_directories(tgcalls_tp PUBLIC
         ./
         voip
-        boringssl/include/
+        third_party/boringssl/include/
+        openssl/include
         voip/tgcalls/
         voip/webrtc/
         opus/include
@@ -504,7 +505,6 @@ add_library(tgcalls STATIC
         voip/tgcalls/ChannelManager.cpp
         voip/tgcalls/StaticThreads.cpp
         voip/tgcalls/VideoCaptureInterfaceImpl.cpp
-        voip/tgcalls/legacy/InstanceImplLegacy.cpp
         voip/tgcalls/utils/gzip.cpp
         voip/tgcalls/Manager.cpp
         voip/tgcalls/TurnCustomizerImpl.cpp
@@ -1830,7 +1830,8 @@ target_compile_definitions(tgcalls PUBLIC
 target_include_directories(tgcalls PUBLIC
         ./
         voip
-        boringssl/include
+        third_party/boringssl/include
+        openssl/include
         voip/tgcalls
         voip/rnnoise/include
         voip/webrtc
@@ -1846,8 +1847,10 @@ target_include_directories(tgcalls PUBLIC
         third_party/libsrtp/crypto/include
         third_party/usrsctplib
         third_party
-        voip/libtgvoip
-        ffmpeg/include
+        prebuild/include/${ANDROID_ABI}
+        third_party/ffmpeg
+        third_party/libvpx
+        third_party/dav1d/include
         voip/webrtc/third_party/crc32c/src/include
         voip/webrtc/third_party/jni_zero)
 
@@ -2015,7 +2018,8 @@ target_include_directories(voipandroid PUBLIC
         ./
         voip
         rlottie/src/lottie
-        boringssl/include
+        third_party/boringssl/include
+        openssl/include
         voip/tgcalls
         voip/webrtc
         opus/include
@@ -2030,8 +2034,8 @@ target_include_directories(voipandroid PUBLIC
         third_party/libsrtp/crypto/include
         third_party/usrsctplib
         third_party
-        voip/libtgvoip
-        tde2e/include
+        td/tde2e
+        td/tde2e/td/e2e
 )
 
 if (${ANDROID_ABI} STREQUAL "armeabi-v7a")

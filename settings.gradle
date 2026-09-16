@@ -25,3 +25,23 @@ dependencyResolutionManagement {
 
 rootProject.name = "AuthorGram"
 include ':TMessagesProj'
+<<<<<<< HEAD
+=======
+include ':TMessagesProj_App'
+include ':TMessagesProj_AppHuawei'
+include ':TMessagesProj_AppHockeyApp'
+include ':TMessagesProj_AppStandalone'
+include ':TMessagesProj_AppTests'
+include ':jlatexmath'
+project(':jlatexmath').projectDir = file('TMessagesProj/lib/jlatexmath/jlatexmath')
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+gradle.ext.androidxMediaModulePrefix = 'TMessagesProj_Modules:media3:media-'
+apply from: file("TMessagesProj_Modules/media/core_settings.gradle")
+>>>>>>> 163356809 (update to 12.10.2 (7086))

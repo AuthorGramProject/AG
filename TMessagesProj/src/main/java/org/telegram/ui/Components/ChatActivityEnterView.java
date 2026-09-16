@@ -68,10 +68,13 @@ import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.style.ImageSpan;
+<<<<<<< HEAD
 import android.text.style.RelativeSizeSpan;
 import android.text.style.ParagraphStyle;
 import android.text.style.SuggestionSpan;
 import android.util.Log;
+=======
+>>>>>>> 163356809 (update to 12.10.2 (7086))
 import android.util.Property;
 import android.util.TypedValue;
 import android.view.ActionMode;
@@ -1091,7 +1094,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         public RecordDot(Context context) {
             super(context);
             int resId = R.raw.chat_audio_record_delete_2;
-            drawable = new RLottieDrawable(resId, "" + resId, dp(28), dp(28), false, null);
+            drawable = new RLottieDrawable(resId, dp(28), dp(28), false, null);
             drawable.setInvalidateOnProgressSet(true);
             updateColors();
         }

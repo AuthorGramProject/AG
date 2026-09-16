@@ -30,6 +30,7 @@
 #include "NativeByteBuffer.h"
 #include "BuffersStorage.h"
 #include "Connection.h"
+#include "TLSHello.h"
 #include <random>
 
 #ifndef EPOLLRDHUP
@@ -38,6 +39,7 @@
 
 #define MAX_GREASE 8
 
+<<<<<<< HEAD
 static BIGNUM *get_y2(BIGNUM *x, const BIGNUM *mod, BN_CTX *big_num_context) {
     // returns y^2 = x^3 + 486662 * x^2 + x
     BIGNUM *y = BN_dup(x);
@@ -446,6 +448,8 @@ private:
     }
 };
 
+=======
+>>>>>>> 163356809 (update to 12.10.2 (7086))
 ConnectionSocket::ConnectionSocket(int32_t instance) {
     instanceNum = instance;
     outgoingByteStream = new ByteStream();
@@ -929,7 +933,7 @@ void ConnectionSocket::onEvent(uint32_t events) {
                         lastEventTime = ConnectionsManager::getInstance(instanceNum).getCurrentTimeMonotonicMillis();
                         tlsHashMismatch = false;
                         proxyAuthState = 11;
-                        TlsHello hello = TlsHello::getDefault();
+                        TLSHello hello = TLSHello::getDefault();
                         hello.setDomain(currentSecretDomain);
                         uint32_t size = hello.writeToBuffer(tempBuffer->bytes);
                         uint32_t outLength;

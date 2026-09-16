@@ -5,6 +5,16 @@ plugins {
 
 gradlePlugin {
     plugins {
+=======
+        register("telegramBuildPlugin") {
+            id = "org.telegram.build-plugin"
+            implementationClass = "org.telegram.plugin.TelegramBuildPlugin"
+        }
+        register("telegramBuildAppPlugin") {
+            id = "org.telegram.build-app-plugin"
+            implementationClass = "org.telegram.plugin.TelegramBuildAppPlugin"
+        }
+>>>>>>> 163356809 (update to 12.10.2 (7086))
         register("testGenerator") {
             id = "test-generator"
             implementationClass = "com.example.TestGeneratorPlugin"
@@ -30,6 +40,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 
 dependencies {
+<<<<<<< HEAD
     compileOnly(gradleApi())
 
     implementation("com.squareup.moshi:moshi:1.15.0")
