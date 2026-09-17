@@ -2299,7 +2299,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
 
         private static final String VIDEO_MIME_TYPE = "video/avc";
         private static final String AUDIO_MIME_TYPE = "audio/mp4a-latm";
-        private static final int FRAME_RATE = 30;
+        private static final int DEFAULT_FRAME_RATE = 30;
         private static final int IFRAME_INTERVAL = 1;
 
         private File videoFile;
@@ -2308,6 +2308,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         private int videoWidth;
         private int videoHeight;
         private int videoBitrate;
+        private int videoFrameRate = DEFAULT_FRAME_RATE;
         private boolean videoConvertFirstWrite = true;
         private boolean blendEnabled;
 
@@ -2505,6 +2506,19 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             started = true;
             int resolution = MessagesController.getInstance(currentAccount).roundVideoSize;
             int bitrate = MessagesController.getInstance(currentAccount).roundVideoBitrate * 1024;
+            if (useCameraX) {
+                resolution = AuthorGramCameraConfig.getQuality();
+                Size input = previewSize[Math.max(0, Math.min(surfaceIndex, previewSize.length - 1))];
+                if (input != null) {
+                    // Never upscale a cropped round video beyond the real camera buffer.
+                    resolution = Math.min(resolution, Math.min(input.getWidth(), input.getHeight()));
+                }
+                resolution = Math.max(MessagesController.getInstance(currentAccount).roundVideoSize, resolution);
+                videoFrameRate = AuthorGramCameraConfig.getEncoderFps();
+                bitrate = Math.max(bitrate, calculateCameraXBitrate(resolution, videoFrameRate));
+            } else {
+                videoFrameRate = DEFAULT_FRAME_RATE;
+            }
             AndroidUtilities.runOnUIThread(() -> {
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.stopAllHeavyOperations, 512);
             });
@@ -2545,6 +2559,69 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             }
             generateKeyframeThumbsQueue = new DispatchQueue("keyframes_thumb_queue");
             handler.sendMessage(handler.obtainMessage(MSG_START_RECORDING));
+        }
+
+        private int calculateCameraXBitrate(int resolution, int frameRate) {
+            long target = Math.round((double) resolution * resolution * frameRate * 0.16d);
+            return (int) Math.max(1_000_000L, Math.min(32_000_000L, target));
+        }
+
+        private void fitCameraXEncoder(MediaCodecInfo codecInfo) {
+            if (!useCameraX || codecInfo == null) {
+                return;
+            }
+            try {
+                MediaCodecInfo.CodecCapabilities capabilities = codecInfo.getCapabilitiesForType(VIDEO_MIME_TYPE);
+                MediaCodecInfo.VideoCapabilities videoCapabilities = capabilities.getVideoCapabilities();
+                int requestedSize = videoWidth;
+                int requestedFps = videoFrameRate;
+                int widthAlignment = Math.max(1, videoCapabilities.getWidthAlignment());
+                int heightAlignment = Math.max(1, videoCapabilities.getHeightAlignment());
+                int alignedRequested = Math.min(
+                        requestedSize - requestedSize % widthAlignment,
+                        requestedSize - requestedSize % heightAlignment);
+                int[] sizes = {alignedRequested, 2160, 1440, 1080, 720, 480, 384, 360};
+                int[] rates = requestedFps > 30 ? new int[]{requestedFps, 30} : new int[]{requestedFps};
+
+                int selectedSize = -1;
+                int selectedRate = -1;
+                for (int rate : rates) {
+                    for (int candidate : sizes) {
+                        if (candidate <= 0 || candidate > requestedSize || selectedSize == candidate) {
+                            continue;
+                        }
+                        int aligned = Math.min(
+                                candidate - candidate % widthAlignment,
+                                candidate - candidate % heightAlignment);
+                        if (aligned <= 0) {
+                            continue;
+                        }
+                        if (videoCapabilities.areSizeAndRateSupported(aligned, aligned, rate)) {
+                            selectedSize = aligned;
+                            selectedRate = rate;
+                            break;
+                        }
+                    }
+                    if (selectedSize > 0) {
+                        break;
+                    }
+                }
+
+                if (selectedSize > 0) {
+                    videoWidth = videoHeight = selectedSize;
+                    videoFrameRate = selectedRate;
+                }
+                videoBitrate = calculateCameraXBitrate(videoWidth, videoFrameRate);
+                android.util.Range<Integer> bitrateRange = videoCapabilities.getBitrateRange();
+                videoBitrate = bitrateRange.clamp(videoBitrate);
+                if (BuildVars.LOGS_ENABLED) {
+                    FileLog.d("AuthorGram CameraX encoder requested=" + requestedSize + "@" + requestedFps
+                            + " selected=" + videoWidth + "@" + videoFrameRate
+                            + " bitrate=" + videoBitrate);
+                }
+            } catch (Throwable error) {
+                FileLog.e(error);
+            }
         }
 
         public void stopRecording(int send, SendOptions options) {
@@ -2982,9 +3059,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 videoEditedInfo.key = key;
                 videoEditedInfo.iv = iv;
                 videoEditedInfo.estimatedSize = Math.max(1, size);
-                videoEditedInfo.framerate = 25;
-                videoEditedInfo.resultWidth = videoEditedInfo.originalWidth = 360;
-                videoEditedInfo.resultHeight = videoEditedInfo.originalHeight = 360;
+                videoEditedInfo.framerate = videoFrameRate;
+                videoEditedInfo.resultWidth = videoEditedInfo.originalWidth = videoWidth;
+                videoEditedInfo.resultHeight = videoEditedInfo.originalHeight = videoHeight;
                 videoEditedInfo.originalPath = previewFile.getAbsolutePath();
                 setupVideoPlayer(previewFile);
                 videoEditedInfo.estimatedDuration = recordedTime;
@@ -3089,9 +3166,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                         videoEditedInfo.encryptedFile = encryptedFile;
                         videoEditedInfo.key = key;
                         videoEditedInfo.iv = iv;
-                        videoEditedInfo.framerate = 25;
-                        videoEditedInfo.resultWidth = videoEditedInfo.originalWidth = 360;
-                        videoEditedInfo.resultHeight = videoEditedInfo.originalHeight = 360;
+                        videoEditedInfo.framerate = videoFrameRate;
+                        videoEditedInfo.resultWidth = videoEditedInfo.originalWidth = videoWidth;
+                        videoEditedInfo.resultHeight = videoEditedInfo.originalHeight = videoHeight;
                         videoEditedInfo.originalPath = videoFile.getAbsolutePath();
                         videoEditedInfo.notReadyYet = true;
                         videoEditedInfo.thumb = firstFrameThumb;
@@ -3241,9 +3318,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                         videoEditedInfo.encryptedFile = encryptedFile;
                         videoEditedInfo.key = key;
                         videoEditedInfo.iv = iv;
-                        videoEditedInfo.framerate = 25;
-                        videoEditedInfo.resultWidth = videoEditedInfo.originalWidth = 360;
-                        videoEditedInfo.resultHeight = videoEditedInfo.originalHeight = 360;
+                        videoEditedInfo.framerate = videoFrameRate;
+                        videoEditedInfo.resultWidth = videoEditedInfo.originalWidth = videoWidth;
+                        videoEditedInfo.resultHeight = videoEditedInfo.originalHeight = videoHeight;
                         videoEditedInfo.originalPath = videoFile.getAbsolutePath();
                         final VideoEditedInfo info = videoEditedInfo;
                         if (send == ENCODER_SEND_SEND) {
@@ -3401,13 +3478,14 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 audioEncoder.start();
 
                 videoEncoder = MediaCodec.createEncoderByType(VIDEO_MIME_TYPE);
+                fitCameraXEncoder(videoEncoder.getCodecInfo());
                 firstEncode = true;
 
                 MediaFormat format = MediaFormat.createVideoFormat(VIDEO_MIME_TYPE, videoWidth, videoHeight);
 
                 format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
                 format.setInteger(MediaFormat.KEY_BIT_RATE, videoBitrate);
-                format.setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE);
+                format.setInteger(MediaFormat.KEY_FRAME_RATE, videoFrameRate);
                 format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_INTERVAL);
 
                 videoEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);

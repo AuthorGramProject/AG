@@ -176,7 +176,7 @@ public class TextCheckCell extends FrameLayout {
             textView.setMaxLines(0);
             textView.setSingleLine(false);
         }
-        isMultiline = false;
+        isMultiline = isNekoCell;
         if (checkBox != null) {
             checkBox.setVisibility(View.VISIBLE);
             checkBox.setChecked(checked, attached);
@@ -187,10 +187,12 @@ public class TextCheckCell extends FrameLayout {
         needDivider = divider;
         valueTextView.setVisibility(GONE);
         LayoutParams layoutParams = (LayoutParams) textView.getLayoutParams();
-        layoutParams.height = LayoutParams.MATCH_PARENT;
-        layoutParams.topMargin = 0;
+        layoutParams.height = isMultiline ? LayoutParams.WRAP_CONTENT : LayoutParams.MATCH_PARENT;
+        layoutParams.topMargin = isMultiline ? AndroidUtilities.dp(14) : 0;
+        layoutParams.bottomMargin = isMultiline ? AndroidUtilities.dp(14) : 0;
         textView.setLayoutParams(layoutParams);
         setWillNotDraw(!divider);
+        requestLayout();
     }
 
     public void updateRTL() {
@@ -279,6 +281,7 @@ public class TextCheckCell extends FrameLayout {
         layoutParams.topMargin = AndroidUtilities.dp(10);
         textView.setLayoutParams(layoutParams);
         setWillNotDraw(!divider);
+        requestLayout();
     }
 
     public void setTextAndValue(String text, String value, boolean multiline, boolean divider) {
@@ -307,6 +310,7 @@ public class TextCheckCell extends FrameLayout {
         layoutParams.topMargin = AndroidUtilities.dp(10);
         textView.setLayoutParams(layoutParams);
         setWillNotDraw(!divider);
+        requestLayout();
     }
 
     public void setEnabled(boolean value, ArrayList<Animator> animators) {

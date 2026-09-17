@@ -19,6 +19,7 @@ def verCode = Integer.parseInt(APP_VERSION_CODE.toString())
 def officialVer = APP_VERSION_NAME
 def officialCode = APP_VERSION_CODE
 def APP_PACKAGE = System.getenv('APP_PACKAGE') ?: (project.findProperty('APP_PACKAGE')?.toString() ?: 'toss.authorgram.apk')
+def authorGramPlayBuild = APP_PACKAGE == 'toss.authorgram.apk'
 def telegramAdBlockingEnabled = APP_PACKAGE != 'toss.authorgram.apk'
 def authorGramSystemKeyHex = APP_PACKAGE == 'toss.authorgram.apk' ? '' : '6b8ce70d889daed80852c204106d51bf91f114ad32936b6b17068e7b399ef3fa'
 def authorGramInstallPackagesPermission = APP_PACKAGE == 'toss.authorgram.apk' ? 'android.permission.INTERNET' : 'android.permission.REQUEST_INSTALL_PACKAGES'
@@ -205,6 +206,8 @@ android {
         buildConfigField 'boolean', 'DEBUG_PRIVATE_VERSION', 'false'
         buildConfigField 'boolean', 'OFFICIAL_BUILD', 'false'
         buildConfigField 'boolean', 'TELEGRAM_AD_BLOCKING_ENABLED', telegramAdBlockingEnabled.toString()
+        // A literal per artifact lets R8 remove unreachable Main/Plus paths from Play DEX.
+        buildConfigField 'boolean', 'AUTHORGRAM_PLAY_BUILD', authorGramPlayBuild.toString()
         buildConfigField 'String', 'AUTHORGRAM_SYSTEM_KEY_HEX', '"' + authorGramSystemKeyHex + '"'
         buildConfigField 'String', 'TRUSTED_SIGNING_CERT_SHA256', '""'
 
@@ -304,7 +307,7 @@ android {
 androidComponents {
     onVariants(selector().all()) { variant ->
         variant.outputs.forEach { output ->
-            String gramName = APP_PACKAGE == 'toss.authorgram.apk' ? 'AuthorGram-Play' : 'AuthorGram-Main'
+            String gramName = APP_PACKAGE == 'toss.authorgram.apk' ? 'AuthorGram-Play' : 'AuthorGram-Plus'
             String first = String.format('%s-v%s(%s)', gramName, verName, verCode)
             output.outputFileName.set(
                 output.outputFileName.get()

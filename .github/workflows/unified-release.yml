@@ -1,25 +1,35 @@
-name: AuthorGram Releases (AG+)
+name: AuthorGram Unified Release
 
 on:
   workflow_dispatch:
 
+concurrency:
+  group: authorgram-unified-release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
-  contents: write
+  contents: read
   actions: read
 
+env:
+  PLAY_PACKAGE: toss.authorgram.apk
+  PLUS_PACKAGE: fork.risin42.nagramx
+  HISTORICAL_SIGNING_COMMIT: eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369
+  BUNDLETOOL_VERSION: 1.18.3
+
 jobs:
-  build-ag-plus:
-    name: Build AuthorGram+ (arm64)
+  build-plus:
+    name: AuthorGram+ ARM64 APK
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
       LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
       GH_TOKEN: ${{ github.token }}
-      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_DIR: ${{ github.workspace }}/.ccache-plus
 
     steps:
-      - name: Free Disk Space
+      - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false
@@ -29,80 +39,255 @@ jobs:
           large-packages: true
           swap-storage: true
 
-      - name: Set up Swap Space
+      - name: Add swap
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 6
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build ccache
-          mkdir -p "${{ github.workspace }}/.ccache"
-          ccache -M 10G
-
-      - name: Cache ccache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ github.workspace }}/.ccache
-          key: ccache-dev-${{ github.sha }}
-          restore-keys: |
-            ccache-dev-
-            ccache-
-
-      - name: Cache Gradle
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-dev-${{ github.sha }}
-          restore-keys: |
-            gradle-dev-
-            gradle-
-
-      - name: Checkout dev branch
+      - name: Checkout canonical dev source
         uses: actions/checkout@v4
         with:
           ref: dev
-          path: build-src
 
-      - name: Setup Java
+      - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
-      - name: Setup Keystore & Local Properties
-        shell: bash
-        working-directory: build-src
+      - name: Install native build tools
         run: |
           set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+          mkdir -p "${CCACHE_DIR}"
+          ccache -M 10G
+
+      - name: Restore build caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ${{ env.CCACHE_DIR }}
+          key: authorgram-plus-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', '**/*.gradle', '**/*.gradle.kts') }}-${{ github.sha }}
+          restore-keys: |
+            authorgram-plus-${{ runner.os }}-
+
+      - name: Prepare trusted release signing
+        run: |
+          set -euo pipefail
+          test "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" = "${PLUS_PACKAGE}"
+          test -n "${LOCAL_PROPERTIES}"
           rm -f TMessagesProj/release.keystore
-          curl -sSL -H "Authorization: token ${GH_TOKEN}" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/eaabf4f2c52addfa1fc91d3cb91db6e3ac6e9369/TMessagesProj/release.keystore" > TMessagesProj/release.keystore
+          curl --fail --silent --show-error --location \
+            -H "Authorization: token ${GH_TOKEN}" \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${HISTORICAL_SIGNING_COMMIT}/TMessagesProj/release.keystore" \
+            --output TMessagesProj/release.keystore
+          test -s TMessagesProj/release.keystore
           chmod 600 TMessagesProj/release.keystore
-          [[ -n "${LOCAL_PROPERTIES}" ]] || { echo 'LOCAL_PROPERTIES secret is missing' >&2; exit 1; }
-          printf 'sdk.dir=%s\n' "${ANDROID_HOME}" > local.properties
-          printf 'cmake.dir=/usr\n' >> local.properties
-          printf 'org.gradle.caching=true\norg.gradle.daemon=false\norg.gradle.parallel=true\norg.gradle.workers.max=4\norg.gradle.jvmargs=-Xmx3G -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
+          printf 'sdk.dir=%s\ncmake.dir=/usr\n' "${ANDROID_HOME}" > local.properties
 
-      - name: Build AuthorGram+ APK (arm64)
-        shell: bash
-        working-directory: build-src
+      - name: Build signed ARM64 APK
         run: |
-          export NATIVE_TARGET="arm64-v8a"
-          ./gradlew -PAPP_PACKAGE=fork.risin42.nagramx --build-cache --stacktrace TMessagesProj:assembleRelease
+          set -euo pipefail
+          export NATIVE_TARGET=arm64-v8a
+          ./gradlew --no-daemon --stacktrace --console=plain --build-cache \
+            -PAPP_PACKAGE="${PLUS_PACKAGE}" TMessagesProj:assembleRelease
 
-      - name: Collect AuthorGram+ APK
-        shell: bash
+      - name: Verify and stage AuthorGram+ APK
         run: |
-          mkdir -p releases
-          APK_FILE=$(find build-src/TMessagesProj/build/outputs/apk/release -maxdepth 1 -type f -name '*arm64-v8a*.apk' | head -n 1)
-          cp "${APK_FILE}" releases/AuthorGram-Plus-arm64-v8a-release.apk
+          set -euo pipefail
+          VERSION_NAME=$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)
+          VERSION_CODE=$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)
+          mapfile -t APKS < <(find TMessagesProj/build/outputs/apk/release -type f -name '*arm64-v8a*.apk' | sort)
+          test "${#APKS[@]}" -eq 1
+          APK="${APKS[0]}"
+          BUILD_TOOLS="${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -n1)"
+          "${BUILD_TOOLS}/aapt" dump badging "${APK}" > "${RUNNER_TEMP}/plus-badging.txt"
+          grep -F "package: name='${PLUS_PACKAGE}' versionCode='${VERSION_CODE}' versionName='${VERSION_NAME}" "${RUNNER_TEMP}/plus-badging.txt"
+          unzip -l "${APK}" | grep -F 'lib/arm64-v8a/'
+          ! unzip -l "${APK}" | grep -Eq 'lib/(armeabi-v7a|x86|x86_64)/'
+          mkdir -p "${RUNNER_TEMP}/authorgram-plus-release"
+          cp "${APK}" "${RUNNER_TEMP}/authorgram-plus-release/AuthorGram-Plus-v${VERSION_NAME}-${VERSION_CODE}-arm64-v8a.apk"
 
-      - name: Upload AG+ Artifact
+      - name: Upload AuthorGram+ APK
         uses: actions/upload-artifact@v4
         with:
-          name: authorgram-plus-release
-          path: releases/*
+          name: AuthorGram-Plus-ARM64-${{ github.run_number }}
+          path: ${{ runner.temp }}/authorgram-plus-release/*.apk
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove signing material
+        if: always()
+        run: rm -f TMessagesProj/release.keystore local.properties
+
+  build-play:
+    name: AuthorGram Play universal APK and AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      AUTHORGRAM_SIGNING_CERT_SHA256: ${{ secrets.AUTHORGRAM_SIGNING_CERT_SHA256 }}
+      GH_TOKEN: ${{ github.token }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache-play
+
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - name: Add swap
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 8
+
+      - name: Checkout canonical dev source
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install native and verification tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache unzip ripgrep
+          mkdir -p "${CCACHE_DIR}"
+          ccache -M 12G
+
+      - name: Restore build caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ${{ env.CCACHE_DIR }}
+          key: authorgram-play-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', '**/*.gradle', '**/*.gradle.kts') }}-${{ github.sha }}
+          restore-keys: |
+            authorgram-play-${{ runner.os }}-
+
+      - name: Derive hardened Play source from dev
+        run: |
+          set -euo pipefail
+          test "$(sed -n 's/^APP_PACKAGE=//p' gradle.properties)" = "${PLUS_PACKAGE}"
+          sed -i "s/^APP_PACKAGE=.*/APP_PACKAGE=${PLAY_PACKAGE}/" gradle.properties
+          python3 scripts/strip_authorgram_play_runtime.py
+
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuViewDeleted.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/ui/AyuMessageHistory.java
+          test ! -e TMessagesProj/src/main/java/com/radolyn/ayugram/proprietary/AyuHistoryHook.java
+          ! rg -n 'AuthorGram\+|AuthorGram Plus' TMessagesProj/src --glob '*.xml'
+          ! rg -n 'sendFakeReadResponse|Room\.databaseBuilder' \
+            TMessagesProj/src/main/java/com/radolyn/ayugram \
+            TMessagesProj/src/main/java/org/telegram/messenger/authorgram \
+            TMessagesProj/src/main/kotlin/xyz/nextalone/nagram/helper
+          grep -F 'https://authorche.top/authorgram/privacy/' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
+          grep -F 'https://t.me/authorgram_apk' TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java
+          git diff --stat
+
+      - name: Prepare trusted Play release signing
+        run: |
+          set -euo pipefail
+          test -n "${LOCAL_PROPERTIES}"
+          rm -f TMessagesProj/release.keystore
+          curl --fail --silent --show-error --location \
+            -H "Authorization: token ${GH_TOKEN}" \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${HISTORICAL_SIGNING_COMMIT}/TMessagesProj/release.keystore" \
+            --output TMessagesProj/release.keystore
+          test -s TMessagesProj/release.keystore
+          chmod 600 TMessagesProj/release.keystore
+          printf 'sdk.dir=%s\ncmake.dir=/usr\n' "${ANDROID_HOME}" > local.properties
+
+      - name: Build signed universal APK
+        env:
+          IS_BUNDLE: "false"
+          NATIVE_TARGET: ""
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace --console=plain --build-cache \
+            -PAPP_PACKAGE="${PLAY_PACKAGE}" TMessagesProj:assembleRelease
+
+      - name: Build signed Google Play App Bundle
+        env:
+          IS_BUNDLE: "true"
+          NATIVE_TARGET: ""
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace --console=plain --build-cache \
+            -PAPP_PACKAGE="${PLAY_PACKAGE}" TMessagesProj:bundleRelease
+
+      - name: Verify package, policy, signing and bundle installability
+        run: |
+          set -euo pipefail
+          VERSION_NAME=$(sed -n 's/^APP_VERSION_NAME=//p' gradle.properties)
+          VERSION_CODE=$(sed -n 's/^APP_VERSION_CODE=//p' gradle.properties)
+          BUILD_TOOLS="${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -n1)"
+
+          mapfile -t UNIVERSAL_APKS < <(find TMessagesProj/build/outputs/apk/release -type f -name '*universal*.apk' | sort)
+          mapfile -t BUNDLES < <(find TMessagesProj/build/outputs/bundle/release -type f -name '*.aab' | sort)
+          test "${#UNIVERSAL_APKS[@]}" -eq 1
+          test "${#BUNDLES[@]}" -eq 1
+          APK="${UNIVERSAL_APKS[0]}"
+          AAB="${BUNDLES[0]}"
+
+          "${BUILD_TOOLS}/aapt" dump badging "${APK}" > "${RUNNER_TEMP}/play-badging.txt"
+          grep -F "package: name='${PLAY_PACKAGE}' versionCode='${VERSION_CODE}' versionName='${VERSION_NAME}" "${RUNNER_TEMP}/play-badging.txt"
+          ! "${BUILD_TOOLS}/aapt" dump permissions "${APK}" | grep -F 'android.permission.REQUEST_INSTALL_PACKAGES'
+          for ABI in armeabi-v7a arm64-v8a x86_64; do
+            unzip -l "${APK}" | grep -F "lib/${ABI}/"
+          done
+
+          "${BUILD_TOOLS}/apksigner" verify --verbose --print-certs "${APK}" > "${RUNNER_TEMP}/play-apksigner.txt"
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' "${RUNNER_TEMP}/play-apksigner.txt"
+
+          BUNDLETOOL="${RUNNER_TEMP}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+          curl --fail --silent --show-error --location \
+            "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar" \
+            --output "${BUNDLETOOL}"
+          java -jar "${BUNDLETOOL}" validate --bundle="${AAB}"
+          java -jar "${BUNDLETOOL}" dump manifest --bundle="${AAB}" --module=base > "${RUNNER_TEMP}/play-aab-manifest.xml"
+          grep -F "package=\"${PLAY_PACKAGE}\"" "${RUNNER_TEMP}/play-aab-manifest.xml"
+          ! grep -F 'android.permission.REQUEST_INSTALL_PACKAGES' "${RUNNER_TEMP}/play-aab-manifest.xml"
+          jarsigner -verify -strict -certs "${AAB}" > "${RUNNER_TEMP}/play-aab-jarsigner.txt" 2>&1
+
+          PAYLOAD="${RUNNER_TEMP}/play-payload"
+          mkdir -p "${PAYLOAD}/apk" "${PAYLOAD}/aab"
+          unzip -qq "${APK}" -d "${PAYLOAD}/apk"
+          unzip -qq "${AAB}" -d "${PAYLOAD}/aab"
+          ! grep -aR -F 'AuthorGram+' "${PAYLOAD}"
+          ! grep -aR -E 'AyuViewDeleted|AyuMessageHistory|AyuHistoryHook|sendFakeReadResponse' "${PAYLOAD}"
+          if find "${PAYLOAD}" -type f \( -name 'release.keystore' -o -name '*.jks' -o -name '*.p12' -o -name '*.pfx' \) | grep -q .; then
+            echo 'Signing material was packaged into a release artifact' >&2
+            exit 1
+          fi
+
+          OUT="${RUNNER_TEMP}/authorgram-play-release"
+          mkdir -p "${OUT}"
+          cp "${APK}" "${OUT}/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}-universal.apk"
+          cp "${AAB}" "${OUT}/AuthorGram-Play-v${VERSION_NAME}-${VERSION_CODE}.aab"
+          sha256sum "${OUT}"/* > "${OUT}/SHA256SUMS.txt"
+
+      - name: Upload Play universal APK and AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuthorGram-Play-${{ github.run_number }}
+          path: ${{ runner.temp }}/authorgram-play-release/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove signing material
+        if: always()
+        run: rm -f TMessagesProj/release.keystore local.properties

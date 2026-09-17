@@ -68,7 +68,7 @@ public final class AuthorGramPlayPolicy {
     }
 
     public static boolean isPlayBuild() {
-        return PLAY_PACKAGE.equals(BuildConfig.APPLICATION_ID);
+        return BuildConfig.AUTHORGRAM_PLAY_BUILD;
     }
 
     /** Single policy boundary for every AuthorGram iOS-inspired interface feature. */

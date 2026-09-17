@@ -96,6 +96,7 @@ public class TextDetailSettingsCell extends FrameLayout {
             valueTextView.setSingleLine(true);
             valueTextView.setPadding(0, 0, 0, 0);
         }
+        requestLayout();
     }
 
     public void setTextAndValue(CharSequence text, CharSequence value, boolean divider) {

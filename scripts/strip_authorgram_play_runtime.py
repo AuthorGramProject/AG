@@ -144,6 +144,49 @@ def patch_experimental_premium_rows() -> bool:
     return write(relative, content) if changed else False
 
 
+def patch_play_branding() -> int:
+    """Remove every Plus display-name variant from resources compiled into Play."""
+    changed = 0
+    resource_root = ROOT / "TMessagesProj/src"
+    for path in resource_root.glob("*/res/**/*.xml"):
+        content = path.read_text(encoding="utf-8")
+        updated = content.replace("AuthorGram Plus", "AuthorGram").replace("AuthorGram+", "AuthorGram")
+        if updated != content:
+            path.write_text(updated, encoding="utf-8", newline="")
+            changed += 1
+    return changed
+
+
+def patch_play_policy_consumers() -> int:
+    """Compile Play against literal safe values so R8 can delete forbidden branches."""
+    replacements = {
+        "TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java": {
+            "NekoConfig.localPremium.Bool()": "false",
+            "NekoConfig.unlimitedPinnedDialogs.Bool()": "false",
+            "NekoConfig.hideSponsoredMessage.Bool()": "false",
+            "NekoConfig.ignoreContentRestrictions.Bool()": "false",
+        },
+        "TMessagesProj/src/main/java/org/telegram/messenger/MediaDataController.java": {
+            "NekoConfig.unlimitedFavedStickers.Bool()": "false",
+        },
+        "TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java": {
+            "NekoConfig.unlimitedPinnedDialogs.Bool()": "false",
+        },
+    }
+    changed = 0
+    for relative, tokens in replacements.items():
+        content = read(relative)
+        updated = content
+        for forbidden, safe_literal in tokens.items():
+            updated = updated.replace(forbidden, safe_literal)
+        if updated != content:
+            changed += int(write(relative, updated))
+        for forbidden in tokens:
+            if forbidden in updated:
+                raise RuntimeError(f"Play policy consumer remains in {relative}: {forbidden}")
+    return changed
+
+
 def validate_templates() -> None:
     for name, relative in TARGETS.items():
         if read(relative) != template(name):
@@ -277,6 +320,29 @@ def validate_stubs() -> None:
     validate_policy_consumers()
 
 
+def validate_play_branding() -> None:
+    resource_root = ROOT / "TMessagesProj/src"
+    failures: list[str] = []
+    for path in resource_root.glob("*/res/**/*.xml"):
+        content = path.read_text(encoding="utf-8")
+        if "AuthorGram+" in content or "AuthorGram Plus" in content:
+            failures.append(path.relative_to(ROOT).as_posix())
+    if failures:
+        raise RuntimeError("Plus branding remains in Play resources: " + ", ".join(failures))
+
+    about = read("TMessagesProj/src/main/java/toss/authorgram/settings/AGAboutActivity.java")
+    for required in (
+        "https://authorche.top",
+        "https://authorche.top/authorgram/privacy/",
+        "https://t.me/authorgram_apk",
+        "https://authorche.top/poems",
+        "https://authorche.top/links",
+        "https://authorche.top/donate",
+    ):
+        if required not in about:
+            raise RuntimeError(f"Required Play About link is missing: {required}")
+
+
 def main() -> int:
     if f"APP_PACKAGE={PLAY_PACKAGE}" not in read("gradle.properties"):
         raise RuntimeError("Refusing to sanitize Main/dev: APP_PACKAGE is not the Play package")
@@ -286,7 +352,10 @@ def main() -> int:
     changed += int(patch_user_config())
     changed += int(patch_config_read_lock())
     changed += int(patch_experimental_premium_rows())
+    changed += patch_play_branding()
+    changed += patch_play_policy_consumers()
     validate_stubs()
+    validate_play_branding()
     print(f"AuthorGram Play source sanitizer passed; changed files: {changed}")
     return 0
 

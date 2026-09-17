@@ -28,6 +28,7 @@ import androidx.lifecycle.LifecycleRegistry;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
+import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.camera.Size;
 
@@ -256,11 +257,11 @@ public final class AuthorGramCameraXController {
     private Preview buildPreview(int index, CameraSelector selector) {
         Preview.Builder builder = new Preview.Builder();
         builder.setTargetResolution(AuthorGramCameraConfig.getRequestedPreviewSize());
-        Range<Integer> fps = AuthorGramCameraConfig.getFpsRange();
+        Range<Integer> fps = selectSupportedFpsRange(selector, AuthorGramCameraConfig.getFpsRange());
         if (fps != null) {
             builder.setTargetFrameRate(fps);
         }
-        applyEnhancements(builder, selector);
+        applyCamera2Options(builder, selector, fps);
         Preview preview = builder.build();
         preview.setSurfaceProvider(request -> {
             android.util.Size resolution = request.getResolution();
@@ -317,13 +318,19 @@ public final class AuthorGramCameraXController {
                 .build();
     }
 
-    private void applyEnhancements(Preview.Builder builder, CameraSelector selector) {
+    private void applyCamera2Options(Preview.Builder builder, CameraSelector selector, Range<Integer> fps) {
         CameraInfo info = firstInfo(selector);
         if (info == null) {
             return;
         }
         Camera2CameraInfo camera2Info = Camera2CameraInfo.from(info);
         Camera2Interop.Extender<Preview> extender = new Camera2Interop.Extender<>(builder);
+
+        // Preview.setTargetFrameRate() is only a CameraX negotiation hint. Applying the
+        // Camera2 AE range as well makes the selected FPS reach the repeating request.
+        if (fps != null) {
+            extender.setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fps);
+        }
 
         if (AuthorGramCameraConfig.isEnhancementEnabled(AuthorGramCameraConfig.ENHANCEMENT_STABILIZATION)
                 && supports(camera2Info, CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES,
@@ -358,6 +365,46 @@ public final class AuthorGramCameraXController {
                 CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY)) {
             extender.setCaptureRequestOption(CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE,
                     CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY);
+        }
+    }
+
+    private Range<Integer> selectSupportedFpsRange(CameraSelector selector, Range<Integer> requested) {
+        if (requested == null) {
+            return null;
+        }
+        CameraInfo info = firstInfo(selector);
+        if (info == null) {
+            return requested;
+        }
+        try {
+            Range<Integer>[] available = Camera2CameraInfo.from(info).getCameraCharacteristic(
+                    CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+            if (available == null || available.length == 0) {
+                return requested;
+            }
+            Range<Integer> best = null;
+            int bestScore = Integer.MAX_VALUE;
+            for (Range<Integer> candidate : available) {
+                int score = Math.abs(candidate.getLower() - requested.getLower()) * 4
+                        + Math.abs(candidate.getUpper() - requested.getUpper()) * 6;
+                if (candidate.equals(requested)) {
+                    return candidate;
+                }
+                if (candidate.contains(requested.getUpper())) {
+                    score -= 25;
+                }
+                if (score < bestScore) {
+                    best = candidate;
+                    bestScore = score;
+                }
+            }
+            if (BuildVars.LOGS_ENABLED) {
+                FileLog.d("AuthorGram CameraX FPS requested=" + requested + " selected=" + best);
+            }
+            return best == null ? requested : best;
+        } catch (Throwable error) {
+            FileLog.e(error);
+            return requested;
         }
     }
 

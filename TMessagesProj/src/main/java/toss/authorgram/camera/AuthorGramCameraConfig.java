@@ -111,7 +111,8 @@ public final class AuthorGramCameraConfig {
     }
 
     public static int getQuality() {
-        return preferences().getInt(KEY_QUALITY, 1080);
+        int quality = preferences().getInt(KEY_QUALITY, 1080);
+        return quality == 720 || quality == 1080 || quality == 2160 ? quality : 1080;
     }
 
     public static void setQuality(int value) {
@@ -119,9 +120,10 @@ public final class AuthorGramCameraConfig {
     }
 
     public static int getFpsMode() {
-        return preferences().getInt(KEY_FPS,
+        int mode = preferences().getInt(KEY_FPS,
                 SharedConfig.getDevicePerformanceClass() >= SharedConfig.PERFORMANCE_CLASS_AVERAGE
                         ? FPS_25_30 : FPS_DEFAULT);
+        return mode >= FPS_DEFAULT && mode <= FPS_60_60 ? mode : FPS_DEFAULT;
     }
 
     public static void setFpsMode(int value) {
@@ -135,6 +137,16 @@ public final class AuthorGramCameraConfig {
             case FPS_30_60 -> new Range<>(30, 60);
             case FPS_60_60 -> new Range<>(60, 60);
             default -> null;
+        };
+    }
+
+    /** Nominal encoder rate. The camera controller independently selects the closest supported AE range. */
+    public static int getEncoderFps() {
+        return switch (getFpsMode()) {
+            case FPS_30_60, FPS_60_60 -> 60;
+            case FPS_25_30 -> 30;
+            case FPS_30_30 -> 30;
+            default -> 30;
         };
     }
 

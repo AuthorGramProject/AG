@@ -180,6 +180,7 @@ public class TextInfoPrivacyCell extends FrameLayout {
                 }
             }
             textView.setText(spannableString != null ? spannableString : text);
+            requestLayout();
         }
     }
 
