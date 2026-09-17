@@ -141,8 +141,8 @@ def patch_chat_activity_removed_features() -> bool:
             f"Play ChatActivity history-hook marker changed: expected 1 occurrence, got {count}"
         )
 
-    updated = updated.replace(" // AyuHistoryHook", "")
     updated = updated.replace("// AyuHistoryHook: fix replyMessage", "// Fix replyMessage")
+    updated = updated.replace(" // AyuHistoryHook", "")
     for forbidden in ("AyuHistoryHook", "AyuMessageHistory", "AyuViewDeleted"):
         if forbidden in updated:
             raise RuntimeError(f"Deleted/history feature reference remains in ChatActivity: {forbidden}")
