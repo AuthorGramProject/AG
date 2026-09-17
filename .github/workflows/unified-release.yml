@@ -2,6 +2,11 @@ name: AuthorGram Unified Release
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - dev
+    paths:
+      - .github/BUILD_UNIFIED_RELEASE
 
 concurrency:
   group: authorgram-unified-release-${{ github.ref }}
