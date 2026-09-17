@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -87,6 +88,65 @@ def remove_dead_sources() -> int:
             path.unlink()
             changed += 1
     return changed
+
+
+def patch_chat_activity_removed_features() -> bool:
+    """Remove every compile-time reference to deleted/history-only Play sources."""
+    relative = "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
+    content = read(relative)
+    updated = content
+
+    for line in (
+        "import com.radolyn.ayugram.proprietary.AyuHistoryHook;\n",
+        "import com.radolyn.ayugram.ui.AyuMessageHistory;\n",
+        "import com.radolyn.ayugram.ui.AyuViewDeleted;\n",
+    ):
+        updated = updated.replace(line, "")
+
+    exact_blocks = (
+        """        if (showViewDeleted) {
+            ActionBarMenuSubItem viewDeletedItem = ActionBarMenuItem.addItem(ayuLayout, R.drawable.msg_view_file, getString(R.string.ViewDeleted), false, getResourceProvider());
+            viewDeletedItem.setOnClickListener(v -> {
+                dismissMenu.run();
+                AndroidUtilities.runOnUIThread(() -> presentFragment(new AyuViewDeleted(dialog_id)), 50);
+            });
+        }
+
+""",
+        """            case AyuConstants.OPTION_HISTORY:
+                presentFragment(new AyuMessageHistory(selectedObject));
+                break;
+""",
+        """        } else if (id == agbtn_viewDeleted) {
+            presentFragment(new AyuViewDeleted(dialog_id));
+""",
+    )
+    for block in exact_blocks:
+        count = updated.count(block)
+        if count != 1:
+            raise RuntimeError(
+                f"Play ChatActivity removal marker changed: expected 1 occurrence, got {count}"
+            )
+        updated = updated.replace(block, "", 1)
+
+    updated, count = re.subn(
+        r"\n        // --- AyuGram history hook start\n.*?\n        // --- AyuGram history hook end\n",
+        "\n",
+        updated,
+        count=1,
+        flags=re.DOTALL,
+    )
+    if count != 1:
+        raise RuntimeError(
+            f"Play ChatActivity history-hook marker changed: expected 1 occurrence, got {count}"
+        )
+
+    updated = updated.replace(" // AyuHistoryHook", "")
+    updated = updated.replace("// AyuHistoryHook: fix replyMessage", "// Fix replyMessage")
+    for forbidden in ("AyuHistoryHook", "AyuMessageHistory", "AyuViewDeleted"):
+        if forbidden in updated:
+            raise RuntimeError(f"Deleted/history feature reference remains in ChatActivity: {forbidden}")
+    return write(relative, updated)
 
 
 def patch_user_config() -> bool:
@@ -349,6 +409,7 @@ def main() -> int:
 
     changed = apply_templates()
     changed += remove_dead_sources()
+    changed += int(patch_chat_activity_removed_features())
     changed += int(patch_user_config())
     changed += int(patch_config_read_lock())
     changed += int(patch_experimental_premium_rows())
