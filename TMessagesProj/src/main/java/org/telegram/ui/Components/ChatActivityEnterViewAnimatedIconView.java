@@ -16,7 +16,6 @@ public class ChatActivityEnterViewAnimatedIconView extends RLottieImageView {
     private State currentState;
     private TransitState animatingState;
     private final int sizeDp;
-    private final Map<TransitState, RLottieDrawable> stateMap = new HashMap<>();
     private Boolean drawableIosMode;
 
     private final Map<TransitState, RLottieDrawable> stateMap = new HashMap<TransitState, RLottieDrawable>() {
