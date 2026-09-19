@@ -2383,8 +2383,6 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         private int alphaHandle;
         private int zeroTimeStamps;
         private Integer lastCameraId = 0;
-        private InstantCameraVideoEncoderOverlayHelper overlayHelper;
-
         private AudioRecord audioRecorder;
 
         private ArrayBlockingQueue<AudioBufferInfo> buffers = new ArrayBlockingQueue<>(10);
@@ -2907,10 +2905,6 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 return;
             }
 
-            if (overlayHelper != null) {
-                overlayHelper.bind();
-            }
-
             GLES20.glUseProgram(drawProgram);
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
             GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 12, vertexBuffer);
@@ -2954,13 +2948,6 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             GLES20.glDisableVertexAttribArray(textureHandle);
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
             GLES20.glUseProgram(0);
-
-            if (overlayHelper != null) {
-                overlayHelper.render();
-                if (blendEnabled) {
-                    GLES20.glEnable(GLES20.GL_BLEND);
-                }
-            }
 
             EGLExt.eglPresentationTimeANDROID(eglDisplay, eglSurface, currentTimestamp);
             EGL14.eglSwapBuffers(eglDisplay, eglSurface);
@@ -3412,10 +3399,6 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             eglContext = EGL14.EGL_NO_CONTEXT;
             eglConfig = null;
             handler.exit();
-            if (overlayHelper != null) {
-                overlayHelper.destroy();
-                overlayHelper = null;
-            }
             AndroidUtilities.runOnUIThread(() -> {
                 InstantCameraView.this.videoEncoder = null;
             });
@@ -3640,25 +3623,8 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             }
             GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
-            if (overlayHelper != null) {
-                overlayHelper.destroy();
-                overlayHelper = null;
-            }
-            try {
-                overlayHelper = new InstantCameraVideoEncoderOverlayHelper(videoWidth, videoHeight);
-            } catch (Throwable overlayError) {
-                // A branding frame must never make recording fatal. Continue with the
-                // normal round-video shader when a GPU/bitmap allocation is rejected.
-                FileLog.e("AuthorGram round-video overlay disabled for this recording");
-                FileLog.e(overlayError);
-                overlayHelper = null;
-            }
-
             String vertexShaderSource, fragmentShaderSource;
-            if (overlayHelper != null) {
-                vertexShaderSource = VERTEX_SHADER;
-                fragmentShaderSource = createFragmentShaderV2(previewSize[0]);
-            } else if (useCamera2) {
+            if (useCamera2) {
                 vertexShaderSource = AndroidUtilities.readRes(R.raw.instant_lanczos_vert);
                 fragmentShaderSource = AndroidUtilities.readRes(R.raw.instant_lanczos_frag_oes);
             } else {
@@ -3887,10 +3853,6 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             if (fileWriteQueue != null) {
                 fileWriteQueue.recycle();
                 fileWriteQueue = null;
-            }
-            if (overlayHelper != null) {
-                overlayHelper.destroy();
-                overlayHelper = null;
             }
             try {
                 if (eglDisplay != EGL14.EGL_NO_DISPLAY) {
