@@ -31,4 +31,11 @@
     <string name="AGCameraPositionLeft">Left</string>
     <string name="AGCameraCenterControls">Center control buttons</string>
     <string name="AGCameraCenterControlsInfo">Center the switch-camera and flashlight buttons.</string>
+    <string name="AGCameraProfile">Adaptive camera profile</string>
+    <string name="AGCameraProfileHighMax">Highest quality · highest FPS</string>
+    <string name="AGCameraProfileHighNormal">Highest quality · normal FPS</string>
+    <string name="AGCameraProfileMediumMax">Medium quality · highest FPS</string>
+    <string name="AGCameraProfileMediumNormal">Medium quality · normal FPS</string>
+    <string name="AGCameraProfileLowMax">Lowest quality · highest FPS</string>
+    <string name="AGCameraProfileLowNormal">Lowest quality · normal FPS</string>
 </resources>
