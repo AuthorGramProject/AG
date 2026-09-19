@@ -10,6 +10,9 @@ on:
       - .github/BUILD_UNIFIED_RELEASE
       - .github/workflows/unified-release.yml
       - TMessagesProj/jni/lottie.cpp
+      - TMessagesProj/jni/ffmpeg/**
+      - TMessagesProj/jni/boringssl/lib/**
+      - TMessagesProj/jni/tde2e/**
 
 concurrency:
   group: authorgram-unified-release-${{ github.ref }}
