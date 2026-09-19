@@ -31,55 +31,63 @@ jobs:
             echo "done=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Three-way merge official Telegram 12.10.3
+      - name: Apply official Telegram 12.10.3 app-layer delta
         if: steps.version.outputs.done != 'true'
         shell: bash
         env:
           HEAD_BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail
-
           git config user.name "AuthorGram Upstream Integrator"
           git config user.email "actions@github.com"
 
           git remote remove telegram-upstream 2>/dev/null || true
           git remote add telegram-upstream https://github.com/DrKLO/Telegram.git
-
           git fetch --no-tags telegram-upstream \
-            62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c:refs/remotes/telegram-upstream/base-12.10.1 \
-            9552e5541e1274b9557c9832b204dbfcaf44b3dc:refs/remotes/telegram-upstream/tg-12.10.3
+            62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c \
+            9552e5541e1274b9557c9832b204dbfcaf44b3dc
 
-          BASE_TREE="$(git rev-parse refs/remotes/telegram-upstream/base-12.10.1^{tree})"
-          OURS_TREE="$(git rev-parse HEAD^{tree})"
-          THEIRS_TREE="$(git rev-parse refs/remotes/telegram-upstream/tg-12.10.3^{tree})"
+          git diff --binary --full-index \
+            62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c \
+            9552e5541e1274b9557c9832b204dbfcaf44b3dc \
+            -- \
+            TMessagesProj/src/main/java \
+            TMessagesProj/src/main/kotlin \
+            TMessagesProj/src/main/res \
+            TMessagesProj/src/main/assets \
+            TMessagesProj/proguard-rules.pro \
+            ':(exclude)TMessagesProj/src/main/java/com/google/android/exoplayer2/**' \
+            ':(exclude)TMessagesProj/src/main/java/androidx/media3/**' \
+            > /tmp/telegram-12.10.3-app.patch
 
-          git read-tree -m -u "$BASE_TREE" "$OURS_TREE" "$THEIRS_TREE"
+          echo "::group::Official app-layer delta"
+          git diff --stat 62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c 9552e5541e1274b9557c9832b204dbfcaf44b3dc -- \
+            TMessagesProj/src/main/java TMessagesProj/src/main/kotlin TMessagesProj/src/main/res TMessagesProj/src/main/assets TMessagesProj/proguard-rules.pro \
+            ':(exclude)TMessagesProj/src/main/java/com/google/android/exoplayer2/**' \
+            ':(exclude)TMessagesProj/src/main/java/androidx/media3/**'
+          echo "::endgroup::"
 
-          mapfile -t CONFLICTS < <(git ls-files -u | awk '{print $4}' | sort -u)
+          set +e
+          git apply --3way --index /tmp/telegram-12.10.3-app.patch
+          APPLY_STATUS=$?
+          set -e
 
-          if [ "${#CONFLICTS[@]}" -gt 0 ]; then
-            git checkout --conflict=merge -- . || true
-
-            echo "::group::Three-way conflict paths"
-            printf '%s\n' "${CONFLICTS[@]}"
+          if [ "$APPLY_STATUS" -ne 0 ]; then
+            echo "::group::App-layer conflict paths"
+            git diff --name-only --diff-filter=U || true
             echo "::endgroup::"
-
             echo "::group::Conflict context"
-            for file in "${CONFLICTS[@]}"; do
+            while IFS= read -r file; do
+              [ -z "$file" ] && continue
               echo "===== $file ====="
-              if [ -f "$file" ]; then
-                grep -n -B 20 -A 30 -E '^(<<<<<<<|=======|>>>>>>>)' "$file" || true
-              else
-                git ls-files -u -- "$file" || true
-              fi
-            done
+              git diff --cc -- "$file" || true
+            done < <(git diff --name-only --diff-filter=U)
             echo "::endgroup::"
-            exit 2
+            exit "$APPLY_STATUS"
           fi
 
           python3 - <<'PY'
           from pathlib import Path
-
           p = Path("gradle.properties")
           text = p.read_text(encoding="utf-8")
           out = []
@@ -93,5 +101,5 @@ jobs:
           PY
 
           git add -A
-          git commit -m "Merge Telegram 12.10.3 (7089) upstream"
+          git commit -m "Port Telegram 12.10.3 (7089) app layer"
           git push origin HEAD:"$HEAD_BRANCH"
