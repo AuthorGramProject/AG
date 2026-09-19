@@ -35,4 +35,5 @@
     <string name="AuthorGramNoCustomKey">Чат використовує системний ключ</string>
     <string name="AuthorGramKeyOperationFailed">Не вдалося змінити ключ чату</string>
     <string name="DataSaverMode">Економія трафіку</string>
+    <string name="GoToBeginning">На початок</string>
 </resources>

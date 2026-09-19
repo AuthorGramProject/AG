@@ -129,7 +129,7 @@
     <string name="ProviderTelegramAPI">Telegram API</string>
     <string name="ProviderYandexTranslate">Yandex Translate</string>
     <string name="PushServiceTypeFCM">Google FCM</string>
-    <string name="PushServiceTypeInApp">In-App</string>
+    <string name="PushServiceTypeInApp">Внутрішній (In-App)</string>
     <string name="PushServiceTypeMicroG">microG</string>
     <string name="PushServiceTypeUnified">UnifiedPush</string>
     <string name="Quality1080">Висока</string>
@@ -162,7 +162,7 @@
     <string name="StickerSizeRight">Великий</string>
     <string name="StorageSettings">Пам\'ять</string>
     <string name="StyleMaterialDesign3">Material Design 3</string>
-    <string name="StyleModern">Modern</string>
+    <string name="StyleModern">Сучасний</string>
     <string name="StyleOneUI">OneUI</string>
     <string name="TabTitleTypeIcon">Іконки</string>
     <string name="TabTitleTypeMix">Іконки з назвами</string>
