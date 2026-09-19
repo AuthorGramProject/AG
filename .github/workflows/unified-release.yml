@@ -18,6 +18,9 @@ on:
       - TMessagesProj/src/main/java/org/telegram/ui/web/BotWebViewContainer.java
       - TMessagesProj/src/main/java/org/telegram/messenger/Emoji.java
       - TMessagesProj/src/main/java/org/telegram/ui/LaunchActivity.java
+      - TMessagesProj/build.gradle
+      - TMessagesProj/src/main/java/org/telegram/tgnet/ConnectionsManager.java
+      - TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterViewAnimatedIconView.java
 
 concurrency:
   group: authorgram-unified-release-${{ github.ref }}
