@@ -5,8 +5,11 @@ on:
   push:
     branches:
       - dev
+      - authorgram-12.10.3-final
     paths:
       - .github/BUILD_UNIFIED_RELEASE
+      - .github/workflows/unified-release.yml
+      - TMessagesProj/jni/lottie.cpp
 
 concurrency:
   group: authorgram-unified-release-${{ github.ref }}
