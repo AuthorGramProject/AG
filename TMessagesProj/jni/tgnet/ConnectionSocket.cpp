@@ -447,8 +447,6 @@ private:
     }
 };
 
-=======
->>>>>>> 163356809 (update to 12.10.2 (7086))
 ConnectionSocket::ConnectionSocket(int32_t instance) {
     instanceNum = instance;
     outgoingByteStream = new ByteStream();

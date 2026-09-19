@@ -29,7 +29,6 @@ import androidx.core.math.MathUtils;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 
 import org.jetbrains.annotations.NotNull;
->>>>>>> 163356809 (update to 12.10.2 (7086))
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
@@ -47,7 +46,6 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.LaunchActivity;
-=======
 
 import java.util.ArrayList;
 import java.util.HashMap;

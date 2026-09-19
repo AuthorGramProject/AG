@@ -72,8 +72,6 @@ import android.text.style.RelativeSizeSpan;
 import android.text.style.ParagraphStyle;
 import android.text.style.SuggestionSpan;
 import android.util.Log;
-=======
->>>>>>> 163356809 (update to 12.10.2 (7086))
 import android.util.Property;
 import android.util.TypedValue;
 import android.view.ActionMode;
