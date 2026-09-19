@@ -2,5 +2,5 @@ AuthorGram unified release
 versionName=12.10.1
 versionCode=7056
 sourceBranch=dev
-requestedAt=2026-09-19T12:00:00Z
-attempt=adaptive-camera-profiles
+requestedAt=2026-09-19T12:30:00Z
+attempt=paused-remove-round-overlay
