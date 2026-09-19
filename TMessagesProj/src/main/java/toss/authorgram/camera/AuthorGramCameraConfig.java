@@ -32,6 +32,17 @@ public final class AuthorGramCameraConfig {
     public static final int FPS_30_60 = 3;
     public static final int FPS_60_60 = 4;
 
+    public static final int PROFILE_HIGH_MAX_FPS = 0;
+    public static final int PROFILE_HIGH_NORMAL_FPS = 1;
+    public static final int PROFILE_MEDIUM_MAX_FPS = 2;
+    public static final int PROFILE_MEDIUM_NORMAL_FPS = 3;
+    public static final int PROFILE_LOW_MAX_FPS = 4;
+    public static final int PROFILE_LOW_NORMAL_FPS = 5;
+
+    public static final int QUALITY_TIER_HIGH = 0;
+    public static final int QUALITY_TIER_MEDIUM = 1;
+    public static final int QUALITY_TIER_LOW = 2;
+
     public static final int EXPOSURE_NONE = 0;
     public static final int EXPOSURE_RIGHT = 1;
     public static final int EXPOSURE_LEFT = 2;
@@ -49,6 +60,7 @@ public final class AuthorGramCameraConfig {
     private static final String KEY_START_ULTRA_WIDE = "AG_CameraStartUltraWide";
     private static final String KEY_QUALITY = "AG_CameraQuality";
     private static final String KEY_FPS = "AG_CameraFps";
+    private static final String KEY_PROFILE = "AG_CameraAdaptiveProfile";
     private static final String KEY_EXPOSURE = "AG_CameraExposure";
     private static final String KEY_CENTER_CONTROLS = "AG_CameraCenterControls";
     private static final String[] ENHANCEMENT_KEYS = {
@@ -110,44 +122,85 @@ public final class AuthorGramCameraConfig {
         preferences().edit().putBoolean(KEY_START_ULTRA_WIDE, value).apply();
     }
 
+    public static int getProfile() {
+        if (preferences().contains(KEY_PROFILE)) {
+            int profile = preferences().getInt(KEY_PROFILE, PROFILE_MEDIUM_NORMAL_FPS);
+            return profile >= PROFILE_HIGH_MAX_FPS && profile <= PROFILE_LOW_NORMAL_FPS
+                    ? profile : PROFILE_MEDIUM_NORMAL_FPS;
+        }
+
+        // One-time compatibility mapping from the previous independent quality/FPS selectors.
+        int legacyQuality = preferences().getInt(KEY_QUALITY, 1080);
+        int legacyFps = preferences().getInt(KEY_FPS, FPS_30_30);
+        boolean highFps = legacyFps == FPS_30_60 || legacyFps == FPS_60_60;
+        if (legacyQuality >= 1440) {
+            return highFps ? PROFILE_HIGH_MAX_FPS : PROFILE_HIGH_NORMAL_FPS;
+        } else if (legacyQuality <= 720) {
+            return highFps ? PROFILE_LOW_MAX_FPS : PROFILE_LOW_NORMAL_FPS;
+        }
+        return highFps ? PROFILE_MEDIUM_MAX_FPS : PROFILE_MEDIUM_NORMAL_FPS;
+    }
+
+    public static void setProfile(int profile) {
+        int safe = profile >= PROFILE_HIGH_MAX_FPS && profile <= PROFILE_LOW_NORMAL_FPS
+                ? profile : PROFILE_MEDIUM_NORMAL_FPS;
+        preferences().edit().putInt(KEY_PROFILE, safe).apply();
+    }
+
+    public static int getQualityTier(int profile) {
+        return switch (profile) {
+            case PROFILE_HIGH_MAX_FPS, PROFILE_HIGH_NORMAL_FPS -> QUALITY_TIER_HIGH;
+            case PROFILE_LOW_MAX_FPS, PROFILE_LOW_NORMAL_FPS -> QUALITY_TIER_LOW;
+            default -> QUALITY_TIER_MEDIUM;
+        };
+    }
+
+    public static boolean isHighFpsProfile(int profile) {
+        return profile == PROFILE_HIGH_MAX_FPS
+                || profile == PROFILE_MEDIUM_MAX_FPS
+                || profile == PROFILE_LOW_MAX_FPS;
+    }
+
+    public static AuthorGramCameraCapabilities.ResolvedProfile getResolvedProfile() {
+        return AuthorGramCameraCapabilities.resolve(getProfile());
+    }
+
     public static int getQuality() {
-        int quality = preferences().getInt(KEY_QUALITY, 1080);
-        return quality == 720 || quality == 1080 || quality == 2160 ? quality : 1080;
+        return getResolvedProfile().quality;
     }
 
     public static void setQuality(int value) {
-        preferences().edit().putInt(KEY_QUALITY, value).apply();
+        boolean highFps = isHighFpsProfile(getProfile());
+        if (value >= 1440) {
+            setProfile(highFps ? PROFILE_HIGH_MAX_FPS : PROFILE_HIGH_NORMAL_FPS);
+        } else if (value <= 720) {
+            setProfile(highFps ? PROFILE_LOW_MAX_FPS : PROFILE_LOW_NORMAL_FPS);
+        } else {
+            setProfile(highFps ? PROFILE_MEDIUM_MAX_FPS : PROFILE_MEDIUM_NORMAL_FPS);
+        }
     }
 
     public static int getFpsMode() {
-        int mode = preferences().getInt(KEY_FPS,
-                SharedConfig.getDevicePerformanceClass() >= SharedConfig.PERFORMANCE_CLASS_AVERAGE
-                        ? FPS_25_30 : FPS_DEFAULT);
-        return mode >= FPS_DEFAULT && mode <= FPS_60_60 ? mode : FPS_DEFAULT;
+        return isHighFpsProfile(getProfile()) ? FPS_30_60 : FPS_30_30;
     }
 
     public static void setFpsMode(int value) {
-        preferences().edit().putInt(KEY_FPS, value).apply();
+        boolean highFps = value == FPS_30_60 || value == FPS_60_60;
+        int tier = getQualityTier(getProfile());
+        setProfile(switch (tier) {
+            case QUALITY_TIER_HIGH -> highFps ? PROFILE_HIGH_MAX_FPS : PROFILE_HIGH_NORMAL_FPS;
+            case QUALITY_TIER_LOW -> highFps ? PROFILE_LOW_MAX_FPS : PROFILE_LOW_NORMAL_FPS;
+            default -> highFps ? PROFILE_MEDIUM_MAX_FPS : PROFILE_MEDIUM_NORMAL_FPS;
+        });
     }
 
     public static Range<Integer> getFpsRange() {
-        return switch (getFpsMode()) {
-            case FPS_25_30 -> new Range<>(25, 30);
-            case FPS_30_30 -> new Range<>(30, 30);
-            case FPS_30_60 -> new Range<>(30, 60);
-            case FPS_60_60 -> new Range<>(60, 60);
-            default -> null;
-        };
+        int fps = getResolvedProfile().fps;
+        return fps > 30 ? new Range<>(30, fps) : new Range<>(fps, fps);
     }
 
-    /** Nominal encoder rate. The camera controller independently selects the closest supported AE range. */
     public static int getEncoderFps() {
-        return switch (getFpsMode()) {
-            case FPS_30_60, FPS_60_60 -> 60;
-            case FPS_25_30 -> 30;
-            case FPS_30_30 -> 30;
-            default -> 30;
-        };
+        return getResolvedProfile().fps;
     }
 
     public static int getExposurePosition() {
