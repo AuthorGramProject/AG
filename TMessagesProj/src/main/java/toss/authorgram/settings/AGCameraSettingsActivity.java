@@ -72,7 +72,7 @@ public class AGCameraSettingsActivity extends BaseAGSettingsActivity {
         if (type == AuthorGramCameraConfig.CAMERA_X) {
             ultraWideRow = addRow("startUltraWide");
             qualityRow = addRow("cameraQuality");
-            fpsRow = addRow("cameraFps");
+            fpsRow = -1;
             enhancementsRow = addRow("cameraEnhancements");
             if (enhancementsExpanded) {
                 for (int i = 0; i < enhancementRows.length; i++) {
@@ -123,9 +123,7 @@ public class AGCameraSettingsActivity extends BaseAGSettingsActivity {
             AuthorGramCameraConfig.setStartFromUltraWide(!AuthorGramCameraConfig.startFromUltraWide());
             listAdapter.notifyItemChanged(position);
         } else if (position == qualityRow) {
-            showQualityDialog();
-        } else if (position == fpsRow) {
-            showFpsDialog();
+            showProfileDialog();
         } else if (position == enhancementsRow) {
             enhancementsExpanded = !enhancementsExpanded;
             rebuildRows();
@@ -188,33 +186,28 @@ public class AGCameraSettingsActivity extends BaseAGSettingsActivity {
                 .show();
     }
 
-    private void showQualityDialog() {
-        int[] values = {720, 1080, 2160};
-        String[] items = {"720p", "1080p", "2160p"};
-        new AlertDialog.Builder(getParentActivity(), getResourceProvider())
-                .setTitle(getString(R.string.AGCameraQuality))
-                .setItems(items, (dialog, which) -> {
-                    AuthorGramCameraConfig.setQuality(values[which]);
-                    listAdapter.notifyItemChanged(qualityRow);
-                })
-                .setNegativeButton(getString(R.string.Cancel), null)
-                .show();
-    }
-
-    private void showFpsDialog() {
+    private void showProfileDialog() {
         int[] values = {
-                AuthorGramCameraConfig.FPS_25_30,
-                AuthorGramCameraConfig.FPS_30_30,
-                AuthorGramCameraConfig.FPS_30_60,
-                AuthorGramCameraConfig.FPS_60_60,
-                AuthorGramCameraConfig.FPS_DEFAULT
+                AuthorGramCameraConfig.PROFILE_HIGH_MAX_FPS,
+                AuthorGramCameraConfig.PROFILE_HIGH_NORMAL_FPS,
+                AuthorGramCameraConfig.PROFILE_MEDIUM_MAX_FPS,
+                AuthorGramCameraConfig.PROFILE_MEDIUM_NORMAL_FPS,
+                AuthorGramCameraConfig.PROFILE_LOW_MAX_FPS,
+                AuthorGramCameraConfig.PROFILE_LOW_NORMAL_FPS
         };
-        String[] items = {"25-30", "30-30", "30-60", "60-60", getString(R.string.Default)};
+        String[] items = {
+                getString(R.string.AGCameraProfileHighMax),
+                getString(R.string.AGCameraProfileHighNormal),
+                getString(R.string.AGCameraProfileMediumMax),
+                getString(R.string.AGCameraProfileMediumNormal),
+                getString(R.string.AGCameraProfileLowMax),
+                getString(R.string.AGCameraProfileLowNormal)
+        };
         new AlertDialog.Builder(getParentActivity(), getResourceProvider())
-                .setTitle("FPS")
+                .setTitle(getString(R.string.AGCameraProfile))
                 .setItems(items, (dialog, which) -> {
-                    AuthorGramCameraConfig.setFpsMode(values[which]);
-                    listAdapter.notifyItemChanged(fpsRow);
+                    AuthorGramCameraConfig.setProfile(values[which]);
+                    listAdapter.notifyItemChanged(qualityRow);
                 })
                 .setNegativeButton(getString(R.string.Cancel), null)
                 .show();
@@ -272,14 +265,15 @@ public class AGCameraSettingsActivity extends BaseAGSettingsActivity {
         };
     }
 
-    private static String fpsValue() {
-        return switch (AuthorGramCameraConfig.getFpsMode()) {
-            case AuthorGramCameraConfig.FPS_25_30 -> "25-30";
-            case AuthorGramCameraConfig.FPS_30_30 -> "30-30";
-            case AuthorGramCameraConfig.FPS_30_60 -> "30-60";
-            case AuthorGramCameraConfig.FPS_60_60 -> "60-60";
-            default -> getString(R.string.Default);
-        };
+    private static String profileName() {
+        return getString(switch (AuthorGramCameraConfig.getProfile()) {
+            case AuthorGramCameraConfig.PROFILE_HIGH_MAX_FPS -> R.string.AGCameraProfileHighMax;
+            case AuthorGramCameraConfig.PROFILE_HIGH_NORMAL_FPS -> R.string.AGCameraProfileHighNormal;
+            case AuthorGramCameraConfig.PROFILE_MEDIUM_MAX_FPS -> R.string.AGCameraProfileMediumMax;
+            case AuthorGramCameraConfig.PROFILE_MEDIUM_NORMAL_FPS -> R.string.AGCameraProfileMediumNormal;
+            case AuthorGramCameraConfig.PROFILE_LOW_MAX_FPS -> R.string.AGCameraProfileLowMax;
+            default -> R.string.AGCameraProfileLowNormal;
+        });
     }
 
     private static String exposureValue() {
@@ -336,9 +330,7 @@ public class AGCameraSettingsActivity extends BaseAGSettingsActivity {
                 } else if (position == aspectRatioRow) {
                     cell.setTextAndValue(getString(R.string.AGCameraAspectRatio), aspectRatioValue(), true);
                 } else if (position == qualityRow) {
-                    cell.setTextAndValue(getString(R.string.AGCameraQuality), AuthorGramCameraConfig.getQuality() + "p", true);
-                } else if (position == fpsRow) {
-                    cell.setTextAndValue("FPS", fpsValue(), true);
+                    cell.setTextAndValue(getString(R.string.AGCameraProfile), profileName() + " · " + AuthorGramCameraConfig.getResolvedProfile().summary(), true);
                 } else if (position == enhancementsRow) {
                     String value = AuthorGramCameraConfig.getEnhancementCount() + "/" + AuthorGramCameraConfig.ENHANCEMENT_COUNT
                             + (enhancementsExpanded ? "  ▲" : "  ▼");
@@ -401,7 +393,7 @@ public class AGCameraSettingsActivity extends BaseAGSettingsActivity {
                 return TYPE_HEADER;
             }
             if (position == cameraTypeRow || position == aspectRatioRow || position == qualityRow
-                    || position == fpsRow || position == enhancementsRow || position == exposureRow) {
+                    || position == enhancementsRow || position == exposureRow) {
                 return TYPE_SETTINGS;
             }
             if (position == dualCameraRow || position == rearCameraRow || position == ultraWideRow
