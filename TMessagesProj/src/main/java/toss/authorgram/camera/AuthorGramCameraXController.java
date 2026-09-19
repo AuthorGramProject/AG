@@ -56,6 +56,7 @@ public final class AuthorGramCameraXController {
     private final Listener listener;
     private final ArrayList<Surface> suppliedSurfaces = new ArrayList<>();
     private final Size[] previewSizes = new Size[2];
+    private final int[] activeFrameRates = {30, 30};
 
     private ProcessCameraProvider provider;
     private Camera[] cameras = new Camera[2];
@@ -111,6 +112,12 @@ public final class AuthorGramCameraXController {
 
     public boolean isConcurrent() {
         return concurrent;
+    }
+
+    /** Returns the upper rate of the AE range actually accepted for the active camera. */
+    public int getActiveFrameRate() {
+        int index = concurrent && frontFace != surface0Front ? 1 : 0;
+        return Math.max(1, activeFrameRates[index]);
     }
 
     public void switchCamera() {
@@ -258,6 +265,7 @@ public final class AuthorGramCameraXController {
         Preview.Builder builder = new Preview.Builder();
         builder.setTargetResolution(AuthorGramCameraConfig.getRequestedPreviewSize());
         Range<Integer> fps = selectSupportedFpsRange(selector, AuthorGramCameraConfig.getFpsRange());
+        activeFrameRates[index] = fps == null ? 30 : fps.getUpper();
         if (fps != null) {
             builder.setTargetFrameRate(fps);
         }
