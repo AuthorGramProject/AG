@@ -14,8 +14,6 @@ import android.util.Base64;
 
 import androidx.annotation.Keep;
 
-import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
-
 import com.radolyn.ayugram.utils.AyuGhostUtils;
 import androidx.annotation.OptIn;
 import androidx.media3.common.util.UnstableApi;
