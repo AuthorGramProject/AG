@@ -2216,10 +2216,17 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                             FileLog.e("InstantCamera start encoder");
                         }
                         encoder.prepareEncoder(inputMessage.arg1 == 1);
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         FileLog.e(e);
-                        encoder.handleStopRecording(0, null);
-                        Looper.myLooper().quit();
+                        try {
+                            encoder.handleStopRecording(0, null);
+                        } catch (Throwable cleanupError) {
+                            FileLog.e(cleanupError);
+                        }
+                        Looper looper = Looper.myLooper();
+                        if (looper != null) {
+                            looper.quit();
+                        }
                     }
                     break;
                 }
@@ -2510,13 +2517,18 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             int bitrate = MessagesController.getInstance(currentAccount).roundVideoBitrate * 1024;
             if (useCameraX) {
                 resolution = AuthorGramCameraConfig.getQuality();
+                int requestedFrameRate = AuthorGramCameraConfig.getEncoderFps();
+                // 2160p at 60 FPS exhausts codec/GL memory on many otherwise capable phones.
+                // Keep 4K for 30 FPS, and use a high-quality 1080p ceiling for 60 FPS.
+                if (requestedFrameRate > 30) {
+                    resolution = Math.min(resolution, 1080);
+                }
                 Size input = previewSize[Math.max(0, Math.min(surfaceIndex, previewSize.length - 1))];
                 if (input != null) {
                     // Never upscale a cropped round video beyond the real camera buffer.
                     resolution = Math.min(resolution, Math.min(input.getWidth(), input.getHeight()));
                 }
                 resolution = Math.max(MessagesController.getInstance(currentAccount).roundVideoSize, resolution);
-                int requestedFrameRate = AuthorGramCameraConfig.getEncoderFps();
                 int cameraFrameRate = cameraXController == null
                         ? requestedFrameRate
                         : cameraXController.getActiveFrameRate();
@@ -3154,6 +3166,17 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             eglConfig = null;
         }
 
+        private void configureVideoEncoder() throws Exception {
+            MediaFormat format = MediaFormat.createVideoFormat(VIDEO_MIME_TYPE, videoWidth, videoHeight);
+            format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+            format.setInteger(MediaFormat.KEY_BIT_RATE, videoBitrate);
+            format.setInteger(MediaFormat.KEY_FRAME_RATE, videoFrameRate);
+            format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_INTERVAL);
+            videoEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+            surface = videoEncoder.createInputSurface();
+            videoEncoder.start();
+        }
+
         public static final int ENCODER_SEND_CANCEL = 0;
         public static final int ENCODER_SEND_SEND = 1;
         public static final int ENCODER_SEND_PLAYER = 2;
@@ -3491,16 +3514,22 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 fitCameraXEncoder(videoEncoder.getCodecInfo());
                 firstEncode = true;
 
-                MediaFormat format = MediaFormat.createVideoFormat(VIDEO_MIME_TYPE, videoWidth, videoHeight);
-
-                format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-                format.setInteger(MediaFormat.KEY_BIT_RATE, videoBitrate);
-                format.setInteger(MediaFormat.KEY_FRAME_RATE, videoFrameRate);
-                format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_INTERVAL);
-
-                videoEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-                surface = videoEncoder.createInputSurface();
-                videoEncoder.start();
+                try {
+                    configureVideoEncoder();
+                } catch (Throwable primaryError) {
+                    FileLog.e("AuthorGram CameraX primary encoder configuration failed; retrying 720p/30");
+                    FileLog.e(primaryError);
+                    try {
+                        videoEncoder.release();
+                    } catch (Throwable releaseError) {
+                        FileLog.e(releaseError);
+                    }
+                    videoWidth = videoHeight = 720;
+                    videoFrameRate = 30;
+                    videoBitrate = calculateCameraXBitrate(videoWidth, videoFrameRate);
+                    videoEncoder = MediaCodec.createEncoderByType(VIDEO_MIME_TYPE);
+                    configureVideoEncoder();
+                }
 
                 if (!fromPause) {
                     boolean isSdCard = ImageLoader.isSdCardPath(videoFile);
@@ -3612,7 +3641,15 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 overlayHelper.destroy();
                 overlayHelper = null;
             }
-            overlayHelper = new InstantCameraVideoEncoderOverlayHelper(videoWidth, videoHeight);
+            try {
+                overlayHelper = new InstantCameraVideoEncoderOverlayHelper(videoWidth, videoHeight);
+            } catch (Throwable overlayError) {
+                // A branding frame must never make recording fatal. Continue with the
+                // normal round-video shader when a GPU/bitmap allocation is rejected.
+                FileLog.e("AuthorGram round-video overlay disabled for this recording");
+                FileLog.e(overlayError);
+                overlayHelper = null;
+            }
 
             String vertexShaderSource, fragmentShaderSource;
             if (overlayHelper != null) {
