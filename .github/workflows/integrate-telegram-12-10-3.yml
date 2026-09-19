@@ -1,0 +1,85 @@
+name: Integrate Telegram 12.10.3 into AuthorGram
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - .github/workflows/integrate-telegram-12-10-3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: integrate-tg-12-10-2
+          fetch-depth: 0
+          submodules: false
+
+      - name: Three-way merge official Telegram 12.10.3
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "AuthorGram Upstream Integrator"
+          git config user.email "actions@github.com"
+
+          git remote remove telegram-upstream 2>/dev/null || true
+          git remote add telegram-upstream https://github.com/DrKLO/Telegram.git
+
+          git fetch --no-tags telegram-upstream \
+            62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c:refs/remotes/telegram-upstream/base-12.10.1 \
+            9552e5541e1274b9557c9832b204dbfcaf44b3dc:refs/remotes/telegram-upstream/tg-12.10.3
+
+          BASE_TREE="$(git rev-parse refs/remotes/telegram-upstream/base-12.10.1^{tree})"
+          OURS_TREE="$(git rev-parse HEAD^{tree})"
+          THEIRS_TREE="$(git rev-parse refs/remotes/telegram-upstream/tg-12.10.3^{tree})"
+
+          git read-tree -m -u "$BASE_TREE" "$OURS_TREE" "$THEIRS_TREE"
+
+          mapfile -t CONFLICTS < <(git ls-files -u | awk '{print $4}' | sort -u)
+
+          if [ "${#CONFLICTS[@]}" -gt 0 ]; then
+            git checkout --conflict=merge -- . || true
+
+            echo "::group::Three-way conflict paths"
+            printf '%s\n' "${CONFLICTS[@]}"
+            echo "::endgroup::"
+
+            echo "::group::Conflict context"
+            for file in "${CONFLICTS[@]}"; do
+              echo "===== $file ====="
+              if [ -f "$file" ]; then
+                grep -n -B 20 -A 30 -E '^(<<<<<<<|=======|>>>>>>>)' "$file" || true
+              else
+                git ls-files -u -- "$file" || true
+              fi
+            done
+            echo "::endgroup::"
+            exit 2
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("gradle.properties")
+          text = p.read_text(encoding="utf-8")
+          out = []
+          for line in text.splitlines():
+              if line.startswith("APP_VERSION_CODE="):
+                  line = "APP_VERSION_CODE=7089"
+              elif line.startswith("APP_VERSION_NAME="):
+                  line = "APP_VERSION_NAME=12.10.3"
+              out.append(line)
+          p.write_text("\n".join(out) + "\n", encoding="utf-8")
+          PY
+
+          git add -A
+          git commit -m "Merge Telegram 12.10.3 (7089) upstream"
+          git push origin HEAD:integrate-tg-12-10-2
