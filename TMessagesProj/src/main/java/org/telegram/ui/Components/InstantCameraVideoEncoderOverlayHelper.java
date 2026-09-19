@@ -2,12 +2,15 @@ package org.telegram.ui.Components;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
 
 import androidx.annotation.RawRes;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.R;
 
@@ -108,17 +111,30 @@ public class InstantCameraVideoEncoderOverlayHelper {
                 float scale = (float) logoSize / videoWidth;
                 setVertexCords(verData, VERTEX_BUFFER_WATERMARK_TEXT_POSITION, 1f - scale * 2f, -1f + scale * 2f, 1, -1);
 
-                Bitmap bitmap = AndroidUtilities.getBitmapFromRaw(R.raw.round_blur_overlay_text);
-                if (bitmap != null) {
-                    Bitmap sBitmap = Bitmap.createScaledBitmap(bitmap, logoSize, logoSize, true);
-                    Bitmap aBitmap = sBitmap.extractAlpha();
+                // Generate the watermark from the edition-specific AppName resource.
+                // The Play sanitizer rewrites AppName from AuthorGram+ to AuthorGram,
+                // so no Plus branding remains in the Play artifact.
+                Bitmap bitmap = Bitmap.createBitmap(logoSize, logoSize, Bitmap.Config.ALPHA_8);
+                Canvas canvas = new Canvas(bitmap);
+                Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+                paint.setColor(0xffffffff);
+                paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+                paint.setTextAlign(Paint.Align.CENTER);
 
-                    GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, aBitmap, 0);
-
-                    aBitmap.recycle();
-                    sBitmap.recycle();
-                    bitmap.recycle();
+                String appName = ApplicationLoader.applicationContext.getString(R.string.AppName);
+                float maxWidth = logoSize * 0.88f;
+                float textSize = logoSize * 0.19f;
+                paint.setTextSize(textSize);
+                float measured = paint.measureText(appName);
+                if (measured > maxWidth && measured > 0f) {
+                    paint.setTextSize(textSize * maxWidth / measured);
                 }
+                Paint.FontMetrics metrics = paint.getFontMetrics();
+                float baseline = logoSize * 0.5f - (metrics.ascent + metrics.descent) * 0.5f;
+                canvas.drawText(appName, logoSize * 0.5f, baseline, paint);
+
+                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
+                bitmap.recycle();
             } else  {
                 GLES20.glTexImage2D(
                         GLES20.GL_TEXTURE_2D,
