@@ -53,6 +53,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+          submodules: recursive
 
       - name: Validate UTF-8 source integrity
         run: |
@@ -185,6 +186,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+          submodules: recursive
 
       - name: Validate UTF-8 source integrity
         run: |
