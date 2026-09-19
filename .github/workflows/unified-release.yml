@@ -52,7 +52,7 @@ jobs:
       - name: Checkout canonical dev source
         uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: ${{ github.ref }}
 
       - name: Validate UTF-8 source integrity
         run: |
@@ -184,7 +184,7 @@ jobs:
       - name: Checkout canonical dev source
         uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: ${{ github.ref }}
 
       - name: Validate UTF-8 source integrity
         run: |
