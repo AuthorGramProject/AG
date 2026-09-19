@@ -272,6 +272,10 @@ public final class AuthorGramCameraXController {
         applyCamera2Options(builder, selector, fps);
         Preview preview = builder.build();
         preview.setSurfaceProvider(request -> {
+            if (closed) {
+                request.willNotProvideSurface();
+                return;
+            }
             android.util.Size resolution = request.getResolution();
             textures[index].setDefaultBufferSize(resolution.getWidth(), resolution.getHeight());
             previewSizes[index] = new Size(resolution.getWidth(), resolution.getHeight());
