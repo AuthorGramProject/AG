@@ -1,6 +1,6 @@
 AuthorGram unified release
-versionName=12.10.1
-versionCode=7056
+versionName=12.10.3
+versionCode=7089
 sourceBranch=dev
-requestedAt=2026-09-19T13:00:00Z
-attempt=paused-round-video-note-fix
+requestedAt=2026-09-19T17:29:00Z
+attempt=telegram-12.10.3-finalization
