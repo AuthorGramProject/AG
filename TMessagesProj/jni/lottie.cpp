@@ -25,22 +25,21 @@ typedef struct LottieInfo {
         }
     }
 
-JNIEXPORT jlong JNICALL Java_org_telegram_ui_Components_RLottieNative_nCreateWithJson(
-        JNIEnv *env, jclass, jstring json, jintArray data, jintArray colorReplacement,
-        jobjectArray layerNames, jintArray layerColors) {
-    if (json == nullptr) return 0;
-    const char *chars = env->GetStringUTFChars(json, nullptr);
-    if (chars == nullptr) return 0;
-    TLottieInstance *instance = createInstance(env, chars, static_cast<size_t>(env->GetStringUTFLength(json)),
-            layerNames, layerColors, colorReplacement, 0);
-    env->ReleaseStringUTFChars(json, chars);
-    if (instance == nullptr) return 0;
-    if (!writeMetadata(env, data, instance)) {
-        tlottie_drop(instance);
-        return 0;
-    }
-    return reinterpret_cast<jlong>(instance);
-}
+    std::unique_ptr<Animation> animation;
+    size_t frameCount = 0;
+    int32_t fps = 30;
+    bool precache = false;
+    bool createCache = false;
+    bool limitFps = false;
+    std::string path;
+    std::string cacheFile;
+    uint8_t *decompressBuffer = nullptr;
+    uint32_t decompressBufferSize = 0;
+    volatile uint32_t maxFrameSize = 0;
+    uint32_t imageSize = 0;
+    uint32_t fileOffset = 0;
+    uint32_t fileFrame = 0;
+    bool nextFrameIsCacheFrame = false;
 
     char *compressBuffer = nullptr;
     const char *buffer = nullptr;
