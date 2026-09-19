@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10.2)
+project(TMessagesProj)
 
 set(CMAKE_CXX_FLAGS "-std=c++14 -DANDROID -g")
 set(CMAKE_C_FLAGS "-w -std=c11 -DANDROID -D_LARGEFILE_SOURCE=1 -g -Wno-error=implicit-function-declaration")
@@ -285,32 +286,32 @@ endif()
 
 #flac
 add_library(flac STATIC
-        exoplayer/libFLAC/bitmath.c
-        exoplayer/libFLAC/bitreader.c
-        exoplayer/libFLAC/bitwriter.c
-        exoplayer/libFLAC/cpu.c
-        exoplayer/libFLAC/crc.c
-        exoplayer/libFLAC/fixed.c
-        exoplayer/libFLAC/fixed_intrin_sse2.c
-        exoplayer/libFLAC/fixed_intrin_ssse3.c
-        exoplayer/libFLAC/float.c
-        exoplayer/libFLAC/format.c
-        exoplayer/libFLAC/lpc.c
-        exoplayer/libFLAC/lpc_intrin_avx2.c
-        exoplayer/libFLAC/lpc_intrin_sse2.c
-        exoplayer/libFLAC/lpc_intrin_sse41.c
-        exoplayer/libFLAC/lpc_intrin_sse.c
-        exoplayer/libFLAC/md5.c
-        exoplayer/libFLAC/memory.c
-        exoplayer/libFLAC/metadata_iterators.c
-        exoplayer/libFLAC/metadata_object.c
-        exoplayer/libFLAC/stream_decoder.c
-        exoplayer/libFLAC/stream_encoder.c
-        exoplayer/libFLAC/stream_encoder_framing.c
-        exoplayer/libFLAC/stream_encoder_intrin_avx2.c
-        exoplayer/libFLAC/stream_encoder_intrin_sse2.c
-        exoplayer/libFLAC/stream_encoder_intrin_ssse3.c
-        exoplayer/libFLAC/window.c)
+        libFLAC/bitmath.c
+        libFLAC/bitreader.c
+        libFLAC/bitwriter.c
+        libFLAC/cpu.c
+        libFLAC/crc.c
+        libFLAC/fixed.c
+        libFLAC/fixed_intrin_sse2.c
+        libFLAC/fixed_intrin_ssse3.c
+        libFLAC/float.c
+        libFLAC/format.c
+        libFLAC/lpc.c
+        libFLAC/lpc_intrin_avx2.c
+        libFLAC/lpc_intrin_sse2.c
+        libFLAC/lpc_intrin_sse41.c
+        libFLAC/lpc_intrin_sse.c
+        libFLAC/md5.c
+        libFLAC/memory.c
+        libFLAC/metadata_iterators.c
+        libFLAC/metadata_object.c
+        libFLAC/stream_decoder.c
+        libFLAC/stream_encoder.c
+        libFLAC/stream_encoder_framing.c
+        libFLAC/stream_encoder_intrin_avx2.c
+        libFLAC/stream_encoder_intrin_sse2.c
+        libFLAC/stream_encoder_intrin_ssse3.c
+        libFLAC/window.c)
 target_compile_options(flac PUBLIC
         -Oz -finline-functions -fPIC -frtti)
 set_target_properties(flac PROPERTIES
@@ -318,7 +319,7 @@ set_target_properties(flac PROPERTIES
 target_compile_definitions(flac PUBLIC
         _REENTRANT PIC U_COMMON_IMPLEMENTATION HAVE_SYS_PARAM_H VERSION="1.3.1" FLAC__NO_MD5 FLAC__INTEGER_ONLY_LIBRARY FLAC__NO_ASM)
 target_include_directories(flac PUBLIC
-        exoplayer/libFLAC/include)
+        libFLAC/include)
 
 #sqlite
 add_library(sqlite STATIC
@@ -379,10 +380,10 @@ add_library(${NATIVE_LIB} SHARED
         lottie.cpp
         TgNetWrapper.cpp
         NativeLoader.cpp
-        exoplayer/flac_jni.cc
-        exoplayer/flac_parser.cc
-        exoplayer/opus_jni.cc
-        exoplayer/ffmpeg_jni.cc
+        flac_jni.cc
+        flac_parser.cc
+        opus_jni.cc
+        ffmpeg_jni.cc
         fast-edge.cpp
         genann.c
         secureid_ocr.cpp
@@ -637,8 +638,8 @@ target_include_directories(${NATIVE_LIB} PUBLIC
         third_party/libvpx
         third_party/dav1d/include
         emoji
-        exoplayer/include
-        exoplayer/libFLAC/include
+        include
+        libFLAC/include
         intro
         rlottie/inc
         tgcalls/
