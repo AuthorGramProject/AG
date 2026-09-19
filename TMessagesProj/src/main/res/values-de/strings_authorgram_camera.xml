@@ -2,8 +2,8 @@
 <resources>
     <string name="AGCameraSettings">Kamera</string>
     <string name="AGCameraType">Kameratyp</string>
-    <string name="AGCameraTypeTelegram">AuthorGram+</string>
-    <string name="AGCameraTypeCamera2">Camera 2 (AuthorGram+)</string>
+    <string name="AGCameraTypeTelegram">Telegram</string>
+    <string name="AGCameraTypeCamera2">Camera 2 (Telegram)</string>
     <string name="AGCameraTypeTelegramInfo">Verwendet das in Telegram gewählte Kamera-Backend und dessen Kompatibilitätseinstellungen.</string>
     <string name="AGCameraTypeCameraXInfo">Verwendet CameraX für Videonachrichten, einschließlich gleichzeitiger Kameras, Qualität, FPS und Verbesserungen.</string>
     <string name="AGCameraTypeCamera2Info">Erzwingt Telegrams Camera2-Backend für Videonachrichten.</string>
