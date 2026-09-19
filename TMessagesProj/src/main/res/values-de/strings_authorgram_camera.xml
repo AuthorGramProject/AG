@@ -31,4 +31,11 @@
     <string name="AGCameraPositionLeft">Links</string>
     <string name="AGCameraCenterControls">Bedientasten zentrieren</string>
     <string name="AGCameraCenterControlsInfo">Tasten für Kamerawechsel und Blitz zentrieren.</string>
+    <string name="AGCameraProfile">Adaptives Kameraprofil</string>
+    <string name="AGCameraProfileHighMax">Höchste Qualität · höchste FPS</string>
+    <string name="AGCameraProfileHighNormal">Höchste Qualität · normale FPS</string>
+    <string name="AGCameraProfileMediumMax">Mittlere Qualität · höchste FPS</string>
+    <string name="AGCameraProfileMediumNormal">Mittlere Qualität · normale FPS</string>
+    <string name="AGCameraProfileLowMax">Niedrigste Qualität · höchste FPS</string>
+    <string name="AGCameraProfileLowNormal">Niedrigste Qualität · normale FPS</string>
 </resources>
