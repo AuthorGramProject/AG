@@ -24,7 +24,6 @@ env:
 
 jobs:
   build-plus:
-    if: ${{ false }} # TEMP_ROUND_VIDEO_NOTE_FIX
     name: AuthorGram+ ARM64 APK
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -157,7 +156,6 @@ jobs:
         run: rm -f TMessagesProj/release.keystore local.properties
 
   build-play:
-    if: ${{ false }} # TEMP_ROUND_VIDEO_NOTE_FIX
     name: AuthorGram Play universal APK and AAB
     runs-on: ubuntu-latest
     timeout-minutes: 240
