@@ -14,6 +14,10 @@ on:
       - TMessagesProj/jni/boringssl/lib/**
       - TMessagesProj/jni/tde2e/**
       - TMessagesProj/src/main/java/tw/nekomimi/nekogram/utils/ProxyUtil.kt
+      - TMessagesProj/src/main/java/org/telegram/ui/Components/RLottieDrawable.java
+      - TMessagesProj/src/main/java/org/telegram/ui/web/BotWebViewContainer.java
+      - TMessagesProj/src/main/java/org/telegram/messenger/Emoji.java
+      - TMessagesProj/src/main/java/org/telegram/ui/LaunchActivity.java
 
 concurrency:
   group: authorgram-unified-release-${{ github.ref }}
