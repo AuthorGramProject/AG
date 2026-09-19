@@ -1,0 +1,85 @@
+name: Integrate Telegram 12.10.2
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - integrate-tg-12-10-2
+    paths:
+      - .github/workflows/integrate-telegram-12-10-2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: integrate-tg-12-10-2
+          fetch-depth: 0
+          submodules: false
+
+      - name: Apply official Telegram 12.10.1 to 12.10.2 delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "AuthorGram Upstream Integrator"
+          git config user.email "actions@github.com"
+
+          git remote remove telegram-upstream 2>/dev/null || true
+          git remote add telegram-upstream https://github.com/DrKLO/Telegram.git
+          git fetch --no-tags telegram-upstream \
+            62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c \
+            163356809fa4bd81e64969700753e0a15664a288
+
+          git diff --binary --full-index \
+            62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c \
+            163356809fa4bd81e64969700753e0a15664a288 \
+            -- . ':(exclude)gradle.properties' > /tmp/telegram-12.10.2.patch
+
+          set +e
+          git apply --3way --index /tmp/telegram-12.10.2.patch
+          APPLY_STATUS=$?
+          set -e
+
+          if [ "$APPLY_STATUS" -ne 0 ]; then
+            echo "::group::Conflicted paths"
+            git status --short
+            git diff --name-only --diff-filter=U || true
+            echo "::endgroup::"
+            echo "::group::Conflict details"
+            while IFS= read -r file; do
+              [ -z "$file" ] && continue
+              echo "===== $file ====="
+              git diff --cc -- "$file" || true
+            done < <(git diff --name-only --diff-filter=U)
+            echo "::endgroup::"
+            exit "$APPLY_STATUS"
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("gradle.properties")
+          text = path.read_text(encoding="utf-8")
+          lines = []
+          for line in text.splitlines():
+              if line.startswith("APP_VERSION_CODE="):
+                  line = "APP_VERSION_CODE=7086"
+              elif line.startswith("APP_VERSION_NAME="):
+                  line = "APP_VERSION_NAME=12.10.2"
+              lines.append(line)
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+          git add gradle.properties
+
+          echo "::group::Integrated change summary"
+          git diff --cached --stat
+          echo "::endgroup::"
+
+          git commit -m "Merge Telegram 12.10.2 (7086) upstream delta"
+          git push origin HEAD:integrate-tg-12-10-2
