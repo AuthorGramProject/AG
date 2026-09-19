@@ -31,4 +31,11 @@
     <string name="AGCameraPositionLeft">Ліворуч</string>
     <string name="AGCameraCenterControls">Центрувати кнопки керування</string>
     <string name="AGCameraCenterControlsInfo">Розташувати кнопки перемикання камери та спалаху по центру.</string>
+    <string name="AGCameraProfile">Адаптивний профіль камери</string>
+    <string name="AGCameraProfileHighMax">Найвища якість · найвищий FPS</string>
+    <string name="AGCameraProfileHighNormal">Найвища якість · звичайний FPS</string>
+    <string name="AGCameraProfileMediumMax">Середня якість · найвищий FPS</string>
+    <string name="AGCameraProfileMediumNormal">Середня якість · звичайний FPS</string>
+    <string name="AGCameraProfileLowMax">Найнижча якість · найвищий FPS</string>
+    <string name="AGCameraProfileLowNormal">Найнижча якість · звичайний FPS</string>
 </resources>
