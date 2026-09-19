@@ -97,10 +97,6 @@ import org.telegram.tgnet.tl.TL_stars;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
-=======
-import org.telegram.ui.ActionBar.EdgeToEdgeSupportMode;
-import org.telegram.ui.ActionBar.MessageDrawable;
->>>>>>> 163356809 (update to 12.10.2 (7086))
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
@@ -163,7 +159,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-<<<<<<< HEAD
 import xyz.nextalone.nagram.helper.LocalPeerColorHelper;
 import me.vkryl.core.BitwiseUtils;
 import me.vkryl.core.reference.ReferenceList;

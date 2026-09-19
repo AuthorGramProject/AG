@@ -68,7 +68,6 @@ import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.style.ImageSpan;
-<<<<<<< HEAD
 import android.text.style.RelativeSizeSpan;
 import android.text.style.ParagraphStyle;
 import android.text.style.SuggestionSpan;

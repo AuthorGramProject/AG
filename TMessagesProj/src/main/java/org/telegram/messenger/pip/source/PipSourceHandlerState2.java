@@ -10,11 +10,6 @@ import android.view.View;
 
 import androidx.core.graphics.ColorUtils;
 
-<<<<<<< HEAD
-=======
-import androidx.media3.common.Player;
-
->>>>>>> 163356809 (update to 12.10.2 (7086))
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.Utilities;

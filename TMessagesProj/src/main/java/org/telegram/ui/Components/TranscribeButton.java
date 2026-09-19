@@ -46,7 +46,6 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
-<<<<<<< HEAD
 import org.telegram.ui.LaunchActivity;
 =======
 

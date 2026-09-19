@@ -59,11 +59,6 @@ set_target_properties(libvpx PROPERTIES IMPORTED_LOCATION ${CMAKE_HOME_DIRECTORY
 add_library(libdav1d STATIC IMPORTED)
 set_target_properties(libdav1d PROPERTIES IMPORTED_LOCATION ${CMAKE_HOME_DIRECTORY}/prebuild/lib/${ANDROID_ABI}/libdav1d.a)
 
-=======
-add_library(libopus STATIC IMPORTED)
-set_target_properties(libopus PROPERTIES IMPORTED_LOCATION ${CMAKE_HOME_DIRECTORY}/prebuild/lib/${ANDROID_ABI}/libopus.a)
-
->>>>>>> 163356809 (update to 12.10.2 (7086))
 add_library(tde2e STATIC IMPORTED)
 set_target_properties(tde2e PROPERTIES IMPORTED_LOCATION ${CMAKE_HOME_DIRECTORY}/prebuild/lib/${ANDROID_ABI}/libtde2e.a)
 
@@ -228,7 +223,6 @@ target_include_directories(tgnet PUBLIC
 target_link_libraries(tgnet
         crypto)
 
-<<<<<<< HEAD
 #rlottie
 add_library(rlottie STATIC
         rlottie/src/lottie/lottieanimation.cpp

@@ -39,7 +39,6 @@
 
 #define MAX_GREASE 8
 
-<<<<<<< HEAD
 static BIGNUM *get_y2(BIGNUM *x, const BIGNUM *mod, BN_CTX *big_num_context) {
     // returns y^2 = x^3 + 486662 * x^2 + x
     BIGNUM *y = BN_dup(x);
