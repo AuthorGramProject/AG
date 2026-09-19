@@ -1101,6 +1101,8 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             } else {
                 videoEditedInfo.estimatedSize = Math.max(1, size);
             }
+            // Every completion path must retain Telegram's round-video classification.
+            videoEditedInfo.roundVideo = true;
             videoEditedInfo.file = file;
             videoEditedInfo.encryptedFile = encryptedFile;
             videoEditedInfo.key = key;
@@ -2514,7 +2516,15 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                     resolution = Math.min(resolution, Math.min(input.getWidth(), input.getHeight()));
                 }
                 resolution = Math.max(MessagesController.getInstance(currentAccount).roundVideoSize, resolution);
-                videoFrameRate = AuthorGramCameraConfig.getEncoderFps();
+                int requestedFrameRate = AuthorGramCameraConfig.getEncoderFps();
+                int cameraFrameRate = cameraXController == null
+                        ? requestedFrameRate
+                        : cameraXController.getActiveFrameRate();
+                videoFrameRate = Math.min(requestedFrameRate, cameraFrameRate);
+                if (BuildVars.LOGS_ENABLED) {
+                    FileLog.d("AuthorGram CameraX pipeline requested=" + requestedFrameRate
+                            + " camera=" + cameraFrameRate + " encoder=" + videoFrameRate);
+                }
                 bitrate = Math.max(bitrate, calculateCameraXBitrate(resolution, videoFrameRate));
             } else {
                 videoFrameRate = DEFAULT_FRAME_RATE;
