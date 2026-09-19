@@ -104,6 +104,21 @@ def patch_chat_activity_removed_features() -> bool:
         updated = updated.replace(line, "")
 
     exact_blocks = (
+        """                // AUTHORGRAM_STEP4_TOGGLE_CLICK
+                if (id == AUTHORGRAM_KEY_SETTINGS) {
+                    if (!canUseAuthorGramProtection()) {
+                        return;
+                    }
+                    org.telegram.messenger.authorgram.AuthorGramKeyDialog.show(
+                            getParentActivity(),
+                            currentAccount,
+                            dialog_id,
+                            ChatActivity.this::refreshAuthorGramProtectionUi
+                    );
+                    return;
+                }
+
+""",
         """        if (showViewDeleted) {
             ActionBarMenuSubItem viewDeletedItem = ActionBarMenuItem.addItem(ayuLayout, R.drawable.msg_view_file, getString(R.string.ViewDeleted), false, getResourceProvider());
             viewDeletedItem.setOnClickListener(v -> {
@@ -143,7 +158,12 @@ def patch_chat_activity_removed_features() -> bool:
 
     updated = updated.replace("// AyuHistoryHook: fix replyMessage", "// Fix replyMessage")
     updated = updated.replace(" // AyuHistoryHook", "")
-    for forbidden in ("AyuHistoryHook", "AyuMessageHistory", "AyuViewDeleted"):
+    for forbidden in (
+        "AyuHistoryHook",
+        "AyuMessageHistory",
+        "AyuViewDeleted",
+        "AuthorGramKeyDialog",
+    ):
         if forbidden in updated:
             raise RuntimeError(f"Deleted/history feature reference remains in ChatActivity: {forbidden}")
     return write(relative, updated)
