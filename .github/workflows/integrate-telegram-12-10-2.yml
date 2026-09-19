@@ -1,4 +1,4 @@
-name: Integrate Telegram 12.10.2
+name: Integrate Telegram 12.10.3
 
 on:
   workflow_dispatch:
@@ -14,16 +14,16 @@ permissions:
 jobs:
   integrate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
-      - name: Checkout integration branch
+      - name: Checkout AuthorGram integration branch
         uses: actions/checkout@v4
         with:
           ref: integrate-tg-12-10-2
           fetch-depth: 0
           submodules: false
 
-      - name: Apply official Telegram 12.10.1 to 12.10.2 delta
+      - name: Three-way merge Telegram 12.10.3
         shell: bash
         run: |
           set -euo pipefail
@@ -32,54 +32,66 @@ jobs:
 
           git remote remove telegram-upstream 2>/dev/null || true
           git remote add telegram-upstream https://github.com/DrKLO/Telegram.git
-          git fetch --no-tags telegram-upstream \
-            62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c \
-            163356809fa4bd81e64969700753e0a15664a288
 
-          git diff --binary --full-index \
-            62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c \
-            163356809fa4bd81e64969700753e0a15664a288 \
-            -- . ':(exclude)gradle.properties' > /tmp/telegram-12.10.2.patch
+          git fetch --no-tags telegram-upstream             62b56a07ca7e30e39f7fd00a6728d6bbd716ca1c:refs/remotes/telegram-upstream/base-12.10.1             9552e5541e1274b9557c9832b204dbfcaf44b3dc:refs/remotes/telegram-upstream/tg-12.10.3
 
-          set +e
-          git apply --3way --index /tmp/telegram-12.10.2.patch
-          APPLY_STATUS=$?
-          set -e
+          BASE_TREE="$(git rev-parse refs/remotes/telegram-upstream/base-12.10.1^{tree})"
+          OURS_TREE="$(git rev-parse HEAD^{tree})"
+          THEIRS_TREE="$(git rev-parse refs/remotes/telegram-upstream/tg-12.10.3^{tree})"
 
-          if [ "$APPLY_STATUS" -ne 0 ]; then
-            echo "::group::Conflicted paths"
-            git status --short
-            git diff --name-only --diff-filter=U || true
+          echo "Base tree:   $BASE_TREE"
+          echo "AuthorGram:  $OURS_TREE"
+          echo "Telegram:    $THEIRS_TREE"
+
+          git read-tree -m -u "$BASE_TREE" "$OURS_TREE" "$THEIRS_TREE"
+
+          mapfile -t CONFLICTS < <(git ls-files -u | awk '{print $4}' | sort -u)
+          if [ "${#CONFLICTS[@]}" -gt 0 ]; then
+            git checkout --conflict=merge -- . || true
+
+            echo "::group::Three-way conflict paths"
+            printf '%s\n' "${CONFLICTS[@]}"
             echo "::endgroup::"
-            echo "::group::Conflict details"
-            while IFS= read -r file; do
-              [ -z "$file" ] && continue
+
+            echo "::group::Conflict markers and context"
+            for file in "${CONFLICTS[@]}"; do
               echo "===== $file ====="
-              git diff --cc -- "$file" || true
-            done < <(git diff --name-only --diff-filter=U)
+              if [ -f "$file" ]; then
+                grep -n -B 25 -A 35 -E '^(<<<<<<<|=======|>>>>>>>)' "$file" || true
+              else
+                git ls-files -u -- "$file" || true
+              fi
+            done
             echo "::endgroup::"
-            exit "$APPLY_STATUS"
+
+            echo "THREE_WAY_CONFLICT_COUNT=${#CONFLICTS[@]}" >> "$GITHUB_ENV"
+            exit 2
           fi
 
           python3 - <<'PY'
           from pathlib import Path
-          path = Path("gradle.properties")
-          text = path.read_text(encoding="utf-8")
-          lines = []
+          p = Path("gradle.properties")
+          text = p.read_text(encoding="utf-8")
+          out = []
           for line in text.splitlines():
               if line.startswith("APP_VERSION_CODE="):
-                  line = "APP_VERSION_CODE=7086"
+                  line = "APP_VERSION_CODE=7089"
               elif line.startswith("APP_VERSION_NAME="):
-                  line = "APP_VERSION_NAME=12.10.2"
-              lines.append(line)
-          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                  line = "APP_VERSION_NAME=12.10.3"
+              out.append(line)
+          p.write_text("\n".join(out) + "\n", encoding="utf-8")
           PY
 
-          git add gradle.properties
+          git add -A
 
-          echo "::group::Integrated change summary"
+          if git diff --cached --quiet; then
+            echo "No upstream changes detected"
+            exit 0
+          fi
+
+          echo "::group::Merged Telegram 12.10.3 summary"
           git diff --cached --stat
           echo "::endgroup::"
 
-          git commit -m "Merge Telegram 12.10.2 (7086) upstream delta"
+          git commit -m "Merge Telegram 12.10.3 (7089) upstream"
           git push origin HEAD:integrate-tg-12-10-2
