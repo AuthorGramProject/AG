@@ -2,8 +2,8 @@
 <resources>
     <string name="AGCameraSettings">Камера</string>
     <string name="AGCameraType">Тип камери</string>
-    <string name="AGCameraTypeTelegram">Telegram</string>
-    <string name="AGCameraTypeCamera2">Camera 2 (Telegram)</string>
+    <string name="AGCameraTypeTelegram">AuthorGram+</string>
+    <string name="AGCameraTypeCamera2">Camera 2 (AuthorGram+)</string>
     <string name="AGCameraTypeTelegramInfo">Використовує вибраний у Telegram модуль камери та його параметри сумісності.</string>
     <string name="AGCameraTypeCameraXInfo">Використовує CameraX для відеоповідомлень, включно з одночасними камерами, якістю, FPS і покращеннями.</string>
     <string name="AGCameraTypeCamera2Info">Примусово використовує модуль Camera2 від Telegram для відеоповідомлень.</string>
