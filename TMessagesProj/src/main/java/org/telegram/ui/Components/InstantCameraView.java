@@ -127,6 +127,7 @@ import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.egl.EGLSurface;
 
 import tw.nekomimi.nekogram.NekoConfig;
+import toss.authorgram.camera.AuthorGramCameraCapabilities;
 import toss.authorgram.camera.AuthorGramCameraConfig;
 import toss.authorgram.camera.AuthorGramCameraXController;
 import xyz.nextalone.nagram.NaConfig;
@@ -2516,8 +2517,10 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             int resolution = MessagesController.getInstance(currentAccount).roundVideoSize;
             int bitrate = MessagesController.getInstance(currentAccount).roundVideoBitrate * 1024;
             if (useCameraX) {
-                resolution = AuthorGramCameraConfig.getQuality();
-                int requestedFrameRate = AuthorGramCameraConfig.getEncoderFps();
+                AuthorGramCameraCapabilities.ResolvedProfile resolvedProfile =
+                        AuthorGramCameraConfig.getResolvedProfile();
+                resolution = resolvedProfile.quality;
+                int requestedFrameRate = resolvedProfile.fps;
                 // 2160p at 60 FPS exhausts codec/GL memory on many otherwise capable phones.
                 // Keep 4K for 30 FPS, and use a high-quality 1080p ceiling for 60 FPS.
                 if (requestedFrameRate > 30) {
